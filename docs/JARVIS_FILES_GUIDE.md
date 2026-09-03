@@ -54,6 +54,7 @@ Fichiers gérant les entrées/sorties physiques, la biométrie et les liaisons A
 
 *   **[config.py](file:///n:/JARVIS/backend/core/config.py)** : Configuration globale (clés API, modèle actif, index audio, redirection automatique des liens web vers Opera GX).
 *   **[brain.py](file:///n:/JARVIS/backend/core/brain.py)** : Client d'appel principal vers Gemini avec mécanisme de secours (fallback) vers Groq en cas d'erreur réseau ou de limite de quota.
+*   **[ha_mcp_client.py](file:///n:/JARVIS/backend/core/ha_mcp_client.py)** : Client MCP pour Home Assistant. Découvre dynamiquement les outils exposés par le serveur MCP natif de HA et route les instructions domotiques en langage naturel via function-calling Gemini — remplace l'ancien système d'actions codées en dur par appareil.
 *   **[prompt_builder.py](file:///n:/JARVIS/backend/core/prompt_builder.py)** : Assembleur du *System Prompt* de JARVIS. Injecte de manière optimisée la date/heure actuelle, les faits en mémoire, et les schémas d'actions JSON.
 *   **[audio_stream.py](file:///n:/JARVIS/backend/core/audio_stream.py)** : Gestionnaire de flux audio d'entrée (PyAudio). capture les blocs audio du micro physique ou virtuel.
 *   **[vad.py](file:///n:/JARVIS/backend/core/vad.py)** : Détection d'Activité Vocale (Voice Activity Detection). Analyse l'audio via Silero VAD (ONNX) et détermine quand l'utilisateur commence et arrête de parler.
@@ -77,11 +78,10 @@ Fichiers implémentant les fonctionnalités métier autonomes de JARVIS.
 *   **[visual_web_agent.py](file:///n:/JARVIS/backend/module/visual_web_agent.py)** : Version avancée d'autopilote de navigation. Utilise Gemini Vision pour analyser des captures d'écran du navigateur Opera GX et cliquer de manière ciblée (coordonnées x, y).
 *   **[os_autopilot_agent.py](file:///n:/JARVIS/backend/module/os_autopilot_agent.py)** : Autopilote global du système Windows. Utilise PyAutoGUI pour simuler des entrées clavier complexes, des clics de souris et piloter des fenêtres système.
 *   **[google_services.py](file:///n:/JARVIS/backend/module/google_services.py)** : Intégration officielle avec les APIs Google Workspace (Gmail, Calendar, Google Drive, Google Sheets, Google Tasks).
-*   **[ha_config.py](file:///n:/JARVIS/backend/module/ha_config.py)** : Passerelle d'intégration avec Home Assistant (domotique). Permet de contrôler les lampes, prises connectées, thermostats, et de lire l'état des capteurs.
+*   **[meteo_domotique.py](file:///n:/JARVIS/backend/module/meteo_domotique.py)** : Météo (Open-Meteo) et API REST Home Assistant pour le tableau de bord HUD. Le pilotage vocal de la domotique passe désormais par le client MCP (`core/ha_mcp_client.py`).
 *   **[homepod_audio.py](file:///n:/JARVIS/backend/module/homepod_audio.py)** : Module de routage de la sortie vocale ou musicale de JARVIS vers un HomePod ou une enceinte AirPlay distante.
 *   **[image_generator.py](file:///n:/JARVIS/backend/module/image_generator.py)** : Générateur d'illustrations IA s'appuyant sur l'API gratuite Pollinations.
 *   **[image_search.py](file:///n:/JARVIS/backend/module/image_search.py)** : Service de recherche et d'affichage d'images issues du Web.
-*   **[iptv_player.py](file:///n:/JARVIS/backend/module/iptv_player.py)** : Backend décodant et servant les flux IPTV M3U locaux.
 *   **[sports_web.py](file:///n:/JARVIS/backend/module/sports_web.py)** : Récupère les scores de football et classements sportifs via TheSportsDB ou scraping.
 *   **[uninstaller_helper.py](file:///n:/JARVIS/backend/module/uninstaller_helper.py)** : Scanne la base de registre Windows (32/64 bits) pour lister les logiciels installés et déclencher des désinstallations propres.
 *   **[winget_manager.py](file:///n:/JARVIS/backend/module/winget_manager.py)** : Interagit avec l'outil de gestion de paquets Windows (Winget) pour vérifier les mises à jour logicielles disponibles sur la machine.
@@ -119,7 +119,6 @@ Ces fichiers interceptent la commande vocale de l'utilisateur *avant* qu'elle ne
 *   **[local_mode_resolver.py](file:///n:/JARVIS/backend/plugins/local_mode_resolver.py)** : Force le passage en mode local (LLM Ollama hors-ligne).
 *   **[network_resolver.py](file:///n:/JARVIS/backend/plugins/network_resolver.py)** : Déclenche l'analyse réseau (Network Radar).
 *   **[uninstaller_resolver.py](file:///n:/JARVIS/backend/plugins/uninstaller_resolver.py)** : Lance l'interface de désinstallation d'applications.
-*   **[iptv_resolver.py](file:///n:/JARVIS/backend/plugins/iptv_resolver.py)** : Déclenche le lecteur IPTV.
 *   **[image_search_resolver.py](file:///n:/JARVIS/backend/plugins/image_search_resolver.py)** : Déclenche la recherche d'images en ligne.
 *   **[list_manager.py](file:///n:/JARVIS/backend/plugins/list_manager.py)** : Ajoute, supprime ou liste les éléments des todos et listes de courses (ciblant `data/jarvis_listes.json`).
 *   **[os_autopilot_resolver.py](file:///n:/JARVIS/backend/plugins/os_autopilot_resolver.py)** : Route vers l'autopilote du système d'exploitation.
@@ -127,6 +126,7 @@ Ces fichiers interceptent la commande vocale de l'utilisateur *avant* qu'elle ne
 *   **[dev_swarm_resolver.py](file:///n:/JARVIS/backend/plugins/dev_swarm_resolver.py)** : Orchestrateur de l'essaim d'élite à 6 agents autonomes (PM, UI, DEV, SEC, QA, OPS). Conçoit et crée des projets web complets, effectue l'audit visuel multi-scroll par captures d'écran et valide 100% des fonctionnalités en sandbox.
 *   **[developer_resolver.py](file:///n:/JARVIS/backend/plugins/developer_resolver.py)** : Permet à JARVIS de modifier son propre code source et de lancer des diagnostics système.
 *   **[website_resolver.py](file:///n:/JARVIS/backend/plugins/website_resolver.py)** : Résout la génération de sites web à la volée et le protocole d'énigme secret d'anniversaire ("lance l'énigme") avec ouverture plein écran automatique dans Opera GX.
+*   **[document_generator_resolver.py](file:///n:/JARVIS/backend/plugins/document_generator_resolver.py)** : Génère des documents Word/PowerPoint/Excel/PDF à la demande vocale (contenu produit par Gemini en JSON structuré, mis en forme par python-docx/python-pptx/openpyxl/reportlab) et fusionne des PDF existants.
 *   **[competence_check_connexion.py](file:///n:/JARVIS/backend/plugins/competence_check_connexion.py)** : Effectue des vérifications rapides d'état de connexion.
 
 ---
@@ -150,7 +150,6 @@ Interface utilisateur principale, de style "Iron Man HUD".
 ### 🖼️ Composants d'Interface HUD & Widgets
 *   **[widgets.ts](file:///n:/JARVIS/interfaces/frontend/src/widgets.ts)** : Gère le cycle de vie et l'affichage des widgets d'information (Météo locale, Calendrier Google, Deezer).
 *   **[ha_dashboard.ts](file:///n:/JARVIS/interfaces/frontend/src/ha_dashboard.ts)** : Tableau de bord de raccourcis rapides pour le contrôle domotique de Home Assistant.
-*   **[iptv_player.ts](file:///n:/JARVIS/interfaces/frontend/src/iptv_player.ts)** : Lecteur vidéo intégré transparent pour lire les playlists IPTV (`.m3u`).
 *   **[hand_tracking.ts](file:///n:/JARVIS/interfaces/frontend/src/hand_tracking.ts)** : Mode réalité augmentée (AR) s'appuyant sur la webcam et MediaPipe pour piloter l'interface HUD, glisser et redimensionner les widgets par simples pincements de doigts.
 *   **[cards.ts](file:///n:/JARVIS/interfaces/frontend/src/cards.ts)** : Notifications système fluorescentes flottantes s'affichant en haut à droite avec minuterie de fermeture automatique.
 *   **[holo_clock.ts](file:///n:/JARVIS/interfaces/frontend/src/holo_clock.ts)** : Horloge HUD holographique.

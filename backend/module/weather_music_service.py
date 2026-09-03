@@ -113,7 +113,7 @@ async def get_raw_weather(lat, lon, city_name):
             data = resp.json()
             cur = data["current"]
             day = data["daily"]
-            from module.ha_config import CODES_METEO
+            from module.meteo_domotique import CODES_METEO
             return {
                 "city": city_name,
                 "temp": cur["temperature_2m"],

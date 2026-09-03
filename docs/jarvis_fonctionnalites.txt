@@ -5,7 +5,7 @@ Ce document présente un descriptif rapide et synthétique de chaque fonctionnal
 programmée dans le système J.A.R.V.I.S.
 
 ================================================================================
-1. PIPELINE AUDIO & BIOMÉTRIE (main2.py, core/)
+1. PIPELINE AUDIO & BIOMÉTRIE (main.py, core/)
 ================================================================================
 * Détection de parole (VAD) : Utilise Silero VAD (ONNX) avec repli sur l'énergie RMS.
 * Biométrie vocale (CAM++ Deep Learning) : Identifie l'utilisateur via sa voix (modèle de réseau de neurones profond multi-empreintes pour plus de robustesse) et restreint l'accès aux invités.
@@ -39,11 +39,13 @@ programmée dans le système J.A.R.V.I.S.
 * Jeu d'Échecs 3D (ChessMap) : Plateau d'échecs 3D interactif et tactile avec options vocales/HUD complets, boutons 3D flottants orientés intelligemment et suivi gestuel.
 
 ================================================================================
-5. CARTOGRAPHIE 3D DOMOTIQUE (frontend/src/domotic_map.ts, module/ha_config.py)
+5. CARTOGRAPHIE 3D DOMOTIQUE (frontend/src/domotic_map.ts, core/ha_mcp_client.py)
 ================================================================================
 * Maison 3D : Modélisation à niveaux (pièces transparentes extrudées) de votre habitat.
 * État en direct : Nœuds connectés réagissant en temps réel à l'état de vos lumières/prises dans Home Assistant.
 * Commutations directes : Clic sur un composant 3D pour commuter l'appareil correspondant dans la maison.
+* Pilotage vocal : commandes en langage naturel routées vers le serveur MCP natif de Home Assistant
+  (plus de liste d'appareils codée en dur — tout appareil exposé côté HA est utilisable immédiatement).
 
 ================================================================================
 6. CORTEX NEURONAL 3D - HISTORIQUE DE MÉMOIRE (frontend/src/cortex_map.ts)
@@ -71,10 +73,9 @@ programmée dans le système J.A.R.V.I.S.
 * Synthèse et reconnaissance vocales locales : Utilise la Web Speech API pour le contrôle à distance.
 
 ================================================================================
-10. ROUTAGE HYBRIDE MULTI-CERVEAU & SÉCURITÉ (main2.py, core/brain.py)
+10. ROUTAGE HYBRIDE MULTI-CERVEAU & SÉCURITÉ (main.py, core/brain.py)
 ================================================================================
 * IA hybride : Résolution locale (Ollama) si hors-ligne, sinon routeur Cloud intelligent (Groq / Claude / Gemini).
-* Mises à jour automatiques : Vérification périodique (toutes les 4 heures) des nouvelles versions disponibles du système.
 * Auto-évolution : Pipeline de modification de son propre code avec tests unitaires automatiques et rollback.
 * Protection invité : Blocage d'accès aux fichiers, emails et commandes système pour les voix non reconnues.
 
@@ -101,14 +102,14 @@ programmée dans le système J.A.R.V.I.S.
 * Musique (Deezer/Spotify) : Commandes multimédias Windows et récupération du titre en cours.
 * Sports & Météo : Résultats/classements de football en direct (TheSportsDB) et météo (Open-Meteo/wttr.in).
 ================================================================================
-14. CONFIGURATION API À CHAUD (main2.py, frontend/)
+14. CONFIGURATION API À CHAUD (main.py, frontend/)
 ================================================================================
 * Sauvegarde en direct : Modification des clés d'API (Gemini, Mistral, Groq, SerpApi, etc.) depuis le HUD avec écriture asynchrone automatique dans le fichier `.env` à la racine et rechargement des clients IA à chaud.
 
 ================================================================================
 15. MENU CONTROLE SYSTÈME UNIFIÉ & DIALOGUES (frontend/index.html, main.ts)
 ================================================================================
-* Hub central : Regroupe l'ensemble des contrôles (GPU Boost, Hologramme, Clavier visuel, IPTV, Désinstallateur, Domotique, Vider Cache, Liste Commandes, Config API, Paramètres).
+* Hub central : Regroupe l'ensemble des contrôles (GPU Boost, Hologramme, Clavier visuel, Désinstallateur, Domotique, Vider Cache, Liste Commandes, Config API, Paramètres).
 * Liaison robuste : Liaison événementielle directe et résiliente pour basculer les écrans, masquer le clavier visuel ou fermer le menu de manière fluide.
 
 ================================================================================
@@ -123,12 +124,6 @@ programmée dans le système J.A.R.V.I.S.
 * Détecteur d'obsolescence : Vérifie asynchronement les versions logicielles de Windows via Winget.
 * Badge de notification : Affiche sur le bouton menu le nombre de paquets à mettre à jour.
 * Console en temps réel : Log dynamique et asynchrone des étapes de téléchargement et d'installation.
-
-================================================================================
-18. LECTEUR MULTIMÉDIA IPTV FLUIDE (frontend/src/iptv_player.ts)
-================================================================================
-* Player M3U : Décodeur et lecteur vidéo intégré pour fichiers `.m3u` et flux directs (MP4, HLS).
-* Contrôles avancés : Interface néon transparente avec réglage de volume, play/pause, plein écran et navigation par liste de chaînes latérale.
 
 ================================================================================
 19. ANTIVIRUS SCANNNEUR & PROTECTION RESIDENTE (antivirus_scanner.py)

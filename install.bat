@@ -1,12 +1,11 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
-TITLE J.A.R.V.I.S - Installation Automatique (www.techenclair.fr)
+TITLE J.A.R.V.I.S - Installation Automatique
 COLOR 0A
 cd /d "%~dp0"
 
 echo ======================================================
 echo           INSTALLATION DE J.A.R.V.I.S
-echo           Site : www.techenclair.fr
 echo ======================================================
 echo.
 
@@ -96,9 +95,6 @@ if "!CHROME_STATUS!"=="NON" (
 echo [INFO] Seuls les elements [A INSTALLER] seront traites.
 echo [INFO] Taille approximative max : ~1.5 Go
 echo.
-echo ------------------------------------------------------
-echo  Soutenir TechEnClair : https://www.paypal.com/paypalme/TechEnClair
-echo ------------------------------------------------------
 echo ======================================================
 
 
@@ -262,7 +258,7 @@ if %errorlevel% equ 0 (
 echo [SYSTEME] Generation du fichier de lancement 'DEMARRER_JARVIS.bat'...
 (
 echo @echo off
-echo TITLE J.A.R.V.I.S - www.techenclair.fr
+echo TITLE J.A.R.V.I.S
 echo COLOR 0B
 echo cd /d "%%~dp0"
 echo ".\venv\Scripts\python.exe" "main.py"
@@ -365,13 +361,6 @@ echo 1. Ouvre le fichier '.env' et ajoute tes cles API (Gemini, etc.).
 echo 2. Si tu as eu des erreurs rouges, installe les "Build Tools C++".
 echo 3. Lance 'DEMARRER_JARVIS.bat' pour demarrer ton IA.
 echo.
-echo ------------------------------------------------------
-echo  Soutenir le projet JARVIS :
-echo  Si tu aimes mon travail, tu peux m'offrir un cafe ici :
-echo  https://www.paypal.com/paypalme/TechEnClair
-echo ------------------------------------------------------
-echo.
-echo Aide et support : www.techenclair.fr
 echo ======================================================
 pause
 

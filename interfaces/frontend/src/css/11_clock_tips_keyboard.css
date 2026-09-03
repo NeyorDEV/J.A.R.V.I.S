@@ -142,9 +142,6 @@
 .av-panel, #av-info-modal {
   --panel-laser: #ff3b30; /* Rouge */
 }
-.iptv-panel {
-  --panel-laser: #00e5ff; /* Cyan */
-}
 .ha-panel {
   --panel-laser: #00e5ff; /* Cyan */
 }
@@ -158,7 +155,6 @@
 /* Ligne de balayage laser qui traverse le panneau à l'ouverture */
 .uninstaller-panel:not(.hidden)::after,
 .av-panel:not(.hidden)::after,
-.iptv-panel:not(.hidden)::after,
 .ha-panel:not(.hidden)::after,
 .shopping-panel:not(.hidden)::after,
 #api-keys-modal.visible::after,
@@ -220,14 +216,12 @@
 /* ── PANNEAUX FLOTTANTS DÉPLAÇABLES ────────────────────────────────────────────
    On les rend seulement visibles. Il ne faut SURTOUT PAS leur appliquer le
    traitement modale ci-dessus (inset:0 / 100vw / z-index:30000 / transform:none) :
-   ils ont chacun leur géométrie propre (uninstaller 480x550 @608, ha 980x620,
-   iptv centré par translateX(-50%)...). L'ancienne règle les transformait en
-   voile plein écran passant AU-DESSUS du carrousel (z-index 20000), ce qui
-   masquait le HUD et interceptait tous les clics suivants.
-   display:flex est nécessaire car #iptv-panel porte un display:none inline. */
+   ils ont chacun leur géométrie propre (uninstaller 480x550 @608, ha 980x620...).
+   L'ancienne règle les transformait en voile plein écran passant AU-DESSUS du
+   carrousel (z-index 20000), ce qui masquait le HUD et interceptait tous les
+   clics suivants. */
 .uninstaller-panel.visible,
 .av-panel.visible,
-.iptv-panel.visible,
 .ha-panel.visible,
 .shopping-panel.visible {
   display: flex !important;
@@ -238,7 +232,6 @@
 
 .uninstaller-panel.hidden,
 .av-panel.hidden,
-.iptv-panel.hidden,
 .ha-panel.hidden,
 .shopping-panel.hidden,
 #help-overlay.hidden,
@@ -526,34 +519,5 @@
     0 0 15px rgba(0, 229, 255, 0.25),
     inset 0 0 8px rgba(0, 229, 255, 0.05) !important;
 }
-
-/* ── Style Cyber/Dark pour les menus déroulants des Modèles IA (Suppression des barres blanches optgroup) ── */
-.agent-model-select {
-  background: #090e17 !important;
-  color: #00e5ff !important;
-  border: 1px solid rgba(0, 229, 255, 0.3) !important;
-  border-radius: 6px !important;
-}
-
-.agent-model-select optgroup {
-  background: #0d152b !important;
-  color: #ffb703 !important;
-  font-weight: bold !important;
-  font-style: normal !important;
-  padding: 6px 4px !important;
-}
-
-.agent-model-select option {
-  background: #060a12 !important;
-  color: #e0f7fa !important;
-  padding: 6px 10px !important;
-}
-
-.agent-model-select option:hover,
-.agent-model-select option:checked {
-  background: rgba(0, 229, 255, 0.25) !important;
-  color: #ffffff !important;
-}
-
 
 

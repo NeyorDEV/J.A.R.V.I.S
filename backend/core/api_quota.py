@@ -58,6 +58,7 @@ class APIQuotaManager:
         "gemini"  : 60,
         "grok"    : 60,
         "groq"    : 30,
+        "mistral" : 60,
         "ollama"  : 10,
     }
 

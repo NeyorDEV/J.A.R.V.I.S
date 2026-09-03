@@ -309,9 +309,7 @@ async def query_llm_provider(model_name: str, prompt: str) -> str:
 async def interroger_model(prompt: str, agent_role: str = "DEV", retries: int = 3, file_path: str = None, project_name: str = "projets_swarm") -> str:
     """Interroge le modèle IA configuré de façon asynchrone avec retentatives et timeouts automatiques."""
     model_to_use = CHOSEN_MODEL
-    if hasattr(builtins, "CHOSEN_MODELS") and isinstance(builtins.CHOSEN_MODELS, dict):
-        model_to_use = builtins.CHOSEN_MODELS.get(agent_role, CHOSEN_MODEL)
-    
+
     for attempt in range(retries):
         try:
             if agent_role == "DEV" and file_path and model_to_use.startswith("gemini"):

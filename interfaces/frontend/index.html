@@ -108,42 +108,258 @@
     <div class="boot-corner boot-bl"></div>
     <div class="boot-corner boot-br"></div>
 
-    <!-- Logo -->
+    <!-- Réacteur arc : logo ET indicateur de progression (le noyau s'allume
+         progressivement jusqu'à la connexion réelle au serveur) -->
     <div id="boot-logo-section">
-      <div id="boot-logo-ring">
-        <div id="boot-ring-inner"></div>
-      </div>
+      <svg id="boot-orb" viewBox="0 0 200 200" width="180" height="180">
+        <defs>
+          <filter id="boot-orb-glow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="1.6" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="boot-core-glow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="2.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g filter="url(#boot-orb-glow)">
+          <circle id="boot-orb-ring-outer" class="boot-orb-ring" cx="100" cy="100" r="88" fill="none" stroke-width="3" stroke-dasharray="32.25 13.82"/>
+          <circle id="boot-orb-ring-dash" class="boot-orb-ring" cx="100" cy="100" r="74" fill="none" stroke-width="2.2" stroke-dasharray="3.87 4.74"/>
+          <circle id="boot-orb-ring-inner" class="boot-orb-ring" cx="100" cy="100" r="60" fill="none" stroke-width="2" stroke-dasharray="30.63 16.49"/>
+        </g>
+        <g id="boot-orb-dots" filter="url(#boot-core-glow)">
+          <circle class="boot-orb-dot" data-x="0.0" data-y="1.0" data-z="0.0" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0994" data-y="0.9909" data-z="0.0911" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.0166" data-y="0.9817" data-z="-0.1895" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1414" data-y="0.9726" data-z="0.1845" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2637" data-y="0.9635" data-z="-0.0466" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.2521" data-y="0.9543" data-z="-0.1603" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0848" data-y="0.9452" data-z="0.3153" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.1621" data-y="0.9361" data-z="-0.3122" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.3524" data-y="0.9269" data-z="0.1287" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.367" data-y="0.9178" data-z="0.1515" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.177" data-y="0.9087" data-z="-0.3781" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1307" data-y="0.8995" data-z="0.4168" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.3938" data-y="0.8904" data-z="-0.2282" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.4616" data-y="0.8813" data-z="-0.1015" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2814" data-y="0.8721" data-z="0.4002" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0649" data-y="0.863" data-z="-0.501" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.398" data-y="0.8539" data-z="0.3354" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5347" data-y="0.8447" data-z="0.0221" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.3894" data-y="0.8356" data-z="-0.3875" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.026" data-y="0.8265" data-z="0.5624" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.3691" data-y="0.8174" data-z="-0.4424" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5836" data-y="0.8082" data-z="0.0785" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4935" data-y="0.7991" data-z="0.3434" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1346" data-y="0.79" data-z="-0.5982" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.3106" data-y="0.7808" data-z="0.5421" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.6059" data-y="0.7717" data-z="-0.1933" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5873" data-y="0.7626" data-z="-0.2713" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2538" data-y="0.7534" data-z="0.6066" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.226" data-y="0.7443" data-z="-0.6284" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.6001" data-y="0.7352" data-z="0.3154" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.665" data-y="0.726" data-z="0.1753" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.3771" data-y="0.7169" data-z="-0.5864" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1197" data-y="0.7078" data-z="0.6962" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5657" data-y="0.6986" data-z="-0.4381" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7218" data-y="0.6895" data-z="-0.0598" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4977" data-y="0.6804" data-z="0.538" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.0036" data-y="0.6712" data-z="-0.7412" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5035" data-y="0.6621" data-z="0.5551" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7542" data-y="0.653" data-z="-0.0699" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.6095" data-y="0.6438" data-z="-0.4626" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.1383" data-y="0.6347" data-z="0.7603" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4155" data-y="0.6256" data-z="-0.6603" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7594" data-y="0.6164" data-z="0.2081" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7068" data-y="0.6073" data-z="0.3627" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.2786" data-y="0.5982" data-z="-0.7514" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.3047" data-y="0.589" data-z="0.7485" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7362" data-y="0.5799" data-z="-0.3489" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7847" data-y="0.5708" data-z="-0.2419" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4183" data-y="0.5616" data-z="0.7138" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.175" data-y="0.5525" data-z="-0.8149" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.6844" data-y="0.5434" data-z="0.4862" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8388" data-y="0.5342" data-z="0.1045" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5516" data-y="0.5251" data-z="-0.6481" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.0312" data-y="0.516" data-z="0.856" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.6051" data-y="0.5068" data-z="-0.614" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.8662" data-y="0.4977" data-z="0.0443" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.6726" data-y="0.4886" data-z="0.5558" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1213" data-y="0.4795" data-z="-0.8691" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5005" data-y="0.4703" data-z="0.7269" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8647" data-y="0.4612" data-z="-0.199" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7761" data-y="0.4521" data-z="-0.4397" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2767" data-y="0.4429" data-z="0.8528" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.3739" data-y="0.4338" data-z="-0.8198" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.8334" data-y="0.4247" data-z="0.3536" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8574" data-y="0.4155" data-z="0.3037" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.429" data-y="0.4064" data-z="-0.8067" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.2296" data-y="0.3973" data-z="0.8885" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7727" data-y="0.3881" data-z="-0.5022" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9128" data-y="0.379" data-z="-0.1523" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5725" data-y="0.3699" data-z="0.7318" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0725" data-y="0.3607" data-z="-0.9299" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.6841" data-y="0.3516" data-z="0.6391" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9395" data-y="0.3425" data-z="-0.0092" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7014" data-y="0.3333" data-z="-0.63" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0919" data-y="0.3242" data-z="0.9415" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5701" data-y="0.3151" data-z="-0.7588" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9358" data-y="0.3059" data-z="0.175" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8107" data-y="0.2968" data-z="0.5047" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.2576" data-y="0.2877" data-z="-0.9224" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.4343" data-y="0.2785" data-z="0.8566" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9013" data-y="0.2694" data-z="-0.3392" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.896" data-y="0.2603" data-z="-0.3597" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4188" data-y="0.2511" data-z="0.8727" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2813" data-y="0.242" data-z="-0.9286" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.8366" data-y="0.2329" data-z="0.4958" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9539" data-y="0.2237" data-z="0.2" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5695" data-y="0.2146" data-z="-0.7935" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1163" data-y="0.2055" data-z="0.9717" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7436" data-y="0.1963" data-z="-0.6392" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9818" data-y="0.1872" data-z="-0.031" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7042" data-y="0.1781" data-z="0.6873" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.0551" data-y="0.1689" data-z="-0.9841" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.625" data-y="0.1598" data-z="0.764" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9784" data-y="0.1507" data-z="-0.1414" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.8181" data-y="0.1416" data-z="-0.5574" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.227" data-y="0.1324" data-z="0.9649" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.485" data-y="0.1233" data-z="-0.8658" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9435" data-y="0.1142" data-z="0.3112" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9068" data-y="0.105" data-z="0.4083" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.3932" data-y="0.0959" data-z="-0.9144" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.328" data-y="0.0868" data-z="0.9407" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.878" data-y="0.0776" data-z="-0.4724" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9671" data-y="0.0685" data-z="-0.2449" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5481" data-y="0.0594" data-z="0.8343" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.1596" data-y="0.0502" data-z="-0.9859" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7839" data-y="0.0411" data-z="0.6195" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9968" data-y="0.032" data-z="0.0728" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.686" data-y="0.0228" data-z="-0.7272" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0146" data-y="0.0137" data-z="0.9998" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.6646" data-y="0.0046" data-z="-0.7472" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9948" data-y="-0.0046" data-z="0.102" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8023" data-y="-0.0137" data-z="0.5967" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1885" data-y="-0.0228" data-z="-0.9818" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5241" data-y="-0.032" data-z="0.8511" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.961" data-y="-0.0411" data-z="-0.2735" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.893" data-y="-0.0502" data-z="-0.4473" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.3561" data-y="-0.0594" data-z="0.9326" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.3671" data-y="-0.0685" data-z="-0.9276" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.8967" data-y="-0.0776" data-z="0.4357" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9548" data-y="-0.0868" data-z="0.2842" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5116" data-y="-0.0959" data-z="-0.8538" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1993" data-y="-0.105" data-z="0.9743" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8043" data-y="-0.1142" data-z="-0.5832" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9859" data-y="-0.1233" data-z="-0.1131" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.6498" data-y="-0.1324" data-z="0.7485" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0264" data-y="-0.1416" data-z="-0.9896" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.687" data-y="-0.1507" data-z="0.7109" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9853" data-y="-0.1598" data-z="-0.06" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7659" data-y="-0.1689" data-z="-0.6204" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.1455" data-y="-0.1781" data-z="0.9732" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5492" data-y="-0.1872" data-z="-0.8145" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9534" data-y="-0.1963" data-z="0.2292" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8562" data-y="-0.2055" data-z="0.4741" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.3104" data-y="-0.2146" data-z="-0.9261" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.3958" data-y="-0.2237" data-z="0.8907" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8915" data-y="-0.2329" data-z="-0.3885" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9177" data-y="-0.242" data-z="-0.315" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4628" data-y="-0.2511" data-z="0.8501" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2324" data-y="-0.2603" data-z="-0.9371" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.8023" data-y="-0.2694" data-z="0.5326" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9488" data-y="-0.2785" data-z="0.1488" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5974" data-y="-0.2877" data-z="-0.7485" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.0649" data-y="-0.2968" data-z="0.9527" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.6893" data-y="-0.3059" data-z="-0.6567" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.9489" data-y="-0.3151" data-z="0.0185" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7099" data-y="-0.3242" data-z="0.6253" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1007" data-y="-0.3333" data-z="-0.9374" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.557" data-y="-0.3425" data-z="0.7566" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.9185" data-y="-0.3516" data-z="-0.181" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7966" data-y="-0.3607" data-z="-0.4851" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2587" data-y="-0.3699" data-z="0.8924" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4104" data-y="-0.379" data-z="-0.8294" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.8594" data-y="-0.3881" data-z="0.333" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8549" data-y="-0.3973" data-z="0.3335" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.4033" data-y="-0.4064" data-z="-0.8199" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.2552" data-y="-0.4155" data-z="0.873" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7743" data-y="-0.4247" data-z="-0.4691" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.8836" data-y="-0.4338" data-z="-0.1763" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5299" data-y="-0.4429" data-z="0.7232" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0973" data-y="-0.4521" data-z="-0.8867" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.6672" data-y="-0.4612" data-z="0.5849" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.8823" data-y="-0.4703" data-z="0.0193" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.634" data-y="-0.4795" data-z="-0.6068" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0573" data-y="-0.4886" data-z="0.8706" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5426" data-y="-0.4977" data-z="-0.6766" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.8519" data-y="-0.5068" data-z="0.1316" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7126" data-y="-0.516" data-z="0.4754" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.203" data-y="-0.5251" data-z="-0.8265" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.4059" data-y="-0.5342" data-z="0.7415" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7946" data-y="-0.5434" data-z="-0.2707" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7633" data-y="-0.5525" data-z="-0.3348" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.3343" data-y="-0.5616" data-z="0.7569" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2628" data-y="-0.5708" data-z="-0.7779" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7136" data-y="-0.5799" data-z="0.393" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7853" data-y="-0.589" data-z="0.1907" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.4465" data-y="-0.5982" data-z="-0.6655" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1193" data-y="-0.6073" data-z="0.7855" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.613" data-y="-0.6164" data-z="-0.4942" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.7786" data-y="-0.6256" data-z="-0.0492" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5357" data-y="-0.6347" data-z="0.5569" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.0187" data-y="-0.6438" data-z="-0.7649" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.4978" data-y="-0.653" data-z="0.5708" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.7447" data-y="-0.6621" data-z="-0.0837" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5991" data-y="-0.6712" data-z="-0.4365" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.1452" data-y="-0.6804" data-z="0.7183" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.3737" data-y="-0.6895" data-z="-0.6204" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.6862" data-y="-0.6986" data-z="0.2025" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.6347" data-y="-0.7078" data-z="0.3102" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.2551" data-y="-0.7169" data-z="-0.6488" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.2468" data-y="-0.726" data-z="0.6419" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.6068" data-y="-0.7352" data-z="-0.3022" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.6419" data-y="-0.7443" data-z="-0.1843" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.3435" data-y="-0.7534" data-z="0.5607" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.1235" data-y="-0.7626" data-z="-0.635" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5112" data-y="-0.7717" data-z="0.3784" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.6213" data-y="-0.7808" data-z="0.0652" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.4065" data-y="-0.79" data-z="-0.4591" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.0102" data-y="-0.7991" data-z="0.6011" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4051" data-y="-0.8082" data-z="-0.4274" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.5747" data-y="-0.8174" data-z="0.0406" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4409" data-y="-0.8265" data-z="0.35" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.0865" data-y="-0.8356" data-z="-0.5425" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.2948" data-y="-0.8447" data-z="0.4466" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.5048" data-y="-0.8539" data-z="-0.1266" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.4443" data-y="-0.863" data-z="-0.2404" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.16" data-y="-0.8721" data-z="0.4623" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.1877" data-y="-0.8813" data-z="-0.4337" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.4155" data-y="-0.8904" data-z="0.1859" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.4145" data-y="-0.8995" data-z="0.1378" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.2032" data-y="-0.9087" data-z="-0.3647" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.0918" data-y="-0.9178" data-z="0.3863" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.3106" data-y="-0.9269" data-z="-0.2106" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.3481" data-y="-0.9361" data-z="-0.0511" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2061" data-y="-0.9452" data-z="0.2532" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0174" data-y="-0.9543" data-z="-0.2982" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.1921" data-y="-0.9635" data-z="0.1866" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.2324" data-y="-0.9726" data-z="-0.0068" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="0.144" data-y="-0.9817" data-z="-0.1244" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0157" data-y="-0.9909" data-z="0.1339" cx="100" cy="100" r="1"/>
+          <circle class="boot-orb-dot" data-x="-0.0" data-y="-1.0" data-z="-0.0" cx="100" cy="100" r="1"/>
+        </g>
+      </svg>
       <div id="boot-logo-text">J.A.R.V.I.S</div>
-      <div id="boot-logo-sub">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
-            <div id="boot-logo-version">CORE v9.0 &nbsp;·&nbsp; BUILD NEYOR &nbsp;·&nbsp; <span id="boot-build-year"></span></div>
-    </div>
-
-    <!-- Separator -->
-    <div id="boot-separator">
-      <div class="boot-sep-line"></div>
-      <span class="boot-sep-label">◈ INITIALISATION DES PROTOCOLES ◈</span>
-      <div class="boot-sep-line"></div>
-    </div>
-
-    <!-- Module checklist -->
-    <div id="boot-modules"></div>
-
-    <!-- Progress bar -->
-    <div id="boot-progress-wrap">
-      <div id="boot-progress-track">
-        <div id="boot-progress-bar">
-          <div id="boot-progress-glow"></div>
-        </div>
+      <div id="boot-status-line">
+        <span id="boot-status-dot"></span>
+        <span id="boot-status-text">INITIALISATION...</span>
       </div>
-      <div id="boot-progress-label">CHARGEMENT... 0%</div>
     </div>
-
-    <!-- Final ready message -->
-    <div id="boot-final-text">◈ &nbsp; TOUS SYSTÈMES OPÉRATIONNELS &nbsp; ◈</div>
 
     <!-- Bottom status bar -->
     <div id="boot-statusbar">
-      <span id="boot-status-text">DÉMARRAGE EN COURS...</span>
+      <span id="boot-statusbar-left">CORE v9.0 &nbsp;·&nbsp; <span id="boot-build-year"></span></span>
       <span id="boot-statusbar-right">NeyorDEV</span>
     </div>
   </div>
@@ -204,7 +420,6 @@
         <button id="gestures-toggle" aria-pressed="false" title="Activer la détection de gestes AR"><span class="btn-icon">🖐️</span> MODE AR</button>
         
         <!-- Section Outils -->
-        <button id="carousel-iptv-btn" aria-pressed="false" title="Ouvrir le lecteur vidéo / IPTV"><span class="btn-icon">📺</span> IPTV</button>
         <button id="carousel-uninstaller-btn" aria-pressed="false" title="Ouvrir le désinstallateur d'applications"><span class="btn-icon">🗑️</span> UNINSTALL</button>
         <button id="carousel-winget-btn" aria-pressed="false" title="Mettre à jour les logiciels avec Winget"><span class="btn-icon">🚀</span> WINGET <span id="winget-count-badge" class="badge hidden" style="background:#ff3366; color:white; font-size:8px; padding:1px 4px; border-radius:10px; margin-left:3px;">0</span></button>
         <button id="carousel-av-scan-btn" aria-pressed="false" title="Lancer un scan antivirus rapide"><span class="btn-icon">🛡️</span> ANTIVIRUS</button>
@@ -880,156 +1095,309 @@
     </div>
   </div>
 
-  <!-- ══ SETTINGS MODAL ══════════════════════════════════ -->
+  <!-- ══ SETTINGS PAGE (plein écran, bandeau vertical) ════════════════════ -->
   <div id="settings-modal">
-    <div class="settings-container">
-      <div class="settings-header">
-        <span>CONFIGURATION PROFIL</span>
-        <button type="button" class="settings-close" id="settings-close-btn" onclick="const m=document.getElementById('settings-modal'); if(m){ m.classList.remove('visible'); m.style.display='none'; }" style="background:transparent; border:none; cursor: pointer; font-size: 16px; color: #00e5ff; font-weight:bold; padding:4px 8px; z-index:1001;" title="Fermer la fenêtre">[ X ]</button>
-      </div>
+    <div class="settings-shell">
+      <aside class="settings-sidebar">
+        <div class="settings-sidebar-top">
+          <div class="settings-brand">
+            <span class="settings-brand-mark">◈</span>
+            <span class="settings-brand-text">PARAMÈTRES</span>
+          </div>
+          <button type="button" class="settings-close" id="settings-close-btn" title="Fermer">✕</button>
+        </div>
+        <nav class="settings-nav" id="settings-nav">
+          <button type="button" class="settings-nav-item active" data-panel="profil">
+            <span class="settings-nav-icon">👤</span><span class="settings-nav-label">Profil</span>
+          </button>
+          <button type="button" class="settings-nav-item" data-panel="apps">
+            <span class="settings-nav-icon">🚀</span><span class="settings-nav-label">Applications</span>
+          </button>
+          <button type="button" class="settings-nav-item" data-panel="apparence">
+            <span class="settings-nav-icon">🎨</span><span class="settings-nav-label">Apparence</span>
+          </button>
+          <button type="button" class="settings-nav-item" data-panel="musique">
+            <span class="settings-nav-icon">🎵</span><span class="settings-nav-label">Musique</span>
+          </button>
+          <button type="button" class="settings-nav-item" data-panel="securite">
+            <span class="settings-nav-icon">🛡️</span><span class="settings-nav-label">Sécurité</span>
+          </button>
+          <button type="button" class="settings-nav-item" data-panel="api">
+            <span class="settings-nav-icon">🔑</span><span class="settings-nav-label">Clés API</span>
+          </button>
+        </nav>
+      </aside>
 
-      <div class="settings-group">
-        <label for="settings-mic">MICROPHONE</label>
-        <select id="settings-mic">
-          <option value="">-- Détection automatique --</option>
-        </select>
-      </div>
+      <div class="settings-content">
+
+        <!-- ── PROFIL ─────────────────────────────────────────── -->
+        <section class="settings-panel active" data-panel="profil">
+          <header class="settings-panel-header">
+            <h2>Profil</h2>
+            <p>Identité et périphériques utilisés par J.A.R.V.I.S.</p>
+          </header>
+          <div class="settings-card-grid">
+            <div class="settings-card">
+              <h3 class="settings-card-title">Identité</h3>
+              <div class="settings-group">
+                <label for="settings-name">Prénom</label>
+                <input type="text" id="settings-name" placeholder="Mylan">
+              </div>
+              <div class="settings-group">
+                <label for="settings-age">Âge</label>
+                <input type="number" id="settings-age" placeholder="Ex: 37">
+              </div>
+            </div>
+            <div class="settings-card">
+              <h3 class="settings-card-title">Périphériques</h3>
+              <div class="settings-group">
+                <label for="settings-mic">Microphone</label>
+                <select id="settings-mic">
+                  <option value="">-- Détection automatique --</option>
+                </select>
+              </div>
+              <div class="settings-group">
+                <label for="settings-camera">Webcam (mode AR)</label>
+                <select id="settings-camera">
+                  <option value="">-- Détection automatique --</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="settings-footer">
+            <button class="settings-btn primary" id="settings-save-btn">Sauvegarder & appliquer</button>
+          </div>
+        </section>
+
+        <!-- ── APPLICATIONS ───────────────────────────────────── -->
+        <section class="settings-panel" data-panel="apps">
+          <header class="settings-panel-header">
+            <h2>Applications personnalisées</h2>
+            <p>Lancement vocal (Voice Launch) — ajoutez vos propres raccourcis.</p>
+          </header>
+          <div class="settings-card">
+            <div class="settings-apps-list" id="settings-apps-list">
+              <!-- Apps dynamiques -->
+            </div>
+            <div class="settings-inline-row">
+              <select id="app-detect-select" class="settings-select-inline">
+                <option value="">-- Cliquer sur Détecter --</option>
+              </select>
+              <button class="settings-btn" id="app-detect-btn">🔍 Détecter</button>
+            </div>
+            <div class="settings-app-form">
+              <input type="text" id="app-add-name" placeholder="Nom (Ex: Bloc Note)">
+              <input type="text" id="app-add-path" placeholder="Chemin (Ex: C:\Windows\notepad.exe)">
+              <button class="settings-btn" id="app-add-btn">Ajouter</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── APPARENCE ──────────────────────────────────────── -->
+        <section class="settings-panel" data-panel="apparence">
+          <header class="settings-panel-header">
+            <h2>Apparence</h2>
+            <p>Personnalisez le rendu visuel de l'orbe 3D.</p>
+          </header>
+          <div class="settings-card">
             <div class="settings-group">
-        <label for="settings-camera">WEBCAM (MODE AR)</label>
-        <select id="settings-camera">
-          <option value="">-- Détection automatique --</option>
-        </select>
-      </div>
-
-      <div class="settings-group">
-        <label for="settings-name">PRÉNOM</label>
-        <input type="text" id="settings-name" placeholder="Mylan">
-      </div>
-
-      <div class="settings-group">
-        <label for="settings-age">ÂGE</label>
-        <input type="number" id="settings-age" placeholder="Ex: 37">
-      </div>
-
-      <div class="settings-group" style="margin-top: 30px;">
-        <label>APPLICATIONS PERSONNALISÉES (Voice Launch)</label>
-        <div class="settings-apps-list" id="settings-apps-list">
-          <!-- Apps dynamiques -->
-        </div>
-
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-          <select id="app-detect-select" style="flex: 1; min-width: 0; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 10px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
-            <option value="">-- Cliquer sur Détecter --</option>
-          </select>
-          <button class="settings-btn" id="app-detect-btn" style="width: auto; padding: 10px 15px; white-space: nowrap; margin-top: 0; height: 38px;">🔍 DÉTECTER</button>
-        </div>
-
-        <div class="settings-app-form">
-          <input type="text" id="app-add-name" placeholder="Nom (Ex: Bloc Note)">
-          <input type="text" id="app-add-path" placeholder="Chemin (Ex: C:\Windows\notepad.exe)">
-          <button class="settings-btn" id="app-add-btn">AJOUTER</button>
-        </div>
-      </div>
-            <!-- ══ HOME ASSISTANT ENTITIES ═══════════════════════════ -->
-      <div class="settings-group" style="margin-top: 30px;">
-        <label>APPAREILS HOME ASSISTANT</label>
-        <div class="ha-tabs">
-          <button class="ha-tab-btn active" data-tab="lumieres">Lumières</button>
-          <button class="ha-tab-btn" data-tab="prises">Prises</button>
-          <button class="ha-tab-btn" data-tab="capteurs">Capteurs</button>
-        </div>
-        <div class="settings-apps-list" id="ha-entities-list">
-          <!-- Entités dynamiques -->
-        </div>
-        <div class="settings-app-form">
-          <input type="text" id="ha-add-nom" placeholder="Nom vocal (ex: escalier)">
-          <input type="text" id="ha-add-entity" placeholder="entity_id (ex: light.escalier)">
-          <button class="settings-btn" id="ha-add-btn">AJOUTER</button>
-        </div>
-        <div class="ha-hint">Dites : "Jarvis, allume la lumière de l'<em>escalier</em>"</div>
-      </div>
-
-      <!-- ══ CHOIX DES MODÈLES IA / AGENTS ════════════════════ -->
-      <div class="settings-group" style="margin-top: 30px;">
-        <label>🤖 MODÈLES IA PAR AGENT</label>
-        <div class="ha-hint" style="margin-bottom: 15px;">Sélectionnez le modèle LLM dédié à chaque rôle de l'assistant (Gemini, Grok, Claude, Groq, ChatGPT, Ollama).</div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" id="agent-models-grid">
-          <div>
-            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">🧠 PM (CERVEAU PRINCIPAL)</label>
-            <select id="agent-model-PM" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
-              <option value="">Chargement...</option>
-            </select>
+              <label for="settings-orb-style">Style de l'orbe</label>
+              <select id="settings-orb-style">
+                <option value="cyan">Par défaut (Bleu JARVIS)</option>
+                <option value="emerald">Émeraude (Vert / Orange)</option>
+                <option value="amber">Ambre (Orange / Violet)</option>
+                <option value="red">Iron Man (Rouge / Cyan)</option>
+                <option value="gold">Or (Jaune / Fuchsia)</option>
+                <option value="anneaux">Anneaux (Violet / Cyan)</option>
+              </select>
+              <div class="ha-hint">Bascule instantanément les styles et shaders de l'orbe 3D.</div>
+            </div>
           </div>
-          <div>
-            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">💻 DEV (CODE & DÉVELOPPEMENT)</label>
-            <select id="agent-model-DEV" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
-              <option value="">Chargement...</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">🎨 UI (INTERFACE & RENDU)</label>
-            <select id="agent-model-UI" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
-              <option value="">Chargement...</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">🛡️ SEC (SÉCURITÉ & ANTIVIRUS)</label>
-            <select id="agent-model-SEC" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
-              <option value="">Chargement...</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">🧪 QA (TESTS & QUALITÉ)</label>
-            <select id="agent-model-QA" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
-              <option value="">Chargement...</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size: 9px; color: #00e5ff; letter-spacing: 1px; display: block; margin-bottom: 4px;">⚙️ OPS (SYSTÈME & OPÉRATIONS)</label>
-            <select id="agent-model-OPS" class="agent-model-select" style="width: 100%; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px; border-radius: 4px; outline: none; font-family: monospace; font-size: 11px;">
-              <option value="">Chargement...</option>
-            </select>
-          </div>
-        </div>
-      </div>
+        </section>
 
-      <!-- ══ STYLE DE L'ORBE (ORB) ══════════════════════════ -->
-      <div class="settings-group" style="margin-top: 30px;">
-        <label for="settings-orb-style">STYLE DE L'ORBE (ORB)</label>
-        <select id="settings-orb-style">
-          <option value="cyan">Par défaut (Bleu JARVIS)</option>
-          <option value="emerald">Émeraude (Vert / Orange)</option>
-          <option value="amber">Ambre (Orange / Violet)</option>
-          <option value="red">Iron Man (Rouge / Cyan)</option>
-          <option value="gold">Or (Jaune / Fuchsia)</option>
-          <option value="anneaux">Anneaux (Violet / Cyan)</option>
-        </select>
-        <div class="ha-hint">Bascule instantanément les styles et shaders de l'orbe 3D.</div>
-      </div>
-            <!-- ══ LIEN MUSIQUE ═════════════════════════════════════ -->
-      <div class="settings-group" style="margin-top: 30px;">
-        <label for="settings-musique-lien">LIEN MUSIQUE PERSONNALISÉ</label>
-        <input type="url" id="settings-musique-lien" placeholder="Ex: https://open.spotify.com/playlist/... ou https://www.youtube.com/...">
-        <div class="ha-hint">Dites "<em>Jarvis, mets de la musique</em>" — Spotify, YouTube, Deezer, Apple Music, ou tout autre lien.</div>
-      </div>
+        <!-- ── MUSIQUE ────────────────────────────────────────── -->
+        <section class="settings-panel" data-panel="musique">
+          <header class="settings-panel-header">
+            <h2>Musique</h2>
+            <p>Lien par défaut utilisé pour la commande vocale « mets de la musique ».</p>
+          </header>
+          <div class="settings-card">
+            <div class="settings-group">
+              <label for="settings-musique-lien">Lien musique personnalisé</label>
+              <input type="url" id="settings-musique-lien" placeholder="Ex: https://open.spotify.com/playlist/... ou https://www.youtube.com/...">
+              <div class="ha-hint">Dites « <em>Jarvis, mets de la musique</em> » — Spotify, YouTube, Deezer, Apple Music, ou tout autre lien.</div>
+            </div>
+          </div>
+        </section>
 
-      <!-- ══ SÉCURITÉ DU SYSTÈME ════════════════════════════ -->
-      <div class="settings-group" style="margin-top: 30px;">
-        <label>🛡️ SÉCURITÉ DU SYSTÈME</label>
-        <div class="ha-hint" style="margin-bottom: 10px;">Analyse les processus actifs, le registre de démarrage et les dossiers critiques.</div>
-        <label for="settings-av-live" style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:12px;font-size:11px;color:rgba(0, 229, 255, 0.8);">
-          <input type="checkbox" id="settings-av-live" style="width:auto;margin:0;cursor:pointer;">
-          ACTIVATION DE LA SÉCURITÉ LIVE (SCAN EN TEMPS RÉEL)
-        </label>
-        <button class="settings-btn" id="settings-av-scan-btn" style="width: 100%; font-weight: bold; border-color: #00e5ff; color: #00e5ff; background: rgba(0, 229, 255, 0.05);">LANCER UN SCAN ANTIVIRUS</button>
-        <div class="ha-hint" style="margin-top: 8px; text-align: right;">
-          <a href="#" id="settings-av-info-btn" style="color: #00e5ff; text-decoration: underline; font-size: 10px; cursor: pointer;">Plus d'informations sur l'antivirus</a>
-        </div>
+        <!-- ── SÉCURITÉ ───────────────────────────────────────── -->
+        <section class="settings-panel" data-panel="securite">
+          <header class="settings-panel-header">
+            <h2>Sécurité du système</h2>
+            <p>Analyse les processus actifs, le registre de démarrage et les dossiers critiques.</p>
+          </header>
+          <div class="settings-card">
+            <label for="settings-av-live" class="settings-toggle-row">
+              <input type="checkbox" id="settings-av-live">
+              <span>Activation de la sécurité live (scan en temps réel)</span>
+            </label>
+            <button class="settings-btn primary" id="settings-av-scan-btn">Lancer un scan antivirus</button>
+            <div class="ha-hint settings-align-right">
+              <a href="#" id="settings-av-info-btn">Plus d'informations sur l'antivirus</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── CLÉS API ───────────────────────────────────────── -->
+        <section class="settings-panel" data-panel="api">
+          <header class="settings-panel-header">
+            <h2>Clés API</h2>
+            <p>Activez, désactivez et configurez vos clés API pour les services connectés. Elles sont enregistrées en direct dans votre fichier local <code>.env</code>.</p>
+          </header>
+          <div class="settings-card-grid settings-card-grid-api">
+
+            <div class="settings-api-card">
+              <div class="settings-api-card-head">
+                <span class="settings-api-name">Google Gemini <small>Cerveau & voix</small></span>
+                <label class="switch-container">
+                  <input type="checkbox" id="settings-api-gemini-enabled" checked> Activé
+                </label>
+              </div>
+              <div class="settings-inline-row">
+                <div class="settings-key-field">
+                  <input type="password" id="settings-api-gemini-key" placeholder="Entrez votre clé API Gemini">
+                  <span class="toggle-password-eye" data-target="settings-api-gemini-key" title="Afficher/Masquer la clé">👁️</span>
+                </div>
+                <a href="https://aistudio.google.com/" target="_blank" class="settings-btn" title="Obtenir une clé API Gemini (AI Studio)">🔑 Obtenir</a>
+              </div>
+            </div>
+
+            <div class="settings-api-card">
+              <div class="settings-api-card-head">
+                <span class="settings-api-name">OpenAI <small>ChatGPT & DALL-E</small></span>
+                <label class="switch-container">
+                  <input type="checkbox" id="settings-api-openai-enabled" checked> Activé
+                </label>
+              </div>
+              <div class="settings-inline-row">
+                <div class="settings-key-field">
+                  <input type="password" id="settings-api-openai-key" placeholder="Entrez votre clé API OpenAI (sk-...)">
+                  <span class="toggle-password-eye" data-target="settings-api-openai-key" title="Afficher/Masquer la clé">👁️</span>
+                </div>
+                <a href="https://platform.openai.com/api-keys" target="_blank" class="settings-btn" title="Obtenir une clé API OpenAI">🔑 Obtenir</a>
+              </div>
+              <div class="ha-hint">Requis pour ChatGPT (GPT-4o, GPT-4o-mini, o3-mini) et DALL-E 3.</div>
+            </div>
+
+            <div class="settings-api-card">
+              <div class="settings-api-card-head">
+                <span class="settings-api-name">Groq <small>Cerveaux alternatifs rapides</small></span>
+                <label class="switch-container">
+                  <input type="checkbox" id="settings-api-groq-enabled" checked> Activé
+                </label>
+              </div>
+              <div class="settings-inline-row">
+                <div class="settings-key-field">
+                  <input type="password" id="settings-api-groq-key" placeholder="Entrez votre clé API Groq">
+                  <span class="toggle-password-eye" data-target="settings-api-groq-key" title="Afficher/Masquer la clé">👁️</span>
+                </div>
+                <a href="https://console.groq.com/keys" target="_blank" class="settings-btn" title="Obtenir une clé API Groq">🔑 Obtenir</a>
+              </div>
+              <div class="ha-hint">Accès ultra-rapide à des modèles comme LLaMA 3.</div>
+            </div>
+
+            <div class="settings-api-card">
+              <div class="settings-api-card-head">
+                <span class="settings-api-name">YouTube API v3 <small>Recherche musique</small></span>
+                <label class="switch-container">
+                  <input type="checkbox" id="settings-api-youtube-enabled" checked> Activé
+                </label>
+              </div>
+              <div class="settings-inline-row">
+                <div class="settings-key-field">
+                  <input type="password" id="settings-api-youtube-key" placeholder="Entrez votre clé API YouTube">
+                  <span class="toggle-password-eye" data-target="settings-api-youtube-key" title="Afficher/Masquer la clé">👁️</span>
+                </div>
+                <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" class="settings-btn" title="Obtenir une clé API YouTube (Google Cloud)">🔑 Obtenir</a>
+              </div>
+              <div class="ha-hint">Recherche et lecture de chansons spécifiques par leur titre.</div>
+            </div>
+
+            <div class="settings-api-card">
+              <div class="settings-api-card-head">
+                <span class="settings-api-name">xAI (Grok) <small>IA alternative</small></span>
+                <label class="switch-container">
+                  <input type="checkbox" id="settings-api-grok-enabled" checked> Activé
+                </label>
+              </div>
+              <div class="settings-inline-row">
+                <div class="settings-key-field">
+                  <input type="password" id="settings-api-grok-key" placeholder="Entrez votre clé API xAI">
+                  <span class="toggle-password-eye" data-target="settings-api-grok-key" title="Afficher/Masquer la clé">👁️</span>
+                </div>
+                <a href="https://console.x.ai/" target="_blank" class="settings-btn" title="Obtenir une clé API xAI (Grok)">🔑 Obtenir</a>
+              </div>
+              <div class="ha-hint">Permet d'utiliser l'IA Grok de xAI pour des réponses alternatives.</div>
+            </div>
+
+            <div class="settings-api-card">
+              <div class="settings-api-card-head">
+                <span class="settings-api-name">SerpAPI <small>Google Images</small></span>
+                <label class="switch-container">
+                  <input type="checkbox" id="settings-api-serpapi-enabled" checked> Activé
+                </label>
+              </div>
+              <div class="settings-inline-row">
+                <div class="settings-key-field">
+                  <input type="password" id="settings-api-serpapi-key" placeholder="Entrez votre clé API SerpAPI">
+                  <span class="toggle-password-eye" data-target="settings-api-serpapi-key" title="Afficher/Masquer la clé">👁️</span>
+                </div>
+                <a href="https://serpapi.com/manage-api-key" target="_blank" class="settings-btn" title="Obtenir une clé API SerpAPI">🔑 Obtenir</a>
+              </div>
+              <div class="ha-hint">Illustrations d'images sur l'écran holographique.</div>
+            </div>
+
+            <div class="settings-api-card">
+              <div class="settings-api-card-head">
+                <span class="settings-api-name">Anthropic <small>Claude AI</small></span>
+                <label class="switch-container">
+                  <input type="checkbox" id="settings-api-anthropic-enabled" checked> Activé
+                </label>
+              </div>
+              <div class="settings-inline-row">
+                <div class="settings-key-field">
+                  <input type="password" id="settings-api-anthropic-key" placeholder="Entrez votre clé API Anthropic">
+                  <span class="toggle-password-eye" data-target="settings-api-anthropic-key" title="Afficher/Masquer la clé">👁️</span>
+                </div>
+                <a href="https://console.anthropic.com/" target="_blank" class="settings-btn" title="Obtenir une clé API Anthropic">🔑 Obtenir</a>
+              </div>
+              <div class="ha-hint">Claude Sonnet 5 comme cerveau alternatif (priorité 2, après Groq).</div>
+            </div>
+
+            <div class="settings-api-card">
+              <div class="settings-api-card-head">
+                <span class="settings-api-name">Mistral AI <small>Modèle souverain FR</small></span>
+                <label class="switch-container">
+                  <input type="checkbox" id="settings-api-mistral-enabled" checked> Activé
+                </label>
+              </div>
+              <div class="settings-inline-row">
+                <div class="settings-key-field">
+                  <input type="password" id="settings-api-mistral-key" placeholder="Entrez votre clé API Mistral">
+                  <span class="toggle-password-eye" data-target="settings-api-mistral-key" title="Afficher/Masquer la clé">👁️</span>
+                </div>
+                <a href="https://console.mistral.ai/" target="_blank" class="settings-btn" title="Obtenir une clé API Mistral AI">🔑 Obtenir</a>
+              </div>
+              <div class="ha-hint">Mistral (priorité 3, après Groq et Claude).</div>
+            </div>
+
+          </div>
+          <div class="settings-footer">
+            <button class="settings-btn primary" id="api-keys-save-btn">Sauvegarder & enregistrer</button>
+          </div>
+        </section>
+
       </div>
-
-      <button class="settings-btn primary" id="settings-save-btn">SAUVEGARDER & APPLIQUER</button>
-
     </div>
   </div>
 
@@ -1043,7 +1411,7 @@
 
       <div style="font-size: 13px; line-height: 1.6; color: #e0e0e0; max-height: 400px; overflow-y: auto; padding-right: 10px;">
         <p style="margin-bottom: 15px;">L'antivirus intégré à J.A.R.V.I.S est un outil d'audit de sécurité local développé sur mesure pour ce projet (sans dépendance externe lourde).</p>
-        
+
         <h4 style="color: #00e5ff; margin-top: 15px; margin-bottom: 5px; text-transform: uppercase; font-size: 13px;">🔍 Trois niveaux d'analyse :</h4>
         <ul style="margin-bottom: 15px; padding-left: 20px; list-style-type: square;">
           <li style="margin-bottom: 8px;"><strong>Registre Windows :</strong> Inspecte les clés de démarrage pour détecter des programmes malveillants s'exécutant automatiquement.</li>
@@ -1059,166 +1427,6 @@
       <div style="display: flex; gap: 15px; flex-direction: column; margin-top: 20px;">
         <button class="settings-btn" id="av-info-modal-ok" style="border-color: #00e5ff; color: #00e5ff; background: rgba(0, 229, 255, 0.05); width: 100%; padding: 10px; cursor: pointer; font-weight: bold;">J'AI COMPRIS</button>
       </div>
-    </div>
-  </div>
-
-  <!-- ══ API KEYS MODAL ══════════════════════════════════════ -->
-  <div id="api-keys-modal" style="display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(5, 5, 8, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); align-items: center; justify-content: center;">
-    <div class="settings-container" style="max-height: 90vh; overflow-y: auto; width: 90%; max-width: 600px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.3); box-shadow: 0 0 30px rgba(0, 229, 255, 0.2); border-radius: 4px; padding: 30px; font-family: 'Courier New', monospace; color: #00e5ff;">
-      <div class="settings-header" style="font-size: 20px; font-weight: bold; letter-spacing: 3px; margin-bottom: 20px; text-transform: uppercase; border-bottom: 1px solid rgba(0, 229, 255, 0.2); padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-        <span>🔑 CONFIGURATION API</span>
-        <button type="button" class="settings-close" id="api-keys-close-btn" onclick="const m=document.getElementById('api-keys-modal'); if(m) m.style.display='none';" style="background:transparent; border:none; cursor: pointer; font-size: 16px; color: #00e5ff; font-weight:bold; padding:4px 8px; z-index:1001;" title="Fermer la fenêtre">[ X ]</button>
-      </div>
-
-      <div class="ha-hint" style="margin-bottom: 20px; font-size: 11px; line-height: 1.5; color: rgba(0, 229, 255, 0.7);">
-        Activez, désactivez et configurez vos clés API pour les services connectés de JARVIS. Vos clés sont enregistrées en direct dans votre fichier local <code>.env</code>.
-      </div>
-            <!-- API Gemini -->
-      <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">GOOGLE GEMINI API (Cerveau & Voix)</span>
-          <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
-            <input type="checkbox" id="settings-api-gemini-enabled" checked style="cursor: pointer;"> ACTIVÉ
-          </label>
-        </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <div style="position: relative; flex: 1;">
-            <input type="password" id="settings-api-gemini-key" placeholder="Entrez votre clé API Gemini" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
-            <span class="toggle-password-eye" data-target="settings-api-gemini-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
-          </div>
-          <a href="https://aistudio.google.com/" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API Gemini (AI Studio)">🔑 OBTENIR</a>
-        </div>
-      <!-- API OpenAI / ChatGPT -->
-      <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">OPENAI API (ChatGPT & DALL-E)</span>
-          <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
-            <input type="checkbox" id="settings-api-openai-enabled" checked style="cursor: pointer;"> ACTIVÉ
-          </label>
-        </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <div style="position: relative; flex: 1;">
-            <input type="password" id="settings-api-openai-key" placeholder="Entrez votre clé API OpenAI (sk-...)" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
-            <span class="toggle-password-eye" data-target="settings-api-openai-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
-          </div>
-          <a href="https://platform.openai.com/api-keys" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API OpenAI">🔑 OBTENIR</a>
-        </div>
-        <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Requis pour utiliser ChatGPT (GPT-4o, GPT-4o-mini, o3-mini) et la génération DALL-E 3.</div>
-      </div>
-
-      <!-- API Groq -->
-             <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">GROQ API (Cerveaux alternatifs rapides)</span>
-          <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
-            <input type="checkbox" id="settings-api-groq-enabled" checked style="cursor: pointer;"> ACTIVÉ
-          </label>
-        </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <div style="position: relative; flex: 1;">
-            <input type="password" id="settings-api-groq-key" placeholder="Entrez votre clé API Groq" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
-            <span class="toggle-password-eye" data-target="settings-api-groq-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
-          </div>
-          <a href="https://console.groq.com/keys" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API Groq">🔑 OBTENIR</a>
-        </div>
-        <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Offre un accès ultra-rapide à des modèles comme LLaMA 3.</div>
-      </div>
-
-      <!-- API YouTube -->
-      <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">YOUTUBE API v3 (Recherche de musique)</span>
-                    <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
-            <input type="checkbox" id="settings-api-youtube-enabled" checked style="cursor: pointer;"> ACTIVÉ
-          </label>
-        </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <div style="position: relative; flex: 1;">
-            <input type="password" id="settings-api-youtube-key" placeholder="Entrez votre clé API YouTube" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
-            <span class="toggle-password-eye" data-target="settings-api-youtube-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
-          </div>
-          <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API YouTube (Google Cloud)">🔑 OBTENIR</a>
-        </div>
-        <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Requis pour rechercher et jouer des chansons spécifiques par leur titre via YouTube.</div>
-      </div>
-
-      <!-- API xAI (Grok) -->
-             <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">XAI API (Grok AI)</span>
-          <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
-            <input type="checkbox" id="settings-api-grok-enabled" checked style="cursor: pointer;"> ACTIVÉ
-          </label>
-        </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <div style="position: relative; flex: 1;">
-            <input type="password" id="settings-api-grok-key" placeholder="Entrez votre clé API xAI" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
-            <span class="toggle-password-eye" data-target="settings-api-grok-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
-          </div>
-          <a href="https://console.x.ai/" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API xAI (Grok)">🔑 OBTENIR</a>
-        </div>
-        <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Permet d'utiliser l'IA Grok de xAI pour des réponses alternatives.</div>
-      </div>
-
-      <!-- API SerpAPI -->
-             <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">SERPAPI (Google Images)</span>
-          <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
-            <input type="checkbox" id="settings-api-serpapi-enabled" checked style="cursor: pointer;"> ACTIVÉ
-          </label>
-        </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <div style="position: relative; flex: 1;">
-            <input type="password" id="settings-api-serpapi-key" placeholder="Entrez votre clé API SerpAPI" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
-            <span class="toggle-password-eye" data-target="settings-api-serpapi-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
-          </div>
-          <a href="https://serpapi.com/manage-api-key" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API SerpAPI">🔑 OBTENIR</a>
-        </div>
-        <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Utilisé pour afficher des illustrations d'images sur l'écran holographique.</div>
-      </div>
-
-      <!-- API Anthropic -->
-      <div class="settings-group" style="margin-bottom: 25px; padding-bottom: 5px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">ANTHROPIC API (Claude AI)</span>
-          <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
-            <input type="checkbox" id="settings-api-anthropic-enabled" checked style="cursor: pointer;"> ACTIVÉ
-          </label>
-                  </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <div style="position: relative; flex: 1;">
-            <input type="password" id="settings-api-anthropic-key" placeholder="Entrez votre clé API Anthropic" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
-            <span class="toggle-password-eye" data-target="settings-api-anthropic-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
-          </div>
-          <a href="https://console.anthropic.com/" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API Anthropic">🔑 OBTENIR</a>
-        </div>
-        <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Permet d'utiliser Claude 3.5 Sonnet / Opus comme cerveau alternatif.</div>
-      </div>
-
-      <!-- API Mistral -->
-      <div class="settings-group" style="margin-bottom: 25px; border-bottom: 1px solid rgba(0, 229, 255, 0.1); padding-bottom: 15px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-weight: bold; font-size: 11px; color: #00e5ff; letter-spacing: 1px;">MISTRAL API (Mistral AI)</span>
-          <label class="switch-container" style="display: flex; align-items: center; gap: 6px; font-size: 10px; cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold; user-select: none;">
-            <input type="checkbox" id="settings-api-mistral-enabled" checked style="cursor: pointer;"> ACTIVÉ
-          </label>
-        </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-          <div style="position: relative; flex: 1;">
-            <input type="password" id="settings-api-mistral-key" placeholder="Entrez votre clé API Mistral" style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0, 229, 255, 0.05); border: 1px solid rgba(0, 229, 255, 0.2); color: #fff; padding: 8px 36px 8px 10px; border-radius: 4px; outline: none; transition: border-color 0.3s ease;">
-            <span class="toggle-password-eye" data-target="settings-api-mistral-key" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; user-select: none;" title="Afficher/Masquer la clé">👁️</span>
-          </div>
-          <a href="https://console.mistral.ai/" target="_blank" class="settings-btn" style="text-align: center; text-decoration: none; font-size: 10px; line-height: 20px; padding: 6px 12px; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; font-weight: bold; background: rgba(0, 229, 255, 0.02); display: inline-block; cursor: pointer;" title="Obtenir une clé API Mistral AI">🔑 OBTENIR</a>
-        </div>
-        <div class="ha-hint" style="font-size: 9px; margin-top: 5px; color: rgba(0, 229, 255, 0.5);">Permet d'utiliser le modèle souverain français Mistral Large.</div>
-      </div>
-
-      <div style="display: flex; gap: 10px; margin-top: 15px;">
-        <button class="settings-btn primary" id="api-keys-save-btn" style="flex: 1; padding: 12px; font-weight: bold; font-size: 11px; letter-spacing: 2px; border: 1px solid #00e5ff; background: rgba(0, 229, 255, 0.15); color: #00e5ff; cursor: pointer; border-radius: 4px; transition: all 0.3s ease;">SAUVEGARDER & ENREGISTRER</button>
-        <button type="button" onclick="const m=document.getElementById('api-keys-modal'); if(m) m.style.display='none';" style="padding: 12px 20px; font-weight: bold; font-size: 11px; letter-spacing: 1px; border: 1px solid rgba(255, 51, 102, 0.5); background: rgba(255, 51, 102, 0.15); color: #ff3366; cursor: pointer; border-radius: 4px;">FERMER</button>
-      </div>
-    </div>
     </div>
   </div>
 
@@ -1320,41 +1528,6 @@
         </div>
       </div>
 
-    </div>
-  </div>
-
-  <!-- ══ IPTV & VIDEO PLAYER PANEL — Iron Man HUD ═══════════════════════ -->
-  <div id="iptv-panel" class="iptv-panel hidden" style="position: fixed; top: 60px; left: 50%; transform: translateX(-50%); width: 900px; max-width: 90vw; height: 550px; max-height: 80vh; background: rgba(10, 16, 26, 0.95); border: 1px solid rgba(255, 138, 26, 0.4); border-radius: 16px; box-shadow: 0 15px 45px rgba(0, 0, 0, 0.75), 0 0 25px rgba(255, 138, 26, 0.25); z-index: 25000; backdrop-filter: blur(24px); display: none; flex-direction: column; overflow: hidden; font-family: monospace;">
-    <div class="iptv-header" id="iptv-header" style="display:flex; align-items:center; gap:10px; padding:10px 16px; background: rgba(10,16,26,0.85); border-bottom: 1px solid rgba(255,138,26,0.3); color: #ff8a1a;">
-      <div class="iptv-title-area" style="flex:1;">
-        <span class="iptv-label-tag" style="font-size:9px; letter-spacing:2px; color:rgba(255,138,26,0.7);">◈ JARVIS // MEDIA_PLAYER</span>
-        <div class="iptv-current-title" id="iptv-current-title" style="font-size:12px; font-weight:bold; letter-spacing:2px;">AUCUN MÉDIA CHARGÉ</div>
-      </div>
-      <div class="iptv-header-actions" style="display:flex; gap:6px;">
-        <button type="button" class="iptv-hbtn iptv-close-btn" id="iptv-close-btn" onclick="const p=document.getElementById('iptv-panel'); if(p){ p.classList.add('hidden'); p.style.display='none'; }" style="background:rgba(255,59,48,0.15); border:1px solid #ff3366; color:#ff3366; padding:4px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">✕ FERMER</button>
-      </div>
-    </div>
-
-    <!-- Toolbar -->
-    <div class="iptv-toolbar" id="iptv-toolbar" style="display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid rgba(255,138,26,0.2); background:rgba(255,138,26,0.05);">
-      <div class="iptv-url-zone" style="display:flex; gap:8px; flex:1;">
-        <input type="text" id="iptv-url-input" class="iptv-url-input" placeholder="URL stream / lien M3U / IPTV direct..." style="flex:1; background:rgba(255,138,26,0.08); border:1px solid rgba(255,138,26,0.3); color:#ff8a1a; padding:6px 12px; font-family:monospace; font-size:11px; border-radius:4px; outline:none;" />
-        <button class="iptv-tool-btn iptv-load-btn" id="iptv-load-url-btn" style="background:rgba(255,138,26,0.2); border:1px solid #ff8a1a; color:#ff8a1a; padding:6px 14px; font-weight:bold; border-radius:4px; cursor:pointer;">⏩ CHARGER</button>
-      </div>
-    </div>
-
-    <!-- Main content area -->
-    <div class="iptv-body" id="iptv-body" style="display:flex; flex:1; overflow:hidden; position:relative;">
-      <!-- Video area -->
-      <div class="iptv-video-area" id="iptv-video-area" style="flex:1; position:relative; background:#000; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">
-        <div class="iptv-drop-zone" id="iptv-drop-zone" style="position:absolute; inset:0; z-index:5; display:flex; align-items:center; justify-content:center; background:rgba(5,5,8,0.95); border:2px dashed rgba(255,138,26,0.3);">
-          <div class="iptv-drop-content" style="text-align:center; color:rgba(255,138,26,0.7); display:flex; flex-direction:column; align-items:center; gap:12px;">
-            <p style="font-size:13px; font-weight:bold; letter-spacing:2px; margin:0;">📺 LECTEUR IPTV & VIDÉO READY</p>
-            <p style="font-size:10px; color:rgba(255,138,26,0.5); margin:0;">Entrez une URL M3U ou déposez un fichier MP4 / MKV</p>
-          </div>
-        </div>
-        <video id="iptv-video" class="iptv-video" preload="auto" style="width:100%; height:100%; object-fit:contain;"></video>
-      </div>
     </div>
   </div>
 

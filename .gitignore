@@ -51,6 +51,10 @@ jarvis_tts_*.mp3
 Thumbs.db
 desktop.ini
 
+# Binaires d'installeur générés localement (Inno Setup, etc.)
+*.exe
+unins*.dat
+
 # ONNX models
 *.onnx
 core/kokoro/kokoro-v1.0.onnx

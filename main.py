@@ -378,7 +378,6 @@ def _charger_plugins():
     import plugins.dev_swarm_resolver
     import plugins.image_search_resolver
     import plugins.uninstaller_resolver
-    import plugins.iptv_resolver
     import plugins.website_resolver
     import plugins.image_edit_resolver
     import plugins.document_generator_resolver
@@ -479,6 +478,11 @@ try:
     import anthropic as _anthropic_lib
 except ImportError:
     _anthropic_lib = None
+
+try:
+    from mistralai.client import Mistral as _MistralClientClass
+except ImportError:
+    _MistralClientClass = None
 
 import ctypes
 from ctypes import wintypes
@@ -582,7 +586,7 @@ def _sauvegarder_env(data: dict) -> None:
 
 def recharger_clients_ia():
     global GEMINI_API_KEY, YOUTUBE_API_KEY, XAI_API_KEY, SERPAPI_API_KEY, GROQ_API_KEY, ANTHROPIC_API_KEY, MISTRAL_API_KEY
-    global gemini_actif, client, grok_client, groq_client, anthropic_client
+    global gemini_actif, client, grok_client, groq_client, anthropic_client, mistral_client
     
     from dotenv import load_dotenv
     load_dotenv(override=True)
@@ -633,12 +637,21 @@ def recharger_clients_ia():
         anthropic_client = None
         print(f"[IA RELOAD] Erreur rechargement Claude : {e}")
 
+    try:
+        mistral_client = _MistralClientClass(api_key=MISTRAL_API_KEY) \
+            if (_MistralClientClass and _cle_valide(MISTRAL_API_KEY)) else None
+        print(f"[IA RELOAD] Mistral : {'rechargé' if mistral_client else 'désactivé'}.")
+    except Exception as e:
+        mistral_client = None
+        print(f"[IA RELOAD] Erreur rechargement Mistral : {e}")
+
 GEMINI_API_KEY       = os.getenv("GEMINI_API_KEY")
 YOUTUBE_API_KEY      = os.getenv("YOUTUBE_API_KEY")
 XAI_API_KEY          = os.getenv("XAI_API_KEY")
 SERPAPI_API_KEY      = os.getenv("SERPAPI_API_KEY")
 GROQ_API_KEY         = os.getenv("GROQ_API_KEY")
 ANTHROPIC_API_KEY    = os.getenv("ANTHROPIC_API_KEY")
+MISTRAL_API_KEY      = os.getenv("MISTRAL_API_KEY", "")
 SPOTIFY_MUSIQUE_URI  = os.getenv("SPOTIFY_MUSIQUE_URI", "")
 builtins.SPOTIFY_MUSIQUE_URI = SPOTIFY_MUSIQUE_URI
 YOUTUBE_MUSIQUE_URL  = os.getenv("YOUTUBE_MUSIQUE_URL", "")
@@ -658,7 +671,7 @@ VOIX_ACTUELLE = "homme" # "homme" ou "femme"
 
 
 # Météo + API REST Home Assistant (tableau de bord HUD uniquement)
-from module.ha_config import (
+from module.meteo_domotique import (
     HA_URL,
     VILLE_PAR_DEFAUT, LAT_PAR_DEFAUT, LON_PAR_DEFAUT,
     ha_appeler_service,
@@ -687,6 +700,11 @@ if _cle_valide(GROQ_API_KEY):
 anthropic_client = None
 if _anthropic_lib and _cle_valide(ANTHROPIC_API_KEY):
     anthropic_client = _anthropic_lib.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+# Client Mistral (modèle souverain français) — priorité 3, après Groq/Claude
+mistral_client = None
+if _MistralClientClass and _cle_valide(MISTRAL_API_KEY):
+    mistral_client = _MistralClientClass(api_key=MISTRAL_API_KEY)
 
 MODELS_LIST = [
     "gemini-3.5-flash-lite",   # Rapide, parfait pour usage vocal (succède à 3.1-flash-lite)
@@ -1153,25 +1171,6 @@ async def ws_handler(websocket):
                                 "success": False,
                                 "error": str(ex_wf)
                             }))
-                elif data.get("type") in ["get_agent_models", "set_agent_models"] or data.get("action") in ["get_agent_models", "set_agent_models"]:
-                    action_type = data.get("action") or data.get("type")
-                    from plugins.agent_model_manager import get_agent_models_info, set_agent_models
-                    if action_type == "get_agent_models":
-                        info = get_agent_models_info()
-                        await websocket.send(json.dumps({
-                            "type": "agent_models_data",
-                            "action": "agent_models_data",
-                            "data": info
-                        }))
-                    elif action_type == "set_agent_models":
-                        new_models = data.get("models", {})
-                        updated = set_agent_models(new_models)
-                        await websocket.send(json.dumps({
-                            "type": "agent_models_updated",
-                            "action": "agent_models_updated",
-                            "success": True,
-                            "current_models": updated
-                        }))
                 elif data.get("type") == "get_winget_upgrades":
                     print("[WINGET] Scan des mises à jour demandé...")
                     upgrades = await asyncio.to_thread(lister_mises_a_jour_winget)
@@ -1194,9 +1193,6 @@ async def ws_handler(websocket):
                                 args = ["winget", "upgrade", "--id", pkg_id, "--accept-package-agreements", "--accept-source-agreements", "--include-unknown"]
                                 await asyncio.to_thread(run_winget_upgrade_sync, args, loop, websocket)
                         lancer_tache_arriere_plan(run_sequence())
-                elif data.get("type") in ("iptv_open", "iptv_parse_m3u", "iptv_parse_url", "iptv_open_file", "iptv_set_audio_track"):
-                    from module.iptv_player import handle_iptv_ws_message
-                    await handle_iptv_ws_message(data, websocket, CONNECTED_CLIENTS)
                 elif data.get("type") in ("ha_get_states", "ha_call_service"):
                     # ── Home Assistant Dashboard ──────────────────────────────
                     await handle_ha_ws_message(data, websocket, CONNECTED_CLIENTS)
@@ -2756,6 +2752,21 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
         elif anthropic_client and not _quota_mgr.is_available("claude"):
             print(f"[CERVEAU] Claude en cooldown ({_quota_mgr.remaining_cooldown('claude')}s). Bascule directe.")
 
+        # ── PRIORITÉ 3 — MISTRAL (modèle souverain français) ────────────────
+        if mistral_client and _quota_mgr.is_available("mistral"):
+            print("[CERVEAU] Tentative avec Mistral (Large)...")
+            try:
+                rep_mistral = await demander_mistral(texte, update_hist=update_hist)
+                if rep_mistral:
+                    return rep_mistral
+                print("[CERVEAU] Mistral KO (réponse vide). Bascule suivante.")
+            except _QuotaExceededError:
+                print(f"[CERVEAU] Mistral quota épuisé — cooldown {_quota_mgr.remaining_cooldown('mistral')}s. Bascule.")
+            except Exception as e:
+                print(f"[CERVEAU] Mistral erreur ({e}). Bascule suivante.")
+        elif mistral_client and not _quota_mgr.is_available("mistral"):
+            print(f"[CERVEAU] Mistral en cooldown ({_quota_mgr.remaining_cooldown('mistral')}s). Bascule directe.")
+
         cerveau = detecter_cerveau(texte)
 
         async def _call_gemini():
@@ -2763,16 +2774,9 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
             if not gemini_actif:
                 raise Exception("Clé Gemini non configurée — agent ignoré")
 
-            from plugins.agent_model_manager import load_chosen_models
-            chosen_models_cfg = load_chosen_models()
-            pm_model = chosen_models_cfg.get("PM", "gemini-2.5-flash")
-
-            # Mettre le modèle PM sélectionné en priorité absolue
-            priorite_modeles = [pm_model] + [m for m in MODELS_LIST if m != pm_model]
-
             # Filtrer les modèles dont le quota est épuisé individuellement
             modeles_disponibles = [
-                m for m in priorite_modeles
+                m for m in MODELS_LIST
                 if _quota_mgr.is_available(f"gemini_{m}")
             ]
             if not modeles_disponibles:
@@ -2780,7 +2784,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                 _quota_mgr.mark_quota_exceeded("gemini")
                 raise _QuotaExceededError("Tous les modèles Gemini sont en cooldown")
 
-            print(f"[CERVEAU] Modèle principal sélectionné : {pm_model} (Disponibles: {modeles_disponibles})...")
+            print(f"[CERVEAU] Modèles Gemini disponibles : {modeles_disponibles}...")
             souvenirs = rechercher_souvenirs(texte)
             temp_hist = historique + [types.Content(role="user", parts=[types.Part(text=texte)])]
             prompt_actuel = construire_system_prompt(souvenirs=souvenirs)
@@ -3323,6 +3327,44 @@ async def demander_claude(texte, update_hist=True):
             _quota_mgr.mark_quota_exceeded("claude")
             raise _QuotaExceededError(f"Claude quota: {e}")
         print(f"[ERREUR CLAUDE] {e}")
+        return None
+
+async def demander_mistral(texte, update_hist=True):
+    """Appelle Mistral AI (Large) — agent IA priorité 3, après Groq et Claude."""
+    if not mistral_client:
+        return None
+    try:
+        souvenirs = rechercher_souvenirs(texte)
+        system_prompt = construire_system_prompt(souvenirs=souvenirs)
+
+        messages = [{"role": "system", "content": system_prompt}]
+        for h in historique[-30:]:
+            role = "user" if h.role == "user" else "assistant"
+            messages.append({"role": role, "content": h.parts[0].text})
+        messages.append({"role": "user", "content": texte})
+
+        response = await asyncio.wait_for(
+            asyncio.to_thread(
+                mistral_client.chat.complete,
+                model="mistral-medium-latest",
+                messages=messages,
+            ),
+            timeout=15.0
+        )
+        rep = str(response.choices[0].message.content)
+
+        if update_hist:
+            historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
+            historique.append(types.Content(role="model", parts=[types.Part(text=rep)]))
+            _sauvegarder_echange_conv(texte, rep)
+            ajouter_souvenir(texte, rep)
+
+        return rep
+    except Exception as e:
+        if _quota_mgr.is_quota_error(e):
+            _quota_mgr.mark_quota_exceeded("mistral")
+            raise _QuotaExceededError(f"Mistral quota: {e}")
+        print(f"[ERREUR MISTRAL] {e}")
         return None
 
 async def action_whatsapp_appel(contact):
@@ -6524,7 +6566,7 @@ def main():
                 # Remplacement de l'icone de la fenetre webview
                 hwnd = ctypes.windll.user32.FindWindowW(None, "J.A.R.V.I.S")
                 if hwnd:
-                    icon_path = os.path.abspath("jarvis.ico")
+                    icon_path = os.path.abspath("jarvis_icon.ico")
                     if os.path.exists(icon_path):
                         hicon = ctypes.windll.user32.LoadImageW(0, icon_path, 1, 0, 0, 0x0010)
                         if hicon:
@@ -7239,7 +7281,9 @@ builtins.demander_ia_vision = demander_ia_vision
 if __name__ == "__main__":
     import sys
     class TeeLogger(object):
-        def __init__(self, filename="jarvis_run.log"):
+        def __init__(self, filename=None):
+            if filename is None:
+                filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "jarvis_run.log")
             self.terminal = sys.stdout
             self.log = open(filename, "w", encoding="utf-8", errors="ignore")
         def write(self, message):

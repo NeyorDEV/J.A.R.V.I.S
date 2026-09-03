@@ -1,7 +1,8 @@
 # ============================================================
-#  ha_config.py — Configuration Home Assistant & Météo
-#  Personnalisez CE fichier selon votre installation domotique
-#  Ne touchez pas main2.py pour la domotique, tout est ici.
+#  meteo_domotique.py — Météo (Open-Meteo) & API REST Home Assistant
+#  Le pilotage vocal de la domotique passe par le client MCP
+#  (backend/core/ha_mcp_client.py) ; ce fichier ne sert plus que pour
+#  la météo et le tableau de bord HUD (clic direct sur les entités).
 # ============================================================
 
 import os

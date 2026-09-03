@@ -4,7 +4,7 @@ ha_mcp_client.py — Client MCP pour Home Assistant.
 Remplace l'ancien système de domotique codé en dur (main.py avait un bloc de
 ~200 lignes avec un "elif action == ha_xxx" par type d'appareil, plus des
 dictionnaires de correspondance "nom vocal" -> "entity_id" à maintenir à la
-main dans ha_config.py). Home Assistant expose nativement un serveur MCP
+main dans meteo_domotique.py). Home Assistant expose nativement un serveur MCP
 (intégration "Model Context Protocol Server") qui génère dynamiquement un
 outil par entité exposée — plus besoin de coder chaque type d'appareil ni de
 maintenir une liste d'entités : on ajoute/retire un appareil côté HA, JARVIS

@@ -21,7 +21,6 @@ import { CortexMap } from "./cortex_map";
 import { initHADashboard, handleHAMessage } from "./ha_dashboard";
 import { ChessMap } from "./chess_map";
 import { NetworkRadar } from "./network_radar";
-import { initIPTVPlayer, handleIPTVMessage, updateIPTVWS } from "./iptv_player";
 import { wsRef } from "./ws_link";
 import { makeDraggable, makePanelDraggable } from "./ui/draggable";
 import { initDynamicUserTips } from "./ui/tips";
@@ -52,6 +51,7 @@ const RECONNECT_INTERVAL_MS = 2_000;
 // ── Boot sequence state ───────────────────────────────────────────────────────
 let bootConnectedCallback: (() => void) | null = null;
 let wsConnectedBeforeBoot = false;
+let bootOrbSphereStop: (() => void) | null = null;
 
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 const canvas = document.getElementById("orb-canvas") as HTMLCanvasElement;
@@ -66,7 +66,6 @@ const micBtnEl = document.getElementById("mic-btn") as HTMLButtonElement;
 const jarvisMenuBtn = document.getElementById("jarvis-menu-btn") as HTMLButtonElement;
 const jarvisMenuDropdown = document.getElementById("jarvis-menu-dropdown") as HTMLDivElement;
 const apiKeysButtonEl = document.getElementById("api-keys-button") as HTMLButtonElement;
-const apiKeysModalEl = document.getElementById("api-keys-modal") as HTMLDivElement;
 const apiKeysCloseBtn = document.getElementById("api-keys-close-btn") as HTMLSpanElement;
 const apiKeysSaveBtn = document.getElementById("api-keys-save-btn") as HTMLButtonElement;
 const gpuButtonEl = document.getElementById("gpu-button") as HTMLButtonElement;
@@ -98,10 +97,6 @@ const settingsSaveBtn = document.getElementById("settings-save-btn") as HTMLButt
 const settingsMicSelect = document.getElementById("settings-mic") as HTMLSelectElement;
 const settingsCameraSelect = document.getElementById("settings-camera") as HTMLSelectElement;
 const settingsMusiqueLien = document.getElementById("settings-musique-lien") as HTMLInputElement;
-const haAddBtn = document.getElementById("ha-add-btn") as HTMLButtonElement;
-const haAddNom = document.getElementById("ha-add-nom") as HTMLInputElement;
-const haAddEntity = document.getElementById("ha-add-entity") as HTMLInputElement;
-const haEntitiesListEl = document.getElementById("ha-entities-list") as HTMLDivElement;
 const appDetectBtn = document.getElementById("app-detect-btn") as HTMLButtonElement;
 const appDetectSelect = document.getElementById("app-detect-select") as HTMLSelectElement;
 
@@ -160,10 +155,6 @@ if (wbBrowseBtn) {
 
 
 let currentCustomApps: { id: string, label: string, exe_path: string }[] = [];
-let currentCustomLights: { name: string, entity_id: string }[] = [];
-let currentCustomPrises: { name: string, entity_id: string }[] = [];
-let currentCustomCapteurs: { name: string, entity_id: string }[] = [];
-let activeHaTab: "lumieres" | "prises" | "capteurs" = "lumieres";
 
 
 let subtitlesEnabled = true;
@@ -525,7 +516,6 @@ function connect(): void {
   ws = new WebSocket(WS_URL);
   wsRef.current = ws;
   (window as any)._jarvisWs = ws;
-  updateIPTVWS(ws);
 
   const previousLiveEngine = (window as any).liveAudioEngine as LiveAudioEngine | undefined;
   if (previousLiveEngine) {
@@ -1420,12 +1410,6 @@ function openCodeEditorModal(filePath: string, projectName?: string) {
         return;
       }
 
-      // ── IPTV Player WS Messages ──
-      if (data.type === "iptv_open" || data.type === "iptv_stream_ready" || data.type === "iptv_playlist" || data.type === "iptv_direct_stream" || data.type === "iptv_playlist_error") {
-        handleIPTVMessage(data);
-        return;
-      }
-
       // ── Home Assistant WS Messages ──
       if (data.type === "ha_states" || data.type === "ha_state_changed" || data.type === "ha_service_result") {
         handleHAMessage(data);
@@ -1479,11 +1463,6 @@ function openCodeEditorModal(filePath: string, projectName?: string) {
           renderCustomApps();
         }
 
-        // Home Assistant Lists
-        currentCustomLights = settings.custom_lights || [];
-        currentCustomPrises = settings.custom_prises || [];
-        currentCustomCapteurs = settings.custom_capteurs || [];
-        renderHaEntities();
         // Orb Style & Antivirus Live
                 const settingsOrbStyleEl = document.getElementById("settings-orb-style") as HTMLSelectElement;
         if (settingsOrbStyleEl) {
@@ -1552,17 +1531,6 @@ function openCodeEditorModal(filePath: string, projectName?: string) {
           }
         }
         
-        return;
-      }
-
-      if (data.type === "agent_models_data" || (data as any).action === "agent_models_data") {
-        const info = (data as any).info || (data as any).data;
-        if (info) setupAgentModelsUI(info);
-        return;
-      }
-
-      if (data.type === "agent_models_updated" || (data as any).action === "agent_models_updated") {
-        console.log("[AGENT MODELS] Modèles mis à jour avec succès");
         return;
       }
 
@@ -1877,7 +1845,7 @@ function scheduleReconnect(): void {
     jarvisMenuDropdown.querySelectorAll(".menu-action-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.id;
-        if (id === "menu-settings-btn" || id === "shopping-toggle-btn" || id === "menu-uninstaller-toggle-btn" || id === "winget-toggle-btn" || id === "menu-holo-btn" || id === "menu-iptv-toggle-btn" || id === "menu-ha-toggle-btn" || id === "browser-btn" || id === "menu-keyboard-toggle" || id === "clear-cache-btn" || id === "api-keys-button" || id === "menu-av-scan-btn" || id === "menu-av-live-btn") {
+        if (id === "menu-settings-btn" || id === "shopping-toggle-btn" || id === "menu-uninstaller-toggle-btn" || id === "winget-toggle-btn" || id === "menu-holo-btn" || id === "menu-ha-toggle-btn" || id === "browser-btn" || id === "menu-keyboard-toggle" || id === "clear-cache-btn" || id === "api-keys-button" || id === "menu-av-scan-btn" || id === "menu-av-live-btn") {
           jarvisMenuDropdown.classList.add("hidden");
           jarvisMenuBtn.classList.remove("active");
         }
@@ -1898,25 +1866,6 @@ function scheduleReconnect(): void {
   const menuHoloBtn = document.getElementById("menu-holo-btn");
   if (menuHoloBtn && holoButtonEl) {
     menuHoloBtn.addEventListener("click", () => holoButtonEl.click());
-  }
-
-  const menuIptvToggleBtn = document.getElementById("menu-iptv-toggle-btn");
-  if (menuIptvToggleBtn) {
-    menuIptvToggleBtn.addEventListener("click", () => {
-      const p = document.getElementById("iptv-panel");
-      if (!p) return;
-      if (p.classList.contains("hidden")) {
-        p.classList.remove("hidden");
-        menuIptvToggleBtn.setAttribute("aria-pressed", "true");
-        menuIptvToggleBtn.classList.add("active");
-      } else {
-        p.classList.add("hidden");
-        menuIptvToggleBtn.setAttribute("aria-pressed", "false");
-        menuIptvToggleBtn.classList.remove("active");
-        const vid = document.getElementById("iptv-video") as HTMLVideoElement | null;
-        if (vid && !vid.paused) vid.pause();
-      }
-    });
   }
 
   const menuUninstallerToggleBtn = document.getElementById("menu-uninstaller-toggle-btn");
@@ -2041,25 +1990,22 @@ function scheduleReconnect(): void {
       showHelpHUD();
     });
   }
-  // ── Bouton de configuration des clés API ──
-  if (apiKeysButtonEl && apiKeysModalEl) {
+  // ── Bouton de configuration des clés API — ouvre la page paramètres sur l'onglet Clés API ──
+  if (apiKeysButtonEl) {
     apiKeysButtonEl.addEventListener("click", () => {
       if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
       if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
-      apiKeysModalEl.style.display = "flex";
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "get_settings" }));
-      }
+      openSettingsModal("api");
     });
   }
 
-  if (apiKeysCloseBtn && apiKeysModalEl) {
+  if (apiKeysCloseBtn) {
     apiKeysCloseBtn.addEventListener("click", () => {
-      apiKeysModalEl.style.display = "none";
+      closeSettingsModal();
     });
   }
 
-  if (apiKeysSaveBtn && apiKeysModalEl) {
+  if (apiKeysSaveBtn) {
     apiKeysSaveBtn.addEventListener("click", () => {
       const geminiEnabledEl = document.getElementById("settings-api-gemini-enabled") as HTMLInputElement;
       const groqEnabledEl = document.getElementById("settings-api-groq-enabled") as HTMLInputElement;
@@ -2099,7 +2045,7 @@ function scheduleReconnect(): void {
           }
         }));
       }
-      apiKeysModalEl.style.display = "none";
+      closeSettingsModal();
     });
   }
 }
@@ -2191,57 +2137,22 @@ keyboardInputEl.addEventListener("keydown", (e) => {
 // uniquement la classe .visible. Toute pose de style inline (display:flex) doit
 // être évitée, sinon les boutons FERMER / SAUVEGARDER n'arrivent plus à refermer
 // la modale (le style inline gagne sur le CSS).
-function setupAgentModelsUI(info: { available_models: Record<string, string[]>, current_models: Record<string, string> }) {
-  const agents = ["PM", "DEV", "UI", "SEC", "QA", "OPS"];
-  const available = info.available_models || {};
-  const current = info.current_models || {};
-
-  agents.forEach((agent) => {
-    const select = document.getElementById(`agent-model-${agent}`) as HTMLSelectElement | null;
-    if (!select) return;
-
-    select.innerHTML = "";
-    Object.entries(available).forEach(([provider, models]) => {
-      const optgroup = document.createElement("optgroup");
-      optgroup.label = `── ${provider} ──`;
-      models.forEach((m) => {
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m;
-        if (current[agent] === m) {
-          opt.selected = true;
-        }
-        optgroup.appendChild(opt);
-      });
-      select.appendChild(optgroup);
-    });
-
-    select.onchange = () => {
-      saveAgentModelsFromUI();
-    };
+// ── Navigation par onglets de la page paramètres (bandeau vertical) ──────────
+function switchSettingsTab(tab: string): void {
+  document.querySelectorAll<HTMLButtonElement>(".settings-nav-item").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.panel === tab);
+  });
+  document.querySelectorAll<HTMLElement>(".settings-panel").forEach(panel => {
+    panel.classList.toggle("active", panel.dataset.panel === tab);
   });
 }
-
-function saveAgentModelsFromUI() {
-  const agents = ["PM", "DEV", "UI", "SEC", "QA", "OPS"];
-  const newModels: Record<string, string> = {};
-  agents.forEach((agent) => {
-    const select = document.getElementById(`agent-model-${agent}`) as HTMLSelectElement | null;
-    if (select && select.value) {
-      newModels[agent] = select.value;
-    }
+document.querySelectorAll<HTMLButtonElement>(".settings-nav-item").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.panel) switchSettingsTab(btn.dataset.panel);
   });
+});
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
-      type: "set_agent_models",
-      action: "set_agent_models",
-      models: newModels
-    }));
-  }
-}
-
-function openSettingsModal() {
+function openSettingsModal(tab?: string) {
   if (!settingsModalEl) return;
 
   // Fermer le clavier visuel pour éviter la superposition
@@ -2254,10 +2165,10 @@ function openSettingsModal() {
   ["display", "opacity", "visibility"].forEach(p => settingsModalEl.style.removeProperty(p));
   settingsModalEl.classList.remove("hidden");
   settingsModalEl.classList.add("visible");
+  switchSettingsTab(tab || "profil");
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: "get_settings" }));
-    ws.send(JSON.stringify({ type: "get_agent_models" }));
   }
 
   // Énumération des caméras détectées
@@ -2409,9 +2320,6 @@ settingsSaveBtn.addEventListener("click", () => {
     mic_device_index: selectedMic === "" ? null : parseInt(selectedMic, 10),
     musique_lien: settingsMusiqueLien.value.trim(),
     custom_apps: currentCustomApps,
-    custom_lights: currentCustomLights,
-    custom_prises: currentCustomPrises,
-    custom_capteurs: currentCustomCapteurs,
     orb_style: orbStyleSelect ? orbStyleSelect.value : "default",
     av_live_protection: settingsAvLiveEl ? settingsAvLiveEl.checked : false
   };
@@ -2441,203 +2349,97 @@ document.querySelectorAll(".toggle-password-eye").forEach(eye => {
     }
   });
 });
-function renderHaEntities() {
-  if (!haEntitiesListEl) return;
-  haEntitiesListEl.innerHTML = "";
-  
-  let currentList: { name: string, entity_id: string }[] = [];
-  if (activeHaTab === "lumieres") currentList = currentCustomLights;
-  else if (activeHaTab === "prises") currentList = currentCustomPrises;
-  else if (activeHaTab === "capteurs") currentList = currentCustomCapteurs;
-  
-  if (currentList.length === 0) {
-    haEntitiesListEl.innerHTML = '<div style="font-size:11px;color:rgba(0,229,255,0.4);text-align:center;padding:12px;">AUCUN APPAREIL PERSO</div>';
-    return;
-  }
-  
-  currentList.forEach((ent, index) => {
-    const div = document.createElement("div");
-    div.className = "settings-app-item";
-    div.innerHTML = `
-      <div><strong>${ent.name}</strong> <br> <span style="font-size:10px;color:rgba(0,229,255,0.5)">${ent.entity_id}</span></div>
-      <div class="ha-entity-remove" data-index="${index}">[ X ]</div>
-    `;
-    haEntitiesListEl.appendChild(div);
-  });
-  
-  document.querySelectorAll(".ha-entity-remove").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const idx = parseInt((e.target as HTMLElement).getAttribute("data-index") || "0", 10);
-      if (activeHaTab === "lumieres") currentCustomLights.splice(idx, 1);
-      else if (activeHaTab === "prises") currentCustomPrises.splice(idx, 1);
-      else if (activeHaTab === "capteurs") currentCustomCapteurs.splice(idx, 1);
-      renderHaEntities();
-    });
-  });
-}
-if (haAddBtn) {
-  haAddBtn.addEventListener("click", () => {
-    const name = haAddNom.value.trim();
-    const entity = haAddEntity.value.trim();
-    if (name && entity) {
-      const item = { name, entity_id: entity };
-      if (activeHaTab === "lumieres") currentCustomLights.push(item);
-      else if (activeHaTab === "prises") currentCustomPrises.push(item);
-      else if (activeHaTab === "capteurs") currentCustomCapteurs.push(item);
-      haAddNom.value = "";
-      haAddEntity.value = "";
-      renderHaEntities();
-    }
-  });
-}
-
-if (haAddEntity) {
-  haAddEntity.addEventListener("input", () => {
-    let val = haAddEntity.value;
-    // Remplace les espaces et tirets par des underscores, minuscule, et filtre les caracteres invalides
-    val = val.toLowerCase()
-             .replace(/[\s-]+/g, "_")
-             .replace(/[^a-z0-9_.]/g, "");
-    if (haAddEntity.value !== val) {
-      haAddEntity.value = val;
-      haAddEntity.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  });
-}
-
-document.querySelectorAll(".ha-tab-btn").forEach(btn => {
-  btn.addEventListener("click", (e) => {
-    document.querySelectorAll(".ha-tab-btn").forEach(b => b.classList.remove("active"));
-    const target = e.currentTarget as HTMLButtonElement;
-    target.classList.add("active");
-    activeHaTab = target.getAttribute("data-tab") as any;
-    
-    if (activeHaTab === "lumieres") {
-            haAddNom.placeholder = "Nom vocal (ex: escalier)";
-      haAddEntity.placeholder = "entity_id (ex: light.escalier)";
-    } else if (activeHaTab === "prises") {
-      haAddNom.placeholder = "Nom vocal (ex: cafetiere)";
-      haAddEntity.placeholder = "entity_id (ex: switch.cafetiere)";
-    } else if (activeHaTab === "capteurs") {
-      haAddNom.placeholder = "Nom vocal (ex: salon)";
-      haAddEntity.placeholder = "entity_id (ex: sensor.salon_temp)";
-    }
-    
-    renderHaEntities();
-  });
-});
 
 // ── Boot Sequence ─────────────────────────────────────────────────────────────
+// Fait tourner en vraie 3D la sphère de points au centre de l'orbe (chaque
+// point a ses coordonnées x/y/z d'origine en attributs data-*, générées une
+// fois par script et figées dans le HTML). Rotation autour de l'axe Y :
+// projection 2D + taille/opacité selon la profondeur (effet de volume).
+function initBootOrbSphere(): void {
+  const dots = Array.from(document.querySelectorAll<SVGCircleElement>(".boot-orb-dot"));
+  if (!dots.length) return;
+
+  const points = dots.map((el) => ({
+    el,
+    x: parseFloat(el.dataset.x || "0"),
+    y: parseFloat(el.dataset.y || "0"),
+    z: parseFloat(el.dataset.z || "0"),
+  }));
+
+  const R = 26;
+  const CX = 100, CY = 100;
+  let angle = 0;
+
+  // setInterval plutôt que requestAnimationFrame : un écran de démarrage doit
+  // continuer de tourner même si la fenêtre perd le focus ou est masquée un
+  // instant (rAF est mis en pause par le navigateur dans un onglet/fenêtre
+  // en arrière-plan, ce qui gèlerait la sphère au pire moment).
+  const intervalId = window.setInterval(() => {
+    angle += 0.02;
+    const cosA = Math.cos(angle), sinA = Math.sin(angle);
+    for (const p of points) {
+      const x = p.x * cosA - p.z * sinA;
+      const z = p.x * sinA + p.z * cosA;
+      const depth = (z + 1) / 2; // 0 = derriere, 1 = devant
+      p.el.setAttribute("cx", (CX + x * R).toFixed(2));
+      p.el.setAttribute("cy", (CY + p.y * R).toFixed(2));
+      p.el.setAttribute("r", (0.5 + depth * 1.2).toFixed(2));
+      p.el.style.opacity = (0.35 + depth * 0.65).toFixed(2);
+    }
+  }, 33);
+  bootOrbSphereStop = () => window.clearInterval(intervalId);
+}
+
 function runBootSequence(): void {
-  const overlay    = document.getElementById("boot-overlay") as HTMLDivElement;
-  const modulesEl  = document.getElementById("boot-modules") as HTMLDivElement;
-  const progressBar = document.getElementById("boot-progress-bar") as HTMLDivElement;
-  const progressLbl = document.getElementById("boot-progress-label") as HTMLDivElement;
+  const overlay     = document.getElementById("boot-overlay") as HTMLDivElement;
+  const logoSection = document.getElementById("boot-logo-section") as HTMLDivElement;
   const statusText  = document.getElementById("boot-status-text") as HTMLDivElement;
-  const finalText   = document.getElementById("boot-final-text") as HTMLDivElement;
   const buildYear   = document.getElementById("boot-build-year") as HTMLSpanElement;
 
   if (!overlay) return;
   if (buildYear) buildYear.textContent = new Date().getFullYear().toString();
 
-  const MODULES = [
-    "NEURAL_NETWORK_CORE",
-    "SPEECH_RECOGNITION",
-    "KNOWLEDGE_DATABASE",
-    "VISION_SYSTEM",
-    "AUDIO_SYNTHESIS_TTS",
-    "HOME_AUTOMATION_LINK",
-    "COMM_PROTOCOLS",
-  ];
-
-  const TOTAL = MODULES.length + 1; // +1 pour la connexion serveur
-  let done = 0;
-
-  function setProgress(n: number) {
-    const pct = Math.round((n / TOTAL) * 100);
-    progressBar.style.width = `${pct}%`;
-    progressLbl.textContent = `CHARGEMENT... ${pct}%`;
-  }
-
-  function addLine(name: string): HTMLDivElement {
-    const div = document.createElement("div");
-    div.className = "boot-module-line";
-    div.innerHTML = `
-      <span class="boot-module-name">${name}</span>
-      <span class="boot-module-dots"></span>
-      <span class="boot-module-status pending">INITIALISATION</span>
-    `;
-    modulesEl.appendChild(div);
-    return div;
-  }
-
-  function setLineOnline(line: HTMLDivElement, mode: "ok" | "wait" = "ok") {
-    const s = line.querySelector(".boot-module-status") as HTMLSpanElement;
-    s.classList.remove("pending");
-    if (mode === "ok") {
-      s.textContent = "[ ONLINE ]";
-      s.classList.add("online");
-      done++;
-      setProgress(done);
-    } else {
-      s.textContent = "[ EN ATTENTE ]";
-            s.classList.add("waiting");
-    }
-  }
+  // Durée d'affichage minimale : évite un flash désagréable si la connexion
+  // WebSocket (souvent locale, quasi instantanée) répond avant même que le
+  // logo ait fini son fondu d'entrée.
+  const MIN_DISPLAY_MS = 1200;
+  const bootStart = performance.now();
 
   function finishBoot() {
-    setProgress(TOTAL);
-    progressLbl.textContent = "CHARGEMENT... 100%";
-    statusText.textContent = "SYSTÈMES OPÉRATIONNELS — BONNE JOURNÉE";
-    finalText.style.opacity = "1";
-    finalText.style.transform = "scale(1)";
-
+    const elapsed = performance.now() - bootStart;
+    const wait = Math.max(0, MIN_DISPLAY_MS - elapsed);
     setTimeout(() => {
-      // Retirer la protection anti-FOUC pour révéler l'interface
-      document.body.classList.remove("loading");
-      overlay.style.opacity = "0";
-      setTimeout(() => { overlay.style.display = "none"; }, 900);
-    }, 1600);
+      // Le noyau du réacteur passe du cyan pulsant au vert stable : c'est
+      // l'indicateur de progression, plus de barre séparée à animer.
+      logoSection.classList.add("online");
+      statusText.textContent = "SYSTÈMES OPÉRATIONNELS";
+
+      setTimeout(() => {
+        // Retirer la protection anti-FOUC pour révéler l'interface
+        document.body.classList.remove("loading");
+        overlay.style.opacity = "0";
+        setTimeout(() => { overlay.style.display = "none"; bootOrbSphereStop?.(); }, 900);
+      }, 1100);
+    }, wait);
   }
 
-  // Défilement des modules locaux (~280 ms entre chaque)
-  MODULES.forEach((name, i) => {
-    const delay = 250 + i * 280;
+  statusText.textContent = "CONNEXION AU SERVEUR EN COURS...";
+
+  if (wsConnectedBeforeBoot) {
+    finishBoot();
+  } else {
+    bootConnectedCallback = finishBoot;
+    // Sécurité : ferme le boot après 25 s si le serveur ne répond pas
     setTimeout(() => {
-      const line = addLine(name);
-      setTimeout(() => setLineOnline(line, "ok"), 200);
-    }, delay);
-  });
-
-  // Module serveur — attend la connexion WebSocket
-  const serverDelay = 250 + MODULES.length * 280;
-  setTimeout(() => {
-    const line = addLine("SERVER_CONNECTION");
-    statusText.textContent = "CONNEXION AU SERVEUR EN COURS...";
-
-    if (wsConnectedBeforeBoot) {
-      // WS déjà connecté avant cette étape
-      setTimeout(() => { setLineOnline(line, "ok"); setTimeout(finishBoot, 350); }, 250);
-    } else {
-      setLineOnline(line, "wait");
-      bootConnectedCallback = () => {
-        const s = line.querySelector(".boot-module-status") as HTMLSpanElement;
-        s.classList.remove("waiting");
-        s.textContent = "[ ONLINE ]";
-                s.classList.add("online");
-        done++;
-        setTimeout(finishBoot, 350);
-      };
-      // Sécurité : ferme le boot après 25 s si le serveur ne répond pas
-      setTimeout(() => {
-        if (bootConnectedCallback) {
-          bootConnectedCallback = null;
-          overlay.style.opacity = "0";
-          setTimeout(() => { overlay.style.display = "none"; }, 900);
-        }
-      }, 25_000);
-    }
-  }, serverDelay);
+      if (bootConnectedCallback) {
+        bootConnectedCallback = null;
+        statusText.textContent = "CONNEXION INDISPONIBLE — POURSUITE HORS-LIGNE";
+        document.body.classList.remove("loading");
+        overlay.style.opacity = "0";
+        setTimeout(() => { overlay.style.display = "none"; bootOrbSphereStop?.(); }, 900);
+      }
+    }, 25_000);
+  }
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
@@ -2648,9 +2450,9 @@ injectVisionButton();
 initJarvisGlobe();
 initHandTracking();
 initHADashboard(ws);
-initIPTVPlayer(ws);
 initDynamicAmbientGlow();
 initMagneticButtons();
+initBootOrbSphere();
 runBootSequence();
 
 // ── Carrousel de conseils (extrait dans ui/tips.ts) ──
@@ -3089,19 +2891,6 @@ if (menuAvScanBtn) {
 
 // (Listeners désinstallateur extraits dans panels/uninstaller_panel.ts)
 
-// ── LOGIQUE DU LECTEUR IPTV / VIDÉO ──
-document.getElementById("iptv-toggle-btn")?.addEventListener("click", () => {
-  const btn = document.getElementById("iptv-toggle-btn");
-  if (!btn) return;
-  // On passe par toggleHudPanel : il gère .hidden/.visible ET purge le
-  // « display:none » inline du HTML, que le simple retrait de .hidden ne
-  // pouvait pas battre (le panneau restait invisible).
-  toggleHudPanel("iptv-panel", btn, undefined, () => {
-    const vid = document.getElementById("iptv-video") as HTMLVideoElement | null;
-    if (vid && !vid.paused) vid.pause();
-  });
-});
-
 // (Panneau courses extrait dans panels/shopping_panel.ts)
 
 // ── LOGIQUE DU DASHBOARD DOMOTIQUE HOME ASSISTANT ────────────────────────────
@@ -3295,14 +3084,6 @@ function toggleHudPanel(panelId: string, btn: HTMLElement, onOpen?: () => void, 
   return true;
 }
 
-// 5. IPTV / Lecteur Vidéo
-bindCarouselAction("carousel-iptv-btn", (btn) => {
-  toggleHudPanel("iptv-panel", btn as HTMLElement, undefined, () => {
-    const vid = document.getElementById("iptv-video") as HTMLVideoElement | null;
-    if (vid && !vid.paused) vid.pause();
-  });
-});
-
 // 6. Désinstallateur
 bindCarouselAction("carousel-uninstaller-btn", (btn) => {
   const panneau = document.getElementById("uninstaller-panel");
@@ -3392,15 +3173,13 @@ bindCarouselAction("carousel-commands-btn", () => {
   }
 });
 
-// 12. API Keys Modal (Toggle ON/OFF)
+// 12. Clés API — ouvre la page paramètres sur l'onglet Clés API (Toggle ON/OFF)
 bindCarouselAction("carousel-api-btn", () => {
-  const modal = document.getElementById("api-keys-modal");
-  if (modal) {
-    const isHidden = modal.style.display === "none" || !modal.style.display;
-    modal.style.display = isHidden ? "flex" : "none";
-    if (isHidden && ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "get_settings" }));
-    }
+  if (settingsModalEl?.classList.contains("visible")
+    && document.querySelector('.settings-nav-item[data-panel="api"]')?.classList.contains("active")) {
+    closeSettingsModal();
+  } else {
+    openSettingsModal("api");
   }
 });
 
@@ -3444,19 +3223,19 @@ bindCarouselAction("settings-button", () => {
 // panneau est fermé, et inversement) et il fallait cliquer deux fois pour
 // retrouver la cohérence. On observe donc la classe .hidden des panneaux — seule
 // source de vérité — et on aligne le bouton correspondant.
-const CAROUSEL_PANEL_MAP: Record<string, string> = {
-  "iptv-panel":        "carousel-iptv-btn",
-  "uninstaller-panel": "carousel-uninstaller-btn",
-  "winget-panel":      "carousel-winget-btn",
-  "ha-panel":          "carousel-ha-btn",
-  "mobile-info-modal": "carousel-mobile-btn",
-  "av-panel":          "carousel-av-scan-btn",
-  "help-overlay":      "carousel-commands-btn",
-  "api-keys-modal":    "carousel-api-btn",
-  "settings-modal":    "settings-button",
+const CAROUSEL_PANEL_MAP: Record<string, string[]> = {
+  "uninstaller-panel": ["carousel-uninstaller-btn"],
+  "winget-panel":      ["carousel-winget-btn"],
+  "ha-panel":          ["carousel-ha-btn"],
+  "mobile-info-modal": ["carousel-mobile-btn"],
+  "av-panel":          ["carousel-av-scan-btn"],
+  "help-overlay":      ["carousel-commands-btn"],
+  // La page paramètres unifiée a deux points d'entrée (bouton haut + dock) : les deux
+  // doivent refléter son état ouvert/fermé.
+  "settings-modal":    ["settings-button", "carousel-api-btn"],
 };
 
-Object.entries(CAROUSEL_PANEL_MAP).forEach(([panelId, btnId]) => {
+Object.entries(CAROUSEL_PANEL_MAP).forEach(([panelId, btnIds]) => {
   const panneau = document.getElementById(panelId);
   if (!panneau) return;
 
@@ -3464,7 +3243,7 @@ Object.entries(CAROUSEL_PANEL_MAP).forEach(([panelId, btnId]) => {
     const ouvert = !panneau.classList.contains("hidden")
                 && panneau.style.display !== "none"
                 && getComputedStyle(panneau).display !== "none";
-    setCarouselBtnState(btnId, ouvert);
+    btnIds.forEach(btnId => setCarouselBtnState(btnId, ouvert));
     refreshCarousel();
   };
 
