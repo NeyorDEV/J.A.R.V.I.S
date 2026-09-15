@@ -50,28 +50,6 @@ Tous les fichiers `.bat` du projet renommés vers des noms plus courts et cohér
 - **Décalage horizontal des noms de logiciels dans le panneau Winget** : `winget_panel.ts` ajoutait un style inline `display:flex` sans `flex-direction:row`, laissant la classe CSS `.uninstaller-app-info` en `flex-direction: column` — les lignes se centraient différemment selon la longueur du nom. Corrigé en ajoutant `flex-direction:row` au style inline.
 - **Barre de scan orange sur un panneau censé être cyan** : la variable CSS `--panel-laser` (animation `holo-scan-line`, définie dans `11_clock_tips_keyboard.css`) n'avait pas de surcharge cyan pour `#winget-panel`, contrairement à `--un-rgb`. Ajout de `--panel-laser: #00e5ff;` sur `#winget-panel`.
 
-## Suppression de la fonctionnalité "GPU Boost"
-
-Bouton visuel de qualité de rendu de l'orbe 3D, entièrement mort côté backend (aucun listener WebSocket pour `toggle_gpu`). Supprimé intégralement :
-
-- `interfaces/frontend/index.html` : bouton `#gpu-button` du dock.
-- `interfaces/frontend/src/main.ts` : déclaration, entrées d'aide vocale, handlers de clic, binding carrousel.
-- `interfaces/frontend/src/orb.ts` : méthode `setQuality()` et son entrée d'interface (sans impact visuel, le renderer s'initialise déjà à `devicePixelRatio`).
-- `backend/plugins/dom_controller_resolver.py` : bloc de commandes vocales "active/désactive le GPU".
-
-## Suppression du navigateur intégré (`secure_browser.py`)
-
-Navigateur pywebview ancrable/détachable avec toolbar et adblock injectés (distinct de l'agent de navigation autonome `module/browser_service.py`, conservé intact). Supprimé intégralement :
-
-- **`tools/secure_browser.py`** : fichier supprimé (~630 lignes, incluant les appels Win32 de docking).
-- **`main.py`** : 4 handlers WebSocket (`open_browser`, `dock_browser`, `undock_browser`, `close_browser`), la commande vocale d'ouverture du navigateur, l'initialisation de la fenêtre webview et son callback de redimensionnement. La commande vocale de fermeture des navigateurs externes (Chrome/Edge/Firefox/Opera/Brave, pour couper musique/vidéo en fond) a été conservée car indépendante.
-- **`interfaces/frontend/index.html`** : bouton `#carousel-browser-btn` et bloc de contrôles flottants `#hud-browser-controls`.
-- **`interfaces/frontend/src/main.ts`** : handler WS `browser_state`, logique `updateBrowserUIState`, handlers des boutons ancrer/fermer, binding carrousel.
-- **`interfaces/frontend/src/css/10_uninstaller_menu.css`** : bloc CSS `body.browser-open` / `#hud-browser-controls` / `.hud-browser-btn` (~90 lignes).
-- **`docs/JARVIS_FILES_GUIDE.md`** : entrée de documentation obsolète retirée.
-
-Vérifié : aucune référence restante (`secure_browser`, `hud-browser`, `carousel-browser`, etc.), `py_compile` et `tsc --noEmit` passent.
-
 ## Dossier `assets`
 
 Icônes et images regroupées dans un dossier dédié, avec mise à jour des références :
