@@ -1,4 +1,4 @@
-# JARVIS
+# J.A.R.V.I.S
 
 Assistant vocal : reconnaissance vocale en continu, biométrie de la voix, interface HUD 3D (Three.js), domotique, contrôle du PC, génération de contenu (images, documents) et bien plus — le tout piloté à la voix, en français.
 
