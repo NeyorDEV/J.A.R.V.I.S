@@ -11,6 +11,8 @@ send_web_broadcast_sync est un hook injecté par main2.py après import
 import ast
 import os
 
+from core.audit_log import consigner
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Hook remplacé par main2.py après import (envoi d'un payload au HUD web)
@@ -256,6 +258,7 @@ def jarvis_creer_competence(nom_competence: str, description_demande: str) -> st
             stop_event.set()
             thread_anim.join()
             print(f"[JARVIS PLUGINS] ⛔ Compétence refusée par le contrôle de sûreté : {raison}")
+            consigner("competence_refusee", nom=nom_competence, raison=raison)
             return (f"J'ai refusé d'installer cette compétence, Mylane : le code généré "
                     f"n'a pas passé le contrôle de sûreté ({raison}).")
 
@@ -267,12 +270,14 @@ def jarvis_creer_competence(nom_competence: str, description_demande: str) -> st
         thread_anim.join()
 
         print(f"[JARVIS PLUGINS] Nouvelle compétence écrite dans {filename}")
+        consigner("competence_creee", nom=nom_competence, description=description_demande, fichier=filename)
         return f"La compétence '{nom_competence}' a été générée et installée avec succès. Elle est prête à être exécutée."
 
     except Exception as e:
         stop_event.set()
         thread_anim.join()
         print(f"[JARVIS PLUGINS] Erreur lors de la création de compétence : {e}")
+        consigner("competence_erreur_creation", nom=nom_competence, erreur=str(e))
         return f"Désolé Mylane, la génération de la compétence a échoué. Détail de l'erreur : {e}"
 
 
@@ -287,6 +292,7 @@ def jarvis_supprimer_competence(nom_competence: str) -> str:
         try:
             os.remove(filename)
             print(f"[JARVIS PLUGINS] Compétence supprimée : {filename}")
+            consigner("competence_supprimee", nom=nom_competence, fichier=filename)
             return f"La compétence '{nom_competence}' a été désinstallée et son fichier a été supprimé."
         except Exception as e:
             return f"Erreur lors de la suppression du fichier : {e}"
@@ -315,6 +321,7 @@ def executer_competence_vocale(nom_competence: str, texte_recu: str = None) -> s
         ok, raison = valider_code_competence(_code_disque)
         if not ok:
             print(f"[JARVIS PLUGINS] ⛔ Exécution refusée ({nom_formate}) : {raison}")
+            consigner("competence_execution_refusee", nom=nom_competence, raison=raison)
             return (f"J'ai refusé d'exécuter la compétence '{nom_competence}' : "
                     f"son code ne passe pas le contrôle de sûreté ({raison}).")
     except Exception as e_val:
@@ -333,12 +340,14 @@ def executer_competence_vocale(nom_competence: str, texte_recu: str = None) -> s
 
         if hasattr(module, "executer"):
             res = module.executer(texte_recu)
+            consigner("competence_executee", nom=nom_competence)
             return str(res)
         else:
             return "Erreur : cette compétence ne possède pas de point d'entrée 'executer'."
 
     except Exception as e:
         print(f"[JARVIS PLUGINS] Erreur lors de l'exécution de {nom_competence} : {e}")
+        consigner("competence_erreur_execution", nom=nom_competence, erreur=str(e))
         return f"Erreur d'exécution dans la compétence '{nom_competence}' : {e}"
 
 

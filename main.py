@@ -90,7 +90,7 @@ try:
         indent = msg[:len(msg) - len(stripped)]
         
         # Format 1: Text starting with an emoji/symbol followed by a bracketed tag
-        # e.g., "✔ [🗣 Kokoro-TTS] Parole générée..." or "❌ [🗣 Kokoro-TTS] Échec..."
+        # e.g., "✔ [🗣 SPEECH] Parole générée..." or "❌ [🗣 SPEECH] Échec..."
         # Or simple prefix like "[JARVIS] Tentative de lancement..."
         if '[' in stripped and ']' in stripped:
             idx_open = stripped.index('[')
@@ -133,7 +133,7 @@ try:
                         break
                 
                 if not known:
-                    # Generic tag not in our primary map (e.g. Kokoro-TTS or custom speech tag)
+                    # Generic tag not in our primary map (custom speech/status tag)
                     symbol = f"{prefix_symbol}  " if prefix_symbol else ""
                     
                     if "[OK]" in rest:
@@ -436,7 +436,7 @@ def _safe_ws_send(msg):
         print(f"[DEBUG WS] Erreur d'envoi: {e}")
 
 def send_web_broadcast_sync(payload: dict):
-    """Envoie un message WebSocket (dict) depuis n'importe quel thread — utilisé par secure_browser."""
+    """Envoie un message WebSocket (dict) depuis n'importe quel thread — utilisé par module.competences."""
     import json as _json
     _safe_ws_send(_json.dumps(payload))
 
@@ -680,6 +680,7 @@ from module.meteo_domotique import (
 )
 # Domotique pilotée à la voix : client MCP Home Assistant (voir docstring du module)
 from core.ha_mcp_client import executer_action_ha
+from core.mcp_client import executer_action_mcp
 
 gemini_actif    = _cle_valide(GEMINI_API_KEY)
 # Utilisation du client Gemini (supporte .aio pour l'asynchrone natif)
@@ -737,6 +738,8 @@ MODE_IRON_MAN = False
 dernier_parle_time = 0
 
 from core.prompt_builder import CREATOR_INFO, construire_system_prompt
+from core.confirmation import demander_confirmation, resoudre_confirmation, resoudre_confirmation_vocale, confirmation_en_attente
+import core.llm_registry as llm_registry
 
 # ==========================================
 # ==========================================
@@ -986,6 +989,9 @@ async def ws_handler(websocket):
                 # ("coffre fort") était câblée ; les boutons du panneau HUD
                 # (#vault-unlock-btn, #vault-lock-btn, #vault-add-btn, export,
                 # suppression) envoyaient ces types de message sans qu'aucun
+                elif data.get("type") == "confirm_response":
+                    resoudre_confirmation(data.get("id", ""), bool(data.get("confirmed")))
+
                 # handler n'existe ici : ils ne faisaient donc rien.
                 elif data.get("type") in ("vault_unlock", "vault_lock", "vault_add_file",
                                           "vault_export_file", "vault_delete_file"):
@@ -1047,7 +1053,9 @@ async def ws_handler(websocket):
 
                     elif action_vault == "vault_delete_file":
                         nom_fichier = data.get("filename", "")
-                        ok = await asyncio.to_thread(voice_vault.delete_file_from_vault, nom_fichier) if nom_fichier else False
+                        ok = False
+                        if nom_fichier and await demander_confirmation(websocket, f"Supprimer définitivement {nom_fichier} du coffre-fort ?"):
+                            ok = await asyncio.to_thread(voice_vault.delete_file_from_vault, nom_fichier)
                         await _diffuser_vault({
                             "type": "vault_file_deleted",
                             "success": ok,
@@ -1078,6 +1086,17 @@ async def ws_handler(websocket):
                     publisher = data.get("publisher", "")
                     install_location = data.get("install_location", "")
                     uninstall_string = data.get("uninstall_string", "")
+
+                    if not await demander_confirmation(websocket, f"Désinstaller {app_name} ?"):
+                        await websocket.send(json.dumps({
+                            "type": "uninstall_complete",
+                            "app_name": app_name,
+                            "success": False,
+                            "cancelled": True,
+                            "leftovers": []
+                        }))
+                        continue
+
                     print(f"[UNINSTALLER] Début de la désinstallation de {app_name}...")
                     await websocket.send(json.dumps({
                         "type": "uninstall_progress",
@@ -1103,6 +1122,17 @@ async def ws_handler(websocket):
                 elif data.get("type") == "clean_leftovers":
                     from module.uninstaller_helper import clean_leftover_item
                     items_to_clean = data.get("items", [])
+
+                    if items_to_clean and not await demander_confirmation(websocket, f"Supprimer définitivement {len(items_to_clean)} traces résiduelles ?"):
+                        await websocket.send(json.dumps({
+                            "type": "clean_complete",
+                            "cleaned_count": 0,
+                            "total_count": len(items_to_clean),
+                            "cancelled": True,
+                            "errors": []
+                        }))
+                        continue
+
                     cleaned_count = 0
                     errors = []
                     print(f"[UNINSTALLER] Nettoyage de {len(items_to_clean)} traces...")
@@ -1599,32 +1629,6 @@ async def ws_handler(websocket):
                     text = data.get("text")
                     if text:
                         lancer_tache_arriere_plan(parler(text))
-                elif data.get("type") == "open_browser":
-                    query = data.get("query")
-                    try:
-                        import secure_browser
-                        _wv = globals().get("_WEBVIEW_WINDOW")
-                        threading.Thread(target=secure_browser.trigger_browser, args=(query, _wv), daemon=True).start()
-                    except Exception as e:
-                        print(f"[BROWSER] Erreur WebSocket open_browser : {e}")
-                elif data.get("type") == "dock_browser":
-                    try:
-                        import secure_browser
-                        secure_browser.dock_browser()
-                    except Exception as e:
-                        print(f"[BROWSER] Erreur WebSocket dock_browser : {e}")
-                elif data.get("type") == "undock_browser":
-                    try:
-                        import secure_browser
-                        secure_browser.undock_browser()
-                    except Exception as e:
-                        print(f"[BROWSER] Erreur WebSocket undock_browser : {e}")
-                elif data.get("type") == "close_browser":
-                    try:
-                        import secure_browser
-                        secure_browser.close_browser_window()
-                    except Exception as e:
-                        print(f"[BROWSER] Erreur WebSocket close_browser : {e}")
             except Exception as e:
                 print(f"[WEB] Erreur traitement message : {e}")
     except Exception:
@@ -2722,50 +2726,21 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
 
         # ── RÉSOLUTION LOCALE DÉPORTÉE DANS LES PLUGINS ────────────
 
-        # ── PRIORITÉ 1 — GROQ (Llama 3.3) ───────────────────────────────────
-        if groq_client and _quota_mgr.is_available("groq"):
-            print("[CERVEAU] Tentative avec Groq (GPT-OSS 120B)...")
+        # ── PRIORITÉS 1-3 — moteurs génériques (registre, cf. core/llm_registry) ──
+        for engine in llm_registry.available_engines():
+            if not _quota_mgr.is_available(engine.name):
+                print(f"[CERVEAU] {engine.label} en cooldown ({_quota_mgr.remaining_cooldown(engine.name)}s). Bascule directe.")
+                continue
+            print(f"[CERVEAU] Tentative avec {engine.label}...")
             try:
-                rep_groq = await demander_groq(texte, update_hist=update_hist, skip_local=skip_local)
-                if rep_groq:
-                    return rep_groq
-                print("[CERVEAU] Groq KO (réponse vide). Bascule suivante.")
+                rep_engine = await engine.call(texte, update_hist=update_hist, skip_local=skip_local)
+                if rep_engine:
+                    return rep_engine
+                print(f"[CERVEAU] {engine.label} KO (réponse vide). Bascule suivante.")
             except _QuotaExceededError:
-                print(f"[CERVEAU] Groq quota épuisé — cooldown {_quota_mgr.remaining_cooldown('groq')}s. Bascule.")
+                print(f"[CERVEAU] {engine.label} quota épuisé — cooldown {_quota_mgr.remaining_cooldown(engine.name)}s. Bascule.")
             except Exception as e:
-                print(f"[CERVEAU] Groq erreur ({e}). Bascule suivante.")
-        elif groq_client and not _quota_mgr.is_available("groq"):
-            print(f"[CERVEAU] Groq en cooldown ({_quota_mgr.remaining_cooldown('groq')}s). Bascule directe.")
-
-        # ── PRIORITÉ 2 — CLAUDE (Anthropic) ─────────────────────────────────
-        if anthropic_client and _quota_mgr.is_available("claude"):
-            print("[CERVEAU] Tentative avec Claude (Anthropic)...")
-            try:
-                rep_claude = await demander_claude(texte, update_hist=update_hist)
-                if rep_claude:
-                    return rep_claude
-                print("[CERVEAU] Claude KO (réponse vide). Bascule suivante.")
-            except _QuotaExceededError:
-                print(f"[CERVEAU] Claude quota épuisé — cooldown {_quota_mgr.remaining_cooldown('claude')}s. Bascule.")
-            except Exception as e:
-                print(f"[CERVEAU] Claude erreur ({e}). Bascule suivante.")
-        elif anthropic_client and not _quota_mgr.is_available("claude"):
-            print(f"[CERVEAU] Claude en cooldown ({_quota_mgr.remaining_cooldown('claude')}s). Bascule directe.")
-
-        # ── PRIORITÉ 3 — MISTRAL (modèle souverain français) ────────────────
-        if mistral_client and _quota_mgr.is_available("mistral"):
-            print("[CERVEAU] Tentative avec Mistral (Large)...")
-            try:
-                rep_mistral = await demander_mistral(texte, update_hist=update_hist)
-                if rep_mistral:
-                    return rep_mistral
-                print("[CERVEAU] Mistral KO (réponse vide). Bascule suivante.")
-            except _QuotaExceededError:
-                print(f"[CERVEAU] Mistral quota épuisé — cooldown {_quota_mgr.remaining_cooldown('mistral')}s. Bascule.")
-            except Exception as e:
-                print(f"[CERVEAU] Mistral erreur ({e}). Bascule suivante.")
-        elif mistral_client and not _quota_mgr.is_available("mistral"):
-            print(f"[CERVEAU] Mistral en cooldown ({_quota_mgr.remaining_cooldown('mistral')}s). Bascule directe.")
+                print(f"[CERVEAU] {engine.label} erreur ({e}). Bascule suivante.")
 
         cerveau = detecter_cerveau(texte)
 
@@ -3367,6 +3342,22 @@ async def demander_mistral(texte, update_hist=True):
         print(f"[ERREUR MISTRAL] {e}")
         return None
 
+# ── Registre des moteurs LLM génériques (priorités 1-3) ──────────────────
+# Ajouter un nouveau provider à ce palier = un register() ici, plutôt que de
+# dupliquer le bloc de routage (cf. core/llm_registry.py pour le détail).
+async def _call_groq_engine(texte, update_hist=True, skip_local=False):
+    return await demander_groq(texte, update_hist=update_hist, skip_local=skip_local)
+
+async def _call_claude_engine(texte, update_hist=True, skip_local=False):
+    return await demander_claude(texte, update_hist=update_hist)
+
+async def _call_mistral_engine(texte, update_hist=True, skip_local=False):
+    return await demander_mistral(texte, update_hist=update_hist)
+
+llm_registry.register("groq", "Groq (GPT-OSS 120B)", 1, lambda: bool(groq_client), _call_groq_engine)
+llm_registry.register("claude", "Claude (Anthropic)", 2, lambda: bool(anthropic_client), _call_claude_engine)
+llm_registry.register("mistral", "Mistral (Large)", 3, lambda: bool(mistral_client), _call_mistral_engine)
+
 async def action_whatsapp_appel(contact):
     try:
         parler(f"J'appelle {contact} sur WhatsApp, mylane.")
@@ -3793,44 +3784,18 @@ async def resoudre_commandes_locales(texte):
             attente_nom_app = True
             return "Quelle application voulez-vous lancer, mylane ?"
 
-        # --- NAVIGATEUR SÉCURISÉ ---
+        # --- FERMETURE DU NAVIGATEUR EXTERNE (musique/vidéo en fond) ---
         mots_fermer_nav = ["navigateur", "internet", "la page", "le web", "la fenêtre", "la fenetre", "chrome", "edge", "firefox", "opera", "brave", "youtube", "la musique", "le navigateur"]
         if any(k in t for k in ["ferme", "quitte", "arrête", "arrete", "fermer", "quitter", "arrêter", "arreter"]) and any(w in t for w in mots_fermer_nav):
-            # 1. Fermer le navigateur sécurisé (pywebview)
-            try:
-                import secure_browser
-                secure_browser.close_browser_window()
-            except Exception:
-                pass
-            
-            # 2. Fermer Chrome / Edge / etc. pour couper YouTube ou la musique externe
+            # Fermer Chrome / Edge / etc. pour couper YouTube ou la musique externe
             for proc in ["chrome.exe", "msedge.exe", "firefox.exe", "opera.exe", "brave.exe"]:
                 try:
                     import subprocess
                     subprocess.run(["taskkill", "/IM", proc], capture_output=True)
                 except Exception as e:
                     print(f"[BROWSER] Erreur de fermeture douce de {proc} : {e}")
-                    
-            return "Je ferme le navigateur et j'arrête la musique, Mylane."
 
-        if any(kw in t for kw in ["ouvre le navigateur sur", "ouvre le navigateur pour", "lance le navigateur sur", "cherche sur le navigateur", "ouvre le navigateur", "lance le navigateur", "ouvre navigateur", "lance navigateur"]):
-            query = None
-            for kw in ["ouvre le navigateur sur", "ouvre le navigateur pour", "lance le navigateur sur", "cherche sur le navigateur", "ouvre le navigateur", "lance le navigateur", "ouvre navigateur", "lance navigateur"]:
-                if kw in t:
-                    query = t.split(kw)[-1].strip()
-                    if query:
-                        break
-            try:
-                import secure_browser
-                _wv = globals().get("_WEBVIEW_WINDOW")
-                threading.Thread(target=secure_browser.trigger_browser, args=(query, _wv), daemon=True).start()
-                if query:
-                    return f"J'ouvre le navigateur sécurisé sur {query}, Mylane."
-                else:
-                    return "J'ouvre le navigateur sécurisé, Mylane."
-            except Exception as e:
-                print(f"[BROWSER] Erreur d'ouverture vocale : {e}")
-                return "Désolé Mylane, je n'ai pas réussi à ouvrir le navigateur."
+            return "Je ferme le navigateur et j'arrête la musique, Mylane."
 
 
     # --- IDENTITE / CREATEUR (Priorite 0) ---
@@ -4316,6 +4281,14 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
     dernier_message = time.time()
     _derniere_reponse_streamed = False
     phrases_streamed = []
+
+    # Une confirmation d'action destructrice est en attente : "oui"/"non" doit
+    # la résoudre immédiatement, AVANT le verrou de traitement (traiter_lock),
+    # sinon la réponse resterait bloquée derrière l'action qui attend justement
+    # cette confirmation pour continuer (deadlock logique).
+    if confirmation_en_attente():
+        if resoudre_confirmation_vocale(nettoyer_commande(texte_utilisateur)):
+            return
     if from_voice:
         jarvis_actif = True  # Seules les commandes vocales ouvrent/maintiennent la session
     elif de_confiance:
@@ -4752,6 +4725,14 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
                     instruction = data.get("instruction", "")
                     if instruction:
                         resultat = await executer_action_ha(instruction)
+                        parler(resultat)
+                elif action == "github_action":
+                    # GitHub via le client MCP générique (core/mcp_client.py) :
+                    # même principe que ha_action, mais réutilisable pour
+                    # n'importe quel futur serveur MCP (server_name différent).
+                    instruction = data.get("instruction", "")
+                    if instruction:
+                        resultat = await executer_action_mcp("github", instruction)
                         parler(resultat)
                 elif action == "dom_sequence":
                     steps = data.get("steps", [])
@@ -5360,14 +5341,19 @@ def ecouter():
                 # Consolidation automatique de la mémoire en arrière-plan (non bloquante)
                 try:
                     from module.memory_manager import consolider_memoire_ia
+                    from module.vector_memory import consolider_memoire_vectorielle_ia
                     def _run_consolidation():
                         try:
                             loop = asyncio.new_event_loop()
                             loop.run_until_complete(consolider_memoire_ia())
+                            # Séquentiel après la mémoire clé-valeur : les deux appellent Gemini,
+                            # les lancer en parallèle doublerait juste la pression sur le quota
+                            # pour un gain de temps négligeable (tâche de fond, pas de délai perçu).
+                            loop.run_until_complete(consolider_memoire_vectorielle_ia())
                             loop.close()
                         except Exception as e_thread:
                             print(f"[JARVIS] Erreur thread consolidation : {e_thread}")
-                            
+
                     threading.Thread(target=_run_consolidation, daemon=True).start()
                 except Exception as ce:
                     print(f"[JARVIS] Échec du déclenchement de la consolidation automatique : {ce}")
@@ -6566,7 +6552,7 @@ def main():
                 # Remplacement de l'icone de la fenetre webview
                 hwnd = ctypes.windll.user32.FindWindowW(None, "J.A.R.V.I.S")
                 if hwnd:
-                    icon_path = os.path.abspath("jarvis_icon.ico")
+                    icon_path = os.path.abspath(os.path.join("assets", "jarvis_icon.ico"))
                     if os.path.exists(icon_path):
                         hicon = ctypes.windll.user32.LoadImageW(0, icon_path, 1, 0, 0, 0x0010)
                         if hicon:
@@ -6574,19 +6560,6 @@ def main():
                             ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 1, hicon) # ICON_BIG
             except Exception as e:
                 print(f"[JARVIS] Erreur chargement icone : {e}")
-
-            # Associer la fenetre principale pour secure_browser et ajouter le redimensionnement automatique
-            try:
-                import secure_browser
-                secure_browser._main_webview_window = _WEBVIEW_WINDOW
-                secure_browser._broadcast_fn = send_web_broadcast_sync
-                
-                def on_main_window_resized(width, height):
-                    secure_browser.resize_docked_window()
-                _WEBVIEW_WINDOW.events.resized += on_main_window_resized
-                # print("[JARVIS] Module de navigation securise connecte au redimensionnement.")
-            except Exception as ex:
-                print(f"[JARVIS] Erreur initialisation secure_browser : {ex}")
 
         _WEBVIEW_WINDOW.events.loaded += _on_loaded
 

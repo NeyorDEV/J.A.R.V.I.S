@@ -15,7 +15,7 @@
       display: none !important;
     }
   </style>
-  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap">
@@ -414,7 +414,6 @@
       <div class="carousel-track" id="carousel-track">
         <!-- Section IA / Core -->
         <button id="vision-button" title="Activer la vision de JARVIS"><span class="btn-icon">👁️</span> VISION</button>
-        <button id="gpu-button" aria-pressed="true" title="Activer le mode performances GPU"><span class="btn-icon">⚡</span> GPU BOOST</button>
         <button id="holo-button" aria-pressed="false" title="Activer le mode hologramme"><span class="btn-icon">⬡</span> HOLO</button>
         <button id="subtitle-toggle" aria-pressed="true" title="Activer les sous-titres du HUD"><span class="btn-icon">💬</span> HUD TEXT</button>
         <button id="gestures-toggle" aria-pressed="false" title="Activer la détection de gestes AR"><span class="btn-icon">🖐️</span> MODE AR</button>
@@ -425,8 +424,7 @@
         <button id="carousel-av-scan-btn" aria-pressed="false" title="Lancer un scan antivirus rapide"><span class="btn-icon">🛡️</span> ANTIVIRUS</button>
         <button id="carousel-ha-btn" aria-pressed="false" title="Contrôler la domotique Home Assistant"><span class="btn-icon">🏠</span> DOMOTIQUE</button>
         <button id="carousel-mobile-btn" aria-pressed="false" title="Connecter l'application mobile smartphone"><span class="btn-icon">📱</span> MOBILE</button>
-        <button id="carousel-browser-btn" aria-pressed="false" title="Ouvrir le navigateur web sécurisé"><span class="btn-icon">🌐</span> NAVIGATEUR</button>
-        
+
         <!-- Section Système -->
         <button id="carousel-commands-btn" aria-pressed="false" title="Afficher la liste des commandes vocales"><span class="btn-icon">📋</span> COMMANDES</button>
         <button id="carousel-api-btn" aria-pressed="false" title="Configurer les clés d'API (OpenAI, Gemini...)"><span class="btn-icon">🔑</span> API KEYS</button>
@@ -1593,12 +1591,6 @@
     </div>
   </div>
 
-  <!-- ══ FLOATING BROWSER CONTROLS ON HUD ═══════════════════════════════ -->
-     <div id="hud-browser-controls" class="hidden">
-    <button id="hud-browser-dock-btn" class="hud-browser-btn" title="Ancrer / Détacher le navigateur">⚡ DÉTACHER</button>
-    <button id="hud-browser-close-btn" class="hud-browser-btn danger" title="Fermer le navigateur">❌ FERMER</button>
-  </div>
-
   <!-- ══ SHOPPING PANEL — Iron Man HUD ════════════════════════════════ -->
   <div id="shopping-panel" class="shopping-panel hidden" style="display: none;">
     <div class="av-panel-scanlines"></div>
@@ -1853,6 +1845,17 @@
         </div>
       </div>
       <textarea id="code-editor-textarea" class="code-editor-textarea" spellcheck="false" placeholder="Chargement du code du fichier..."></textarea>
+    </div>
+  </div>
+
+  <div id="confirm-dialog-overlay" class="hidden">
+    <div class="confirm-dialog-box">
+      <div class="confirm-dialog-icon">⚠</div>
+      <div class="confirm-dialog-message" id="confirm-dialog-message"></div>
+      <div class="confirm-dialog-actions">
+        <button id="confirm-dialog-cancel" class="confirm-dialog-btn cancel">Annuler</button>
+        <button id="confirm-dialog-confirm" class="confirm-dialog-btn confirm">Confirmer</button>
+      </div>
     </div>
   </div>
 

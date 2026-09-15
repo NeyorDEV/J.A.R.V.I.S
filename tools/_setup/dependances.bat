@@ -5,7 +5,6 @@ cd /d "%~dp0\.."
 :: ======================================================
 ::  J.A.R.V.I.S - Installation des dependances
 ::  Appele par l'installateur Inno Setup
-::  Site : www.techenclair.fr
 :: ======================================================
 
 set "ERRORS=0"
@@ -66,7 +65,7 @@ echo [OK] Outils d'installation a jour.
 :: [4/6] Installation des modules IA et Google APIs
 :: ======================================================
 echo [4/6] Installation des modules IA et Google APIs...
-"%V_PY%" -m pip install --quiet python-dotenv google-genai google-generativeai groq openai flask flask-cors requests websockets colorama tenacity google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client anthropic httpx aiohttp pydantic psutil
+"%V_PY%" -m pip install --quiet python-dotenv google-genai google-generativeai groq openai flask flask-cors requests websockets colorama tenacity google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client anthropic mistralai httpx aiohttp pydantic psutil
 if !errorlevel! neq 0 (
     echo [AVERTISSEMENT] Certains modules IA n'ont pas pu etre installes.
     set /a WARNINGS+=1
@@ -167,15 +166,20 @@ if "!WEBVIEW2_OK!"=="1" (
 :: ======================================================
 :: [6/6] Generation du fichier de lancement
 :: ======================================================
-echo [6/6] Generation du fichier de lancement 'DEMARRER_JARVIS.bat'...
+echo [6/6] Generation du fichier de lancement 'start.bat'...
 (
 echo @echo off
-echo TITLE J.A.R.V.I.S - www.techenclair.fr
+echo TITLE J.A.R.V.I.S
 echo COLOR 0B
 echo cd /d "%%~dp0"
 echo ".\venv\Scripts\python.exe" "main.py"
 echo pause
-) > "DEMARRER_JARVIS.bat"
+) > "start.bat"
+
+:: Hook pre-commit (verification py_compile + tsc avant chaque commit)
+if exist "tools\git-hooks\pre-commit" if exist ".git" (
+    copy /Y "tools\git-hooks\pre-commit" ".git\hooks\pre-commit" >nul
+)
 
 :bilan
 echo.

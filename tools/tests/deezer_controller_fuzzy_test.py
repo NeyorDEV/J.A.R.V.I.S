@@ -1,2 +1,84 @@
-"import time\nimport asyncio\nimport subprocess\nimport os\nimport requests\n\ntry:\n    import pyautogui\nexcept ImportError:\n    pyautogui = None\n\ntry:\n    import uiautomation as auto\nexcept ImportError:\n    auto = None\n\n# Chemins d'installation de Deezer\nDEEZER_EXE = r\"C:\\Users\\mylan\\AppData\\Local\\Programs\\deezer-desktop\\Deezer.exe\"\nDEEZER_DIR = r\"C:\\Users\\mylan\\AppData\\Local\\Programs\\deezer-desktop\"\n\n# DEEZER — méthode native Windows et UI Automation (DOM de l'OS)\n# =============================================================\n\ndef _sauter_deezer_accessible():\n    \"\"\"Vérifie si Deezer tourne avec l'accessibilité activée. Si oui, retourne le contrôle UIA. Sinon None.\"\"\"\n    if not auto:\n        return None\n    try:\n        deezer_ctrl = auto.Control(searchDepth=1, Name=\"Deezer\", ClassName=\"Chrome_WidgetWin_1\")\n        if deezer_ctrl.Exists(0.2):\n            for child in deezer_ctrl.GetChildren():\n                if child.ControlTypeName in (\"DocumentControl\", \"CustomControl\", \"PaneControl\"):\n                    return deezer_ctrl\n    except:\n        pass\n    return None\n\n"def _focus_deezer():\n    \"\"\"Met la fenêtre Deezer au premier plan. Retourne True si trouvé.\"\"\"\n    try:\n        ctrl = get_deezer_main_control()\n        if ctrl:\n            top = ctrl.GetTopLevelControl()\n            if top:\n                import win32gui, win32con\n                hwnd = top.NativeWindowHandle\n                if hwnd:\n                    win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)\n                    try:\n                        top.SetActive()\n                    except:\n                        pass\n                    try:\n                        top.SetFocus()\n                    except:\n                        pass\n                    try:\n                        win32gui.SetForegroundWindow(hwnd)\n                    except:\n                        pass\n                    time.sleep(0.3)\n                    return True\n    except Exception as e:\n        print(f\"[DEEZER UIA] Échec _focus_deezer UIA: {e}\")\n        \n    try:\n        import win32gui, win32con\n        candidats = []\n        def _cb(hwnd, _):\n            if win32gui.IsWindowVisible(hwnd):\n                titre = win32gui.GetWindowText(hwnd)\n                if \"Deezer\" in titre:\n                    candidats.append(hwnd)\n        win32gui.EnumWindows(_cb, None)\n        if not candidats:\n            return False\n        hwnd = candidats[0]\n        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)\n        win32gui.SetForegroundWindow(hwnd)\n        time.sleep(0.4)\n        return True\n    except Exception:\n        return False"\n\"\"\ndef _get_deezer_hwnd_rapide():\n    \"\"\"Trouve le HWND de Deezer (même en tray/minimisé) SANS le restaurer ni voler le focus.\n    Utilisé pour les commandes média rapides : play/pause, suivant, précédent.\"\"\"\n    try:\n        import win32gui, win32process\n        deezer_pids = _get_deezer_pids()\n        if not deezer_pids:\n            return None\n        hwnd_result = [None]\n        def _cb(hwnd, _):\n            _, pid = win32process.GetWindowThreadProcessId(hwnd)\n            if pid in deezer_pids:\n                classname = win32gui.GetClassName(hwnd)\n                if \"Chrome_WidgetWin\" in classname and not win32gui.GetParent(hwnd):\n                    hwnd_result[0] = hwnd\n                    return False\n            return True\n        try:\n            win32gui.EnumWindows(_cb, None)\n        except:\n            pass\n        return hwnd_result[0]\n    except Exception:\n        return None\n\nasync def deezer_ouvrir():\n""    \"\"\"Lance Deezer s'il n'est pas déjà ouvert en s'assurant que l'accessibilité est active.\"\"\"\n    try:\n        # 1. Tenter de récupérer l'ins
-<truncated 16540 bytes>
+"""
+Test manuel ("fuzzy") du contrôleur Deezer.
+
+Le fichier d'origine s'est retrouvé corrompu (contenu enregistré comme une
+chaîne échappée tronquée, dupliquant en plus une ancienne version de
+backend/controller/deezer_controller.py). Reconstruit ici pour importer et
+exercer directement les fonctions réelles et à jour du contrôleur, plutôt
+que de dupliquer leur code.
+
+Nécessite Deezer installé et lancé (ou lançable). Menu interactif : à
+utiliser pour vérifier à la main que chaque commande agit bien sur la
+fenêtre Deezer, pas une suite d'assertions automatiques.
+"""
+import os
+import sys
+import asyncio
+
+# Ajout du chemin du backend dans le sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
+
+from backend.controller.deezer_controller import (
+    deezer_ouvrir,
+    deezer_lecture_pause,
+    deezer_suivant,
+    deezer_precedent,
+    deezer_stop,
+    deezer_volume,
+    deezer_rechercher,
+    deezer_lancer_playlist,
+    deezer_obtenir_titre_encours,
+)
+
+ACTIONS = {
+    "1": ("Ouvrir Deezer",              lambda: deezer_ouvrir()),
+    "2": ("Lecture / Pause",            lambda: deezer_lecture_pause()),
+    "3": ("Piste suivante",             lambda: deezer_suivant()),
+    "4": ("Piste précédente",           lambda: deezer_precedent()),
+    "5": ("Stop",                       lambda: deezer_stop()),
+    "6": ("Volume +",                   lambda: deezer_volume("up")),
+    "7": ("Volume -",                   lambda: deezer_volume("down")),
+    "8": ("Rechercher (saisie)",        None),  # géré à part : demande une saisie
+    "9": ("Lancer la dernière playlist", lambda: deezer_lancer_playlist()),
+    "0": ("Titre en cours",             lambda: asyncio.sleep(0, result=deezer_obtenir_titre_encours())),
+}
+
+
+async def menu():
+    print("[TEST] Test manuel du contrôleur Deezer — Deezer doit être installé.")
+    while True:
+        print("\n--- Actions disponibles ---")
+        for cle, (label, _) in ACTIONS.items():
+            print(f"  {cle}. {label}")
+        print("  q. Quitter")
+
+        choix = input("\n[?] Action : ").strip().lower()
+        if choix == "q":
+            break
+
+        if choix == "8":
+            recherche = input("[?] Terme à rechercher : ").strip()
+            if recherche:
+                resultat = await deezer_rechercher(recherche)
+                print(f"[RESULTAT] {resultat}")
+            continue
+
+        action = ACTIONS.get(choix)
+        if not action:
+            print("[!] Choix invalide.")
+            continue
+
+        label, fn = action
+        print(f"[TEST] {label}...")
+        try:
+            resultat = await fn()
+            print(f"[RESULTAT] {resultat}")
+        except Exception as e:
+            print(f"[ERREUR] {e}")
+
+    print("[TEST] Terminé.")
+
+
+if __name__ == "__main__":
+    asyncio.run(menu())

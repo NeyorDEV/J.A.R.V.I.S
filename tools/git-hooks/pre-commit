@@ -1,0 +1,49 @@
+#!/bin/sh
+# Garde-fou avant commit : verifie que le code Python (staged) compile et que
+# le frontend TypeScript (staged) type-check, pour eviter qu'une erreur de
+# syntaxe parte dans un commit.
+#
+# Ce fichier est suivi par git (contrairement a .git/hooks/pre-commit, jamais
+# versionne) : install.bat le copie automatiquement dans .git/hooks/ a chaque
+# installation, pour que le hook survive a une reinstallation ou un nouveau
+# clone du depot.
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+FAILED=0
+
+PY_FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.py')
+if [ -n "$PY_FILES" ]; then
+    echo "[pre-commit] Verification syntaxe Python..."
+    PYTHON_BIN="$ROOT_DIR/venv/Scripts/python.exe"
+    if [ ! -f "$PYTHON_BIN" ]; then
+        PYTHON_BIN="python"
+    fi
+    for f in $PY_FILES; do
+        if [ -f "$ROOT_DIR/$f" ]; then
+            "$PYTHON_BIN" -m py_compile "$ROOT_DIR/$f"
+            if [ $? -ne 0 ]; then
+                echo "[pre-commit] ECHEC compilation : $f"
+                FAILED=1
+            fi
+        fi
+    done
+fi
+
+TS_FILES=$(git diff --cached --name-only --diff-filter=ACM -- 'interfaces/frontend/*.ts' 'interfaces/frontend/*.tsx' 'interfaces/frontend/index.html')
+if [ -n "$TS_FILES" ]; then
+    echo "[pre-commit] Verification TypeScript (tsc --noEmit)..."
+    (cd "$ROOT_DIR/interfaces/frontend" && npx tsc --noEmit)
+    if [ $? -ne 0 ]; then
+        echo "[pre-commit] ECHEC type-check TypeScript."
+        FAILED=1
+    fi
+fi
+
+if [ "$FAILED" -ne 0 ]; then
+    echo ""
+    echo "[pre-commit] Commit bloque : corrige les erreurs ci-dessus."
+    echo "[pre-commit] (contournement exceptionnel : git commit --no-verify)"
+    exit 1
+fi
+
+exit 0

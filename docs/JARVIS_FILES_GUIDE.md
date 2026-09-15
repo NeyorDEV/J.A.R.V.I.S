@@ -9,7 +9,6 @@ Ce document propose un inventaire complet et détaillé de chaque fichier et dos
 ### 🖥️ Scripts d'entrée & Utilitaires Principaux
 *   **[main.py](file:///n:/JARVIS/main.py)** : L'orchestrateur central du backend (anciennement `main2.py`). Il gère la boucle principale, le serveur WebSocket (`ws://localhost:8765`), la capture audio (PyAudio), la détection de parole (VAD), la biométrie vocale, la transcription (STT), et la génération de réponses (LLM) avec synthèse vocale (TTS) en streaming.
 *   **[antivirus_scanner.py](file:///n:/JARVIS/tools/antivirus_scanner.py)** : Scanner de sécurité à la demande et résident. Il surveille l'écriture de scripts malveillants sur le PC et permet de lancer des analyses de répertoires.
-*   **[secure_browser.py](file:///n:/JARVIS/tools/secure_browser.py)** : Implémentation d'un navigateur sécurisé et contrôlé.
 *   **[consulter_memoire.py](file:///n:/JARVIS/tools/consulter_memoire.py)** : Script console rapide pour lire les faits stockés dans la mémoire locale de JARVIS.
 
 ### ⚙️ Fichiers de Configuration & États (Dossier `data/` et `config/`)
@@ -41,10 +40,9 @@ Ce document propose un inventaire complet et détaillé de chaque fichier et dos
 *   **[CLAUDE.md](file:///n:/JARVIS/CLAUDE.md)** : Guide d'architecture générale et conventions de développement pour l'IA.
 *   **[README.md](file:///n:/JARVIS/README.md)** : Fichier d'accueil basique.
 *   **[requirements.txt](file:///n:/JARVIS/requirements.txt)** : Liste des dépendances Python du projet.
-*   **[DEMARRER_JARVIS.bat](file:///n:/JARVIS/DEMARRER_JARVIS.bat)** : Lanceur rapide du serveur backend.
-*   **[CONSULTER_MEMOIRE.bat](file:///n:/JARVIS/CONSULTER_MEMOIRE.bat)** : Lanceur rapide pour `consulter_memoire.py`.
-*   **[VIDER_CACHE_JARVIS.bat](file:///n:/JARVIS/VIDER_CACHE_JARVIS.bat)** : Script de maintenance pour purger les fichiers temporaires et réinitialiser le cache.
-*   **[RESTAURER_JARVIS.bat](file:///n:/JARVIS/RESTAURER_JARVIS.bat)** : Utilitaire de restauration en cas d'erreur de mise à jour ou de corruption.
+*   **[start.bat](file:///n:/JARVIS/start.bat)** : Lanceur rapide du serveur backend.
+*   **[tools/memoire.bat](file:///n:/JARVIS/tools/memoire.bat)** : Lanceur rapide pour `consulter_memoire.py`.
+*   **[tools/vider_cache.bat](file:///n:/JARVIS/tools/vider_cache.bat)** : Script de maintenance pour purger les fichiers temporaires et réinitialiser le cache.
 *   **[install.bat](file:///n:/JARVIS/install.bat)** : Script d'installation automatique des dépendances et de configuration du projet.
 
 ---
@@ -59,8 +57,7 @@ Fichiers gérant les entrées/sorties physiques, la biométrie et les liaisons A
 *   **[audio_stream.py](file:///n:/JARVIS/backend/core/audio_stream.py)** : Gestionnaire de flux audio d'entrée (PyAudio). capture les blocs audio du micro physique ou virtuel.
 *   **[vad.py](file:///n:/JARVIS/backend/core/vad.py)** : Détection d'Activité Vocale (Voice Activity Detection). Analyse l'audio via Silero VAD (ONNX) et détermine quand l'utilisateur commence et arrête de parler.
 *   **[stt.py](file:///n:/JARVIS/backend/core/stt.py)** : Speech-to-Text. Transcrit l'audio via l'API ultra-rapide Groq Whisper avec repli sur Google STT si nécessaire. Filtre également les hallucinations connues de Whisper.
-*   **[speech.py](file:///n:/JARVIS/backend/core/speech.py)** : Text-to-Speech (TTS). Gère la file d'attente de parole en parallèle, en lisant les phrases au fil de leur génération via `edge_tts` et en contrôlant les interruptions utilisateur (Barge-in / Claps).
-*   **[tts_local.py](file:///n:/JARVIS/backend/core/tts_local.py)** : Synthèse vocale locale alternative basée sur le modèle Kokoro-82M ONNX (exécutable hors-ligne).
+*   **[speech.py](file:///n:/JARVIS/backend/core/speech.py)** : Text-to-Speech (TTS). Gère la file d'attente de parole en parallèle, en lisant les phrases au fil de leur génération via `edge_tts` (avec repli SAPI5/pyttsx3 hors-ligne) et en contrôlant les interruptions utilisateur (Barge-in / Claps).
 *   **[wakeword.py](file:///n:/JARVIS/backend/core/wakeword.py)** : Logique de détection passive du mot clé "jarvis".
 *   **[intent_dispatcher.py](file:///n:/JARVIS/backend/core/intent_dispatcher.py)** : Parse les réponses de l'IA. Si un bloc JSON d'action est détecté, il extrait l'action et l'exécute via le module système correspondant.
 *   **[webview_cache.py](file:///n:/JARVIS/backend/core/webview_cache.py)** : Gestion et nettoyage du cache des interfaces WebView locales.
@@ -193,5 +190,5 @@ Version simplifiée du HUD optimisée pour les smartphones.
 *   **[jarvis_fr_colab.ipynb](file:///n:/JARVIS/tools/training/wakeword/jarvis_fr_colab.ipynb)** : Notebook Google Colab permettant d'entraîner le modèle de détection du mot clé de réveil ("jarvis") adapté à la voix en français de l'utilisateur.
 
 ### 🏁 Configuration Initiale (`_setup/`)
-*   **[setup_deps.bat](file:///n:/JARVIS/tools/_setup/setup_deps.bat)** : Installation des dépendances avancées.
+*   **[dependances.bat](file:///n:/JARVIS/tools/_setup/dependances.bat)** : Installation des dépendances avancées.
 *   **[rename_user.py](file:///n:/JARVIS/tools/_setup/rename_user.py)** : Script utilitaire pour renommer les références utilisateur dans les fichiers d'empreintes biométriques vocales.

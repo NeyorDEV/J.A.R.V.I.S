@@ -252,6 +252,113 @@ def lister_souvenirs():
         print(f"[VECTOR DB] Erreur lors du listage : {e}")
         return []
 
+SEUIL_DECLENCHEMENT_CONSOLIDATION = 60  # nb min. de souvenirs bruts avant de consolider
+GARDER_RECENTS_CONSOLIDATION      = 20  # toujours laisser les N plus récents intacts
+MAX_LOT_CONSOLIDATION             = 40  # nb max. de souvenirs bruts envoyés au LLM par passage
+
+async def consolider_memoire_vectorielle_ia():
+    """Résume par lots les plus anciens souvenirs bruts de ChromaDB via Gemini.
+
+    Sans ça, chaque échange (hors mots-clés transitoires déjà filtrés par
+    ajouter_souvenir) s'accumule indéfiniment en base : la recherche
+    sémantique devient de plus en plus bruitée avec le temps et l'espace
+    disque croît sans fin. On synthétise donc les plus anciens souvenirs
+    « conversation » en quelques souvenirs « consolidated_summary » plus
+    denses, et on supprime les originaux. Les souvenirs déjà consolidés ne
+    sont jamais repris (filtre type="conversation"), pour éviter la perte
+    d'information en cascade sur plusieurs passages.
+    """
+    import builtins
+    import json as _json
+    from google.genai import types
+    from core.config import CHOSEN_MODEL
+
+    coll = _get_collection()
+    if coll is None:
+        return False
+
+    try:
+        bruts = coll.get(where={"type": "conversation"}, include=["documents", "metadatas"])
+    except Exception as e:
+        print(f"[VECTOR DB] Erreur lecture souvenirs bruts pour consolidation : {e}")
+        return False
+
+    ids   = bruts.get("ids", [])
+    docs  = bruts.get("documents", [])
+    metas = bruts.get("metadatas", [])
+    if len(ids) < SEUIL_DECLENCHEMENT_CONSOLIDATION:
+        return False
+
+    # Tri chronologique croissant (le timestamp "%Y-%m-%d %H:%M:%S" se trie lexicalement)
+    entrees = sorted(
+        zip(ids, docs, metas),
+        key=lambda t: (t[2] or {}).get("timestamp", "")
+    )
+
+    a_consolider = entrees[:-GARDER_RECENTS_CONSOLIDATION] if len(entrees) > GARDER_RECENTS_CONSOLIDATION else []
+    if not a_consolider:
+        return False
+    a_consolider = a_consolider[:MAX_LOT_CONSOLIDATION]
+
+    lot_ids  = [e[0] for e in a_consolider]
+    lot_text = "\n---\n".join(e[1] for e in a_consolider)
+
+    prompt = f"""Voici un lot d'anciens échanges de conversation entre mylane et son assistant JARVIS, stockés en mémoire vectorielle.
+
+Résume-les en un nombre RÉDUIT de souvenirs autonomes et denses (un souvenir par fait, préférence, décision ou évènement marquant durable). Ignore le bavardage transitoire et les détails sans valeur de rappel futur. Chaque souvenir doit rester compréhensible seul, avec assez de détails concrets (noms, dates, choix) pour qu'une recherche sémantique future le retrouve.
+
+ÉCHANGES :
+{lot_text}
+
+Renvoie OBLIGATOIREMENT un objet JSON de ce format :
+{{"souvenirs": ["souvenir autonome 1", "souvenir autonome 2", ...]}}
+Si rien de durable ne ressort du lot, renvoie {{"souvenirs": []}}.
+"""
+
+    print(f"[VECTOR DB] Consolidation de {len(lot_ids)} souvenir(s) brut(s) via Gemini...")
+    try:
+        client = getattr(builtins, "client", None)
+        if not client:
+            import google.genai as genai
+            from core.config import GEMINI_API_KEY
+            client = genai.Client(api_key=GEMINI_API_KEY)
+
+        response = await client.aio.models.generate_content(
+            model=CHOSEN_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json")
+        )
+
+        data = {}
+        if response and response.text:
+            try:
+                data = _json.loads(response.text)
+            except Exception as je:
+                print(f"[VECTOR DB] Erreur décodage JSON de consolidation : {je}")
+                return False
+
+        resumes = data.get("souvenirs", []) if isinstance(data, dict) else []
+        resumes = [r.strip() for r in resumes if isinstance(r, str) and r.strip()]
+
+        # Les originaux sont supprimés même si aucun résumé n'en ressort (bavardage
+        # jugé sans valeur) : sinon un lot vide serait retenté indéfiniment sans jamais
+        # réduire la base ni changer d'issue.
+        coll.delete(ids=lot_ids)
+
+        if resumes:
+            import uuid as _uuid
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            new_ids  = [f"summary_{int(time.time())}_{_uuid.uuid4().hex[:8]}_{i}" for i in range(len(resumes))]
+            new_meta = [{"timestamp": timestamp, "type": "consolidated_summary", "source_count": len(lot_ids)} for _ in resumes]
+            coll.add(documents=resumes, metadatas=new_meta, ids=new_ids)
+
+        print(f"[VECTOR DB] Consolidation terminée : {len(lot_ids)} souvenir(s) brut(s) -> {len(resumes)} résumé(s).")
+        return True
+
+    except Exception as e:
+        print(f"[VECTOR DB] Erreur lors de la consolidation vectorielle : {e}")
+        return False
+
 def lister_souvenirs_complets():
     """Retourne la liste de tous les souvenirs complets avec ids et documents."""
     coll = _get_collection()

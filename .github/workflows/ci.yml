@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python:
+    name: Python (syntaxe + lint)
+    # ubuntu suffit : py_compile/ruff sont de simples vérifications statiques,
+    # rien ici n'a besoin des API Windows utilisées par l'app elle-même.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Vérification de syntaxe pure : aucune dépendance du projet n'est
+      # nécessaire (mêmes garanties que le hook pre-commit local), donc
+      # rapide et sans installer le venv complet (~1.6 Go).
+      # tools/sandbox, tools/tests et tools/training sont des scripts
+      # utilitaires annexes (fixtures manuelles, notebooks d'entraînement),
+      # pas du code livré avec l'application — mêmes exclusions que ruff.
+      - name: Compilation (py_compile)
+        shell: bash
+        run: |
+          git ls-files '*.py' \
+            | grep -v '^tools/sandbox/' | grep -v '^tools/tests/' | grep -v '^tools/training/' \
+            | xargs python -m py_compile
+
+      - name: Lint (ruff)
+        run: |
+          python -m pip install --quiet ruff
+          ruff check .
+        continue-on-error: true
+
+  frontend:
+    name: Frontend (types + lint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: interfaces/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: interfaces/frontend/package-lock.json
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Vérification des types (tsc)
+        run: npx tsc --noEmit
+
+      - name: Lint (eslint)
+        run: npm run lint
+        continue-on-error: true

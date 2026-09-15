@@ -29,9 +29,9 @@ let flightTarget: { lat: number, lon: number, distance: number } | null = null;
 // Configuration
 const EARTH_RADIUS = 100;
 const TEXTURES = {
-  day: "/textures/earth-blue-marble.jpg",
-  night: "/textures/earth-night.jpg",
-  bump: "/textures/earth-topology.png",
+  day: "/assets/textures/earth-blue-marble.jpg",
+  night: "/assets/textures/earth-night.jpg",
+  bump: "/assets/textures/earth-topology.png",
   clouds: null, // Texture non disponible dans la version actuelle de three-globe
 };
 

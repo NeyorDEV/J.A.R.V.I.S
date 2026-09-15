@@ -73,6 +73,14 @@ def construire_system_prompt(souvenirs=""):
 
     )
     base += (
+        "\n\nTu es connecte a GitHub via un serveur MCP qui expose dynamiquement "
+        "des outils (depots, issues, pull requests, fichiers...).\n"
+        "Quand mylane parle d'un depot GitHub, d'une issue, d'une pull request ou "
+        "de code sur GitHub, tu DOIS generer la commande JSON ci-dessous plutot "
+        "que de repondre en texte normal.\n"
+        '{"action": "github_action", "instruction": "reformulation claire et complete de la demande, ex: \'liste mes issues ouvertes sur le depot X\', \'cree une issue intitulee Y sur le depot X\'"}\n\n'
+    )
+    base += (
         "\n\nTu peux GERER LES FICHIERS ET DOSSIERS de mylane.\n"
         '{"action": "ouvrir_dossier", "chemin": "bureau/documents/downloads/ou/chemin/complet"}\n'
         '{"action": "lister_dossier"}\n'

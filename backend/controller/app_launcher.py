@@ -428,7 +428,7 @@ _APPS_CATALOGUE["7 zip"]          = _APPS_CATALOGUE["7zip"]
 
 async def mode_boulot():
     """Lance Deezer et Discord pour démarrer la session de travail."""
-    await parler("Bien, je prépare votre espace de travail.")
+    parler("Bien, je prépare votre espace de travail.")
 
     # ── 1. Deezer (musique de fond) ───────────────────────────
     subprocess.Popen(["explorer", "deezer:"], shell=False)
@@ -444,7 +444,7 @@ async def mode_boulot():
 
 async def mode_gaming():
     """Lance Deezer, Discord et Epic Games Launcher pour la session gaming."""
-    await parler("C'est parti mylane, j'active le mode gaming !")
+    parler("C'est parti mylane, j'active le mode gaming !")
 
     # ── 1. Deezer (musique) ───────────────────────────────────
     subprocess.Popen(["explorer", "deezer:"], shell=False)
@@ -470,7 +470,7 @@ async def mode_gaming():
 
 async def mode_rocket_league():
     """Lance Deezer, Discord, Rocket League et JoyToKey."""
-    await parler("C'est parti mylane ! Préparation de la session Rocket League.")
+    parler("C'est parti mylane ! Préparation de la session Rocket League.")
 
     # ── 1. Deezer ─────────────────────────────────────────────
     subprocess.Popen(["explorer", "deezer:"], shell=False)

@@ -68,7 +68,6 @@ const jarvisMenuDropdown = document.getElementById("jarvis-menu-dropdown") as HT
 const apiKeysButtonEl = document.getElementById("api-keys-button") as HTMLButtonElement;
 const apiKeysCloseBtn = document.getElementById("api-keys-close-btn") as HTMLSpanElement;
 const apiKeysSaveBtn = document.getElementById("api-keys-save-btn") as HTMLButtonElement;
-const gpuButtonEl = document.getElementById("gpu-button") as HTMLButtonElement;
 const helpOverlayEl = document.getElementById("help-overlay") as HTMLDivElement;
 const timerHudEl = document.getElementById("timer-hud") as HTMLDivElement;
 const timerDisplayEl = document.getElementById("timer-display") as HTMLDivElement;
@@ -124,6 +123,29 @@ swarmLoungeClose?.addEventListener("click", () => {
   swarmLoungeHud?.classList.add("hidden");
   if (swarmLoungeHud) swarmLoungeHud.style.display = "none";
 });
+
+// Popup de confirmation avant action destructrice (désinstallation, suppression...)
+const confirmDialogOverlay = document.getElementById("confirm-dialog-overlay") as HTMLDivElement;
+const confirmDialogMessage = document.getElementById("confirm-dialog-message") as HTMLDivElement;
+const confirmDialogConfirmBtn = document.getElementById("confirm-dialog-confirm") as HTMLButtonElement;
+const confirmDialogCancelBtn = document.getElementById("confirm-dialog-cancel") as HTMLButtonElement;
+let confirmDialogPendingId: string | null = null;
+
+function showConfirmDialog(id: string, message: string) {
+  confirmDialogPendingId = id;
+  if (confirmDialogMessage) confirmDialogMessage.textContent = message;
+  confirmDialogOverlay?.classList.remove("hidden");
+}
+
+function answerConfirmDialog(confirmed: boolean) {
+  if (!confirmDialogPendingId) return;
+  wsRef.current?.send(JSON.stringify({ type: "confirm_response", id: confirmDialogPendingId, confirmed }));
+  confirmDialogPendingId = null;
+  confirmDialogOverlay?.classList.add("hidden");
+}
+
+confirmDialogConfirmBtn?.addEventListener("click", () => answerConfirmDialog(true));
+confirmDialogCancelBtn?.addEventListener("click", () => answerConfirmDialog(false));
 
 // Website Builder Console HUD DOM refs
 const wbHud = document.getElementById("website-builder-hud") as HTMLDivElement;
@@ -228,8 +250,6 @@ const HELP_COMMANDS = [
   // Contrôle de l'Interface Graphique (HUD)
   "Ouvre les paramètres",
   "Ferme les paramètres",
-  "Boost le GPU",
-  "Active l'accélération graphique",
   "Active les sous-titres",
   "Active le clavier",
   "Ferme la météo",
@@ -834,14 +854,6 @@ function connect(): void {
       }
 
 
-      // —— NAVIGATEUR SÉCURISÉ ——
-      if (data.action === "browser_state" && data.state) {
-        if ((window as any).updateBrowserUIState) {
-          (window as any).updateBrowserUIState(data.state);
-        }
-        return;
-      }
-
       // ── WS File Inspector Read/Write Events ──
       if (data.type === "file_content" || data.action === "file_content") {
         const fileData = data as any;
@@ -1381,6 +1393,10 @@ function openCodeEditorModal(filePath: string, projectName?: string) {
         showImageHUD(data.url, data.prompt || "--");
         return;
       }
+      if (data.type === "confirm_request" && (data as any).id) {
+        showConfirmDialog((data as any).id, (data as any).message || "Confirmer cette action ?");
+        return;
+      }
       if (data.action === "ctx_card") {
         cardManager.showCard({
           title: data.title || "INFORMATION",
@@ -1845,7 +1861,7 @@ function scheduleReconnect(): void {
     jarvisMenuDropdown.querySelectorAll(".menu-action-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.id;
-        if (id === "menu-settings-btn" || id === "shopping-toggle-btn" || id === "menu-uninstaller-toggle-btn" || id === "winget-toggle-btn" || id === "menu-holo-btn" || id === "menu-ha-toggle-btn" || id === "browser-btn" || id === "menu-keyboard-toggle" || id === "clear-cache-btn" || id === "api-keys-button" || id === "menu-av-scan-btn" || id === "menu-av-live-btn") {
+        if (id === "menu-settings-btn" || id === "shopping-toggle-btn" || id === "menu-uninstaller-toggle-btn" || id === "winget-toggle-btn" || id === "menu-holo-btn" || id === "menu-ha-toggle-btn" || id === "menu-keyboard-toggle" || id === "clear-cache-btn" || id === "api-keys-button" || id === "menu-av-scan-btn" || id === "menu-av-live-btn") {
           jarvisMenuDropdown.classList.add("hidden");
           jarvisMenuBtn.classList.remove("active");
         }
@@ -1853,11 +1869,6 @@ function scheduleReconnect(): void {
     });
   }
     // Liaison des clics du menu unifié vers les boutons jumeaux originaux (évite les doublons d'IDs)
-  const menuGpuBtn = document.getElementById("menu-gpu-btn");
-  if (menuGpuBtn && gpuButtonEl) {
-    menuGpuBtn.addEventListener("click", () => gpuButtonEl.click());
-  }
-
   const menuSubtitleToggle = document.getElementById("menu-subtitle-toggle");
   if (menuSubtitleToggle && subtitleToggleButtonEl) {
     menuSubtitleToggle.addEventListener("click", () => subtitleToggleButtonEl.click());
@@ -2055,11 +2066,11 @@ function scheduleReconnect(): void {
 //  dans le fichier. Les deux étant actifs, un clic envoyait « stop_audio » DEUX
 //  fois et forçait l'orbe en « idle » sans attendre la confirmation du backend.)
 
-// NOTE : les écouteurs "click" directs de #gpu-button et #subtitle-toggle ont été
-// supprimés. Ces boutons vivent dans le carrousel, dont le gestionnaire délégué
-// exécute déjà leur action via _carouselActions. Garder les deux faisait basculer
-// l'état DEUX fois par clic → le bouton semblait ne rien faire.
-// Voir bindCarouselAction("gpu-button") / ("subtitle-toggle") plus bas.
+// NOTE : l'écouteur "click" direct de #subtitle-toggle a été supprimé. Ce bouton
+// vit dans le carrousel, dont le gestionnaire délégué exécute déjà son action via
+// _carouselActions. Garder les deux faisait basculer l'état DEUX fois par clic →
+// le bouton semblait ne rien faire.
+// Voir bindCarouselAction("subtitle-toggle") plus bas.
 
 keyboardToggleButtonEl.addEventListener("click", () => {
   keyboardEnabled = !keyboardEnabled;
@@ -2918,55 +2929,6 @@ haToggleBtn?.addEventListener("click", () => {
 
 // (Panneau winget extrait dans panels/winget_panel.ts)
 
-// ══ NAVIGATEUR SÉCURISÉ CONTRÔLES & ÉVÉNEMENTS ══
-(window as any).updateBrowserUIState = (state: string) => {
-  const browserControls = document.getElementById("hud-browser-controls");
-  const dockBtn = document.getElementById("hud-browser-dock-btn");
-  if (state === "docked") {
-    document.body.classList.add("browser-open");
-    if (browserControls) browserControls.classList.remove("hidden");
-    if (dockBtn) dockBtn.innerText = "⚡ DÉTACHER";
-  } else if (state === "undocked") {
-    document.body.classList.remove("browser-open");
-    if (browserControls) browserControls.classList.remove("hidden");
-    if (dockBtn) dockBtn.innerText = "🔗 ANCRER";
-  } else if (state === "closed") {
-    document.body.classList.remove("browser-open");
-    if (browserControls) browserControls.classList.add("hidden");
-  }
-};
-
-const browserBtnEl = document.getElementById("browser-btn") as HTMLButtonElement;
-if (browserBtnEl) {
-  browserBtnEl.addEventListener("click", () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "open_browser" }));
-    }
-  });
-}
-
-const hudBrowserDockBtn = document.getElementById("hud-browser-dock-btn") as HTMLButtonElement;
-const hudBrowserCloseBtn = document.getElementById("hud-browser-close-btn") as HTMLButtonElement;
-
-if (hudBrowserDockBtn) {
-  hudBrowserDockBtn.addEventListener("click", () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      if (document.body.classList.contains("browser-open")) {
-        ws.send(JSON.stringify({ type: "undock_browser" }));
-      } else {
-        ws.send(JSON.stringify({ type: "dock_browser" }));
-      }
-    }
-  });
-}
-if (hudBrowserCloseBtn) {
-  hudBrowserCloseBtn.addEventListener("click", () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "close_browser" }));
-    }
-  });
-}
-
 // (Effets ambiants extraits dans ui/effects.ts)
 
 // ── BINDINGS D'ÉVÉNEMENTS POUR LE DOCK CAROUSEL OPERATIONAL ──
@@ -2979,25 +2941,6 @@ const bindCarouselAction = (btnId: string, actionFn: (btn: HTMLElement) => void)
 // 0. Vision Button
 bindCarouselAction("vision-button", (btn) => {
   toggleVision(btn);
-});
-
-// 1. GPU Boost
-bindCarouselAction("gpu-button", (btn) => {
-  const isPressed = btn.getAttribute("aria-pressed") === "true";
-  const newState = !isPressed;
-  // .active est réservée au bouton centré du carrousel → on passe par l'état
-  // « allumé » (aria-pressed + .is-toggled-on), sinon renderCarousel l'écrase.
-  setCarouselBtnState(btn, newState);
-  if (newState) {
-    orb.setQuality("high");
-    console.log("GPU Acceleration Enabled");
-  } else {
-    orb.setQuality("low");
-    console.log("GPU Acceleration Disabled");
-  }
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "toggle_gpu", enabled: newState }));
-  }
 });
 
 // 2. Hologramme
@@ -3155,13 +3098,6 @@ bindCarouselAction("carousel-mobile-btn", (btn) => {
 });
 
 
-
-// 10. Navigateur Sécurisé
-bindCarouselAction("carousel-browser-btn", () => {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "open_browser" }));
-  }
-});
 
 // 11. Liste des commandes (Toggle ON/OFF)
 bindCarouselAction("carousel-commands-btn", () => {

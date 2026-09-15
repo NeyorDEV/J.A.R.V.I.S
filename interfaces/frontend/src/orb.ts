@@ -13,7 +13,6 @@ export interface Orb {
   setAnalyser(a: AnalyserNode | null): void;
   triggerDemo(): void;
   writeWord(w: string): void;
-  setQuality(q: "low" | "high"): void;
   setTheme(t: string): void;
   destroy(): void;
 }
@@ -1293,19 +1292,6 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       if (textTargetPositions.length > 0) {
         textMorphActive = true;
         textMorphStartTime = clock.getElapsedTime();
-      }
-    },
-    setQuality(q: "low" | "high") {
-      if (q === "high") {
-        renderer.setPixelRatio(window.devicePixelRatio);
-        mat.opacity = 0.6;
-        pinkMat.opacity = 0.85;
-        lineMat.opacity = 0.15;
-      } else {
-        renderer.setPixelRatio(1);
-        mat.opacity = 0.3;
-        pinkMat.opacity = 0.4;
-        lineMat.opacity = 0.05;
       }
     },
     setTheme(tName: string) {

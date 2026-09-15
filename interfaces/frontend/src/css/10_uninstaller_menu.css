@@ -18,7 +18,7 @@
   border: 1px solid var(--un-color);
   box-shadow: 0 0 35px var(--un-glow), inset 0 0 20px rgba(var(--un-rgb), 0.05);
   border-radius: 6px;
-  font-family: 'Courier New', monospace;
+  font-family: 'Consolas', 'Courier New', monospace;
   color: var(--un-color);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -39,6 +39,11 @@
    (lignes, cases, boutons, scrollbar, radar…) suit automatiquement. */
 #winget-panel {
   --un-rgb: 0, 229, 255;
+  /* Le laser de balayage à l'ouverture (--panel-laser) est une variable
+     distincte de --un-rgb, définie en dur en orange pour .uninstaller-panel
+     dans 11_clock_tips_keyboard.css — sans cette ligne, winget affichait un
+     laser orange malgré son thème cyan. */
+  --panel-laser: #00e5ff;
 }
 
 .uninstaller-panel.hidden {
@@ -182,7 +187,7 @@
   border-radius: 4px;
   padding: 8px 12px;
   color: var(--un-color);
-  font-family: 'Courier New', monospace;
+  font-family: 'Consolas', 'Courier New', monospace;
   font-size: 11px;
   outline: none;
   box-sizing: border-box;
@@ -264,7 +269,7 @@
   background: rgba(var(--un-rgb), 0.1);
   border: 1px solid var(--un-color);
   color: var(--un-color);
-  font-family: 'Courier New', monospace;
+  font-family: 'Consolas', 'Courier New', monospace;
   font-size: 9px;
   font-weight: bold;
   padding: 6px 12px;
@@ -469,7 +474,7 @@
 
 .uninstaller-btn {
   flex: 1;
-  font-family: 'Courier New', monospace;
+  font-family: 'Consolas', 'Courier New', monospace;
   font-size: 10px;
   font-weight: bold;
   padding: 10px;
@@ -525,97 +530,6 @@
 
 
 
-/* ==========================================================================
-   SUPPORT DU MODE SÉCURISÉ DU NAVIGATEUR (PLIAGE DE L'HUD)
-   ========================================================================== */
-body.browser-open {
-  width: 55% !important;
-  border-right: 2px solid rgba(0, 229, 255, 0.4);
-  box-shadow: 5px 0 25px rgba(0, 229, 255, 0.25);
-  transition: width 0.3s ease-in-out;
-}
-
-/* Shifting transitions for fixed HUD components when docked */
-body.browser-open #fullscreen-btn {
-  right: calc(45% + 18px);
-}
-body.browser-open #connection-badge {
-  right: calc(45% + 18px);
-}
-body.browser-open #mute-button {
-  left: calc(27.5% + 37px);
-}
-body.browser-open #mic-btn {
-  left: calc(27.5% - 37px);
-}
-body.browser-open #status-text {
-  left: 27.5%;
-}
-body.browser-open #assistant-label {
-  left: 27.5%;
-}
-body.browser-open #orb-canvas {
-  width: 55% !important;
-}
-body.browser-open #timer-hud {
-  left: 27.5% !important;
-}
-
-/* Floating controls on HUD */
-#hud-browser-controls {
-  position: fixed;
-  top: 18px;
-  right: 180px; /* Default when undocked */
-  display: flex;
-  gap: 10px;
-  z-index: 600;
-  transition: right 0.3s ease-in-out;
-}
-
-body.browser-open #hud-browser-controls {
-  right: calc(45% + 180px); /* Shifted when docked */
-}
-
-#hud-browser-controls.hidden {
-  display: none !important;
-}
-
-.hud-browser-btn {
-  background: rgba(5, 5, 8, 0.65);
-  color: #00e5ff;
-  border: 1px solid rgba(0, 229, 255, 0.4);
-  padding: 6px 14px;
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  font-weight: bold;
-  letter-spacing: 1px;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 3px;
-  transition: all 0.3s ease;
-  box-shadow: 0 0 10px rgba(0, 229, 255, 0.05);
-}
-
-.hud-browser-btn:hover {
-  background: rgba(0, 229, 255, 0.15);
-  border-color: #00e5ff;
-  box-shadow: 0 0 15px rgba(0, 229, 255, 0.25);
-  text-shadow: 0 0 5px rgba(0, 229, 255, 0.5);
-}
-
-.hud-browser-btn.danger {
-  color: #ff3b30;
-  border-color: rgba(255, 59, 48, 0.4);
-  box-shadow: 0 0 10px rgba(255, 59, 48, 0.05);
-}
-
-.hud-browser-btn.danger:hover {
-  background: rgba(255, 59, 48, 0.15);
-  border-color: #ff3b30;
-  box-shadow: 0 0 15px rgba(255, 59, 48, 0.25);
-  text-shadow: 0 0 5px rgba(255, 59, 48, 0.5);
-}
 
 #winget-logs-container.hidden {
   display: none !important;

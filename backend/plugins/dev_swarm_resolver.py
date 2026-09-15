@@ -706,7 +706,7 @@ Réponds uniquement avec un objet JSON valide :
         project_dir = _chemin_confine(SANDBOX_DIR, project_name)
         if project_dir is None:
             print(f"[SWARM] ⛔ Nom de projet refusé (sortie de sandbox) : {project_name!r}")
-            await notify({
+            await diffuser_dev_swarm({
                 "action": "dev_swarm_update", "agent": "SEC",
                 "message": "Nom de projet refusé pour raison de sécurité.",
                 "log": f"Chemin hors sandbox rejeté : {project_name!r}",

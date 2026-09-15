@@ -1,0 +1,18 @@
+[tool.ruff]
+line-length = 200
+target-version = "py312"
+exclude = ["venv", "node_modules", "data", "chroma_db", "tools/sandbox", "tools/tests", "tools/training"]
+
+[tool.ruff.lint]
+# Sélection volontairement restreinte aux vraies erreurs (imports/variables
+# inconnus, inutilisés ou réassignés par erreur) pour un premier passage sur
+# un code jamais linté. Le style (E7xx/E4xx) est délibérément exclu : le
+# projet utilise couramment `from X import *` (main.py) et des one-liners
+# `if x: y`, ce ne sont pas des bugs ici. On durcira une fois le signal
+# actuel traité si besoin.
+select = [
+    "F401",  # import inutilisé
+    "F811",  # redéfinition sans utilisation (masque un bug potentiel)
+    "F821",  # nom non défini
+    "F841",  # variable locale inutilisée
+]

@@ -1,34 +1,29 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
-TITLE J.A.R.V.I.S - Installation Automatique
+TITLE J.A.R.V.I.S - Installation
 COLOR 0A
 cd /d "%~dp0"
 
-echo ======================================================
-echo           INSTALLATION DE J.A.R.V.I.S
-echo ======================================================
+echo J.A.R.V.I.S
+echo Installation locale
 echo.
 
 :: 1. Vérification des droits Administrateur
 net session >nul 2>&1
 if %errorLevel% neq 0 (
-    echo [^!] ATTENTION : Ce script n'est pas lance en tant qu'Administrateur.
-    echo [^!] Pour une installation sans erreurs, il est VIVEMENT recommande de :
-    echo     - Faire un clic droit sur 'install.bat'
-    echo     - Choisir 'Executer en tant qu'administrateur'
+    echo Ce script n'est pas lance en tant qu'administrateur.
+    echo Pour eviter d'eventuelles erreurs de droits :
+    echo   clic droit sur install.bat, puis "Executer en tant qu'administrateur".
     echo.
     pause
     exit /b
 )
 
 :: 1b. Analyse du système (Détection dynamique)
-echo [SYSTEME] Analyse de votre configuration...
-echo.
-
-set "PY_STATUS=[A INSTALLER]"
-set "NODE_STATUS=[A INSTALLER]"
-set "VENV_STATUS=[A CREER]"
-set "WEB_STATUS=[A INSTALLER]"
+set "PY_STATUS=a installer"
+set "NODE_STATUS=a installer"
+set "VENV_STATUS=a creer"
+set "WEB_STATUS=a installer"
 set "ROOT_STATUS=NON"
 set "CHROME_STATUS=NON"
 
@@ -50,64 +45,45 @@ if "!CHROME_STATUS!"=="NON" (
 
 
 :: Détection versions
-python --version >nul 2>&1 && set "PY_STATUS=[DEJA PRESENT]"
-where npm >nul 2>&1 && set "NODE_STATUS=[DEJA PRESENT]"
-if exist "venv" set "VENV_STATUS=[DEJA PRESENT]"
-if exist "interfaces\frontend\node_modules" set "WEB_STATUS=[DEJA PRESENT]"
+python --version >nul 2>&1 && set "PY_STATUS=deja present"
+where npm >nul 2>&1 && set "NODE_STATUS=deja present"
+if exist "venv" set "VENV_STATUS=deja present"
+if exist "interfaces\frontend\node_modules" set "WEB_STATUS=deja present"
 
 :: 1c. Récapitulatif et Validation
-echo ======================================================
-echo           RECAPITULATIF DE L'INSTALLATION
-echo ======================================================
-echo [CHECK] Fichier a la RACINE du projet : !ROOT_STATUS!
-echo [CHECK] Navigateur Chrome installe    : !CHROME_STATUS!
-echo.
-echo Statut des composants :
-echo  - Environnement Python 3.12    : !PY_STATUS!
-echo  - Node.js / NPM (Interface)    : !NODE_STATUS!
-echo  - Dossier virtuel (venv)       : !VENV_STATUS!
-echo  - Modules Web (node_modules)   : !WEB_STATUS!
-echo.
 if "!ROOT_STATUS!"=="NON" (
     COLOR 0C
+    echo emplacement incorrect
     echo.
-    echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    echo X               ERREUR D'EMPLACEMENT                 X
-    echo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    echo install.bat doit se trouver dans le dossier JARVIS, a cote de main.py.
     echo.
-    echo [^!] LE FICHIER INSTALL.BAT N'EST PAS AU BON ENDROIT.
+    echo   1. deplacez ce fichier dans ce dossier
+    echo   2. relancez-le depuis la
     echo.
-    echo POUR CORRIGER :
-    echo 1. Allez dans votre dossier JARVIS (la ou se trouve main.py^).
-    echo 2. Copiez ce fichier 'install.bat' a l'interieur.
-    echo 3. Relancez-le depuis ce dossier.
-    echo.
-    echo L'installation ne peut pas continuer ici.
     pause
     exit /b
 )
 
+echo Python 3.12 ........... !PY_STATUS!
+echo Node.js / npm ......... !NODE_STATUS!
+echo Environnement virtuel . !VENV_STATUS!
+echo Interface web ......... !WEB_STATUS!
+echo Navigateur Chrome ..... !CHROME_STATUS!
+echo.
 if "!CHROME_STATUS!"=="NON" (
-    echo [^!] ATTENTION : Chrome est introuvable. JARVIS en a besoin.
-    echo [^!] Veuillez l'installer avant de continuer.
+    echo Chrome est introuvable et JARVIS s'appuie dessus pour son interface.
+    echo Installez-le avant de continuer si possible.
     echo.
 )
-echo [INFO] Seuls les elements [A INSTALLER] seront traites.
-echo [INFO] Taille approximative max : ~1.5 Go
+echo Seuls les elements "a installer" seront traites ci-dessous.
+echo Espace disque necessaire : environ 2 Go.
 echo.
-echo ======================================================
-
-
-echo.
-echo.
-echo Appuyez sur [ENTREE] pour lancer les etapes manquantes...
+echo [ENTREE] pour continuer...
 pause >nul
-
-echo.
-echo [SYSTEME] Debut des operations...
 echo.
 
 :: 2. Détection / Installation de Python
+echo [1/7] Python
 set "PYTHON_CMD="
 python --version >nul 2>&1 && set "PYTHON_CMD=python"
 if not defined PYTHON_CMD (
@@ -115,70 +91,69 @@ if not defined PYTHON_CMD (
 )
 
 if not defined PYTHON_CMD (
-    echo [SYSTEME] Python est introuvable. Telechargement de Python 3.12...
+    echo   telechargement de Python 3.12...
     powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.3/python-3.12.3-amd64.exe' -OutFile 'python_installer.exe'"
-    echo [SYSTEME] Installateur telecharge. Lancement...
-    echo [IMPORTANT] COCHEZ BIEN LA CASE 'ADD PYTHON TO PATH' AU DEBUT ^!
+    echo   lancement de l'installateur.
+    echo   pensez a cocher "Add Python to PATH" a l'ecran suivant ^!
     start /wait python_installer.exe
     del python_installer.exe
-    echo [SYSTEME] Python doit être installe maintenant. Veuillez RELANCER ce fichier install.bat.
+    echo   relancez install.bat une fois Python installe.
     pause && exit /b
 )
-
-echo [SYSTEME] Python detecte : 
 %PYTHON_CMD% --version
 
 :: 3. Détection / Installation de Node.js
+echo [2/7] Node.js
 where npm >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [SYSTEME] Node.js est manquant. Telechargement...
+    echo   telechargement...
     powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.12.2/node-v20.12.2-x64.msi' -OutFile 'node_installer.msi'"
-    echo [SYSTEME] Installation de Node.js en cours...
+    echo   installation en cours...
     start /wait node_installer.msi
     del node_installer.msi
-    echo [SYSTEME] Node.js installe (un redemarrage de l'ordinateur peut être requis si npm n'est toujours pas detecte^).
+    echo   installe. Un redemarrage peut etre necessaire si npm reste introuvable.
+) else (
+    echo   deja installe.
 )
 
 :: 4. Création de l'environnement virtuel
+echo [3/7] Environnement virtuel Python
 if not exist "venv" (
-    echo [SYSTEME] Preparation de l'environnement virtuel (venv^)...
     "%PYTHON_CMD%" -m venv venv
     if %errorlevel% neq 0 (
-        echo [^!] Erreur lors de la creation du venv. Verifiez vos droits.
+        echo   echec de la creation. Verifiez vos droits d'ecriture ici.
         pause && exit /b
     )
+    echo   cree.
+) else (
+    echo   deja present.
 )
 
 set "V_PY=.\venv\Scripts\python.exe"
 
 :: 5. Mise à jour des outils de base (EVITE LES ERREURS DE COMPILATION)
-echo [SYSTEME] Mise a jour des outils d'installation (pip, setuptools, wheel)...
 "%V_PY%" -m pip install --upgrade pip setuptools wheel --quiet
 "%V_PY%" -m pip install --upgrade pipwin --quiet 2>nul
 
 :: 6. Installation des modules
-echo [SYSTEME] Installation des composants IA, Audio et Reseau...
-
-:: Installation par étapes pour isoler les erreurs
-echo [1/3] Installation des modules IA (Gemini, Groq, OpenAI, Google Auth)...
-"%V_PY%" -m pip install python-dotenv google-genai google-generativeai groq openai flask flask-cors requests websockets colorama tenacity google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client psutil
+echo [4/7] Dependances Python
+echo   IA (Gemini, Groq, Claude, Mistral, OpenAI, Google Auth)
+"%V_PY%" -m pip install python-dotenv google-genai google-generativeai groq openai anthropic mistralai flask flask-cors requests websockets colorama tenacity google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client psutil
 if %errorlevel% neq 0 (
-    echo [^!] Erreur lors de l'installation des modules IA. Verifiez votre connexion internet.
+    echo   echec partiel, verifiez votre connexion internet.
 )
 
-echo [2/3] Installation des modules Audio, Vision et Interface Native...
+echo   audio, vision, interface native
 :: SpeechRecognition installe en premier, seul, pour ne pas etre bloque par pyaudio
 "%V_PY%" -m pip install SpeechRecognition edge-tts pyttsx3 pyautogui Pillow screeninfo opencv-python
 
 :: --- PYWEBVIEW : fenetre native (remplace Chrome) ---
-echo [SYSTEME] Installation de PyWebView (fenetre application native)...
 "%V_PY%" -m pip install pywebview
 if !errorlevel! neq 0 (
-    echo [INFO] PyWebView non installe. JARVIS s'ouvrira dans le navigateur Chrome.
+    echo   PyWebView indisponible, JARVIS s'ouvrira dans Chrome a la place.
 )
 
 :: --- Edge WebView2 Runtime (moteur requis par PyWebView sur Windows) ---
-echo [SYSTEME] Verification de Edge WebView2 Runtime...
 set "WEBVIEW2_OK=0"
 
 reg query "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" >nul 2>&1
@@ -196,66 +171,59 @@ if "!WEBVIEW2_OK!"=="0" (
     if exist "%ProgramFiles%\Microsoft\EdgeWebView\Application" set "WEBVIEW2_OK=1"
 )
 
-if "!WEBVIEW2_OK!"=="1" (
-    echo [OK] Edge WebView2 Runtime deja installe.
-) else (
-    echo [SYSTEME] Edge WebView2 absent - telechargement en cours...
+if "!WEBVIEW2_OK!"=="0" (
+    echo   Edge WebView2 absent, telechargement...
     powershell -Command "try { Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile 'MicrosoftEdgeWebview2Setup.exe' -UseBasicParsing } catch { exit 1 }"
     if exist "MicrosoftEdgeWebview2Setup.exe" (
-        echo [SYSTEME] Installation de Edge WebView2 Runtime...
         start /wait MicrosoftEdgeWebview2Setup.exe /silent /install
         del MicrosoftEdgeWebview2Setup.exe 2>nul
-        echo [OK] Edge WebView2 Runtime installe.
+        echo   Edge WebView2 installe.
     ) else (
-        echo [INFO] Impossible de telecharger Edge WebView2.
-        echo [INFO] JARVIS s'ouvrira dans Chrome si WebView2 est absent.
+        echo   telechargement impossible, JARVIS utilisera Chrome si besoin.
     )
 )
 
 :: --- PYGAME : installation avec wheel pre-compile (PAS de compilation C++) ---
-echo [SYSTEME] Installation de Pygame (wheel pre-compile)...
 "%V_PY%" -m pip install pygame --only-binary :all:
 if !errorlevel! neq 0 (
-    echo [AVERTISSEMENT] Pygame wheel introuvable pour cette version de Python.
-    echo [SYSTEME] Tentative avec une version compatible...
     "%V_PY%" -m pip install pygame>=2.5.0 --only-binary :all:
     if !errorlevel! neq 0 (
-        echo [INFO] Pygame n'a pas pu etre installe. JARVIS fonctionnera sans son audio.
+        echo   Pygame indisponible, JARVIS fonctionnera sans sortie audio.
     )
 )
 
 :: --- PYAUDIO : installation avec wheel pre-compile, fallback pipwin ---
-echo [SYSTEME] Installation de PyAudio (wheel pre-compile)...
 "%V_PY%" -m pip install pyaudio --only-binary :all:
 if !errorlevel! neq 0 (
-    echo [SYSTEME] Wheel PyAudio introuvable, tentative via pipwin...
     "%V_PY%" -m pipwin install pyaudio 2>nul
     if !errorlevel! neq 0 (
-        echo [INFO] PyAudio n'a pas pu etre installe. La reconnaissance vocale micro sera limitee.
-        echo [INFO] Pour l'installer plus tard : pip install pipwin ^&^& pipwin install pyaudio
+        echo   PyAudio indisponible, le micro sera limite.
+        echo   installation manuelle possible : pip install pipwin ^&^& pipwin install pyaudio
     )
 )
 
 :: --- Controle volume + luminosite (fonctions locales JARVIS) ---
-echo [SYSTEME] Installation des modules volume et luminosite...
 "%V_PY%" -m pip install pycaw screen-brightness-control 2>nul
 
-echo [3/3] Finalisation avec le fichier requirements.txt...
+echo   finalisation (requirements.txt)
 if exist "requirements.txt" (
     "%V_PY%" -m pip install -r requirements.txt
 )
 
 :: 7. Interface Web
+echo [5/7] Interface web
 where npm >nul 2>&1
 if %errorlevel% equ 0 (
     if exist "interfaces\frontend\package.json" (
-        echo [SYSTEME] Installation de l'interface Web...
         pushd interfaces\frontend && call npm install & popd
     )
+) else (
+    echo   npm introuvable, etape ignoree.
 )
 
 :: 8. Creation du demarreur
-echo [SYSTEME] Generation du fichier de lancement 'DEMARRER_JARVIS.bat'...
+echo [6/7] Fichiers de configuration
+echo   start.bat
 (
 echo @echo off
 echo TITLE J.A.R.V.I.S
@@ -263,51 +231,51 @@ echo COLOR 0B
 echo cd /d "%%~dp0"
 echo ".\venv\Scripts\python.exe" "main.py"
 echo pause
-) > "DEMARRER_JARVIS.bat"
+) > "start.bat"
 
+:: 8b. Hook pre-commit (verification py_compile + tsc avant chaque commit)
+if exist "tools\git-hooks\pre-commit" if exist ".git" (
+    echo   hook pre-commit
+    copy /Y "tools\git-hooks\pre-commit" ".git\hooks\pre-commit" >nul
+)
 
 :: 9. Création du modèle .env si absent
 if not exist ".env" (
-    echo [SYSTEME] Creation du fichier de configuration .env...
+    echo   .env
     (
     echo GEMINI_API_KEY=VOTRE_CLE_ICI
+    echo GROQ_API_KEY=VOTRE_CLE_ICI
+    echo ANTHROPIC_API_KEY=VOTRE_CLE_ICI
+    echo MISTRAL_API_KEY=VOTRE_CLE_ICI
+    echo OPENAI_API_KEY=VOTRE_CLE_ICI
     echo YOUTUBE_API_KEY=VOTRE_CLE_ICI
     echo XAI_API_KEY=VOTRE_CLE_ICI
+    echo SERPAPI_API_KEY=VOTRE_CLE_ICI
+    echo GITHUB_MCP_TOKEN=VOTRE_TOKEN_GITHUB_ICI
     echo HA_URL=http://192.168.1.XX:8123
     echo HA_TOKEN=VOTRE_TOKEN_ICI
-    echo SERPAPI_API_KEY=VOTRE_CLE_ICI
-    echo GROQ_API_KEY=VOTRE_CLE_ICI
     ) > ".env"
 )
 
 :: 10. Personnalisation du Prénom
-echo.
-echo ------------------------------------------------------
-echo  PERSONNALISATION DE VOTRE IA
-echo ------------------------------------------------------
-echo Par defaut, JARVIS est configure pour s'adresser a 'Mickael'.
-echo Si vous voulez qu'il utilise VOTRE prenom, ecrivez-le ici :
-echo (Ou appuyez simplement sur [ENTREE] pour garder 'Mickael'^)
-echo.
+echo [7/7] Personnalisation
+echo   Prenom a utiliser (facultatif, modifiable plus tard dans les parametres) :
 set "PN="
-set /p "PN=[?] Votre prenom : "
+set /p "PN=  > "
 
 :: ── Validation de l'input avec !PN! (EnableDelayedExpansion requis) ──────────
 
-:: 1. Vide ou non renseigne -> on garde Mickael
+:: 1. Vide ou non renseigne -> rien a faire, configurable plus tard dans l'appli
 if "!PN!"=="" goto skip_name
 
-:: 2. Deja Mickael -> rien a faire
-if /i "!PN!"=="Mickael" goto skip_name
-
-:: 3. Longueur max 30 caracteres (securite)
+:: 2. Longueur max 30 caracteres (securite)
 set "PN_TEST=!PN:~30!"
 if not "!PN_TEST!"=="" (
-    echo [^!] Prenom trop long ^(max 30 caracteres^). Conserve 'Mickael'.
+    echo   trop long ^(30 caracteres max^), ignore.
     goto skip_name
 )
 
-:: 4. Refus des caracteres dangereux pour le batch et Python
+:: 3. Refus des caracteres dangereux pour le batch et Python
 ::    On teste chaque caractere interdit en cherchant s'il est present dans !PN!
 set "PN_INVALIDE=0"
 for %%C in ("!" "%" "^" "&" "|" "<" ">" "(" ")" ";" "," "@" "#" "$" "`" "~" "\" "/" "*" "?" "{" "}" "[" "]") do (
@@ -319,48 +287,36 @@ set "PN_CHK2=!PN:"=!"
 if not "!PN_CHK2!"=="!PN!" set "PN_INVALIDE=1"
 
 if "!PN_INVALIDE!"=="1" (
-    echo [^!] Prenom invalide ^(caractere interdit detecte^). Conserve 'Mickael'.
+    echo   caractere non autorise, ignore.
     goto skip_name
 )
 
-:: 5. Appliquer la personnalisation
-echo.
-echo [SYSTEME] Transformation de JARVIS en cours...
-echo Remplacement de 'Mickael' par '!PN!' dans le code source...
+:: 4. Appliquer la personnalisation dans jarvis_config.json (lu au demarrage
+::    par main.py — remplace l'ancien mecanisme de remplacement de texte dans
+::    le code source, devenu obsolete depuis que le prenom vient de ce fichier).
+echo import json, os > temp_config.py
+echo n = "!PN!" >> temp_config.py
+echo p = "jarvis_config.json" >> temp_config.py
+echo cfg = {} >> temp_config.py
+echo if os.path.exists(p^): >> temp_config.py
+echo     try: >> temp_config.py
+echo         with open(p, "r", encoding="utf-8"^) as f: cfg = json.load(f^) >> temp_config.py
+echo     except Exception: cfg = {} >> temp_config.py
+echo cfg["user_name"] = n >> temp_config.py
+echo with open(p, "w", encoding="utf-8"^) as f: json.dump(cfg, f, ensure_ascii=False, indent=2^) >> temp_config.py
 
-echo import sys > temp_rename.py
-echo n = sys.argv[1] >> temp_rename.py
-echo for p in ['main.py', 'backend/module/jarvis_agent.py']: >> temp_rename.py
-echo     try: >> temp_rename.py
-echo         f = open(p, 'r', encoding='utf-8') >> temp_rename.py
-echo         c = f.read() >> temp_rename.py
-echo         f.close() >> temp_rename.py
-echo         f = open(p, 'w', encoding='utf-8') >> temp_rename.py
-echo         f.write(c.replace('Mickael', n).replace('mickael', n.lower())) >> temp_rename.py
-echo         f.close() >> temp_rename.py
-echo     except: pass >> temp_rename.py
+".\venv\Scripts\python.exe" temp_config.py
+del temp_config.py
 
-".\venv\Scripts\python.exe" temp_rename.py "!PN!"
-del temp_rename.py
-
-echo [OK] Personnalisation terminee pour '!PN!'.
+echo   enregistre : !PN!
 
 :skip_name
-echo.
-
-
-
 
 echo.
-echo ======================================================
-echo           INSTALLATION TERMINEE ^!
-echo ======================================================
+echo Installation terminee.
 echo.
-echo ETAPES SUIVANTES :
-echo 1. Ouvre le fichier '.env' et ajoute tes cles API (Gemini, etc.).
-echo 2. Si tu as eu des erreurs rouges, installe les "Build Tools C++".
-echo 3. Lance 'DEMARRER_JARVIS.bat' pour demarrer ton IA.
+echo   1. ouvrez .env et renseignez au moins une cle API (Gemini par exemple^)
+echo   2. si des erreurs sont apparues, installez les "Build Tools C++"
+echo   3. lancez start.bat pour demarrer JARVIS
 echo.
-echo ======================================================
 pause
-

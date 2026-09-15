@@ -188,6 +188,8 @@ Renvoie OBLIGATOIREMENT un objet JSON respectant ce format :
   }},
   "deletes": ["clés devenues obsolètes ou fausses à supprimer"]
 }}
+Chaque valeur dans "updates" DOIT être une chaîne de texte simple — jamais un objet imbriqué,
+même si la mémoire actuelle ci-dessus t'en montre sous cette forme (c'est un détail de stockage interne).
 Ne renvoie rien d'autre que le JSON brut. Si aucune nouvelle information n'est détectée, renvoie un objet vide pour updates et deletes.
 """
 
@@ -221,6 +223,14 @@ Ne renvoie rien d'autre que le JSON brut. Si aucune nouvelle information n'est d
             mem = charger_memoire()
             timestamp = time.strftime("%d/%m/%Y %H:%M")
             for k, v in updates.items():
+                # Filet de sécurité : si le LLM échoue malgré la consigne et renvoie
+                # l'entrée imbriquée telle quelle ({"valeur": ..., "timestamp": ...}),
+                # on désimbrique plutôt que de stocker un objet dans "valeur" (ce qui
+                # cassait ensuite l'affichage dans construire_contexte_memoire()).
+                if isinstance(v, dict) and "valeur" in v:
+                    v = v["valeur"]
+                if not isinstance(v, str):
+                    v = str(v)
                 mem[k] = {"valeur": v, "timestamp": timestamp}
                 print(f"[MEMORY MANAGER] Fait mémorisé : {k} -> {v}")
             for k in deletes:

@@ -25,17 +25,6 @@ if _USE_HOMEPOD:
         _USE_HOMEPOD = False
         print("[SPEECH] homepod_audio introuvable — fallback sur pygame.")
 
-# TTS local Kokoro-TTS optionnel (USE_LOCAL_TTS=true dans .env)
-_USE_LOCAL_TTS = os.getenv("USE_LOCAL_TTS", "false").lower() == "true"
-if _USE_LOCAL_TTS:
-    try:
-        from core.tts_local import init_tts, generer_audio as _generer_audio_local
-        init_tts()  # Charge le modèle en VRAM au démarrage
-        print("✔ [🗣 SPEECH] Moteur vocal local (Kokoro-TTS) actif.")
-    except Exception as e:
-        _USE_LOCAL_TTS = False
-        print(f"❌ [🗣 SPEECH] Moteur vocal local (Kokoro-TTS) indisponible ({e}) — fallback en ligne (edge_tts).")
-
 is_speaking = False
 speak_volume = 0.0
 STOP_PARLER = False
@@ -59,17 +48,8 @@ async def _generer_tts_fichier(texte) -> str | None:
     
     try:
         from core.config import VOIX_ACTUELLE
-        
-        # 1. Option Kokoro-TTS local
-        if _USE_LOCAL_TTS:
-            tmp_path = tmp + ".wav"
-            ok = await asyncio.get_event_loop().run_in_executor(
-                None, _generer_audio_local, texte_tts, tmp_path
-            )
-            if ok:
-                return tmp_path
-                
-        # 2. Essai standard avec edge_tts (requiert internet)
+
+        # Essai standard avec edge_tts (requiert internet)
         try:
             tmp_path = tmp + ".mp3"
             voice_standard = "fr-FR-HenriNeural" if VOIX_ACTUELLE == "homme" else "fr-FR-DeniseNeural"

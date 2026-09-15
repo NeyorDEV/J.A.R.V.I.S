@@ -121,7 +121,7 @@ function renderWingetUpgrades(upgrades: WingetUpgradeItem[]) {
     const el = document.createElement("div");
     el.className = "uninstaller-app-item";
     el.innerHTML = `
-      <div class="uninstaller-app-info" style="display:flex; align-items:center; gap:10px; width:65%;">
+      <div class="uninstaller-app-info" style="display:flex; flex-direction:row; align-items:center; gap:10px; width:65%;">
         <input type="checkbox" class="winget-select-checkbox" data-idx="${idx}" checked style="accent-color: #00e5ff;">
         <div style="flex:1;">
           <div class="uninstaller-app-name" style="color:#00e5ff;">${item.name}</div>

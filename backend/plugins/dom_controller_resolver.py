@@ -47,17 +47,6 @@ async def resoudre_dom_hud(cmd):
             await builtins.send_web_action("click", selector="#settings-close-btn")
             return "Je ferme les paramètres, Monsieur."
 
-    # --- 2. ACCÉLÉRATION GRAPHIQUE (GPU BOOST) ---
-    if any(k in t for k in ["active l'acceleration graphique", "active le gpu", "booste le gpu", "active gpu boost"]):
-        if hasattr(builtins, "send_web_action"):
-            await builtins.send_web_action("click", selector="#gpu-button")
-            return "Accélération graphique activée, Monsieur."
-            
-    if any(k in t for k in ["desactive l'acceleration graphique", "desactive le gpu", "coupe le gpu", "desactive gpu boost"]):
-        if hasattr(builtins, "send_web_action"):
-            await builtins.send_web_action("click", selector="#gpu-button")
-            return "Accélération graphique désactivée, Monsieur."
-
     # --- 3. TEXTE / SOUS-TITRES (HUD TEXT) ---
     if any(k in t for k in ["active les sous-titres", "active le texte", "affiche les sous-titres", "affiche le texte"]):
         if hasattr(builtins, "send_web_action"):

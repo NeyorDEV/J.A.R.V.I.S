@@ -209,7 +209,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: 'Courier New', monospace;
+  font-family: 'Consolas', 'Courier New', monospace;
   color: #00e5ff;
 }
 .ha-panel.hidden {
@@ -1196,7 +1196,7 @@ input:checked + .ha-slider:before {
   z-index: 600;
   display: flex;
   flex-direction: column;
-  font-family: 'Courier New', monospace;
+  font-family: 'Consolas', 'Courier New', monospace;
   color: #ff8a1a;
   overflow: hidden;
   transition: opacity 0.3s ease;

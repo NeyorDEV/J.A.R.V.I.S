@@ -346,6 +346,17 @@ async def _handle_delete(data: dict, websocket) -> None:
 
     nom = os.path.basename(chemin)
 
+    from core.confirmation import demander_confirmation
+    if not await demander_confirmation(websocket, f"Supprimer {nom} ?"):
+        await websocket.send(json.dumps({
+            "type": "spatial_result",
+            "action": "delete",
+            "success": False,
+            "cancelled": True,
+            "error": "Suppression annulée."
+        }))
+        return
+
     try:
         # Tentative d'envoi à la corbeille Windows via send2trash
         try:

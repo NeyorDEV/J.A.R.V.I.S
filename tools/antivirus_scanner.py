@@ -317,9 +317,9 @@ async def executer_scan_antivirus(ws_broadcast_callback, parler_callback):
         })
         
         if status == "infected":
-            await parler_callback(f"Analyse terminée, Mickael. Attention, j'ai détecté {len(threats_detected)} menace(s) de sécurité sur votre système. Consultez la console pour plus de détails.")
+            parler_callback(f"Analyse terminée. Attention, j'ai détecté {len(threats_detected)} menace(s) de sécurité sur votre système. Consultez la console pour plus de détails.")
         else:
-            await parler_callback("Analyse de sécurité terminée. Votre système est entièrement sécurisé. Aucun virus n'a été détecté.")
+            parler_callback("Analyse de sécurité terminée. Votre système est entièrement sécurisé. Aucun virus n'a été détecté.")
             
     except asyncio.CancelledError:
         print("[AV] Analyse antivirus annulée par l'utilisateur.")
@@ -334,6 +334,6 @@ async def executer_scan_antivirus(ws_broadcast_callback, parler_callback):
             "status": "error",
             "message": f"Erreur système durant le scan : {e}"
         })
-        await parler_callback("Une erreur s'est produite lors de l'analyse antivirus de votre ordinateur.")
+        parler_callback("Une erreur s'est produite lors de l'analyse antivirus de votre ordinateur.")
     finally:
         ACTIVE_SCAN_TASK = None

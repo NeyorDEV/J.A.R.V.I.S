@@ -57,4 +57,7 @@ unins*.dat
 
 # ONNX models
 *.onnx
-core/kokoro/kokoro-v1.0.onnx
+
+# Config Claude Code (locale)
+.claude/
+CLAUDE.md

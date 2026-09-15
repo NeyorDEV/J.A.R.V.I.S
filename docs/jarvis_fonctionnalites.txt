@@ -12,7 +12,7 @@ programmée dans le système J.A.R.V.I.S.
 * Détection de claps : Coupe la parole de JARVIS sur un simple clap, et le réveille sur un double clap.
 * Réduction de feedback (Barge-in) : Purge le son des haut-parleurs sous 1800 RMS pendant que JARVIS parle.
 * Interruption vocale ("Stop") : Arrêt instantané tolérant aux déformations (stop, top, hop, coupe, etc.).
-* Synthèse vocale (TTS) hybride : edge-tts en ligne avec buffer de lecture pygame, et TTS Kokoro-82M ONNX local.
+* Synthèse vocale (TTS) hybride : edge-tts en ligne avec buffer de lecture pygame, repli SAPI5/pyttsx3 natif hors-ligne.
 
 ================================================================================
 2. COMPOSANTS HUD & INTERFACES 3D (frontend/src/)
