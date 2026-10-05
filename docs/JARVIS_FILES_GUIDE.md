@@ -7,7 +7,7 @@ Ce document propose un inventaire complet et détaillé de chaque fichier et dos
 ## 📂 RACINE DU PROJET (n:\JARVIS)
 
 ### 🖥️ Scripts d'entrée & Utilitaires Principaux
-*   **[main.py](file:///n:/JARVIS/main.py)** : L'orchestrateur central du backend (anciennement `main2.py`). Il gère la boucle principale, le serveur WebSocket (`ws://localhost:8765`), la capture audio (PyAudio), la détection de parole (VAD), la biométrie vocale, la transcription (STT), et la génération de réponses (LLM) avec synthèse vocale (TTS) en streaming.
+*   **[main.py](file:///n:/JARVIS/main.py)** : Point d'entrée (~300 lignes). Orchestre le démarrage dans un ordre précis (console, moteur de parole, modèles audio, modules du projet, clés et clients IA) puis lance `main()` : frontend, serveur WebSocket + écoute vocale (`start_ia`), fenêtre. Toute la logique vit dans `backend/` ; l'état partagé est dans `backend/core/shared.py`.
 *   **[antivirus_scanner.py](file:///n:/JARVIS/tools/antivirus_scanner.py)** : Scanner de sécurité à la demande et résident. Il surveille l'écriture de scripts malveillants sur le PC et permet de lancer des analyses de répertoires.
 *   **[consulter_memoire.py](file:///n:/JARVIS/tools/consulter_memoire.py)** : Script console rapide pour lire les faits stockés dans la mémoire locale de JARVIS.
 
@@ -62,6 +62,23 @@ Fichiers gérant les entrées/sorties physiques, la biométrie et les liaisons A
 *   **[intent_dispatcher.py](file:///n:/JARVIS/backend/core/intent_dispatcher.py)** : Parse les réponses de l'IA. Si un bloc JSON d'action est détecté, il extrait l'action et l'exécute via le module système correspondant.
 *   **[webview_cache.py](file:///n:/JARVIS/backend/core/webview_cache.py)** : Gestion et nettoyage du cache des interfaces WebView locales.
 
+### Modules issus du découpage de main.py
+*   **[shared.py](file:///n:/JARVIS/backend/core/shared.py)** : État partagé (historique, session vocale, clients IA, clients WebSocket...). Toujours y accéder via `shared.NOM`.
+*   **[console_ui.py](file:///n:/JARVIS/backend/core/console_ui.py)** : Bannière de démarrage, `print()` stylé (rich) et `TeeLogger` (copie de la console dans `data/jarvis_run.log`).
+*   **[voice_init.py](file:///n:/JARVIS/backend/core/voice_init.py)** : Initialisation de Silero VAD, de la biométrie vocale et d'openWakeWord.
+*   **[etat_parole.py](file:///n:/JARVIS/backend/core/etat_parole.py)** : Accès synchronisés à l'état du moteur de parole (parle / stop / dernier temps de parole).
+*   **[chargement_plugins.py](file:///n:/JARVIS/backend/core/chargement_plugins.py)** : Import des plugins de résolution en arrière-plan au démarrage.
+*   **[web_bridge.py](file:///n:/JARVIS/backend/core/web_bridge.py)** : Envoi de messages au HUD depuis n'importe quel thread (`send_web_state`, `send_web_action`, cartes contextuelles...).
+*   **[ai_clients.py](file:///n:/JARVIS/backend/core/ai_clients.py)** : Clés API (`.env`), création et rechargement à chaud des clients Gemini / Grok / Groq / Claude / Mistral.
+*   **[llm_chat.py](file:///n:/JARVIS/backend/core/llm_chat.py)** : `demander_ia` (routage local/cloud, failover, streaming Gemini) et vision.
+*   **[llm_providers.py](file:///n:/JARVIS/backend/core/llm_providers.py)** : Appels Grok, Ollama, Groq, Claude, Mistral et leur enregistrement dans `llm_registry`.
+*   **[traitement.py](file:///n:/JARVIS/backend/core/traitement.py)** : `traiter_reponse_ia` : resolvers locaux, intention LLM, réponse IA, parole puis exécution des actions.
+*   **[actions_ia.py](file:///n:/JARVIS/backend/core/actions_ia.py)** / **[actions_ia_services.py](file:///n:/JARVIS/backend/core/actions_ia_services.py)** : Exécution des actions JSON produites par le LLM (échecs, mémoire, fichiers, domotique... / Google, météo, web, sport, vision, alarmes, Deezer).
+*   **[ws_handler.py](file:///n:/JARVIS/backend/core/ws_handler.py)** : Serveur WebSocket : contrôle d'origine et aiguillage des messages du frontend, délégués à **[ws_reglages.py](file:///n:/JARVIS/backend/core/ws_reglages.py)** (paramètres), **[ws_systeme.py](file:///n:/JARVIS/backend/core/ws_systeme.py)** (coffre-fort, courses, désinstallation, fichiers, Winget) et **[ws_securite.py](file:///n:/JARVIS/backend/core/ws_securite.py)** (pare-feu, cache, actions antivirus).
+*   **[ecoute.py](file:///n:/JARVIS/backend/core/ecoute.py)** / **[ecoute_outils.py](file:///n:/JARVIS/backend/core/ecoute_outils.py)** : Boucle d'écoute vocale continue (VAD, wake word, biométrie) ; transcription Groq Whisper / Google et protocole d'enrôlement vocal.
+*   **[micro.py](file:///n:/JARVIS/backend/core/micro.py)** : Lecture/écriture de `jarvis_config.json`, détection du microphone et des applaudissements.
+*   **[lancement.py](file:///n:/JARVIS/backend/core/lancement.py)** : Statut des services, libération des ports, frontend (Vite ou `dist/`), fenêtre pywebview ou navigateur.
+
 ---
 
 ## 🛠️ DOSSIER `module/` (Modules Métier & Intégrations)
@@ -87,6 +104,13 @@ Fichiers implémentant les fonctionnalités métier autonomes de JARVIS.
 *   **[jarvis_agent.py](file:///n:/JARVIS/backend/module/jarvis_agent.py)** : Classe agent encapsulée pour l'exécution asynchrone des modèles.
 *   **[chess_manager.py](file:///n:/JARVIS/backend/module/chess_manager.py)** : Gère la logique de jeu d'échecs (validation des coups de l'utilisateur, moteur de jeu local Python-Chess).
 *   **[network_radar.py](file:///n:/JARVIS/backend/module/network_radar.py)** : Scanne le réseau local pour découvrir les adresses IP et appareils connectés.
+*   **[commandes_locales.py](file:///n:/JARVIS/backend/module/commandes_locales.py)** / **[commandes_locales_sections.py](file:///n:/JARVIS/backend/module/commandes_locales_sections.py)** : Commandes locales sans IA (compétences, Winget, antivirus, images, voix, identité, HUD 3D, apps, musique, coffre-fort).
+*   **[echecs_local.py](file:///n:/JARVIS/backend/module/echecs_local.py)** : Commandes vocales d'échecs (coups, parties) sans IA.
+*   **[globe_local.py](file:///n:/JARVIS/backend/module/globe_local.py)** : Navigation vocale sur le globe 3D (survol, itinéraire, position).
+*   **[cortex_service.py](file:///n:/JARVIS/backend/module/cortex_service.py)** : Messages WebSocket du cortex neuronal 3D et diffusion des nouveaux souvenirs.
+*   **[domotique_sim.py](file:///n:/JARVIS/backend/module/domotique_sim.py)** : Carte domotique 3D (simulation des états), métadonnées HomePod, routage audio.
+*   **[antivirus_live.py](file:///n:/JARVIS/backend/module/antivirus_live.py)** : Protection antivirus en temps réel.
+*   **[system_stats.py](file:///n:/JARVIS/backend/module/system_stats.py)** : Diffusion des statistiques CPU/RAM au HUD.
 
 ---
 
@@ -98,6 +122,7 @@ Pilotes légers pour manipuler les applications installées sur le PC de l'utili
 *   **[deezer_controller.py](file:///n:/JARVIS/backend/controller/deezer_controller.py)** : Contrôleur complexe de Deezer Windows par automatisation d'API ou de fenêtres locales.
 *   **[homepod_controller.py](file:///n:/JARVIS/backend/controller/homepod_controller.py)** : Contrôle des commandes multimédias des enceintes HomePod.
 *   **[tv_worker.py](file:///n:/JARVIS/backend/controller/tv_worker.py)** : Script s'exécutant en arrière-plan pour surveiller et piloter la TV connectée ou le Chromecast via des commandes ADB.
+*   **[actions_pc.py](file:///n:/JARVIS/backend/controller/actions_pc.py)** : Actions PC immédiates (musique, ouverture d'apps, volume, capture d'écran), détection des apps installées, appel WhatsApp.
 
 ---
 

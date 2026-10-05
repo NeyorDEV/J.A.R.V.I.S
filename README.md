@@ -98,10 +98,11 @@ Le backend écoute sur `ws://localhost:8765`. Dites simplement **"Jarvis"** suiv
 ## Structure du projet
 
 ```
-main.py             — Orchestrateur principal (WebSocket, VAD, STT, plugins, LLM)
+main.py             — Point d'entrée : ordre de démarrage, start_ia() et main()
 assets/              — Icône de l'application
 backend/
-  core/              — Client LLM (+ registre de moteurs), config, VAD, biométrie, wake word, prompt système
+  core/              — État partagé (shared.py), serveur WebSocket, traitement des commandes,
+                       LLM (+ registre de moteurs), écoute vocale, VAD, biométrie, wake word, prompt système
   module/            — Mémoire, fichiers, domotique, navigateur, images, coffre-fort...
   controller/        — Contrôle d'applications (Spotify, Deezer, TV, lanceur d'apps)
   plugins/           — Resolvers de commandes vocales (un fichier par domaine)

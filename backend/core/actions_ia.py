@@ -1,0 +1,348 @@
+"""Exécution des actions JSON produites par le LLM (aiguillage + actions système)."""
+
+import asyncio
+import builtins
+import json
+import os
+
+import chess
+
+import controller.homepod_controller as homepod_controller
+import core.shared as shared
+from core.actions_ia_services import executer_actions_services
+from core.ha_mcp_client import executer_action_ha
+from core.llm_chat import demander_ia
+from core.mcp_client import executer_action_mcp
+from core.speech import parler
+from core.web_bridge import diffuser_echecs, envoyer_image_web, _safe_ws_send
+from module.chess_manager import ChessGame
+from module.domotique_sim import domotic_route_audio
+from module.file_manager import (
+    chercher_fichier, creer_sous_dossier, deplacer_fichier, lire_fichier, lister_dossier,
+    ouvrir_dossier, ouvrir_fichier_ou_dossier, renommer_fichier, trier_par_date,
+    trier_par_type, trier_par_type_puis_date,
+)
+from module.image_generator import generer_image_ia
+from module.memory_manager import ajouter_memoire, charger_memoire, supprimer_memoire
+
+
+async def executer_action(action, data, block, texte_utilisateur, reponse_propre):
+    """Exécute une action JSON produite par le LLM (même ordre de priorité que la chaîne d'origine)."""
+    if await _actions_systeme(action, data, block, texte_utilisateur, reponse_propre):
+        return
+    if await executer_actions_services(action, data, block, texte_utilisateur, reponse_propre):
+        return
+    # Envoi par défaut au frontend pour les actions personnalisées/inconnues
+    if "action" in data or "type" in data:
+        _safe_ws_send(block)
+
+
+async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propre):
+    """Actions JSON « système » : échecs, mémoire, fichiers, images, domotique, GitHub, DOM, HomePod.
+
+    Retourne True si l'action a été prise en charge par ce groupe.
+    """
+    if action == "chess_start":
+        shared.CHESS_GAME = ChessGame()
+        shared.CHESS_GAME_ACTIVE = False
+        state = shared.CHESS_GAME.get_state()
+        await diffuser_echecs({
+            "action": "chess_start",
+            "state": state
+        })
+        parler("Très bien monsieur. J'ai disposé le plateau 3D sur le HUD. Veuillez configurer la partie et la démarrer.")
+    elif action == "chess_stop":
+        shared.CHESS_GAME = None
+        shared.CHESS_GAME_ACTIVE = False
+        await diffuser_echecs({
+            "action": "chess_stop"
+        })
+        parler("Partie d'échecs interrompue, monsieur. Retour au HUD standard.")
+    elif action == "chess_play":
+        if not shared.CHESS_GAME:
+            parler("Aucune partie d'échecs n'est en cours, monsieur.")
+        else:
+            move_str = data.get("move", "")
+            try:
+                # Jouer coup du joueur
+                move, state = shared.CHESS_GAME.play_player_move(move_str)
+                await diffuser_echecs({
+                    "action": "chess_game_state",
+                    "state": state,
+                    "last_move": {
+                        "from": chess.square_name(move.from_square),
+                        "to": chess.square_name(move.to_square),
+                        "color": "white" if shared.CHESS_GAME.player_color == chess.WHITE else "black"
+                    }
+                })
+                if state["is_game_over"]:
+                    result = state["result"]
+                    shared.CHESS_GAME = None
+                    if result == "1-0":
+                        parler("Félicitations, vous avez gagné ! Je m'incline.")
+                    elif result == "1/2-1/2":
+                        parler("Match nul. Bien joué de part et d'autre.")
+                    else:
+                        parler("Fin de partie.")
+                else:
+                    # Faire réfléchir JARVIS et jouer
+                    await diffuser_echecs({
+                        "action": "chess_thinking",
+                        "thinking": True
+                    })
+                    thinking_time = shared.CHESS_GAME.calculate_thinking_time()
+                    print(f"[CHESS] JARVIS réfléchit pendant {thinking_time:.2f} secondes (Elo: {shared.CHESS_GAME.difficulty})...")
+                    await asyncio.sleep(thinking_time)
+                    j_move, remark, j_state = shared.CHESS_GAME.play_jarvis_move()
+                    await diffuser_echecs({
+                        "action": "chess_game_state",
+                        "state": j_state,
+                        "last_move": {
+                            "from": chess.square_name(j_move.from_square),
+                            "to": chess.square_name(j_move.to_square),
+                            "color": "black" if shared.CHESS_GAME.player_color == chess.WHITE else "white"
+                        }
+                    })
+                    if j_state["is_game_over"]:
+                        result = j_state["result"]
+                        shared.CHESS_GAME = None
+                        if result == "0-1":
+                            parler(f"{remark} Échec et mat. J'ai gagné la partie.")
+                        elif result == "1/2-1/2":
+                            parler(f"{remark} Match nul.")
+                    else:
+                        parler(remark)
+            except ValueError as e:
+                parler(str(e))
+    elif action == "mode_iron_man":
+        # `etat` n'était jamais lu depuis le JSON : NameError systématique,
+        # avalé par le catch-all → le mode ne s'activait jamais.
+        etat = data.get("etat", "on")
+        shared.MODE_IRON_MAN = (etat == "on")
+        msg = "Mode Iron Man activé, Monsieur. Je reste à l'écoute de vos signaux." if shared.MODE_IRON_MAN else "Mode Iron Man désactivé. Je repasse en veille domotique."
+        parler(msg)
+    elif action == "auto_memoriser":
+        cle    = data.get("cle",    "info")
+        valeur = data.get("valeur", "")
+        ajouter_memoire(cle, valeur)
+        if hasattr(builtins, "_notify_factual_memory_added"):
+            builtins._notify_factual_memory_added(cle, valeur)
+    elif action == "memoriser":
+        cle    = data.get("cle",    "info")
+        valeur = data.get("valeur", "")
+        ajouter_memoire(cle, valeur)
+        if hasattr(builtins, "_notify_factual_memory_added"):
+            builtins._notify_factual_memory_added(cle, valeur)
+        parler(f"Bien note mylane, je me souviendrai que {valeur}.")
+    elif action == "oublier":
+        cle     = data.get("cle", "")
+        # Supprimer de la mémoire clé-valeur
+        success_kv = supprimer_memoire(cle)
+        # Supprimer également de la DB vectorielle
+        from module.vector_memory import supprimer_souvenir_semantique
+        success_vect = supprimer_souvenir_semantique(cle)
+
+        if success_kv or success_vect:
+            if success_kv:
+                _safe_ws_send(json.dumps({"action": "cortex_update", "deleted_id": f"kv_{cle}"}))
+            if success_vect:
+                _safe_ws_send(json.dumps({"action": "cortex_update", "deleted_id": cle}))
+            parler("Information oubliee, mylane.")
+        else:
+            parler("Je n avais pas cette information en memoire.")
+    elif action == "lister_memoire":
+        memoire = charger_memoire()
+        if not memoire:
+            parler("Aucune information personnalisee en memoire, mylane.")
+        else:
+            lignes = ["Voici ce que je sais sur vous mylane."]
+            for cle, data_m in memoire.items():
+                lignes.append(f"{cle} : {data_m['valeur']}.")
+            parler(" ".join(lignes))
+    elif action in ["creer_site_web", "creer_site", "generer_site"]:
+        desc = data.get("description") or data.get("sujet") or data.get("prompt") or "un site web"
+        from backend.plugins.dev_swarm_resolver import run_dev_swarm_process
+        asyncio.create_task(run_dev_swarm_process(desc))
+        parler("Très bien mylane, je mobilise l'essaim d'agents d'élite pour coder votre projet. Suivi actif sur le HUD.")
+    elif action == "generer_image":
+        prompt = data.get("prompt", "")
+        if prompt:
+            parler(f"Très bien mylane, je génère l'image de {prompt}. Un instant...")
+            img_data = await asyncio.to_thread(generer_image_ia, prompt)
+            if img_data:
+                await envoyer_image_web(img_data, prompt)
+                parler("Voici l'image demandée, mylane. Elle s'affiche sur votre interface.")
+            else:
+                parler("Désolé mylane, la génération d'image a échoué.")
+        else:
+            parler("Que souhaitez-vous que je dessine, mylane ?")
+    elif action == "ouvrir_dossier":
+        chemin = data.get("chemin", "bureau")
+        ok, resultat = ouvrir_dossier(chemin)
+        if ok:
+            parler("Dossier ouvert, mylane. Dites-moi si vous voulez que je le trie.")
+        else:
+            parler(f"Je n ai pas trouve ce dossier, mylane. {resultat}")
+    elif action == "analyser_fichier":
+        nom = data.get("nom", "")
+        question = data.get("question", "Peux-tu me résumer ce document ?")
+        if nom:
+            parler(f"Je lis le fichier {nom}... Un instant.")
+            texte_fichier, err_ou_chemin = lire_fichier(nom, chemin=data.get("chemin"))
+            if texte_fichier is None:
+                parler(err_ou_chemin)
+            else:
+                prompt_analyse = (
+                    f"URGENT : Tu es JARVIS, l'assistant personnel de mylane.\n"
+                    f"Tu viens d'extraire le contenu du fichier '{nom}'.\n"
+                    f"Voici ce contenu :\n\n{texte_fichier}\n\n"
+                    f"L'utilisateur demande : {question}\n"
+                    f"Analyse ce contenu et réponds directement en restant dans ton personnage de JARVIS (poli, efficace, un peu sarcastique)."
+                )
+                rep_analyse = await demander_ia(prompt_analyse, update_hist=False, skip_local=True)
+                if rep_analyse:
+                    parler(rep_analyse)
+                else:
+                    parler("Désolé mylane, j'ai lu le fichier mais je n'arrive pas à synthétiser une réponse.")
+        else:
+            parler("Je n'ai pas compris quel fichier vous souhaitez que j'analyse.")
+    elif action == "lister_dossier":
+        contenu, err = lister_dossier()
+        if err:
+            parler(err)
+        else:
+            nb_fichiers = len(contenu["fichiers"])
+            nb_dossiers = len(contenu["dossiers"])
+            parler(f"Le dossier contient {nb_fichiers} fichiers et {nb_dossiers} sous-dossiers, mylane.")
+    elif action == "trier_par_type":
+        parler("Je trie vos fichiers par type, mylane. Un instant.")
+        ok, msg = trier_par_type()
+        parler(msg if ok else f"Probleme lors du tri : {msg}")
+    elif action == "trier_par_date":
+        parler("Je trie vos fichiers par date, mylane. Un instant.")
+        ok, msg = trier_par_date()
+        parler(msg if ok else f"Probleme lors du tri : {msg}")
+    elif action == "trier_complet":
+        parler("Je trie vos fichiers par type puis par date dans chaque categorie, mylane.")
+        ok, msg = trier_par_type_puis_date()
+        parler(msg if ok else f"Probleme lors du tri : {msg}")
+    elif action == "creer_dossier":
+        nom     = data.get("nom", "Nouveau Dossier")
+        ok, msg = creer_sous_dossier(nom)
+        parler(msg if ok else f"Erreur : {msg}")
+    elif action == "renommer_fichier":
+        ancien  = data.get("ancien", "")
+        nouveau = data.get("nouveau", "")
+        ok, msg = renommer_fichier(ancien, nouveau)
+        parler(msg if ok else f"Erreur : {msg}")
+    elif action == "deplacer_fichier":
+        fichier = data.get("fichier",     "")
+        dest    = data.get("destination", "")
+        ok, msg = deplacer_fichier(fichier, dest)
+        parler(msg if ok else f"Erreur : {msg}")
+    elif action == "chercher_fichier":
+        nom = data.get("nom", "")
+
+        # Détection du type demandé AVANT nettoyage
+        type_demande = None
+        if "dossier" in nom.lower() or "repertoire" in nom.lower():
+            type_demande = "dossier"
+        elif "fichier" in nom.lower() or "document" in nom.lower():
+            type_demande = "fichier"
+
+        # Nettoyage intelligent du nom (suppression des articles et mots parasites)
+        parasites = ["trouve moi le dossier ", "trouve moi le fichier ", "trouve moi le ", 
+                     "recherche le dossier ", "recherche le fichier ", "recherche le ",
+                     "le dossier ", "le fichier ", "un dossier ", "un fichier ",
+                     "dossier ", "fichier ", "mon dossier ", "mon fichier ", 
+                     "le ", "la ", "les ", "un ", "une ", "des ", "moi "]
+
+        nom_clean = nom.lower()
+        for p in parasites:
+            if nom_clean.startswith(p):
+                nom_clean = nom_clean[len(p):].strip()
+                break
+
+        # On nettoie encore les petits mots si besoin
+        mots = nom_clean.split()
+        if mots and mots[0] in ["le", "la", "un", "une", "moi", "mon", "ma"]:
+            mots = mots[1:]
+        nom_final = " ".join(mots) if mots else nom_clean
+        if not nom_final: nom_final = nom
+
+        # Message plus précis
+        type_msg = "le dossier" if type_demande == "dossier" else ("le fichier" if type_demande == "fichier" else "l'élément")
+        parler(f"Recherche de {type_msg} '{nom_final}' en cours...")
+
+        resultats, err = chercher_fichier(nom_final, scan_global=True, type_cible=type_demande)
+        if err:
+            parler(err)
+        elif not resultats:
+            parler(f"Je n'ai rien trouvé correspondant à '{nom}', mylane.")
+        else:
+            cible = resultats[0]
+            ok, msg = ouvrir_fichier_ou_dossier(cible)
+            if ok:
+                parler(f"J'ai trouvé {os.path.basename(cible)} et je l'ouvre immédiatement.")
+            else:
+                parler(f"J'ai trouvé {os.path.basename(cible)} mais je n'ai pas pu l'ouvrir : {msg}")
+    elif action == "ouvrir_element":
+        chemin = data.get("chemin", "")
+        ok, msg = ouvrir_fichier_ou_dossier(chemin)
+        parler(msg if ok else f"Erreur : {msg}")
+    elif action == "ha_action":
+        # Domotique générique via le client MCP Home Assistant : Gemini
+        # reformule la demande en instruction, un second appel Gemini
+        # (dans executer_action_ha) choisit l'outil MCP exposé par HA
+        # et ses paramètres. Remplace l'ancien bloc d'actions codées en
+        # dur par type d'appareil (voir core/ha_mcp_client.py).
+        instruction = data.get("instruction", "")
+        if instruction:
+            resultat = await executer_action_ha(instruction)
+            parler(resultat)
+    elif action == "github_action":
+        # GitHub via le client MCP générique (core/mcp_client.py) :
+        # même principe que ha_action, mais réutilisable pour
+        # n'importe quel futur serveur MCP (server_name différent).
+        instruction = data.get("instruction", "")
+        if instruction:
+            resultat = await executer_action_mcp("github", instruction)
+            parler(resultat)
+    elif action == "dom_sequence":
+        steps = data.get("steps", [])
+        if hasattr(builtins, "send_web_action"):
+            remaining_steps = []
+            for step in steps:
+                action_type = step.get("action_type", "click")
+                text = step.get("text", "")
+
+                # Si c'est une ouverture d'URL, on le fait localement via le navigateur par défaut
+                if action_type == "open_url" and text:
+                    import webbrowser
+                    webbrowser.open(text, new=2)
+                    await asyncio.sleep(5.0)  # Laisser le temps au navigateur de charger le site
+                    continue
+
+                remaining_steps.append(step)
+
+            # Envoyer toutes les étapes DOM restantes en un seul bloc à l'extension
+            if remaining_steps:
+                payload = {"type": "dom_action", "action": "dom_sequence", "steps": remaining_steps}
+                _safe_ws_send(json.dumps(payload))
+    elif action == "homepod_action":
+        cmd   = data.get("commande", "play")
+        val   = data.get("valeur")
+        piece = data.get("piece")
+        ok, res = await homepod_controller.send_command(cmd, val, identifier=piece)
+        if ok:
+            if cmd == "volume":
+                parler(f"Volume du HomePod {piece or ''} réglé à {val}%.")
+            else:
+                parler(f"Commande {cmd} exécutée sur le HomePod {piece or ''}.")
+    elif action == "domotic_route_audio":
+        source = data.get("source", "salon")
+        dest   = data.get("destination", "chambre")
+        await domotic_route_audio(source, dest)
+    else:
+        return False
+    return True

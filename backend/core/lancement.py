@@ -1,0 +1,364 @@
+"""Démarrage de l'interface : statut des services, ports, frontend (Vite/dist), fenêtre pywebview ou navigateur."""
+
+import os
+import subprocess
+import sys
+import threading
+import time
+
+import core.shared as shared
+
+
+try:
+    import webview
+    _WEBVIEW_OK = True
+except ImportError:
+    webview = None
+    _WEBVIEW_OK = False
+
+
+def afficher_statut_services():
+    """Affiche le tableau « STATUT DES SERVICES » (ports WebSocket, interface mobile, commande vocale)."""
+    try:
+        from rich.console import Console
+        from rich.table import Table
+        from rich.panel import Panel
+        console = Console()
+
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_row("[cyan]⚙  Backend[/cyan]", "[green]Actif (Terminal)[/green]")
+        table.add_row("[cyan]🌐  WebSocket (Local)[/cyan]", "[green]ws://localhost:8765[/green]")
+        table.add_row("[cyan]🌐  WebSocket (Réseau)[/cyan]", f"[green]ws://{shared.LOCAL_IP}:8765[/green]")
+        table.add_row("[cyan]📱  Interface Mobile[/cyan]", f"[green]http://{shared.LOCAL_IP}:8080[/green]")
+        table.add_row("[cyan]🎙  Commande Vocale[/cyan]", "[yellow]Active (Mot-clé: 'Jarvis')[/yellow]")
+
+        print()
+        console.print(Panel(
+            table,
+            title="[bold green]✔  STATUT DES SERVICES[/bold green]",
+            border_style="green",
+            expand=False
+        ))
+        print()
+    except Exception:
+        print("  Backend   : actif (terminal)")
+        print(f"  WebSocket : ws://localhost:8765  (LAN: ws://{shared.LOCAL_IP}:8765)")
+        print(f"  Mobile    : http://{shared.LOCAL_IP}:8080")
+        print()
+        print("  Commandes vocales actives.")
+        print("  Dites 'Jarvis' pour activer la session.")
+        print("=" * 60)
+        print()
+
+
+def liberer_ports_occupes():
+    """Termine une éventuelle instance précédente qui occuperait les ports 8765, 8080 ou 5173."""
+    # Liberer les ports si une instance precedente tourne encore
+    # Un seul appel netstat pour les 3 ports (évite 3x ~1.5s de latence)
+    _ports_a_liberer = [8765, 8080, 5173]
+    try:
+        _result = subprocess.run(["netstat", "-ano"], capture_output=True)
+        _stdout = _result.stdout.decode(errors='ignore')
+        for _line in _stdout.splitlines():
+            for _port in _ports_a_liberer:
+                if f":{_port}" in _line and ("LISTENING" in _line or "ÉCOUTE" in _line):
+                    _parts = _line.strip().split()
+                    _pid = _parts[-1]
+                    if _pid.isdigit() and int(_pid) != os.getpid():
+                        subprocess.run(["taskkill", "/F", "/PID", _pid], capture_output=True)
+                        print(f"[DÉMARRAGE] Port {_port} libéré (PID {_pid} terminé).")
+    except Exception as _e:
+        print(f"[DÉMARRAGE] Impossible de libérer les ports : {_e}")
+
+
+def lancer_frontend():
+    """Démarre l'interface web (Vite, sinon dist/ servi en Python). Retourne (processus, URL)."""
+    # Lancer le serveur Frontend
+    frontend_dir = os.path.join(shared.RACINE_PROJET, "interfaces", "frontend")
+    frontend_process = None
+    FRONTEND_URL = "http://localhost:5173"
+
+    # Nettoyage automatique des instances WebView2 orphelines pour libérer les verrous sur le dossier utilisateur
+    if sys.platform.startswith("win"):
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "msedgewebview2.exe"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+        except Exception:
+            pass
+
+    def _port_ecoute(port, timeout=4.0):
+        """Retourne True si quelque chose ecoute sur le port donne."""
+        import socket
+        debut = time.time()
+        while time.time() - debut < timeout:
+            for host in ("localhost", "127.0.0.1", "::1"):
+                try:
+                    with socket.create_connection((host, port), timeout=0.3):
+                        return True
+                except (ConnectionRefusedError, OSError):
+                    pass
+            time.sleep(0.2)
+        return False
+
+    def _servir_dist_python(port=5173):
+        """Sert le dossier dist/ avec le serveur HTTP Python (fallback sans npm)."""
+        import http.server, socketserver, functools
+        dist_dir = os.path.join(frontend_dir, "dist")
+        # On passe le dossier au handler au lieu de faire os.chdir() : cette fonction
+        # tourne dans un thread d'arrière-plan, et os.chdir() change le répertoire de
+        # travail de TOUT le process — tous les chemins relatifs (jarvis_run.log, les
+        # fichiers TTS temporaires…) se seraient mis à pointer dans dist/.
+        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=dist_dir)
+        handler.log_message = lambda *a: None  # silencieux
+        with socketserver.TCPServer(("", port), handler) as httpd:
+            print(f"[JARVIS] Frontend servi via Python HTTP sur http://localhost:{port}")
+            httpd.serve_forever()
+
+    vite_ok = False
+    if os.path.exists(frontend_dir):
+        # Tentative 1 : Vite (npm run dev)
+        try:
+            print("[JARVIS] Tentative de lancement Vite (npm run dev)...")
+            log_path = os.path.join(frontend_dir, "vite_output.log")
+            with open(log_path, "w", encoding="utf-8") as f_log:
+                frontend_process = subprocess.Popen(
+                    ["npm", "run", "dev"], cwd=frontend_dir, shell=True,
+                    stdout=f_log, stderr=f_log
+                )
+            # Timeout augmenté légèrement à 6.0s au cas où le système ralentit
+            vite_ok = _port_ecoute(5173, timeout=6.0)
+            if vite_ok:
+                print("[JARVIS] Interface locale (Vite) initialisée.")
+            else:
+                print("[JARVIS] Vite n'a pas demarre (npm/vite absent ou erreur).")
+                if frontend_process:
+                    frontend_process.terminate()
+                    frontend_process = None
+                # Afficher le contenu des logs en cas d'échec
+                try:
+                    if os.path.exists(log_path):
+                        with open(log_path, "r", encoding="utf-8") as f_log:
+                            logs = f_log.read().strip()
+                            if logs:
+                                print("[JARVIS] --- LOGS VITE ---")
+                                print(logs)
+                                print("[JARVIS] -----------------")
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[JARVIS] Impossible de lancer Vite : {e}")
+            frontend_process = None
+
+        # Tentative 2 : servir dist/ avec Python (pas besoin de npm)
+        if not vite_ok:
+            dist_dir = os.path.join(frontend_dir, "dist")
+            if os.path.exists(dist_dir) and os.path.exists(os.path.join(dist_dir, "index.html")):
+                print("[JARVIS] Fallback : service du dossier dist/ via Python HTTP...")
+                t_dist = threading.Thread(target=_servir_dist_python, args=(5173,), daemon=True)
+                t_dist.start()
+                vite_ok = _port_ecoute(5173, timeout=3.0)
+                if vite_ok:
+                    print("[JARVIS] Frontend dist/ servi correctement.")
+            else:
+                print("[JARVIS] Aucun dossier dist/ trouve. Interface non disponible.")
+                print("[JARVIS] Pour corriger : cd frontend && npm install && npm run build")
+
+    if not vite_ok:
+        print("[JARVIS] ATTENTION : l'interface visuelle ne sera pas disponible.")
+        print("[JARVIS] JARVIS reste fonctionnel en mode vocal uniquement.")
+
+    return frontend_process, FRONTEND_URL
+
+
+def ouvrir_interface(frontend_process, FRONTEND_URL):
+    """Ouvre le HUD : fenêtre native pywebview (bloquante, thread principal) ou navigateur en secours."""
+    # Choisir le mode d'affichage
+    use_native = _WEBVIEW_OK and webview is not None and not shared.FORCE_BROWSER_MODE
+
+    if use_native:
+        # MODE FENETRE NATIVE (pywebview)
+        print("[JARVIS] Ouverture dans une fenetre native (pywebview)...")
+
+        # Calcul de la taille et position centrée selon la résolution de l'écran
+        try:
+            from screeninfo import get_monitors
+            _mon = get_monitors()[0]
+            _sw, _sh = _mon.width, _mon.height
+        except Exception:
+            _sw, _sh = 1920, 1080
+
+        # 85% de l'écran, min 1280x780
+        _win_w = max(1280, int(_sw * 0.85))
+        _win_h = max(780,  int(_sh * 0.85))
+        _win_x = (_sw - _win_w) // 2
+        _win_y = (_sh - _win_h) // 2
+
+        shared._WEBVIEW_WINDOW = webview.create_window(
+            title            = "J.A.R.V.I.S",
+            url              = FRONTEND_URL,
+            width            = _win_w,
+            height           = _win_h,
+            x                = _win_x,
+            y                = _win_y,
+            resizable        = True,
+            min_size         = (900, 600),
+            background_color = "#0a0a0f",
+            maximized        = True,
+        )
+
+        def _on_closed():
+            print("\n[JARVIS] Fenetre fermee — extinction du systeme...")
+            # Arrêter le radar réseau proprement avant la fermeture
+            try:
+                import plugins.network_resolver as _nr
+                _nr._radar_active = False
+                if _nr._radar_task and not _nr._radar_task.done():
+                    _nr._radar_task.cancel()
+            except Exception:
+                pass
+            if frontend_process:
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(frontend_process.pid)],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+
+        shared._WEBVIEW_WINDOW.events.closed += _on_closed
+
+        _jarvis_loaded_once = False
+
+        def _on_loaded():
+            nonlocal _jarvis_loaded_once
+            if _jarvis_loaded_once:
+                return  # Ignorer les appels dupliqués (2ème fenêtre pywebview)
+            _jarvis_loaded_once = True
+            try:
+                import ctypes
+                import os
+                # Groupement dans la barre des taches (detache de python.exe)
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("TechEnClair.Jarvis.App")
+
+                # Remplacement de l'icone de la fenetre webview
+                hwnd = ctypes.windll.user32.FindWindowW(None, "J.A.R.V.I.S")
+                if hwnd:
+                    icon_path = os.path.abspath(os.path.join("assets", "jarvis_icon.ico"))
+                    if os.path.exists(icon_path):
+                        hicon = ctypes.windll.user32.LoadImageW(0, icon_path, 1, 0, 0, 0x0010)
+                        if hicon:
+                            ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 0, hicon) # ICON_SMALL
+                            ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 1, hicon) # ICON_BIG
+            except Exception as e:
+                print(f"[JARVIS] Erreur chargement icone : {e}")
+
+        shared._WEBVIEW_WINDOW.events.loaded += _on_loaded
+
+        # webview.start() DOIT etre appele depuis le thread principal
+        try:
+            # 1ère tentative : Edge Chromium (WebView2) par défaut
+            _app_data = os.getenv("LOCALAPPDATA", os.getenv("APPDATA", os.path.expanduser("~")))
+            _storage_path = os.path.join(_app_data, "JARVIS_Local")
+            webview.start(private_mode=False, storage_path=_storage_path, debug=False)
+        except Exception as e:
+            print(f"[JARVIS] PyWebView avec WebView2 impossible ({e}) — tentative avec le moteur natif EdgeHTML...")
+            try:
+                # 2ème tentative : Forcer le moteur EdgeHTML natif sans dépendance externe WebView2
+                webview.start(gui="edgehtml", private_mode=False, storage_path=_storage_path, debug=False)
+            except Exception as e2:
+                print(f"[JARVIS] Deuxieme tentative PyWebView avec EdgeHTML impossible ({e2}) — tentative de nettoyage du cache...")
+                try:
+                    import shutil
+                    eb_path = os.path.join(_storage_path, "EBWebView")
+                    if os.path.exists(eb_path):
+                        shutil.rmtree(eb_path, ignore_errors=True)
+                    # 3ème tentative : Edge Chromium après nettoyage complet du cache
+                    webview.start(private_mode=False, storage_path=_storage_path, debug=False)
+                except Exception as e3:
+                    print(f"[JARVIS] Troisieme tentative PyWebView impossible : {e3} — bascule sur navigateur")
+                    _ouvrir_dans_navigateur(FRONTEND_URL, frontend_process)
+    else:
+        # MODE NAVIGATEUR (fallback si pywebview absent)
+        _ouvrir_dans_navigateur(FRONTEND_URL, frontend_process)
+
+
+def start_mobile_http_server():
+    """Serveur HTTP minimal pour servir l'interface mobile sur le port 8080."""
+    import http.server
+    mobile_dir = os.path.join(shared.RACINE_PROJET, "interfaces", "mobile")
+    if not os.path.exists(mobile_dir):
+        print("[MOBILE] Dossier mobile/ introuvable, serveur non demarre.")
+        return
+    class MobileHandler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=mobile_dir, **kwargs)
+        def log_message(self, format, *args):
+            pass  # Silencieux
+    server = http.server.HTTPServer(("0.0.0.0", 8080), MobileHandler)
+    print("[MOBILE] Serveur HTTP mobile démarré.")
+    server.serve_forever()
+
+
+def _trouver_chemin_navigateur():
+    """Tente de trouver le chemin de Chrome ou Edge pour le mode --app."""
+    paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), r"Google\Chrome\Application\chrome.exe"),
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+    ]
+    for p in paths:
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def _ouvrir_dans_navigateur(url, frontend_process):
+    """
+    Ouvre JARVIS dans un navigateur, de préférence en mode 'app' (sans barres).
+    """
+    print(f"[JARVIS] Preparation de l'interface sur {url}...")
+    navigateur = _trouver_chemin_navigateur()
+    
+    if navigateur:
+        print(f"[JARVIS] Lancement du mode App (sans bordures) avec profil persistant via : {os.path.basename(navigateur)}")
+        try:
+            profile_path = r"C:\Users\mylan\.gemini\antigravity\chrome_profile"
+            if not os.path.exists(profile_path):
+                os.makedirs(profile_path, exist_ok=True)
+            subprocess.Popen([navigateur, f"--app={url}", f"--user-data-dir={profile_path}"])
+        except Exception as e:
+            print(f"[JARVIS] Erreur lors du lancement mode App, fallback standard : {e}")
+            import webbrowser
+            webbrowser.open(url)
+    else:
+        print(f"[JARVIS] Aucun navigateur compatible App trouve. Ouverture standard...")
+        import webbrowser
+        webbrowser.open(url)
+    
+    _attendre_interface(frontend_process)
+
+
+def _attendre_interface(frontend_process):
+    """Gère la boucle d'attente et l'extinction du système."""
+    try:
+        while True:
+            time.sleep(1)
+            # On ne ferme que si l'interface a été connectée au moins une fois
+            if shared.interface_deja_connectee and len(shared.CONNECTED_CLIENTS) == 0:
+                print("\n[JARVIS] Interface deconnectee. Attente de reconnexion (60s)...")
+                time.sleep(60)
+                if len(shared.CONNECTED_CLIENTS) == 0:
+                    print("[JARVIS] Aucune reconnexion. Extinction automatique...")
+                    break
+                else:
+                    print("[JARVIS] Reconnexion detectee. Reprise.")
+    except KeyboardInterrupt:
+        print("\n[JARVIS] Arret manuel.")
+
+    if frontend_process:
+        print("[JARVIS] Arret du serveur Web...")
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(frontend_process.pid)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )

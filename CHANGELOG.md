@@ -1,6 +1,29 @@
 # Changelog
 
-Changements non encore commités, en date du 2026-09-15.
+## 2026-10-05 — Découpage de `main.py`
+
+`main.py` passe de **7 278 à ~300 lignes** : il ne fait plus qu'orchestrer le démarrage. Son contenu est réparti dans `backend/` (29 nouveaux fichiers, tous sous 450 lignes), **sans changement de logique** : code déplacé à l'identique, ordre d'initialisation conservé.
+
+**Nouveaux fichiers**
+- `core/` : `shared.py` (état partagé), `console_ui.py`, `voice_init.py`, `etat_parole.py`, `chargement_plugins.py`, `web_bridge.py`, `ai_clients.py`, `llm_chat.py`, `llm_providers.py`, `traitement.py`, `actions_ia.py`, `actions_ia_services.py`, `ws_handler.py`, `ws_reglages.py`, `ws_systeme.py`, `ws_securite.py`, `ecoute.py`, `ecoute_outils.py`, `micro.py`, `lancement.py`.
+- `module/` : `commandes_locales.py`, `commandes_locales_sections.py`, `echecs_local.py`, `globe_local.py`, `cortex_service.py`, `domotique_sim.py`, `antivirus_live.py`, `system_stats.py`.
+- `controller/` : `actions_pc.py`.
+
+**Comment c'est organisé**
+- Les variables globales de `main.py` (historique, session vocale, clients IA, clients WebSocket...) vivent dans `core/shared.py` et s'utilisent via `shared.NOM`, pour que tous les modules partagent le même état.
+- Les 4 fonctions géantes ont été découpées branche par branche, sans toucher à leur contenu : le gestionnaire WebSocket (818 lignes), le dispatcher d'actions JSON (816), la boucle d'écoute (577) et les commandes locales (565).
+- `main.py` reproduit l'ordre d'import d'origine des modules du projet : plusieurs d'entre eux figent leur configuration à l'import (variables d'environnement lues avant/après le chargement du `.env`, attributs de `builtins`).
+
+**Code mort retiré** (jamais exécuté) : `resoudre_extras_locaux` et `resoudre_infos_systeme_localement` (les versions des plugins `extras.py` / `system_resolver.py` étaient celles réellement utilisées), `chercher_youtube`, `devrait_elevancer_vers_cloud`, `liberer_port`, `nettoyer_accent` et leurs helpers.
+
+**Bugs latents corrigés au passage** (variables rendues locales par un `import` placé dans une autre branche de la même fonction) :
+- « ouvre calculatrice » (et les autres apps standard) plantait en `UnboundLocalError`.
+- « mets ma playlist » via le clavier (lien musique par défaut) plantait de la même façon.
+- Bloquer une IP depuis le radar ne prononçait pas la confirmation vocale si les réglages n'avaient pas été sauvegardés avant dans la session.
+
+**Vérifications** : compilation, Ruff (aucun nom indéfini), comparaison automatique des liaisons de noms de chaque fonction avant/après (identiques), comparaison des injections `builtins` et de l'état après démarrage (identiques), lancement réel de JARVIS (console identique) et 29 scénarios WebSocket rejoués sur l'ancienne et la nouvelle version (réponses identiques).
+
+## 2026-09-15
 
 ## Renommage des scripts `.bat`
 
