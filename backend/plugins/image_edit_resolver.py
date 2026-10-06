@@ -1,6 +1,7 @@
 import os
 import asyncio
 import builtins
+from core.interlocuteur import nom_espace, nom_virgule
 
 _attente_modif_image = {"actif": False, "chemin": None}
 
@@ -53,23 +54,23 @@ async def resoudre_modifier_image(cmd):
         if any(k in t for k in _MOTS_ANNULATION):
             _attente_modif_image["actif"] = False
             _attente_modif_image["chemin"] = None
-            return "Très bien, j'annule la modification, mylane."
+            return f"Très bien, j'annule la modification{nom_virgule()}."
 
         _attente_modif_image["actif"] = False
         _attente_modif_image["chemin"] = None
 
         if not instruction:
-            return "Je n'ai pas compris quelle modification appliquer, mylane."
+            return f"Je n'ai pas compris quelle modification appliquer{nom_virgule()}."
 
-        builtins.parler("Très bien mylane, je modifie l'image. Un instant...")
+        builtins.parler(f"Très bien{nom_espace()}, je modifie l'image. Un instant...")
 
         from module.image_generator import modifier_image_ia
         img_data = await asyncio.to_thread(modifier_image_ia, chemin, instruction)
 
         if img_data:
             await builtins.envoyer_image_web(img_data, instruction)
-            return "Voici l'image modifiée, mylane. Elle s'affiche sur votre interface."
-        return "Désolé mylane, je n'ai pas réussi à modifier cette image."
+            return f"Voici l'image modifiée{nom_virgule()}. Elle s'affiche sur votre interface."
+        return f"Désolé{nom_espace()}, je n'ai pas réussi à modifier cette image."
 
     # ── Étape 1 : détecter la demande et ouvrir l'explorateur de fichiers ──
     if not any(k in t for k in _MOTS_MODIF_IMAGE):
@@ -77,13 +78,13 @@ async def resoudre_modifier_image(cmd):
 
     chemin = await asyncio.to_thread(_choisir_fichier_image_dialog)
     if not chemin:
-        return "Aucune image sélectionnée, mylane."
+        return f"Aucune image sélectionnée{nom_virgule()}."
 
     _attente_modif_image["actif"] = True
     _attente_modif_image["chemin"] = chemin
 
     nom_fichier = os.path.basename(chemin)
-    return f"J'ai sélectionné « {nom_fichier} », mylane. Quelle modification voulez-vous que je fasse dessus ?"
+    return f"J'ai sélectionné « {nom_fichier} »{nom_virgule()}. Quelle modification voulez-vous que je fasse dessus ?"
 
 
 builtins.resoudre_modifier_image = resoudre_modifier_image

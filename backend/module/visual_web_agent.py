@@ -17,6 +17,7 @@ import builtins
 from pathlib import Path
 from PIL import Image
 from dotenv import load_dotenv
+from core.interlocuteur import nom_espace, nom_ou_utilisateur, nom_virgule
 
 try:
     from playwright.async_api import async_playwright, Page, BrowserContext
@@ -171,7 +172,7 @@ class VisualWebAgent:
                     extra_http_headers={"Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8"},
                     **launch_kwargs
                 )
-                # Évite d'écraser les onglets de session restaurés de mylane
+                # Évite d'écraser les onglets de session restaurés de neyor
                 blank_page = None
                 for p in self.context.pages:
                     if p.url == "about:blank":
@@ -182,7 +183,7 @@ class VisualWebAgent:
                 else:
                     self.page = await self.context.new_page()
 
-                print("[VISUAL_AGENT] ✅ Navigateur d'origine Opera GX prêt (avec cookies/paramètres de mylane sur un onglet dédié).")
+                print("[VISUAL_AGENT] ✅ Navigateur d'origine Opera GX prêt (avec cookies/paramètres de Neyor sur un onglet dédié).")
                 return
             except Exception as e:
                 print(f"[VISUAL_AGENT] ⚠️ Profil principal verrouillé (Opera GX est probablement déjà ouvert) : {e}")
@@ -325,7 +326,7 @@ class VisualWebAgent:
             img = Image.open(tmp)
 
             prompt = (
-                f"Tu es JARVIS, l'IA de mylane. Voici une capture de page web.\n"
+                f"Tu es JARVIS, l'IA de Neyor. Voici une capture de page web.\n"
                 f"Question : {question}\n"
                 "Réponds en français, de façon concise et précise (2-3 phrases max)."
             )
@@ -1365,7 +1366,7 @@ class VisualWebAgent:
             "  • close_popups → {\"action\":\"close_popups\"}\n"
             "  • drag         → {\"action\":\"drag\", \"instruction\":\"l'élément à faire glisser\", \"dx\":-150, \"dy\":0}\n\n"
             "RÈGLES IMPORTANTES :\n"
-            "- L'utilisatrice s'appelle 'Mylane'. C'est un PRÉNOM, PAS une ville, PAS un lieu, PAS un mot-clé. Ne tape JAMAIS 'Mylane' dans un champ de recherche, de localisation ou de destination. Ignore complètement les mentions 'pour mylane' ou 'de mylane' dans la tâche.\n"
+            f"- La personne qui donne la tâche s'appelle '{nom_ou_utilisateur()}' et ton créateur 'Neyor'. Ce sont des PRÉNOMS, PAS des villes, PAS des lieux, PAS des mots-clés. Ne les tape JAMAIS dans un champ de recherche, de localisation ou de destination. Ignore complètement les mentions 'pour <prénom>' ou 'de <prénom>' dans la tâche.\n"
             "- Commence TOUJOURS par une étape goto vers le site le plus pertinent.\n"
             "- Pour les sites de recherche simples (Amazon, Google, YouTube, LeBonCoin, Vinted, etc.) : goto → fill_search → scroll pour voir les résultats. Ne rajoute PAS de filtre de localisation sauf si la tâche le demande explicitement (ex: 'à Lyon', 'près de Paris').\n"
             "- Pour les formulaires multi-champs (Booking, Airbnb, train/avion, etc.) : N'utilise JAMAIS 'fill_search' sur le champ de destination ! Car 'fill_search' appuie sur 'Entrée' et valide le formulaire immédiatement, sautant l'étape des dates. Utilise TOUJOURS 'type' (sans Entrée) pour le champ de destination (ex: {\"action\":\"type\", \"text\":\"Annecy\", \"instruction\":\"le champ Où allez-vous\"}), puis procède aux étapes de dates, et clique sur le bouton Rechercher à la toute fin.\n"
@@ -1429,7 +1430,7 @@ class VisualWebAgent:
         Lance l'agent, planifie la tâche, l'exécute et retourne un résumé vocal.
         """
         if async_playwright is None:
-            return "Désolé mylane, Playwright n'est pas installé. Lance : pip install playwright && playwright install chromium"
+            return f"Désolé{nom_espace()}, Playwright n'est pas installé. Lance : pip install playwright && playwright install chromium"
 
         self._init_gemini()
         self._running = True
@@ -1453,12 +1454,12 @@ class VisualWebAgent:
                     pass
 
         print(f"\n[VISUAL_AGENT] 🚀 Nouvelle tâche : {task}")
-        _parler("J'active l'autopilote visuel, un instant mylane...")
+        _parler(f"J'active l'autopilote visuel, un instant{nom_espace()}...")
 
         # 1. Planification
         steps = await self._plan_task(task)
         if not steps:
-            return "Je n'ai pas pu planifier la tâche. Essayez de reformuler, mylane."
+            return f"Je n'ai pas pu planifier la tâche. Essayez de reformuler{nom_virgule()}."
 
         _parler(f"Plan établi en {len(steps)} étapes. Je lance le navigateur.")
 
@@ -1478,7 +1479,7 @@ class VisualWebAgent:
             if success:
                 completed += 1
             else:
-                _parler("Mylane, j'ai rencontré un obstacle à cette étape. Par sécurité, je désactive l'autopilote et je vous laisse reprendre le contrôle sur cette page.")
+                _parler(f"J'ai rencontré un obstacle à cette étape{nom_virgule()}. Par sécurité, je désactive l'autopilote et je vous laisse reprendre le contrôle sur cette page.")
                 break
             await asyncio.sleep(STEP_DELAY)
 
@@ -1489,14 +1490,14 @@ class VisualWebAgent:
         # 5. Résumé verbal de la page actuelle
         summary = await self._vision_analyze_page(
             f"Décris brièvement ce que tu vois sur la page en rapport avec : {task}. "
-            "Donne une réponse utile et directe pour mylane, 2-3 phrases max."
+            f"Donne une réponse utile et directe pour {nom_ou_utilisateur()}, 2-3 phrases max."
         )
 
         current_url = self.page.url if self.page else "inconnue"
         print(f"\n[VISUAL_AGENT] 🏁 Tâche terminée. URL finale : {current_url}")
         print(f"[VISUAL_AGENT] ✅ {completed}/{len(steps)} étapes réussies.")
 
-        # Navigateur intentionnellement laissé OUVERT pour que mylane voie le résultat
+        # Navigateur intentionnellement laissé OUVERT pour que neyor voie le résultat
         print("[VISUAL_AGENT] 🌐 Navigateur laissé ouvert. Dis 'Jarvis ferme le navigateur' pour le fermer.")
 
         return summary if summary else f"J'ai effectué la tâche. {completed} étapes exécutées sur {len(steps)}."
@@ -1528,5 +1529,5 @@ async def stop_visual_agent() -> str:
     if _visual_agent_instance:
         await _visual_agent_instance.stop()
         _visual_agent_instance = None
-        return "Navigateur fermé, mylane."
-    return "Aucun navigateur actif à fermer, mylane."
+        return f"Navigateur fermé{nom_virgule()}."
+    return f"Aucun navigateur actif à fermer{nom_virgule()}."

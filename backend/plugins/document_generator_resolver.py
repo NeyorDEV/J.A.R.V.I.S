@@ -16,6 +16,7 @@ import unicodedata
 from datetime import datetime
 
 from google.genai import types
+from core.interlocuteur import nom_espace
 
 DOSSIER_SORTIE = os.path.join(os.environ.get("USERPROFILE", ""), "Desktop", "JARVIS_Documents")
 
@@ -190,7 +191,7 @@ async def resoudre_generation_document(cmd: str):
             if nom_dossier in t:
                 chemin, nb_trouves = await asyncio.to_thread(_fusionner_pdfs_dossier, nom_dossier)
                 if chemin:
-                    return f"C'est fait mylane, j'ai fusionné {nb_trouves} fichiers PDF en un seul document, enregistré dans votre dossier JARVIS_Documents."
+                    return f"C'est fait{nom_espace()}, j'ai fusionné {nb_trouves} fichiers PDF en un seul document, enregistré dans votre dossier JARVIS_Documents."
                 if nb_trouves < 2:
                     return f"Je n'ai trouvé que {nb_trouves} fichier(s) PDF dans ce dossier, il en faut au moins deux pour fusionner."
                 return "Une erreur est survenue lors de la fusion des PDF."
@@ -227,7 +228,7 @@ async def resoudre_generation_document(cmd: str):
             reste = re.sub(rf'\b{v}\b', '', reste)
         for m in marqueurs:
             reste = reste.replace(m, '')
-        for mot_vide in ["un", "une", "des", "le", "la", "les", "moi", "mylane", "de", "du"]:
+        for mot_vide in ["un", "une", "des", "le", "la", "les", "moi", "neyor", "de", "du"]:
             reste = re.sub(rf'\b{mot_vide}\b', '', reste)
         sujet = reste.strip()
 
@@ -266,7 +267,7 @@ async def resoudre_generation_document(cmd: str):
 
     data = await _generer_contenu_ia(prompt)
     if not data or not data.get("titre"):
-        return f"Désolé mylane, je n'ai pas réussi à générer le contenu de ce {type_doc}."
+        return f"Désolé{nom_espace()}, je n'ai pas réussi à générer le contenu de ce {type_doc}."
 
     try:
         _assurer_dossier_sortie()
@@ -275,7 +276,7 @@ async def resoudre_generation_document(cmd: str):
         await asyncio.to_thread(rendus[type_doc], data, chemin_sortie)
     except Exception as e:
         print(f"[DOC GENERATOR] Erreur rendu {type_doc} : {e}")
-        return f"Désolé mylane, une erreur est survenue lors de la création du fichier {type_doc}."
+        return f"Désolé{nom_espace()}, une erreur est survenue lors de la création du fichier {type_doc}."
 
     if hasattr(builtins, "send_web_action"):
         try:
@@ -286,7 +287,7 @@ async def resoudre_generation_document(cmd: str):
         except Exception:
             pass
 
-    return f"C'est fait mylane, j'ai généré \"{data['titre']}\" et enregistré le fichier dans votre dossier JARVIS_Documents sur le Bureau."
+    return f"C'est fait{nom_espace()}, j'ai généré \"{data['titre']}\" et enregistré le fichier dans votre dossier JARVIS_Documents sur le Bureau."
 
 
 builtins.resoudre_generation_document = resoudre_generation_document

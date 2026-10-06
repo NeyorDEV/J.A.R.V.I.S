@@ -9,6 +9,7 @@ from wakeonlan import send_magic_packet
 from adb_shell.adb_device import AdbDeviceTcp
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner as sign_with_rsa_key
 from adb_shell.auth.keygen import keygen
+from core.interlocuteur import nom_virgule
 
 # --- CONFIGURATION (Philips 43PUS7906/12) ---
 TV_NAME = "43PUS7906/12"
@@ -62,15 +63,15 @@ async def tv_allumer():
     await asyncio.sleep(2)
     if await adb_command("input keyevent 224"):
         await adb_command("input keyevent 3")
-        return "J'ai allumé votre télé, mylane."
+        return f"J'ai allumé votre télé{nom_virgule()}."
     return "J'ai envoyé le signal de réveil à la télé, Monsieur."
 
 async def tv_eteindre():
-    if await adb_command("input keyevent 26"): return "J'ai éteint la télé, mylane."
+    if await adb_command("input keyevent 26"): return f"J'ai éteint la télé{nom_virgule()}."
     return "Échec de l'extinction."
 
 async def tv_quitter_app():
-    if await adb_command("input keyevent 3"): return "J'ai fermé l'application sur la télé, mylane."
+    if await adb_command("input keyevent 3"): return f"J'ai fermé l'application sur la télé{nom_virgule()}."
     return "Échec du retour à l'accueil."
 
 async def tv_volume(direction, steps=5):
@@ -102,7 +103,7 @@ async def tv_volume(direction, steps=5):
         # « Le volume de la télé a été modifié » était affiché même en cas
         # d'échec total de la connexion.
         print(f"[TV] Réglage du volume échoué : {e}")
-        return "Je n'ai pas réussi à joindre la télé pour régler le volume, mylane."
+        return f"Je n'ai pas réussi à joindre la télé pour régler le volume{nom_virgule()}."
     finally:
         if device is not None:
             try:
@@ -121,12 +122,12 @@ async def tv_lancer_app(app_name):
     if not pkg: return f"Je ne connais pas l'application {app_name}."
     cmd = f"monkey -p {pkg} 1"
     if app_name.lower() in ["prime video", "prime"]: cmd = f"am start -n {pkg}/com.amazon.ignition.IgnitionActivity"
-    if await adb_command(cmd): return f"J'ai lancé {app_name} sur la télé, mylane."
+    if await adb_command(cmd): return f"J'ai lancé {app_name} sur la télé{nom_virgule()}."
     return f"Impossible de lancer {app_name}."
 
 async def tv_lancer_youtube(video_id):
     cmd = f'am start -a android.intent.action.VIEW "vnd.youtube://www.youtube.com/watch?v={video_id}"'
-    if await adb_command(cmd): return "C'est lancé sur votre télé, mylane !"
+    if await adb_command(cmd): return f"C'est lancé sur votre télé{nom_virgule()} !"
     return "Erreur lors du lancement YouTube."
 
 def chercher_youtube(recherche):

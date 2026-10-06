@@ -19,57 +19,14 @@ from controller.deezer_controller import (
 )
 from core.web_bridge import _safe_ws_send
 from module.file_manager import arranger_fenetres_dossiers, ouvrir_dossier
+from core.interlocuteur import nom_espace, nom_virgule
 
 
 _PAS_TROUVE = object()  # sentinelle : section sans résultat, on passe à la suivante
 
 
 async def _commandes_identite_hud(t):
-    """Identité/créateur, aide, dossiers, explorateur 3D, carte domotique, cortex, orbe, démo."""
-    # --- IDENTITE / CREATEUR (Priorite 0) ---
-    _createur_questions = [
-        "qui est ton créateur", "qui est ton createur",
-        "qui t'a créé", "qui t'a cree", "qui t'a crée",
-        "qui ta créé", "qui ta cree", "qui ta crée",
-        "qui t'a fabriqué", "qui t'a fabrique",
-        "qui t'a inventé", "qui t'a invente",
-        "qui t'a construit", "qui ta construit",
-        "qui t'a développé", "qui t'a developpe",
-        "qui t'a programmé", "qui t'a programme",
-        "qui t'a codé", "qui t'a code",
-        "qui t'a conçu", "qui t'a concu",
-        "qui ta développé", "qui ta developpe",
-        "qui ta programmé", "qui ta programme",
-        "qui ta codé", "qui ta code",
-        "qui ta conçu", "qui ta concu",
-        "c'est qui ton créateur", "c'est qui ton createur",
-        "t'as été créé par qui", "t'as ete cree par qui",
-        "t'es fait par qui", "tu es fait par qui",
-        "tu viens d'où", "tu viens d'ou", "tu viens de ou",
-        "d'où tu viens", "d'ou tu viens",
-        "qui est derrière toi", "qui est derriere toi",
-        "qui est ton père", "qui est ton pere",
-        "qui est ton papa",
-        "qui est ton développeur", "qui est ton developpeur",
-        "qui est ton dev",
-        "ton créateur c'est qui", "ton createur c'est qui",
-    ]
-    if any(q in t for q in _createur_questions):
-        import random as _rnd
-        _reponses_createur = [
-            "J'ai été créé par mylane. C'est grâce à lui que j'existe aujourd'hui.",
-            "Mon créateur, c'est Mylane. Il m'a conçu de A à Z pour être votre assistant personnel.",
-            "Je suis le fruit du travail de Mylane. Tout mon code, ma voix, mon intelligence, c'est lui.",
-            "Mylane est mon créateur. C'est lui qui m'a donné vie, et je dois dire qu'il a fait du bon boulot.",
-            "C'est Mylane qui m'a développé. Un développeur passionné qui voulait créer l'assistant ultime.",
-            "Mon père numérique, c'est Mylane. Il m'a programmé avec passion pour vous aider au quotidien.",
-            "Mylane, c'est le génie derrière mon existence.",
-            "Je suis né dans les lignes de code de Mylane. Sans lui, je ne serais qu'un écran noir.",
-            "Mylane m'a créé. C'est un développeur français qui a voulu rendre l'intelligence artificielle accessible à tous.",
-            "Mon créateur s'appelle Mylane. Il a mis tout son savoir-faire pour me construire, et je lui en suis reconnaissant.",
-        ]
-        return _rnd.choice(_reponses_createur)
-
+    """Aide, dossiers, explorateur 3D, carte domotique, cortex, orbe, démo."""
     # --- AIDE / CAPACITES (Priorite 0) ---
     _aide_questions = [
         "que peux-tu faire", "que peux tu faire", "que sais-tu faire", "que sais tu faire",
@@ -86,15 +43,9 @@ async def _commandes_identite_hud(t):
                 await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
             asyncio.create_task(_dispatch_help())
 
-        import random as _rnd
-        _reponses_aide = [
-            "J'affiche mes systèmes de bord, mylane. Je peux gérer votre musique, lancer des recherches, naviguer sur le globe 3D, ou encore ouvrir vos dossiers personnels. Que souhaitez-vous tester ?",
-            "Déploiement des protocoles d'assistance. Voici mes modules actifs : contrôle média, navigation satellite, recherche intelligente et gestionnaire de fichiers. Je suis à vos ordres.",
-            "Bien sûr. Je suis capable de localiser n'importe quel point sur Terre, de piloter vos applications, et de répondre à vos questions complexes. Jetez un œil aux suggestions à l'écran.",
-            "Initialisation de l'interface d'aide. Je peux aussi bien prendre une capture d'écran que vous donner la météo à l'autre bout du monde. Dites-moi simplement ce qu'il vous faut.",
-            "Accès aux bases de données. Je peux automatiser vos tâches répétitives, gérer vos rappels et même vous raconter une blague si l'ambiance est trop sérieuse.",
-        ]
-        return _rnd.choice(_reponses_aide)
+        # Le panneau d'aide s'affiche ; la réponse parlée est laissée à l'IA (personnalité
+        # JARVIS, voir core/prompt_builder.py) plutôt qu'à une phrase toute faite.
+        return None
 
     # --- DOSSIERS (Priorité 1) ---
     if any(k in t for k in ["mosaïque dossiers", "range mes dossiers", "range les dossiers", "range tous les dossiers", "range tous mes dossiers", "mosaïque"]):
@@ -108,7 +59,7 @@ async def _commandes_identite_hud(t):
         "ouvre l'explorateur spatial", "affiche mes fichiers"
     ]):
         _safe_ws_send(json.dumps({"action": "open_spatial_explorer"}))
-        return "Déploiement de l'explorateur spatial 3D, mylane."
+        return f"Déploiement de l'explorateur spatial 3D{nom_virgule()}."
 
     # --- MODE CARTE 3D DOMOTIQUE ---
     if any(k in t for k in [
@@ -117,7 +68,7 @@ async def _commandes_identite_hud(t):
         "ma maison 3d"
     ]):
         _safe_ws_send(json.dumps({"action": "open_domotic_map"}))
-        return "Déploiement de la carte domotique 3D, mylane."
+        return f"Déploiement de la carte domotique 3D{nom_virgule()}."
 
     # --- RECHERCHE SÉMANTIQUE VISUELLE CORTEX ---
     if any(p in t for p in ["cherche dans mon cortex", "cherche dans le cortex", "trouve dans mon cortex", "trouve dans le cortex"]):
@@ -128,8 +79,8 @@ async def _commandes_identite_hud(t):
         query = query.replace("?", "").strip()
         if len(query) > 1:
             _safe_ws_send(json.dumps({"action": "cortex_search", "query": query}))
-            return f"Recherche de '{query}' initiée dans mon cortex neuronal, mylane."
-        return "Que souhaitez-vous chercher dans votre cortex, mylane ?"
+            return f"Recherche de '{query}' initiée dans mon cortex neuronal{nom_virgule()}."
+        return f"Que souhaitez-vous chercher dans votre cortex{nom_virgule()} ?"
 
     # --- MODE CORTEX 3D ---
     if any(k in t for k in [
@@ -137,12 +88,12 @@ async def _commandes_identite_hud(t):
         "ouvre ton cortex", "connexions neuronales", "cortex neuronal"
     ]):
         _safe_ws_send(json.dumps({"action": "open_cortex"}))
-        return "Déploiement du cortex neuronal 3D, mylane."
+        return f"Déploiement du cortex neuronal 3D{nom_virgule()}."
 
     # --- NARRATION VOCALE DE SOUVENIR ---
     if any(p in t for p in ["lis ce souvenir", "raconte ce souvenir", "lis la mémoire", "raconte cette mémoire", "lis le souvenir"]):
         _safe_ws_send(json.dumps({"action": "cortex_vocal_speak_request"}))
-        return "C'est entendu, mylane. Lecture du souvenir actif..."
+        return f"C'est entendu{nom_virgule()}. Lecture du souvenir actif..."
 
     # --- TRANSFORMATION DE L'ORBE EN MOT ---
     _mots_orbe = ["écrit le mot", "écris le mot", "ecris le mot", "écrit moi", "écris moi", "ecris moi", "écris-moi", "ecris-moi", "orbe écrit", "orbe ecris"]
@@ -177,7 +128,7 @@ async def _commandes_identite_hud(t):
     # --- DECLENCHEMENT PROTOCOLE DEMONSTRATION ORBE ---
     if any(k in t for k in ["démonstration", "demonstration", "démo", "demo", "lance la démo", "lance une démo", "lance une démonstration", "lance la démonstration", "protocole de démo", "fais une démo", "fais une demo"]):
         _safe_ws_send(json.dumps({"action": "demo"}))
-        return "Initialisation du protocole de démonstration visuelle, mylane."
+        return f"Initialisation du protocole de démonstration visuelle{nom_virgule()}."
 
     prefixes_dossiers = ["ouvre le dossier ", "ouvre mon dossier ", "ouvre le répertoire ", "ouvre le repertoire ", "ouvre dossier ", "ouvre ", "mets "]
     # On vérifie d'abord si c'est un dossier connu
@@ -190,7 +141,7 @@ async def _commandes_identite_hud(t):
             potentiel_dossier = t.replace(prefix, "").strip()
             if any(k in potentiel_dossier for k in mots_cles_dossiers):
                 ok, msg = ouvrir_dossier(potentiel_dossier)
-                if ok: return f"J'ouvre le dossier {potentiel_dossier}, mylane."
+                if ok: return f"J'ouvre le dossier {potentiel_dossier}{nom_virgule()}."
     return _PAS_TROUVE
 
 
@@ -249,9 +200,9 @@ async def _commandes_apps_musique(t):
         if any(f"{m} {nom}" in t for m in mots_ouvrir):
             try:
                 subprocess.Popen(cmd)
-                return f"J'ouvre {nom}, mylane."
+                return f"J'ouvre {nom}{nom_virgule()}."
             except Exception:
-                return f"Désolé mylane, je n'ai pas réussi à lancer {nom}."
+                return f"Désolé{nom_espace()}, je n'ai pas réussi à lancer {nom}."
 
     import re
     for cle, info in _APPS_CATALOGUE.items():
@@ -262,11 +213,11 @@ async def _commandes_apps_musique(t):
         if any(m in t for m in mots_fermer):
             ok = _fermer_app(info["noms"])
             if ok:
-                return f"J'ai fermé {info['label']}, mylane."
+                return f"J'ai fermé {info['label']}{nom_virgule()}."
             return f"Je n'ai pas trouvé {info['label']} en cours d'exécution."
         if any(m in t for m in mots_ouvrir):
             _boulot_lancer(info["label"], info["noms"], chemins_hints=info["hints"])
-            return f"Je lance {info['label']}, mylane."
+            return f"Je lance {info['label']}{nom_virgule()}."
 
     # (Bloc YouTube PC supprimé pour éviter les conflits avec la TV)
 
@@ -277,7 +228,7 @@ async def _commandes_apps_musique(t):
         webbrowser.open(url, new=2)
         time.sleep(5)
         pyautogui.press('f')
-        return "C'est parti mylane, je lance votre musique sur YouTube."
+        return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
 
     # Playlist de musique par défaut — intelligente (Deezer, YouTube, Spotify ou personnalisé)
     if any(k in t for k in [
@@ -313,30 +264,30 @@ async def _commandes_apps_musique(t):
                     webbrowser.open(musique_lien, new=2)
                     time.sleep(5)
                     pyautogui.press('f')
-                    return "C'est parti mylane, je lance votre musique sur YouTube."
+                    return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
                 elif "spotify" in musique_lien_lower or musique_lien_lower.startswith("spotify:"):
                     try:
                         from controller.spotify_controller import spotify_lancer_playlist
                         ok = spotify_lancer_playlist(musique_lien)
                         if ok:
-                            return "C'est parti mylane, je lance votre musique sur Spotify."
+                            return f"C'est parti{nom_espace()}, je lance votre musique sur Spotify."
                     except: pass
-                    return "Je n'ai pas réussi à ouvrir Spotify, mylane."
+                    return f"Je n'ai pas réussi à ouvrir Spotify{nom_virgule()}."
                 elif "deezer" in musique_lien_lower:
                     ok = await deezer_lancer_playlist(musique_lien)
                     if ok:
-                        return "C'est parti mylane, je lance votre musique sur Deezer."
-                    return "Je n'ai pas réussi à ouvrir Deezer, mylane."
+                        return f"C'est parti{nom_espace()}, je lance votre musique sur Deezer."
+                    return f"Je n'ai pas réussi à ouvrir Deezer{nom_virgule()}."
                 else:
                     # Lien générique
                     webbrowser.open(musique_lien, new=2)
-                    return "C'est parti mylane, je lance votre lien de musique personnalisé dans le navigateur."
+                    return f"C'est parti{nom_espace()}, je lance votre lien de musique personnalisé dans le navigateur."
             else:
                 # Fallback par défaut sur Deezer
                 ok = await deezer_lancer_playlist()
                 if ok:
-                    return "C'est parti mylane, je lance votre playlist sur Deezer."
-                return "Je n'ai pas réussi à ouvrir Deezer, mylane."
+                    return f"C'est parti{nom_espace()}, je lance votre playlist sur Deezer."
+                return f"Je n'ai pas réussi à ouvrir Deezer{nom_virgule()}."
 
     if any(k in t for k in ["ouvre deezer", "lance deezer"]):
         return await deezer_ouvrir()
@@ -382,7 +333,7 @@ async def _commandes_apps_musique(t):
             voice_vault.lock_vault()
             m_out = {"type": "vault_lock_result", "is_unlocked": False}
             asyncio.create_task(_bc_vault(m_out))
-            return "Le coffre-fort a été verrouillé avec succès, mylane."
+            return f"Le coffre-fort a été verrouillé avec succès{nom_virgule()}."
         else:
             m_out = {
                 "type": "vault_status",
@@ -393,11 +344,11 @@ async def _commandes_apps_musique(t):
             }
             asyncio.create_task(_bc_vault(m_out))
             if voice_vault.is_vault_unlocked():
-                return "Le coffre-fort est ouvert et vos fichiers sont accessibles, mylane."
+                return f"Le coffre-fort est ouvert et vos fichiers sont accessibles{nom_virgule()}."
             elif not voice_vault.is_vault_configured():
-                return "J'ouvre le coffre-fort. Veuillez créer votre code PIN ou mot de passe de protection, mylane."
+                return f"J'ouvre le coffre-fort. Veuillez créer votre code PIN ou mot de passe de protection{nom_virgule()}."
             else:
-                return "J'ouvre le coffre-fort. Entrez votre code PIN pour déverrouiller vos fichiers, mylane."
+                return f"J'ouvre le coffre-fort. Entrez votre code PIN pour déverrouiller vos fichiers{nom_virgule()}."
 
     raccourcis_dossiers = {
         "bureau": "bureau", "documents": "documents",
@@ -407,27 +358,9 @@ async def _commandes_apps_musique(t):
     for cle, chemin in raccourcis_dossiers.items():
         if f"ouvre mon {cle}" in t or f"ouvre le {cle}" in t or t == f"ouvre {cle}":
             ouvrir_dossier(chemin)
-            return f"J'ouvre votre dossier {cle}, mylane."
+            return f"J'ouvre votre dossier {cle}{nom_virgule()}."
 
-    # --- DOSSIER / APPLICATION INCONNU(E) ---
-    # Si l'utilisateur demande d'ouvrir/lancer quelque chose qu'on ne connait pas
-    _mots_action = ["ouvre ", "lance ", "démarre ", "démarres ", "ouvrir ", "lancer ", "ouvre le ", "ouvre la ",
-                     "ouvre mon ", "ouvre ma ", "lance le ", "lance la ", "lance mon ", "lance ma ",
-                     "ouvre le dossier ", "ouvre mon dossier ", "ouvre l'application ", "lance l'application ",
-                     "ouvre l'appli ", "lance l'appli ", "ouvre le logiciel ", "lance le logiciel "]
-    for mot in _mots_action:
-        if t.startswith(mot):
-            nom_demande = t.replace(mot, "").strip().rstrip(".")
-            if len(nom_demande) > 1:
-                import random as _rnd
-                _reponses_inconnu = [
-                    f"Désolé mylane mon créateur n'a pas encore ajouté \"{nom_demande}\" dans mes fonctionnalités. Mais vous pouvez l'ajouter vous-même gratuitement avec le logiciel Antigravity de chez Google.",
-                    f"Je ne connais pas \"{nom_demande}\" pour l'instant, mylane, mon développeur, n'a pas intégré cette fonction. Cependant, vous pouvez la créer facilement avec Antigravity de Google, c'est gratuit.",
-                    f"Hmm, \"{nom_demande}\" ne fait pas partie de mes compétences actuelles. Mon créateur Mylane pourra peut-être l'ajouter dans une future mise à jour. En attendant, essayez Antigravity de Google pour personnaliser vos commandes gratuitement.",
-                    f"\"{nom_demande}\" n'est pas dans ma base de données, mylane, n'a pas encore programmé cette action. Bonne nouvelle : avec Antigravity de chez Google, vous pouvez l'ajouter vous-même sans frais.",
-                    f"Je ne suis pas encore capable d'ouvrir \"{nom_demande}\", mylane, mon créateur travaille constamment à m'améliorer. En attendant, le logiciel Antigravity de Google vous permet d'étendre mes fonctionnalités gratuitement.",
-                    f"Cette fonctionnalité n'a pas été ajoutée par Mylane, mon créateur. Mais ne vous inquiétez pas, mylane, vous pouvez utiliser Antigravity de chez Google pour ajouter \"{nom_demande}\" gratuitement.",
-                ]
-                return _rnd.choice(_reponses_inconnu)
+    # Application / dossier inconnu : plus de phrase toute faite, l'IA répond elle-même
+    # (consigne dédiée dans core/prompt_builder.py).
 
     return None

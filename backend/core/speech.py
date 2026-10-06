@@ -7,6 +7,7 @@ import math
 import random
 import base64
 import json
+import re
 import edge_tts
 import builtins
 
@@ -44,7 +45,12 @@ async def _generer_tts_fichier(texte) -> str | None:
         return None
         
     texte_tts = texte.replace("**", "").replace("*", "").replace("#", "").replace("`", "").strip()
-    tmp = f"jarvis_tts_{int(time.time()*1000)}"
+    # Prononciation : « Neyor » se dit « Néyor » (le texte affiché garde « Neyor »)
+    texte_tts = re.sub(r"\bneyor\b", "Néyor", texte_tts, flags=re.IGNORECASE)
+    # Un fragment sans lettre ni chiffre (ex. un « » » isolé) fait échouer edge_tts
+    if not any(c.isalnum() for c in texte_tts):
+        return None
+    tmp =f"jarvis_tts_{int(time.time()*1000)}"
     
     try:
         from core.config import VOIX_ACTUELLE

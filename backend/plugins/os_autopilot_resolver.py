@@ -2,6 +2,7 @@ import builtins
 import re
 import asyncio
 from module.os_autopilot_agent import lancer_autopilote
+from core.interlocuteur import nom_virgule
 
 def nettoyer_accent(texte):
     import unicodedata
@@ -41,7 +42,7 @@ async def resoudre_os_autopilot(cmd):
                 
         # Si la consigne est vide, demander des précisions
         if not consigne or len(consigne) < 3:
-            return "Quelle tâche souhaitez-vous que je réalise avec l'autopilote OS, mylane ?"
+            return f"Quelle tâche souhaitez-vous que je réalise avec l'autopilote OS{nom_virgule()} ?"
             
         # Nettoyage des premiers mots de liaison éventuels (ex: ":", "de", "pour")
         consigne = re.sub(r'^(\s*[:,-]\s*|\s*de\s*|\s*pour\s*|\s*a\s*)', '', consigne, flags=re.IGNORECASE).strip()

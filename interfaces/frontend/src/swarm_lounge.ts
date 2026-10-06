@@ -61,7 +61,7 @@ export class SwarmLounge {
     "J'optimise la récursivité.",
     "Le code compile chez moi.",
     "C'est pas un bug, c'est une feature.",
-    "J'écris du code propre, mylane.",
+    "J'écris du code propre.",
     "Attention au Garbage Collector.",
     "Vitesse de compilation stable."
   ];

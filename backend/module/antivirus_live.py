@@ -108,7 +108,7 @@ async def boucle_antivirus_live():
 
                                             # Notification vocale
                                             try:
-                                                u_name = cfg.get("user_name", "mylane")
+                                                u_name = cfg.get("user_name", "neyor")
                                                 asyncio.create_task(parler(f"Alerte sécurité, {u_name}. J'ai détecté et neutralisé une menace en temps réel : {file}. Le fichier suspect a été placé en quarantaine."))
                                             except: pass
                                 except OSError:
@@ -171,7 +171,7 @@ async def boucle_antivirus_live():
                                 asyncio.ensure_future(asyncio.gather(*[ws.send(json.dumps(msg)) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True))
                                 
                             try:
-                                u_name = cfg.get("user_name", "mylane")
+                                u_name = cfg.get("user_name", "neyor")
                                 asyncio.create_task(parler(f"Sécurité système, {u_name}. J'ai intercepté et arrêté un processus suspect actif : {name}."))
                             except: pass
                     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):

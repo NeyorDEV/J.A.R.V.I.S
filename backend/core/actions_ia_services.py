@@ -35,6 +35,7 @@ from module.vision_module import (
     jarvis_vision_ecrire, jarvis_vision_navigateur, jarvis_vision_rechercher_sur_site,
 )
 from module.visual_web_agent import run_visual_agent, stop_visual_agent
+from core.interlocuteur import nom_espace, nom_ou_utilisateur, nom_virgule
 
 
 async def executer_actions_services(action, data, block, texte_utilisateur, reponse_propre):
@@ -69,12 +70,12 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
     elif action == "read_emails":
         result = lire_emails()
         if "Aucun nouvel email" in result:
-            parler("Vous n'avez aucun nouvel email non lu dans votre boîte principale, mylane.")
+            parler(f"Vous n'avez aucun nouvel email non lu dans votre boîte principale{nom_virgule()}.")
         else:
-            parler(f"Voici vos derniers emails non lus, mylane. {result}")
+            parler(f"Voici vos derniers emails non lus{nom_virgule()}. {result}")
     elif action == "read_calendar":
         result = lister_evenements_calendar()
-        parler(f"Voici vos prochains evenements mylane. {result}")
+        parler(f"Voici vos prochains evenements{nom_espace()}. {result}")
     elif action == "create_task":
         titre = data.get("title") or data.get("titre") or ""
         notes = data.get("notes") or ""
@@ -82,7 +83,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         parler(result)
     elif action == "list_tasks":
         result = lister_google_tasks()
-        parler(f"Voici vos tâches à faire dans Google Tasks, mylane. {result}")
+        parler(f"Voici vos tâches à faire dans Google Tasks{nom_virgule()}. {result}")
     elif action == "complete_task":
         titre = data.get("title") or data.get("titre") or ""
         result = complete_google_task(titre)
@@ -165,7 +166,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         parler(result)
     elif action == "meteo":
         ville = data.get("ville") or None
-        parler("Je consulte la meteo, un instant mylane.")
+        parler(f"Je consulte la meteo, un instant{nom_espace()}.")
         result = get_meteo_actuelle(ville)
         parler(result)
     elif action == "alerte_meteo":
@@ -180,7 +181,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
     elif action == "recherche_images":
         query = data.get("query", "")
         nb = int(data.get("nb", 6))
-        parler(f"Je recherche des images de {query} sur internet, un instant mylane.")
+        parler(f"Je recherche des images de {query} sur internet, un instant{nom_espace()}.")
         cfg = _charger_config()
         engine = cfg.get("image_search_engine", "serpapi")
         urls = recherche_images_web(query, nb_images=nb, engine=engine)
@@ -195,23 +196,23 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
                     await asyncio.gather(*[ws.send(msg_json) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
                 except Exception as e:
                     print(f"[ERREUR WS] Broadcast images: {e}")
-            parler(f"Voilà, j'affiche {len(urls)} image{'s' if len(urls) > 1 else ''} de {query} sur votre interface, mylane.")
+            parler(f"Voilà, j'affiche {len(urls)} image{'s' if len(urls) > 1 else ''} de {query} sur votre interface{nom_virgule()}.")
         else:
-            parler(f"Désolé mylane, je n'ai pas trouvé d'images pour {query}.")
+            parler(f"Désolé{nom_espace()}, je n'ai pas trouvé d'images pour {query}.")
     elif action == "recherche_approfondie":
         query = data.get("query", "")
-        parler(f"Je lance une recherche approfondie sur {query}, mylane. Cela peut prendre quelques secondes pendant que j'analyse les sources.")
+        parler(f"Je lance une recherche approfondie sur {query}{nom_virgule()}. Cela peut prendre quelques secondes pendant que j'analyse les sources.")
         # Appel de l'agent autonome
         research_data = await shared.browser_agent.search_and_browse(query)
         if not research_data or "error" in research_data[0]:
-            parler("Je suis désolé mylane, mais je n'ai pas pu accéder aux sites web pour le moment.")
+            parler(f"Je suis désolé{nom_espace()}, mais je n'ai pas pu accéder aux sites web pour le moment.")
         else:
             # On prépare un prompt pour que l'IA synthétise les résultats
             context = "\n\n".join([f"Source: {d['url']}\nContenu: {d['content']}" for d in research_data])
             prompt_synthese = (
                 f"Voici les résultats de ma recherche approfondie sur '{query}' :\n\n"
                 f"{context}\n\n"
-                f"En tant que JARVIS, fais une synthèse élégante, précise et complète de ces informations pour mylane."
+                f"En tant que JARVIS, fais une synthèse élégante, précise et complète de ces informations pour {nom_ou_utilisateur()}."
             )
             synthese = await demander_ia(prompt_synthese, update_hist=False, skip_local=True)
             if synthese:
@@ -224,7 +225,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
     elif action == "web_agent_task":
         task_desc = data.get("task", "")
         if not task_desc:
-            parler("Désolé mylane, je n'ai pas compris la tâche à effectuer.")
+            parler(f"Désolé{nom_espace()}, je n'ai pas compris la tâche à effectuer.")
         else:
             result = await run_visual_agent(task_desc)
             parler(result)
@@ -242,7 +243,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         if "pas trouvé" in result or "Impossible" in result:
             print(f"[SPORT] Echec recherche locale. Verification avec Grok...")
             if shared.grok_client:
-                res_grok = await demander_grok(f"mylane veut savoir : {texte_utilisateur}. Je n'ai pas trouvé l'info dans ma base de données football, peux-tu chercher pour lui ?")
+                res_grok = await demander_grok(f"{nom_ou_utilisateur()} veut savoir : {texte_utilisateur}. Je n'ai pas trouvé l'info dans ma base de données football, peux-tu chercher pour cette personne ?")
                 if res_grok: result = res_grok
         parler(result)
     elif action == "sport_classement":
@@ -252,7 +253,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         parler(result)
     elif action == "sport_live":
         question = data.get("question", "derniers resultats sportifs 2026")
-        parler("Je recherche les derniers resultats en direct, un instant mylane.")
+        parler(f"Je recherche les derniers resultats en direct, un instant{nom_espace()}.")
         result = await get_resultats_sport_gemini(question)
         parler(result)
     elif action == "voir_ecran":
@@ -265,7 +266,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
             await action_whatsapp_appel(contact)
             parler(f"Appel WhatsApp vers {contact} lancé.")
         else:
-            parler("Désolé mylane, je n'ai pas trouvé le nom du contact à appeler.")
+            parler(f"Désolé{nom_espace()}, je n'ai pas trouvé le nom du contact à appeler.")
     elif action == "vision_ecrire":
         inst = data.get("instruction", "")
         txt  = data.get("texte", "")
@@ -273,7 +274,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         parler(res)
     elif action == "vision_chercher_sur_site":
         txt = data.get("texte", "")
-        parler(f"Je cherche la barre de recherche sur ce site, mylane.")
+        parler(f"Je cherche la barre de recherche sur ce site{nom_virgule()}.")
         res = await jarvis_vision_rechercher_sur_site(txt)
         parler(res)
     elif action == "lance_camera":
@@ -284,7 +285,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         parler(res)
     elif action == "analyse_live":
         question = data.get("question", "Analyse mon écran et aide-moi.")
-        parler("Je jette un œil à votre écran, un instant mylane.")
+        parler(f"Je jette un œil à votre écran, un instant{nom_espace()}.")
         res = await jarvis_vision_analyse_live(question)
         parler(res)
 
@@ -296,7 +297,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
             pyperclip.copy(texte)
             time.sleep(0.1)
             pyautogui.hotkey('ctrl', 'v')
-            parler("C'est tapé, mylane.")
+            parler(f"C'est tapé{nom_virgule()}.")
 
     # --- ACTIONS ALARMES ---
     elif action == "alarme_set":
@@ -321,14 +322,14 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         if shared.CONNECTED_CLIENTS:
             msg = json.dumps({"type": "av_open"})
             await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
-        parler("J'initialise le protocole d'analyse de sécurité de votre système, Mylane. Scan en cours.")
+        parler(f"J'initialise le protocole d'analyse de sécurité de votre système{nom_virgule()}. Scan en cours.")
     elif action in ("spotify_ouvrir", "deezer_ouvrir"):
-        parler("J'ouvre Deezer, mylane.")
+        parler(f"J'ouvre Deezer{nom_virgule()}.")
         res = await deezer_ouvrir()
         parler(res)
     elif action in ("spotify_rechercher", "deezer_rechercher"):
         recherche = data.get("recherche", "")
-        parler(f"Je recherche '{recherche}' sur Deezer, mylane.")
+        parler(f"Je recherche '{recherche}' sur Deezer{nom_virgule()}.")
         res = await deezer_rechercher(recherche)
         parler(res)
     elif action in ("spotify_lecture_pause", "deezer_lecture_pause"):

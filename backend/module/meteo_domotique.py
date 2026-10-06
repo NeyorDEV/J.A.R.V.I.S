@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 
 import json
 import asyncio
+from core.interlocuteur import nom_virgule
 
 def _charger_user_name():
     try:
@@ -19,9 +20,9 @@ def _charger_user_name():
         _root = os.path.dirname(os.path.dirname(_dir))  # backend/module/ -> racine projet
         _p = os.path.join(_root, "jarvis_config.json")
         with open(_p, "r", encoding="utf-8") as _f:
-            return json.load(_f).get("user_name", "Mylane")
+            return json.load(_f).get("user_name", "Neyor")
     except Exception:
-        return "Mylane"
+        return "Neyor"
 
 def _update_ha_env():
     global HA_URL, HA_TOKEN, HA_HEADERS
@@ -204,7 +205,7 @@ def get_meteo_ha():
             reponse += f", humidité à {humidite}%"
         if vent:
             reponse += f", vent à {vent} km/h"
-        reponse += ", mylane."
+        reponse += f"{nom_virgule()}."
         return reponse
     except Exception as e:
         print(f"[METEO HA] Erreur : {e}")

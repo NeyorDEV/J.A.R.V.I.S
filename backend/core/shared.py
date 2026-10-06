@@ -46,7 +46,7 @@ CLAP_THRESHOLD = 1200
 # ── Modèles audio (affectés par core/voice_init.py) ──────────────────────────
 VAD_MODEL = None
 VOICE_BIOMETRICS = None
-ACTIVE_SPEAKER = "mylane"
+ACTIVE_SPEAKER = "neyor"
 SPEAKER_ANNOUNCED = None
 WAKEWORD_MODEL = None
 WAKEWORD_THRESHOLD = 0.35
@@ -99,7 +99,7 @@ CHESS_GAME_ACTIVE = False
 AV_LIVE_PROTECTION_ENABLED = False
 AV_LIVE_REPORTED_THREATS = set()
 
-# --- SIMULATION PROTOCOLE DOMOTIQUE (Maison de mylane) ---
+# --- SIMULATION PROTOCOLE DOMOTIQUE (Maison de neyor) ---
 SIMULATED_DOMOTIC_STATES = {
     # Lumières (1er Étage)
     "light.salon": "off",

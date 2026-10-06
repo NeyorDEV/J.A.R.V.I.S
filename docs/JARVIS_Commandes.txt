@@ -108,7 +108,7 @@
   - Cortex / Affiche ton cortex / Mode cortex / Ouvre le cortex / Connexions neuronales -> Déploie la double constellation synaptique 3D interactive (mémoires vectorielles et faits)
   - *Lobe Gauche (Cyan)* -> Constellation des souvenirs conversationnels sémantiques (ChromaDB)
   - *Lobe Droit (Magenta)* -> Constellation des faits et informations statiques (jarvis_memoire.json)
-  - *Clic Gauche / Pincement Main sur un Noeud* -> Ouvre la bulle de détail cybernétique holographique du souvenir (Date, Type, Contenu textuel complet de Mylane et de l'assistant)
+  - *Clic Gauche / Pincement Main sur un Noeud* -> Ouvre la bulle de détail cybernétique holographique du souvenir (Date, Type, Contenu textuel complet de l'utilisateur et de l'assistant)
   - *Bouton "SUPPRIMER" du Panel* -> Supprime définitivement le souvenir à chaud de la base de données (ChromaDB ou jarvis_memoire.json) avec effet de désintégration 3D et de propagation d'onde lumineuse (Ripple)
   - *Sparks & Synapses* -> Visualisation dynamique de signaux électriques circulant à travers les connexions synaptiques actives
   - *Glisser Clic Gauche en zone vide (Souris)* -> Déplacement de la constellation dans l'espace 3D
@@ -220,7 +220,7 @@
     → Ouvre une nouvelle console CMD isolée, déplace le curseur virtuel, saisit la commande et l'exécute.
   - "Jarvis, lance l'autopilote OS : ouvre la calculatrice, tape '1250 * 4 =' pour effectuer le calcul et attends 2 secondes."
     → Ouvre la calculatrice, la force au premier plan via un clic physique de secours, et saisit le calcul.
-  - "Jarvis, lance l'autopilote OS : ouvre le bloc-notes, écris 'Bonjour Mylane...' et sauvegarde le fichier sur le bureau."
+  - "Jarvis, lance l'autopilote OS : ouvre le bloc-notes, écris 'Bonjour Neyor...' et sauvegarde le fichier sur le bureau."
     → Lance Notepad, prépare une page blanche (ctrl+n), saisit le texte AZERTY, et sauvegarde sur le Bureau.
   - "Jarvis, lance l'autopilote OS : ouvre l'explorateur de fichiers sur le dossier 'Téléchargements' et attends 2 secondes."
     → Lance directement le dossier Téléchargements sous Windows et y positionne le curseur virtuel.
@@ -345,7 +345,7 @@
   - Raconte-moi une blague / Fais-moi de l'humour -> Choisit et énonce une blague amusante de son répertoire local
   - Donne-moi une citation / Inspire-moi -> Partage une citation philosophique célèbre et motivante
   - Qui es-tu ? / Quel est ton nom ? / C'est quoi JARVIS ? -> Présente son identité (Just A Rather Very Intelligent System)
-  - Qui est ton créateur ? / Qui t'a fait ? -> Rend hommage à son créateur (Mylane)
+  - Qui est ton créateur ? / Qui t'a fait ? -> Répond sur son créateur (Neyor), sans formule toute faite
   - Bonjour / Salut / Comment tu vas ? / Ça va ? -> Répond chaleureusement avec l'état de ses processeurs
 
 [ Sécurité & Mises à Jour Système ]

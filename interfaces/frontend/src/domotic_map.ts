@@ -1,6 +1,6 @@
 /* ============================================================
    domotic_map.ts — Carte Domotique 3D Immersive (Simulation)
-   Modélise la vraie maison de mylane sur 3 niveaux verticaux.
+   Modélise la vraie maison de Neyor sur 3 niveaux verticaux.
    Prend en charge l'interaction gestuelle AR & la navigation souris.
    ============================================================ */
 

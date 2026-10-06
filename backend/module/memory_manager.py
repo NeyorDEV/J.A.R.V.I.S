@@ -172,7 +172,7 @@ async def consolider_memoire_ia():
     memoire_actuelle = charger_memoire()
     mem_formatted = json.dumps(memoire_actuelle, ensure_ascii=False, indent=2)
     
-    prompt = f"""Analyse l'historique récent des conversations ci-dessous pour extraire les faits persistants importants ou les préférences de l'utilisateur (mylane). 
+    prompt = f"""Analyse l'historique récent des conversations ci-dessous pour extraire les faits persistants importants ou les préférences de l'utilisateur (le plus souvent Neyor, ton créateur). 
 Mets à jour ou ajoute les informations dans la mémoire. Ne conserve que les informations durables (goûts, outils préférés, prénoms de proches, choix technologiques) et ignore les détails transitoires (timers, météo d'aujourd'hui, requêtes système ponctuelles).
 
 MÉMOIRE ACTUELLE :

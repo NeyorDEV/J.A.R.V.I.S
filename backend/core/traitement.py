@@ -16,6 +16,7 @@ from core.speech import parler
 from core.web_bridge import send_web_state
 from module.commandes_locales import resoudre_commandes_locales
 from module.echecs_local import resoudre_echecs_localement
+from core.interlocuteur import nom_ou_utilisateur, nom_virgule
 
 
 def nettoyer_commande(texte):
@@ -118,15 +119,15 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
         shared.jarvis_actif = True  # Seules les commandes vocales ouvrent/maintiennent la session
     elif de_confiance:
         # Clavier du HUD local : l'utilisateur est physiquement devant la machine.
-        shared.ACTIVE_SPEAKER = "mylane"
-        builtins.ACTIVE_SPEAKER = "mylane"
+        shared.ACTIVE_SPEAKER = "neyor"
+        builtins.ACTIVE_SPEAKER = "neyor"
     # NB : les commandes distantes (mobile) ne promeuvent PLUS le locuteur.
-    # Auparavant tout message écrit forçait ACTIVE_SPEAKER = "mylane" : un locuteur
+    # Auparavant tout message écrit forçait ACTIVE_SPEAKER = "neyor" : un locuteur
     # classé « guest » par la biométrie n'avait qu'à passer par le mobile pour
     # débloquer toutes les actions sensibles pour le reste de la session.
 
     if shared.traiter_lock.locked():
-        parler("Je termine ce que je fais, mylane. Un instant.")
+        parler(f"Je termine ce que je fais{nom_virgule()}. Un instant.")
         return
 
     async with shared.traiter_lock:
@@ -288,7 +289,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
                     "read_calendar", "create_event", "update_event", "delete_event",
                     "create_task", "list_tasks", "complete_task", "delete_task"
                 }
-                if getattr(shared, "ACTIVE_SPEAKER", "mylane") == "guest" and action in restricted_actions:
+                if getattr(shared, "ACTIVE_SPEAKER", "neyor") == "guest" and action in restricted_actions:
                     print(f"🔒 [SPEAKER] Action '{action}' bloquée en mode invité.")
                     parler("Désolé, cette action est restreinte en mode invité. Veuillez vous authentifier.")
                     continue
@@ -299,7 +300,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
                 print(f"[ACTION ERROR] Block failed: {block} | Error: {e}")
                 if shared.grok_client:
                     print("[JARVIS] Bascule sur Grok suite a une erreur d'action...")
-                    res_grok = await demander_grok(f"mylane m'a demandé : {texte_utilisateur}. J'ai tenté de lancer une action mais j'ai eu une erreur technique ({e}). Peux-tu prendre le relais et lui répondre élégamment ?")
+                    res_grok = await demander_grok(f"{nom_ou_utilisateur()} m'a demandé : {texte_utilisateur}. J'ai tenté de lancer une action mais j'ai eu une erreur technique ({e}). Peux-tu prendre le relais et lui répondre élégamment ?")
                     if res_grok: parler(res_grok)
                 continue
 

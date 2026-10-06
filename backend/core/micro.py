@@ -13,6 +13,7 @@ from core.audio_stream import AudioStreamManager, pyaudio
 from core.etat_parole import get_is_speaking, set_stop_parler
 from core.speech import parler
 from core.web_bridge import _safe_ws_send
+from core.interlocuteur import nom_espace
 
 
 _JARVIS_CONFIG_PATH = os.path.join(shared.RACINE_PROJET, "jarvis_config.json")
@@ -266,10 +267,10 @@ def monitor_claps():
                                     
                                     # Mettre à jour l'interface Web et WebSocket
                                     _safe_ws_send(json.dumps({"action": "set_state", "state": "listening"}))
-                                    _safe_ws_send(json.dumps({"action": "jarvis_text", "text": "Oui mylane, je vous écoute."}))
+                                    _safe_ws_send(json.dumps({"action": "jarvis_text", "text": f"Oui{nom_espace()}, je vous écoute."}))
                                     
                                     # Dire la phrase d'accueil
-                                    parler("Oui mylane, je vous écoute.")
+                                    parler(f"Oui{nom_espace()}, je vous écoute.")
                                     
                                     # Debounce pour éviter la boucle de claps
                                     time.sleep(2.0)

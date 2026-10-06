@@ -12,6 +12,7 @@ import ast
 import os
 
 from core.audit_log import consigner
+from core.interlocuteur import nom_espace, nom_virgule
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -259,7 +260,7 @@ def jarvis_creer_competence(nom_competence: str, description_demande: str) -> st
             thread_anim.join()
             print(f"[JARVIS PLUGINS] ⛔ Compétence refusée par le contrôle de sûreté : {raison}")
             consigner("competence_refusee", nom=nom_competence, raison=raison)
-            return (f"J'ai refusé d'installer cette compétence, Mylane : le code généré "
+            return (f"J'ai refusé d'installer cette compétence{nom_virgule()} : le code généré "
                     f"n'a pas passé le contrôle de sûreté ({raison}).")
 
         # Écriture du fichier compétence
@@ -278,7 +279,7 @@ def jarvis_creer_competence(nom_competence: str, description_demande: str) -> st
         thread_anim.join()
         print(f"[JARVIS PLUGINS] Erreur lors de la création de compétence : {e}")
         consigner("competence_erreur_creation", nom=nom_competence, erreur=str(e))
-        return f"Désolé Mylane, la génération de la compétence a échoué. Détail de l'erreur : {e}"
+        return f"Désolé{nom_espace()}, la génération de la compétence a échoué. Détail de l'erreur : {e}"
 
 
 def jarvis_supprimer_competence(nom_competence: str) -> str:
@@ -311,7 +312,7 @@ def executer_competence_vocale(nom_competence: str, texte_recu: str = None) -> s
     filename = os.path.join(_BASE_DIR, "plugins", f"competence_{nom_formate}.py")
 
     if not os.path.exists(filename):
-        return f"Désolé Mylane, la compétence '{nom_competence}' n'est pas disponible."
+        return f"Désolé{nom_espace()}, la compétence '{nom_competence}' n'est pas disponible."
 
     # Second contrôle, juste avant exécution : couvre les fichiers déjà présents
     # sur le disque (générés avant l'ajout du filtre, ou modifiés à la main).

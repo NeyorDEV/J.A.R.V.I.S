@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-10-06 — Découpage de `main.ts` (HUD)
+
+`interfaces/frontend/src/main.ts` passe de **3 323 à ~115 lignes** : il ne fait plus qu'orchestrer le démarrage. Son contenu est réparti dans 24 nouveaux fichiers (tous sous 350 lignes), **sans changement de logique** : code déplacé à l'identique, ordre d'évaluation des modules et d'initialisation conservé.
+
+- `hud/` : `state.ts` (état partagé), `dom_refs.ts`, `orb_state.ts`, `menu.ts`, `settings.ts`, `keyboard.ts`, `help_hud.ts`, `subtitles.ts`, `holo.ts`, `boot.ts`, `timer_clock.ts`, `control_buttons.ts`, `carousel_actions.ts`, `dom_automation.ts`.
+- `ws/` : `connection.ts` (connexion, reconnexion, aiguillage), `message_types.ts`, `messages_system.ts`, `messages_holo.ts`, `messages_hud.ts` — les branches de l'ancien gestionnaire de messages, dans le même ordre.
+- `panels/` : `code_workshop.ts` (Swarm 3D, Website Builder, éditeur), `confirm_dialog.ts`, `weather_temp_panels.ts`, `recipe_panel.ts`, `vault_panel.ts`.
+
+Vérifié par un banc de test qui injecte ~120 messages et interactions dans le HUD original puis dans le HUD découpé, en comparant l'état de tous les éléments du DOM : aucune différence. Testé aussi avec le vrai backend (connexion, démarrage, paramètres, commandes).
+
+## 2026-10-06 — Neyor, et JARVIS appelle chacun par son prénom
+
+- **Le créateur s'appelle désormais Neyor** (prononcé « Néyor ») : prompt système, accueil, empreinte vocale (`backend/core/voiceprints/neyor/`), configuration (`user_name`), faits mémorisés et historique des conversations.
+- **Chacun est appelé par son prénom** : les quelque 250 réponses qui disaient « mylane » à tout le monde s'adressent maintenant à la personne qui a donné l'instruction, reconnue par la biométrie vocale (« Très bien Clara… »). Un invité n'est appelé par aucun prénom, et le clavier du HUD local compte comme le créateur. Nouveau module `core/interlocuteur.py` (`nom_espace()`, `nom_virgule()`, `nom_ou_utilisateur()`, `CREATEUR`, `NOM_CREATEUR`).
+- **Prompts des IA** (système, vision, agent navigateur, recherche, Grok…) : le créateur reste nommé en dur (Neyor), le reste parle de la personne qui donne l'instruction. La consigne d'identité dit au LLM quel prénom employer selon le profil (créateur, utilisateur secondaire ou invité).
+- **Prononciation** : la synthèse vocale dit « Néyor » ; le texte affiché garde « Neyor » (`core/speech.py`).
+- **Correctif** : un fragment sans lettre ni chiffre (ex. un « » » isolé) n'est plus envoyé à la synthèse vocale, où il faisait échouer edge_tts.
+
+## 2026-10-05 — Confirmation HUD, accueil, créateur
+
+- **Confirmation par clic HUD réparée** : la désinstallation, le nettoyage de résidus et les suppressions (coffre-fort, explorateur spatial) s'exécutent désormais en tâche de fond (`core/ws_handler.py`). Avant, le gestionnaire WebSocket restait bloqué à attendre la confirmation et ne lisait le clic qu'après les 20 s d'expiration, donc l'action était toujours annulée ; seule la confirmation vocale fonctionnait.
+- **Phrase de lancement** : « Tous mes systèmes sont opérationnels » remplacée par un accueil généré par l'IA à chaque démarrage (style JARVIS, adapté à l'heure, jamais deux fois le même), dans un thread pour ne pas retarder l'écoute. En secours si l'IA ne répond pas : « Bonjour/Bonsoir Neyor. Je suis prêt. Que puis-je faire pour vous ? ».
+- **Plus de flatterie** : consigne explicite dans le prompt (ne plus parler du « génie » du créateur, pas de compliments gratuits) ; quand le créateur parle, JARVIS lui répond directement à la deuxième personne.
+- **README traduit en anglais.**
+- **Questions sur le créateur** : suppression des réponses préfaites (10 dans `commandes_locales_sections.py`, 1 dans `plugins/extras.py`). L'IA répond désormais avec ses propres mots grâce à une consigne ajoutée au prompt système (`core/prompt_builder.py`), en s'adressant directement au créateur.
+- **Personnalité JARVIS d'Iron Man** (`core/prompt_builder.py`) : majordome numérique flegmatique et loyal, humour pince-sans-rire jamais annoncé, aucun point d'exclamation, vouvoiement, tournures typiques (« Si je puis me permettre… », « Je crains que… »), répliques toujours variées.
+- **Autres phrases préfaites remplacées par l'IA** : salutations, « comment tu vas », « qui es-tu », blagues et citations (`plugins/extras.py`), « que peux-tu faire » (le panneau d'aide du HUD s'ouvre toujours) et application inconnue (fin des 6 phrases renvoyant vers « Antigravity de chez Google »). Les remarques pendant les parties d'échecs et les réponses capitales/monnaies restent locales.
+
 ## 2026-10-05 — Découpage de `main.py`
 
 `main.py` passe de **7 278 à ~300 lignes** : il ne fait plus qu'orchestrer le démarrage. Son contenu est réparti dans `backend/` (29 nouveaux fichiers, tous sous 450 lignes), **sans changement de logique** : code déplacé à l'identique, ordre d'initialisation conservé.

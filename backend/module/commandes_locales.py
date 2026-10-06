@@ -13,6 +13,7 @@ from module.competences import (
     executer_competence_vocale, jarvis_creer_competence, jarvis_supprimer_competence,
 )
 from module.image_generator import generer_affiche_ia, generer_image_ia
+from core.interlocuteur import nom_espace, nom_virgule
 
 
 def _parser_demande_affiche(t):
@@ -77,10 +78,10 @@ async def resoudre_commandes_locales(texte):
         # Interception des commandes incompletes
         if t in ["ouvre le dossier", "ouvre mon dossier", "ouvre un dossier"]:
             shared.attente_nom_dossier = True
-            return "Quel dossier voulez-vous ouvrir, mylane ?"
+            return f"Quel dossier voulez-vous ouvrir{nom_virgule()} ?"
         elif t in ["ouvre l'application", "lance l'application", "ouvre le logiciel", "lance le logiciel", "ouvre", "lance"]:
             shared.attente_nom_app = True
-            return "Quelle application voulez-vous lancer, mylane ?"
+            return f"Quelle application voulez-vous lancer{nom_virgule()} ?"
 
         # --- FERMETURE DU NAVIGATEUR EXTERNE (musique/vidéo en fond) ---
         mots_fermer_nav = ["navigateur", "internet", "la page", "le web", "la fenêtre", "la fenetre", "chrome", "edge", "firefox", "opera", "brave", "youtube", "la musique", "le navigateur"]
@@ -93,7 +94,7 @@ async def resoudre_commandes_locales(texte):
                 except Exception as e:
                     print(f"[BROWSER] Erreur de fermeture douce de {proc} : {e}")
 
-            return "Je ferme le navigateur et j'arrête la musique, Mylane."
+            return f"Je ferme le navigateur et j'arrête la musique{nom_virgule()}."
 
 
     _res = await _commandes_identite_hud(t)
@@ -117,7 +118,7 @@ async def _commandes_competences_systeme(t):
             res = await asyncio.to_thread(jarvis_creer_competence, nom, desc)
             return res
         else:
-            return "Désolé Mylane, le format pour créer une compétence est : 'Crée la compétence [nom] pour [description]'."
+            return f"Désolé{nom_espace()}, le format pour créer une compétence est : 'Crée la compétence [nom] pour [description]'."
 
     # 2. Suppression de compétence
     if "supprime la compétence" in t or "supprime la competence" in t or "désinstalle la compétence" in t or "desinstalle la competence" in t:
@@ -162,7 +163,7 @@ async def _commandes_competences_systeme(t):
             if shared.CONNECTED_CLIENTS:
                 msg = json.dumps({"action": "winget_open"})
                 await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
-            return "J'ouvre le gestionnaire de mise à jour système et je lance la recherche des mises à jour disponibles, Mylane."
+            return f"J'ouvre le gestionnaire de mise à jour système et je lance la recherche des mises à jour disponibles{nom_virgule()}."
 
     # ══ ANALYSE ANTIVIRUS ══════════════════════════════════════════
     _av_phrases = [
@@ -175,7 +176,7 @@ async def _commandes_competences_systeme(t):
             if shared.CONNECTED_CLIENTS:
                 msg = json.dumps({"type": "av_open"})
                 await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
-            return "J'ouvre la console de sécurité et j'initialise le scan antivirus de votre ordinateur, Mylane."
+            return f"J'ouvre la console de sécurité et j'initialise le scan antivirus de votre ordinateur{nom_virgule()}."
 
     # --- GÉNÉRATION D'IMAGES / AFFICHES (Priorité 0.5) ---
     # Placé avant le garde-fou "commande complexe" ci-dessous : un prompt d'image
@@ -191,16 +192,16 @@ async def _commandes_competences_systeme(t):
             # visuel (généré par l'IA) du texte (superposé proprement avec Pillow).
             if "affiche" in t and ("texte" in t or re.search(r"\d{1,2}/\d{1,2}", t)):
                 visuel, lignes_bas = _parser_demande_affiche(t)
-                parler("Très bien mylane, je compose l'affiche. Un instant...")
+                parler(f"Très bien{nom_espace()}, je compose l'affiche. Un instant...")
                 img_data = await asyncio.to_thread(generer_affiche_ia, visuel, lignes_bas)
             else:
-                parler(f"Très bien mylane, je génère l'image de {prompt}. Un instant...")
+                parler(f"Très bien{nom_espace()}, je génère l'image de {prompt}. Un instant...")
                 img_data = await asyncio.to_thread(generer_image_ia, prompt)
             if img_data:
                 await envoyer_image_web(img_data, prompt)
-                return f"Voici l'image demandée, mylane. Elle s'affiche sur votre interface."
-            return "Désolé mylane, la génération d'image a échoué."
-        return "Que souhaitez-vous que je dessine, mylane ?"
+                return f"Voici l'image demandée{nom_virgule()}. Elle s'affiche sur votre interface."
+            return f"Désolé{nom_espace()}, la génération d'image a échoué."
+        return f"Que souhaitez-vous que je dessine{nom_virgule()} ?"
 
     # S'il s'agit d'une commande complexe avec des enchaînements ou des actions DOM/saisie,
     # on renvoie None pour laisser le "cerveau" IA (LLM) s'en occuper de façon autonome.
@@ -219,18 +220,18 @@ async def _commandes_carte_voix(t):
             type_carte="info",
             icon="◈"
         )
-        return "Carte de test affichée sur le HUD, mylane."
+        return f"Carte de test affichée sur le HUD{nom_virgule()}."
 
     # --- CHANGEMENT DE VOIX ---
     if any(kw in t for kw in ["prends la voix d'homme", "prends la voix de l'homme", "voix d'homme", "voix masculine"]):
         if shared.VOIX_ACTUELLE == "homme":
-            return "Ma voix est déjà configurée sur le mode masculin, mylane."
+            return f"Ma voix est déjà configurée sur le mode masculin{nom_virgule()}."
         shared.VOIX_ACTUELLE = "homme"
         return "Très bien Monsieur, je reprends ma voix habituelle."
 
     if any(kw in t for kw in ["prends la voix de femme", "prends la voix d'une femme", "voix de femme", "voix féminine"]):
         if shared.VOIX_ACTUELLE == "femme":
-            return "Ma voix est déjà configurée sur le mode féminin, mylane."
+            return f"Ma voix est déjà configurée sur le mode féminin{nom_virgule()}."
         shared.VOIX_ACTUELLE = "femme"
-        return "C'est entendu mylane, je passe sur une fréquence vocale féminine."
+        return f"C'est entendu{nom_espace()}, je passe sur une fréquence vocale féminine."
     return _PAS_TROUVE

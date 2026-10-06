@@ -1,7 +1,7 @@
 """J.A.R.V.I.S — point d'entrée.
 
 Ce fichier ne fait qu'orchestrer le démarrage, dans un ordre précis :
-  1. console stylée + bannière (avant les imports lourds),
+  1. console + bannière (avant les imports lourds),
   2. moteur de parole, modèles audio (VAD, biométrie, wake word),
   3. modules du projet (dans l'ordre d'origine : certains lisent l'environnement
      ou `builtins` au moment de leur import),
@@ -45,6 +45,7 @@ warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
 # ── Imports lourds en parallèle via threads (gain ~0.6-0.8s) ───
 import importlib, concurrent.futures as _cf
+from core.interlocuteur import NOM_CREATEUR
 
 def _import(name):
     return importlib.import_module(name)
@@ -207,6 +208,7 @@ from core.webview_cache import vider_cache_webview_si_nouvelle_version
 # ── Services du backend (après tout le reste, comme leur code dans l'ancien main.py)
 from core.ws_handler import ws_handler
 from core.ecoute import ecouter
+from core.llm_chat import generer_salutation_demarrage
 from core.micro import monitor_claps
 from core.lancement import (
     afficher_statut_services, liberer_ports_occupes, lancer_frontend, ouvrir_interface,
@@ -251,8 +253,15 @@ def start_ia():
 
     # On attend un tout petit peu que le thread WS soit prêt
     time.sleep(1.5)
-    # Accueil vocal
-    speech.parler("Tous mes systèmes sont opérationnels.")
+    # Accueil vocal : phrase générée par l'IA (différente à chaque démarrage), dans un
+    # thread pour ne pas retarder l'écoute ; phrase de secours si l'IA ne répond pas.
+    def _accueil():
+        texte = generer_salutation_demarrage()
+        if not texte:
+            salutation = "Bonjour" if 5 <= time.localtime().tm_hour < 18 else "Bonsoir"
+            texte = f"{salutation} {NOM_CREATEUR}. Je suis prêt. Que puis-je faire pour vous ?"
+        speech.parler(texte)
+    threading.Thread(target=_accueil, daemon=True).start()
 
 
     # On lance l'écoute (qui est bloquante dans ce thread)

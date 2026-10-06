@@ -4,6 +4,7 @@ import builtins
 # On importe les fonctions de memory_manager et vector_memory
 from module.memory_manager import ajouter_memoire, charger_memoire, supprimer_memoire
 from module.vector_memory import supprimer_souvenir_semantique, rechercher_souvenir_semantique
+from core.interlocuteur import nom_espace, nom_virgule
 
 async def resoudre_memoire_locale(texte):
     """Gère l'enregistrement et la récupération d'informations en mémoire locale."""
@@ -14,7 +15,7 @@ async def resoudre_memoire_locale(texte):
     # ── CONSOLIDATION DE LA MÉMOIRE IA (ex: "consolide ma mémoire")
     if "consolide" in t or "synthetise" in t:
         if "memoire" in t or "conversation" in t or "notes" in t:
-            builtins.parler("Très bien mylane, je lance le protocole de consolidation de votre mémoire...")
+            builtins.parler(f"Très bien{nom_espace()}, je lance le protocole de consolidation de votre mémoire...")
             from module.memory_manager import consolider_memoire_ia
             success = await consolider_memoire_ia()
             if success:
@@ -47,10 +48,10 @@ async def resoudre_memoire_locale(texte):
                                 return re.sub(r'\bmon\b', 'votre', re.sub(r'\bma\b', 'votre', re.sub(r'\bmes\b', 'vos', texte_a_corriger)))
                             sujet_poli = _a_la_deuxieme_personne(sujet)
                             valeur_polie = _a_la_deuxieme_personne(valeur)
-                            return f"C'est fait mylane, j'ai enregistré que {sujet_poli} {sep.strip()} {valeur_polie}."
+                            return f"C'est fait{nom_espace()}, j'ai enregistré que {sujet_poli} {sep.strip()} {valeur_polie}."
                 
                 ajouter_memoire("note_rapide", content)
-                return f"C'est noté mylane, j'ai mis cela en mémoire : {content}."
+                return f"C'est noté{nom_espace()}, j'ai mis cela en mémoire : {content}."
     # ── SUPPRESSION / OUBLI (ex: "oublie le code du portail", "oublie mon code", "supprime le code du garage")
     _triggers_forget = [
         "oublie que", "oublie le", "oublie la", "oublie les", "oublie mon", "oublie ma", "oublie mes", "oublie",
@@ -97,7 +98,7 @@ async def resoudre_memoire_locale(texte):
                     print(f"[MEMOIRE LOCALE] Erreur suppression vectorielle : {e}")
                 
                 if success_kv or success_vect:
-                    return "Information oubliée, mylane."
+                    return f"Information oubliée{nom_virgule()}."
                 # Rien trouvé en mémoire : on rend la main (None) au lieu de
                 # répondre. Les déclencheurs incluent les verbes nus « supprime »,
                 # « efface », « oublie » : répondre ici interceptait des phrases

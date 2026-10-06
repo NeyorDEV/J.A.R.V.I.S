@@ -303,7 +303,7 @@ async def consolider_memoire_vectorielle_ia():
     lot_ids  = [e[0] for e in a_consolider]
     lot_text = "\n---\n".join(e[1] for e in a_consolider)
 
-    prompt = f"""Voici un lot d'anciens échanges de conversation entre mylane et son assistant JARVIS, stockés en mémoire vectorielle.
+    prompt = f"""Voici un lot d'anciens échanges de conversation entre Neyor (ou un autre membre du foyer) et son assistant JARVIS, stockés en mémoire vectorielle.
 
 Résume-les en un nombre RÉDUIT de souvenirs autonomes et denses (un souvenir par fait, préférence, décision ou évènement marquant durable). Ignore le bavardage transitoire et les détails sans valeur de rappel futur. Chaque souvenir doit rester compréhensible seul, avec assez de détails concrets (noms, dates, choix) pour qu'une recherche sémantique future le retrouve.
 
@@ -382,6 +382,6 @@ def lister_souvenirs_complets():
 
 if __name__ == "__main__":
     # Petit test si lancé seul
-    ajouter_souvenir("J'adore le café Blue Mountain de Jamaïque.", "C'est noté, mylane. C'est un excellent choix très raffiné.")
+    ajouter_souvenir("J'adore le café Blue Mountain de Jamaïque.", "C'est noté, Neyor. C'est un excellent choix très raffiné.")
     print("Test de recherche : 'café'")
     print(rechercher_souvenirs("Quel type de café j'aime ?"))

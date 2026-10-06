@@ -20,6 +20,7 @@ import os
 import builtins
 from dataclasses import dataclass
 from dotenv import load_dotenv
+from core.interlocuteur import nom_virgule
 
 _dir = os.path.dirname(os.path.abspath(__file__))
 _root = os.path.dirname(os.path.dirname(_dir))  # backend/core/ -> racine projet
@@ -124,7 +125,7 @@ async def appeler_outil(server_name: str, nom_outil: str, arguments: dict) -> st
 async def executer_action_mcp(server_name: str, instruction: str) -> str:
     """Traduit une instruction en langage naturel en appel à un outil MCP du serveur donné."""
     if not serveur_configure(server_name):
-        return f"Le serveur MCP '{server_name}' n'est pas configuré, mylane."
+        return f"Le serveur MCP '{server_name}' n'est pas configuré{nom_virgule()}."
 
     outils = await lister_outils(server_name)
     if not outils:

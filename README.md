@@ -3,84 +3,85 @@
 
   # J.A.R.V.I.S
 
-  *Assistant IA vocal personnel, sur ta machine.*
+  *A personal voice AI assistant, running on your own machine.*
 
-  [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](#prérequis)
-  [![Node](https://img.shields.io/badge/node-18%2B-339933?logo=node.js&logoColor=white)](#prérequis)
+  [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](#prerequisites)
+  [![Node](https://img.shields.io/badge/node-18%2B-339933?logo=node.js&logoColor=white)](#prerequisites)
   [![Frontend](https://img.shields.io/badge/frontend-Three.js%20%2B%20Vite-black)](interfaces/frontend)
-  [![Docs](https://img.shields.io/badge/docs-guide%20des%20fichiers-orange)](docs/JARVIS_FILES_GUIDE.md)
+  [![Docs](https://img.shields.io/badge/docs-files%20guide-orange)](docs/JARVIS_FILES_GUIDE.md)
   [![GitHub](https://img.shields.io/badge/github-NeyorDEV%2FJ.A.R.V.I.S-181717?logo=github&logoColor=white)](https://github.com/NeyorDEV/J.A.R.V.I.S)
 </div>
 
 ---
 
-Assistant vocal : reconnaissance vocale en continu, biométrie de la voix, interface HUD 3D (Three.js), domotique, contrôle du PC, génération de contenu (images, documents) et bien plus — le tout piloté à la voix, en français.
+Voice assistant: always-on speech recognition, voice biometrics, 3D HUD interface (Three.js), home automation, PC control, content generation (images, documents) and much more — all driven by voice, in French.
 
-Backend Python (WebSocket) + Frontend TypeScript/Three.js (Vite).
+Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 
-## Fonctionnalités
+## Features
 
-**Voix & IA**
-- Écoute continue avec détection de mot de réveil ("Jarvis") — locale (openWakeWord) ou par transcription
-- Transcription vocale via Groq Whisper (fallback Google STT)
-- Réponses génératives en streaming (Gemini en principal, bascule automatique sur Groq / Claude / Mistral / Grok / Ollama local selon disponibilité)
-- Synthèse vocale (edge-tts) avec file d'attente et interruption ("stop", "silence")
-- **Reconnaissance biométrique du locuteur** : identifie qui parle par empreinte vocale (CAM++ / sherpa-onnx) et adapte les permissions (invité vs utilisateur authentifié)
-- Mémoire à deux niveaux : faits clé-valeur persistants + mémoire vectorielle (ChromaDB) des conversations passées
+**Voice & AI**
+- Always-on listening with wake word detection ("Jarvis") — local (openWakeWord) or transcription-based
+- Speech-to-text via Groq Whisper (Google STT fallback)
+- Streaming generative answers (Gemini as the main model, automatic failover to Groq / Claude / Mistral / Grok / local Ollama depending on availability)
+- Text-to-speech (edge-tts) with a speech queue and interruption ("stop", "silence")
+- Iron Man-style JARVIS personality: composed, loyal, dry humour — answers are generated on the fly, never canned phrases
+- **Speaker biometrics**: identifies who is speaking from their voiceprint (CAM++ / sherpa-onnx) and adapts permissions (guest vs authenticated user)
+- Two-level memory: persistent key-value facts + vector memory (ChromaDB) of past conversations
 
 **Interface (HUD)**
-- Orbe 3D animé (idle / écoute / réflexion / parole)
-- Widgets calendrier, météo, musique, affichables à la voix
-- Mode réalité augmentée (MediaPipe) avec glisser-déposer gestuel
-- Globe 3D + carte pour la navigation géographique
+- Animated 3D orb (idle / listening / thinking / speaking)
+- Calendar, weather and music widgets, shown on voice command
+- Augmented reality mode (MediaPipe) with gesture drag-and-drop
+- 3D globe + map for geographic navigation
 
-**Contrôle & domotique**
-- Home Assistant (lumières, prises, température, humidité, alarmes, batteries...)
-- Lancement/fermeture d'applications, gestion de fichiers et dossiers
-- Contrôle média : Spotify, Deezer, TV (Chromecast/ADB), volume système
-- Coffre-fort chiffré (AES/Fernet + PBKDF2) pour fichiers confidentiels, déverrouillable à la voix
-- Confirmation obligatoire (voix ou HUD) avant toute action destructrice (désinstallation, suppression de fichier, vidage du coffre-fort)
+**Control & home automation**
+- Home Assistant (lights, plugs, temperature, humidity, alarms, batteries...)
+- Launching/closing applications, file and folder management
+- Media control: Spotify, Deezer, TV (Chromecast/ADB), system volume
+- Encrypted vault (AES/Fernet + PBKDF2) for confidential files, unlockable by voice
+- Mandatory confirmation (voice or HUD) before any destructive action (uninstalling, deleting a file, emptying the vault)
 
-**Génération de contenu**
-- Génération d'images (Pollinations)
-- Génération de documents Word / PowerPoint / Excel / PDF à la demande, fusion de PDF
-- Agent de navigation web autonome
-- Essaim d'agents IA pour générer des sites web complets
+**Content generation**
+- Image generation (Pollinations)
+- On-demand Word / PowerPoint / Excel / PDF documents, PDF merging
+- Autonomous web browsing agent
+- Swarm of AI agents that builds complete websites
 
-**Autres**
-- Alarmes et minuteurs
-- Listes de courses / tâches
-- Recettes de cuisine adaptées au nombre de convives
-- Système de "compétences" : JARVIS peut apprendre de nouvelles capacités à la demande (code Python validé et sandboxé)
+**Other**
+- Alarms and timers
+- Shopping / to-do lists
+- Cooking recipes scaled to the number of guests
+- "Skills" system: JARVIS can learn new abilities on demand (validated, sandboxed Python code)
 
-## Stack technique
+## Tech stack
 
-| Côté | Techs |
+| Area | Technologies |
 |---|---|
 | Backend | Python 3, WebSocket (`websockets`), asyncio |
-| LLM | Gemini (principal), Groq, Claude (Anthropic), Mistral, Grok (xAI), Ollama (local, 100% offline) |
-| Voix | Silero VAD, openWakeWord, Groq Whisper, edge-tts, sherpa-onnx (biométrie) |
+| LLM | Gemini (main), Groq, Claude (Anthropic), Mistral, Grok (xAI), Ollama (local, 100% offline) |
+| Voice | Silero VAD, openWakeWord, Groq Whisper, edge-tts, sherpa-onnx (biometrics) |
 | Frontend | TypeScript, Three.js, Vite |
-| Domotique | Home Assistant (REST API / MCP) |
-| Stockage | ChromaDB (mémoire vectorielle), fichiers JSON (config/mémoire/alarmes) |
+| Home automation | Home Assistant (REST API / MCP) |
+| Storage | ChromaDB (vector memory), JSON files (config/memory/alarms) |
 
-## Prérequis
+## Prerequisites
 
-- Python 3.12+ avec un environnement virtuel (`venv/`)
-- Node.js 18+ (pour le frontend)
-- [Ollama](https://ollama.com) installé si le mode local hors-ligne est souhaité
-- Clés API : Gemini (obligatoire), Groq (recommandé pour STT/TTS), Anthropic/Mistral/xAI (optionnelles)
+- Python 3.12+ with a virtual environment (`venv/`)
+- Node.js 18+ (for the frontend)
+- [Ollama](https://ollama.com) installed if you want the offline local mode
+- API keys: Gemini (required), Groq (recommended for STT/TTS), Anthropic/Mistral/xAI (optional)
 
 ## Installation
 
-Double-cliquer sur `install.bat` (à la racine) : il crée l'environnement virtuel, installe les dépendances Python et Node, et génère le fichier `.env`.
+Double-click `install.bat` (at the project root): it creates the virtual environment, installs the Python and Node dependencies, and generates the `.env` file.
 
-Compléter ensuite le `.env` généré avec au minimum :
+Then fill in the generated `.env` with at least:
 
 ```env
 GEMINI_API_KEY=...
 GROQ_API_KEY=...
-# Optionnels
+# Optional
 ANTHROPIC_API_KEY=...
 MISTRAL_API_KEY=...
 XAI_API_KEY=...
@@ -89,44 +90,44 @@ SERPAPI_API_KEY=...
 GITHUB_MCP_TOKEN=...
 ```
 
-## Lancer le projet
+## Running the project
 
-Double-cliquer sur `start.bat` (à la racine) : il lance le backend et le frontend.
+Double-click `start.bat` (at the project root): it starts the backend and the frontend.
 
-Le backend écoute sur `ws://localhost:8765`. Dites simplement **"Jarvis"** suivi de votre commande pour l'activer.
+The backend listens on `ws://localhost:8765`. Just say **"Jarvis"** followed by your command to activate it.
 
-## Structure du projet
+## Project structure
 
 ```
-main.py             — Point d'entrée : ordre de démarrage, start_ia() et main()
-assets/              — Icône de l'application
+main.py             — Entry point: startup order, start_ia() and main()
+assets/              — Application icon
 backend/
-  core/              — État partagé (shared.py), serveur WebSocket, traitement des commandes,
-                       LLM (+ registre de moteurs), écoute vocale, VAD, biométrie, wake word, prompt système
-  module/            — Mémoire, fichiers, domotique, navigateur, images, coffre-fort...
-  controller/        — Contrôle d'applications (Spotify, Deezer, TV, lanceur d'apps)
-  plugins/           — Resolvers de commandes vocales (un fichier par domaine)
-  sandbox/           — Sorties générées (sites web créés par le dev-swarm)
+  core/              — Shared state (shared.py), WebSocket server, command processing,
+                       LLM (+ engine registry), voice listening, VAD, biometrics, wake word, system prompt
+  module/            — Memory, files, home automation, browser, images, vault...
+  controller/        — Application control (Spotify, Deezer, TV, app launcher)
+  plugins/           — Voice command resolvers (one file per domain)
+  sandbox/           — Generated output (websites built by the dev swarm)
 interfaces/
-  frontend/          — HUD web (Three.js, TypeScript, Vite)
-  mobile/            — Interface mobile compagnon
-  chrome_extension/  — Extension navigateur
-scratch/             — Scripts de debug/exploration (non versionnés)
+  frontend/          — Web HUD (Three.js, TypeScript, Vite)
+  mobile/            — Companion mobile interface
+  chrome_extension/  — Browser extension
+scratch/             — Debug/exploration scripts (not versioned)
 ```
 
-## Sécurité & confidentialité
+## Security & privacy
 
-- Coffre-fort chiffré AES-256 pour les fichiers sensibles (mot de passe jamais stocké en clair)
-- Reconnaissance vocale du locuteur pour restreindre les actions sensibles en mode invité
-- Confirmation vocale/HUD requise avant toute action destructrice (désinstallation, suppression, coffre-fort)
-- Origin check WebSocket, sandboxing des compétences générées par l'IA
+- AES-256 encrypted vault for sensitive files (the password is never stored in plain text)
+- Speaker voice recognition to restrict sensitive actions in guest mode
+- Voice/HUD confirmation required before any destructive action (uninstall, deletion, vault)
+- WebSocket origin check, sandboxing of AI-generated skills
 
 ---
 
 <div align="center">
 
-[Guide des fichiers](docs/JARVIS_FILES_GUIDE.md) · [Fonctionnalités détaillées](docs/jarvis_fonctionnalites.txt) · [Commandes vocales](docs/JARVIS_Commandes.txt) · [Changelog](CHANGELOG.md)
+[Files guide](docs/JARVIS_FILES_GUIDE.md) · [Detailed features](docs/jarvis_fonctionnalites.txt) · [Voice commands](docs/JARVIS_Commandes.txt) · [Changelog](CHANGELOG.md) *(documentation in French)*
 
-Projet personnel, développé et maintenu par [@NeyorDEV](https://github.com/NeyorDEV).
+Personal project, developed and maintained by [@NeyorDEV](https://github.com/NeyorDEV).
 
 </div>

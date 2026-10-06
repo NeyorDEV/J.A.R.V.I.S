@@ -8,6 +8,7 @@ import unicodedata
 # sys.path. Mélanger les deux formes chargeait le MÊME fichier deux fois
 # comme deux modules distincts, avec des états globaux dupliqués.
 from module.website_builder import generer_site_web_autonome
+from core.interlocuteur import nom_virgule
 def nettoyer_accent(texte: str) -> str:
     """Supprime les accents et met en minuscules pour faciliter la comparaison."""
     return "".join(c for c in unicodedata.normalize('NFD', texte.lower().strip()) if unicodedata.category(c) != 'Mn')
@@ -98,9 +99,9 @@ async def resoudre_creation_site_web(cmd: str):
     # plusieurs minutes de traitement). Contrairement aux actions JSON de l'IA
     # conversationnelle, ce chemin par resolver n'était couvert par AUCUN
     # contrôle — une voix non reconnue (« guest ») pouvait le déclencher.
-    if getattr(builtins, "ACTIVE_SPEAKER", "mylane") == "guest":
+    if getattr(builtins, "ACTIVE_SPEAKER", "neyor") == "guest":
         print("🔒 [WEBSITE RESOLVER] Création de site refusée : locuteur non authentifié (invité).")
-        return "Désolé, la création de site web est réservée aux utilisateurs authentifiés. Veuillez vous identifier, mylane."
+        return f"Désolé, la création de site web est réservée aux utilisateurs authentifiés. Veuillez vous identifier{nom_virgule()}."
 
     print(f"[WEBSITE RESOLVER] Mobilisation de l'Essaim d'IA (Dev Swarm) pour : '{cmd}'")
     

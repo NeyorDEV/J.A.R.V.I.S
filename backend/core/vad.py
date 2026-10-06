@@ -195,7 +195,7 @@ class SpeakerBiometrics:
             fpath = os.path.join(self.voiceprints_dir, f)
             if os.path.isfile(fpath) and f.endswith(".npy"):
                 raw_name = f[:-4]
-                # Identifier le nom de profil en retirant le suffixe de numéro (ex: mylane ou mylane_1)
+                # Identifier le nom de profil en retirant le suffixe de numéro (ex: neyor ou neyor_1)
                 name = re.sub(r'_\d+$', '', raw_name).lower()
                 
                 # Détecter l'index

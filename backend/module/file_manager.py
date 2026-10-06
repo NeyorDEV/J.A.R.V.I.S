@@ -10,6 +10,7 @@ except ImportError:
     pyautogui = None
 import ctypes
 import time
+from core.interlocuteur import nom_virgule
 try:
     import PyPDF2
 except ImportError:
@@ -133,7 +134,7 @@ def arranger_fenetres_dossiers():
             # SWP_SHOWWINDOW = 0x0040
             user32.SetWindowPos(hwnd, 0, x, y, w, h, 0x0040)
     
-    return "J'ai ouvert et disposé vos dossiers principaux en mosaïque, mylane."
+    return f"J'ai ouvert et disposé vos dossiers principaux en mosaïque{nom_virgule()}."
 
 def lister_dossier(chemin=None):
     cible = resoudre_chemin(chemin) or dossier_courant

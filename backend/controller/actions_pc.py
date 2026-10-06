@@ -13,6 +13,7 @@ from controller.app_launcher import _boulot_lancer
 from controller.deezer_controller import deezer_lancer_playlist
 from core.speech import parler
 from module.vision_module import jarvis_vision_cliquer
+from core.interlocuteur import nom_espace, nom_virgule
 
 
 def lister_applications_installees():
@@ -78,7 +79,7 @@ def executer_action_pc(commande):
             webbrowser.open(url, new=2)
             time.sleep(5)
             pyautogui.press('f')
-            return "C'est parti mylane, je lance votre musique sur YouTube."
+            return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
             
         import json as _j
         musique_lien = None
@@ -96,15 +97,15 @@ def executer_action_pc(commande):
                 webbrowser.open(musique_lien, new=2)
                 time.sleep(5)
                 pyautogui.press('f')
-                return "C'est parti mylane, je lance votre musique sur YouTube."
+                return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
             elif "spotify" in musique_lien_lower or musique_lien_lower.startswith("spotify:"):
                 try:
                     from controller.spotify_controller import spotify_lancer_playlist
                     ok = spotify_lancer_playlist(musique_lien)
                     if ok:
-                        return "C'est parti mylane, je lance votre musique sur Spotify."
+                        return f"C'est parti{nom_espace()}, je lance votre musique sur Spotify."
                 except: pass
-                return "Je n'ai pas réussi à ouvrir Spotify, mylane."
+                return f"Je n'ai pas réussi à ouvrir Spotify{nom_virgule()}."
             elif "deezer" in musique_lien_lower:
                 try:
                     loop = asyncio.new_event_loop()
@@ -112,11 +113,11 @@ def executer_action_pc(commande):
                     loop.close()
                 except: ok = False
                 if ok:
-                    return "C'est parti mylane, je lance votre musique sur Deezer."
-                return "Je n'ai pas réussi à ouvrir Deezer, mylane."
+                    return f"C'est parti{nom_espace()}, je lance votre musique sur Deezer."
+                return f"Je n'ai pas réussi à ouvrir Deezer{nom_virgule()}."
             else:
                 webbrowser.open(musique_lien, new=2)
-                return "C'est parti mylane, je lance votre lien de musique personnalisé dans le navigateur."
+                return f"C'est parti{nom_espace()}, je lance votre lien de musique personnalisé dans le navigateur."
         else:
             try:
                 loop = asyncio.new_event_loop()
@@ -126,8 +127,8 @@ def executer_action_pc(commande):
                 print(f"[EXECUTER ACTION PC] Erreur lancement Deezer : {e}")
                 ok = False
             if ok:
-                return "C'est parti mylane, je lance votre playlist sur Deezer."
-            return "Je n'ai pas réussi à ouvrir Deezer, mylane."
+                return f"C'est parti{nom_espace()}, je lance votre playlist sur Deezer."
+            return f"Je n'ai pas réussi à ouvrir Deezer{nom_virgule()}."
 
     # (Bloc YouTube PC supprimé pour éviter les conflits avec la TV)
 
@@ -166,7 +167,7 @@ def executer_action_pc(commande):
             return "Son coupe."
 
     if "screenshot" in cmd or "capture" in cmd:
-        if getattr(shared, "ACTIVE_SPEAKER", "mylane") == "guest":
+        if getattr(shared, "ACTIVE_SPEAKER", "neyor") == "guest":
             return "Accès refusé. La capture d'écran est désactivée en mode invité."
         path = os.path.join(user_profile, "Desktop", "screenshot.png")
         pyautogui.screenshot(path)
@@ -181,7 +182,7 @@ def executer_action_pc(commande):
 
 async def action_whatsapp_appel(contact):
     try:
-        parler(f"J'appelle {contact} sur WhatsApp, mylane.")
+        parler(f"J'appelle {contact} sur WhatsApp{nom_virgule()}.")
         # Lancement de l'app via le protocole
         os.system("start whatsapp://")
         time.sleep(6) # On laisse le temps a l'app de s'ouvrir et se focuser
@@ -206,5 +207,5 @@ async def action_whatsapp_appel(contact):
         return True
     except Exception as e:
         print(f"[WHATSAPP ERROR] {e}")
-        parler(f"Desole mylane, je n'ai pas pu lancer l'appel WhatsApp. {e}")
+        parler(f"Desole{nom_espace()}, je n'ai pas pu lancer l'appel WhatsApp. {e}")
         return False

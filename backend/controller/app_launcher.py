@@ -8,6 +8,7 @@ import time
 import asyncio
 import shutil
 from typing import TYPE_CHECKING
+from core.interlocuteur import nom_espace, nom_virgule
 
 if TYPE_CHECKING:
     async def parler(text: str) -> None: ...
@@ -439,12 +440,12 @@ async def mode_boulot():
     subprocess.Popen(["explorer", discord_lnk], shell=False)
     time.sleep(0.3)
 
-    return "Mode boulot activé, mylane ! Deezer et Discord sont lancés. Bonne journée !"
+    return f"Mode boulot activé{nom_virgule()} ! Deezer et Discord sont lancés. Bonne journée !"
 
 
 async def mode_gaming():
     """Lance Deezer, Discord et Epic Games Launcher pour la session gaming."""
-    parler("C'est parti mylane, j'active le mode gaming !")
+    parler(f"C'est parti{nom_espace()}, j'active le mode gaming !")
 
     # ── 1. Deezer (musique) ───────────────────────────────────
     subprocess.Popen(["explorer", "deezer:"], shell=False)
@@ -465,12 +466,12 @@ async def mode_gaming():
     )
     time.sleep(0.3)
 
-    return "Mode gaming activé, mylane ! Deezer, Discord et Epic Games sont lancés. Bonne session !"
+    return f"Mode gaming activé{nom_virgule()} ! Deezer, Discord et Epic Games sont lancés. Bonne session !"
 
 
 async def mode_rocket_league():
     """Lance Deezer, Discord, Rocket League et JoyToKey."""
-    parler("C'est parti mylane ! Préparation de la session Rocket League.")
+    parler(f"C'est parti{nom_espace()} ! Préparation de la session Rocket League.")
 
     # ── 1. Deezer ─────────────────────────────────────────────
     subprocess.Popen(["explorer", "deezer:"], shell=False)
@@ -491,4 +492,4 @@ async def mode_rocket_league():
     rl_uri = "com.epicgames.launcher://apps/Sugar?action=launch&silent=true"
     subprocess.Popen(["explorer", rl_uri], shell=False)
 
-    return "Mode Rocket League activé, mylane ! Deezer, Discord, JoyToKey et le jeu sont lancés. Bonne chance sur le terrain !"
+    return f"Mode Rocket League activé{nom_virgule()} ! Deezer, Discord, JoyToKey et le jeu sont lancés. Bonne chance sur le terrain !"

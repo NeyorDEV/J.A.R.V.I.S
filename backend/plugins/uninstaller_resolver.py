@@ -1,6 +1,7 @@
 import builtins
 import json
 import asyncio
+from core.interlocuteur import nom_virgule
 
 def nettoyer_accent(texte):
     import unicodedata
@@ -27,7 +28,7 @@ async def resoudre_uninstaller_localement(texte):
             except Exception as e:
                 print(f"[ERREUR WS] Broadcast uninstaller_open: {e}")
                 
-        return "Très bien, j'ouvre la console du désinstallateur de programmes, mylane."
+        return f"Très bien, j'ouvre la console du désinstallateur de programmes{nom_virgule()}."
         
     return None
 

@@ -2,6 +2,7 @@ import builtins
 import json
 import asyncio
 from module.image_search import recherche_images_web
+from core.interlocuteur import nom_virgule
 
 def nettoyer_accent(texte):
     import unicodedata
@@ -64,7 +65,7 @@ async def resoudre_images_locales(texte):
                 else:
                     asyncio.create_task(_send_images())
                     
-                return f"Je recherche des images de {query} et je les affiche sur votre interface, mylane."
+                return f"Je recherche des images de {query} et je les affiche sur votre interface{nom_virgule()}."
                 
     return None
 

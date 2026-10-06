@@ -4,6 +4,7 @@ import time
 import os
 import re
 import asyncio
+from core.interlocuteur import nom_virgule
 
 # On importe les fonctions du fichier existant si possible
 try:
@@ -20,7 +21,7 @@ except ImportError as _e_app:
 
     async def _mode_indisponible(*args, **kwargs):
         return ("Le module de lancement d'applications n'est pas disponible sur "
-                "cette installation, mylane.")
+                f"cette installation{nom_virgule()}.")
 
     mode_boulot = mode_gaming = mode_rocket_league = _mode_indisponible
 
@@ -46,7 +47,7 @@ async def resoudre_apps_localement(texte):
         for app_key, data in _APPS_CATALOGUE.items():
             if app_key in t:
                 success = _boulot_lancer(data["label"], data["noms"], data.get("hints"))
-                if success: return f"J'ai lancé {data['label']} pour vous, mylane."
+                if success: return f"J'ai lancé {data['label']} pour vous{nom_virgule()}."
                 return f"Je n'ai pas pu localiser {data['label']} sur votre système."
 
     if any(m in t for m in ["musique", "playlist"]) and any(k in t for k in ["mets", "joue", "lance", "écoute", "ecoute", "play", "active", "démarre", "demarre"]):
@@ -84,7 +85,7 @@ async def resoudre_apps_localement(texte):
                 lien_perso = _j.load(_f).get("musique_lien", "").strip()
         except: pass
         
-        user_n = getattr(builtins, 'USER_NAME', 'mylane')
+        user_n = getattr(builtins, 'USER_NAME', 'neyor')
         
         if "youtube" in t or (lien_perso and "youtube.com" in lien_perso):
             url = lien_perso if lien_perso else "https://www.youtube.com/watch?v=Cr8K88UcO0s"

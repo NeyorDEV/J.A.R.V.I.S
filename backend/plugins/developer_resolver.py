@@ -9,6 +9,7 @@ import asyncio
 import google.genai as genai
 from google.genai import types
 from core.config import GEMINI_API_KEY, CHOSEN_MODEL
+from core.interlocuteur import nom_ou_utilisateur, nom_virgule
 
 # Initialisation du client de vision/génération Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -272,7 +273,7 @@ async def resoudre_developpement(cmd):
         # (Avant : « git reset --hard » + « git clean -fd » sur tout le dépôt,
         #  ce qui détruisait aussi le travail non commité de l'utilisateur.)
         if not _DERNIERS_FICHIERS_MODIFIES:
-            return ("Je n'ai aucune modification récente à annuler, mylane. "
+            return (f"Je n'ai aucune modification récente à annuler{nom_virgule()}. "
                     "Je n'effectue plus de restauration globale du dépôt : "
                     "elle effacerait aussi vos propres changements non enregistrés.")
         _annuler_modifications(_DERNIERS_FICHIERS_MODIFIES)
@@ -289,7 +290,7 @@ async def resoudre_developpement(cmd):
         # Recharger les plugins au cas où
         recharger_plugins_python()
         
-        return "Très bien, mylane. J'ai annulé les dernières modifications et j'ai restauré la codebase à son dernier état stable."
+        return f"Très bien{nom_virgule()}. J'ai annulé les dernières modifications et j'ai restauré la codebase à son dernier état stable."
 
     # 2. COMMANDES DE MUTATION / DÉVELOPPEMENT
     mots_cles_mutation = [
@@ -328,7 +329,7 @@ async def resoudre_developpement(cmd):
         # Le reset HEAD remettra le dépôt dans l'état exact du dernier commit stable.
         
         # B. Informer l'utilisateur
-        builtins.parler("J'initialise les protocoles d'auto-évolution, mylane. J'analyse le projet et je prépare les modifications de code...")
+        builtins.parler(f"J'initialise les protocoles d'auto-évolution{nom_virgule()}. J'analyse le projet et je prépare les modifications de code...")
         
         # Fournir des informations de contexte supplémentaires sur la codebase
         contexte_codebase = (
@@ -338,7 +339,7 @@ async def resoudre_developpement(cmd):
             "- Le HUD possède déjà le gestionnaire de messages 'show_recipe' dans frontend/src/main.ts qui attend un message WebSocket de type 'show_recipe' avec les champs 'recipe_title' (string), 'ingredients' (array of strings) et 'instructions' (array of strings).\n"
             "- Ainsi, pour la demande de widget de recette, TU NE DOIS PAS MODIFIER les fichiers frontend (index.html, main.ts, etc.). Il te suffit de créer le plugin Python backend 'plugins/recipe_resolver.py' qui va capter la demande vocale, utiliser un appel LLM interne si nécessaire pour générer la recette demandée de manière structurée, puis renvoyer l'action WebSocket 'show_recipe' correspondante via le courtier d'actions génériques de main.py, et enfin importer et enregistrer ce resolver dans main.py."
         )
-        prompt = f"L'utilisateur (mylane) demande la modification suivante :\n\"{description}\"\n{contexte_codebase}\n\nGénère le tableau JSON des modifications de code nécessaires."
+        prompt = f"{nom_ou_utilisateur()} demande la modification suivante :\n\"{description}\"\n{contexte_codebase}\n\nGénère le tableau JSON des modifications de code nécessaires."
         
         err_prev = ""
         edits = []
@@ -415,7 +416,7 @@ async def resoudre_developpement(cmd):
                 )
             
             test_msg = f" {test_instructions}" if test_instructions else ""
-            return f"Les modifications ont été écrites, compilées avec succès, et injectées à chaud dans mes processeurs, mylane. La nouvelle fonctionnalité est active.{test_msg}"
+            return f"Les modifications ont été écrites, compilées avec succès, et injectées à chaud dans mes processeurs{nom_virgule()}. La nouvelle fonctionnalité est active.{test_msg}"
         else:
             # Restauration finale après échec de toutes les tentatives : on ne
             # restaure QUE les fichiers que nous avons touchés.
@@ -429,7 +430,7 @@ async def resoudre_developpement(cmd):
                     icon="⚠"
                 )
                 
-            return f"Je n'ai pas réussi à stabiliser le nouveau code après plusieurs tentatives d'auto-correction, mylane. J'ai préféré annuler toutes les modifications et restaurer le système. L'erreur de compilation était : {err_prev}"
+            return f"Je n'ai pas réussi à stabiliser le nouveau code après plusieurs tentatives d'auto-correction{nom_virgule()}. J'ai préféré annuler toutes les modifications et restaurer le système. L'erreur de compilation était : {err_prev}"
 
     return None
 

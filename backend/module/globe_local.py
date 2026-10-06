@@ -3,6 +3,7 @@
 import builtins
 
 from core.web_bridge import geocode_lieu, send_globe_command
+from core.interlocuteur import nom_virgule
 
 
 async def resoudre_globe_localement(texte: str):
@@ -18,7 +19,7 @@ async def resoudre_globe_localement(texte: str):
     # 1. Fermer (Priorité absolue pour éviter le court-circuit de l'exclusion 'carte')
     if any(m in t for m in _mots_fermer):
         await send_globe_command(globe_action="hide")
-        return "Navigation fermée. Je reviens à l'interface principale, mylane."
+        return f"Navigation fermée. Je reviens à l'interface principale{nom_virgule()}."
     
     # Éviter de déclencher le globe si on cherche un fichier ou dossier local ou une info générale/HUD
     # (ni si "affiche" est utilisé comme nom commun : "une affiche", "l'affiche" pour un poster/image)
@@ -50,12 +51,12 @@ async def resoudre_globe_localement(texte: str):
         # On délègue la géolocalisation au navigateur (navigator.geolocation)
         # bien plus précis que l'IP — le frontend gère tout
         await send_globe_command(globe_action="my_location")
-        return "Localisation en cours, mylane. Le globe affiche votre position."
+        return f"Localisation en cours{nom_virgule()}. Le globe affiche votre position."
 
     # ── Globe Terre ───────────────────────────────────────────────────────────
     if any(m in t for m in _mots_globe):
         await send_globe_command(globe_action="show_earth")
-        return "Vue depuis l'espace activée, mylane."
+        return f"Vue depuis l'espace activée{nom_virgule()}."
 
     # ── Itinéraire de X à Y ──────────────────────────────────────────────────
     if any(m in t for m in _mots_route):
@@ -72,9 +73,9 @@ async def resoudre_globe_localement(texte: str):
                     from_lat=lat1, from_lon=lon1, from_name=from_name,
                     to_lat=lat2,   to_lon=lon2,   to_name=to_name
                 )
-                return f"Itinéraire tracé de {from_name} à {to_name}, mylane."
+                return f"Itinéraire tracé de {from_name} à {to_name}{nom_virgule()}."
             else:
-                return f"Je n'ai pas pu localiser les deux villes, mylane. Vérifiez les noms et réessayez."
+                return f"Je n'ai pas pu localiser les deux villes{nom_virgule()}. Vérifiez les noms et réessayez."
         return None
 
     # ── Fly to ville ─────────────────────────────────────────────────────────
@@ -105,9 +106,9 @@ async def resoudre_globe_localement(texte: str):
                         target=nom_lieu,
                         altitude=altitude
                     )
-                    return f"Survol de {nom_lieu} en cours, mylane."
+                    return f"Survol de {nom_lieu} en cours{nom_virgule()}."
                 else:
-                    return f"Je n'ai pas réussi à localiser {nom_lieu}, mylane. Essayez avec un nom plus précis."
+                    return f"Je n'ai pas réussi à localiser {nom_lieu}{nom_virgule()}. Essayez avec un nom plus précis."
             break
 
     return None

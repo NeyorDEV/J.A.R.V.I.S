@@ -10,6 +10,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 import re
+from core.interlocuteur import nom_virgule
 
 _dir = os.path.dirname(os.path.abspath(__file__))
 _root = os.path.dirname(os.path.dirname(_dir))  # backend/module/ -> racine projet
@@ -152,13 +153,13 @@ def annuler_alarme(heure_texte: str = "", label: str = "") -> tuple[bool, str]:
     with _VERROU_ALARMES:
       alarmes = _charger_alarmes()
       if not alarmes:
-        return False, "Vous n'avez aucune alarme active, mylane."
+        return False, f"Vous n'avez aucune alarme active{nom_virgule()}."
 
       # Gestion de l'annulation globale
       mots_globaux = {"toutes", "tout", "tous", "all", "clear"}
       if (heure_texte and heure_texte.lower().strip() in mots_globaux) or (label and label.lower().strip() in mots_globaux):
         _sauvegarder_alarmes([])
-        return True, f"Toutes vos alarmes ont été annulées ({len(alarmes)} alarmes supprimées), mylane."
+        return True, f"Toutes vos alarmes ont été annulées ({len(alarmes)} alarmes supprimées){nom_virgule()}."
 
       nouvelles = []
       supprimees = []
@@ -190,7 +191,7 @@ def lister_alarmes() -> str:
     alarmes = _charger_alarmes()
     actives = [a for a in alarmes if not a.get("sonne")]
     if not actives:
-        return "Vous n'avez aucune alarme programmée, mylane."
+        return f"Vous n'avez aucune alarme programmée{nom_virgule()}."
 
     lignes = ["Voici vos alarmes :"]
     for a in sorted(actives, key=lambda x: x["heure"]):
@@ -249,7 +250,7 @@ def _surveiller_alarmes():
                     import asyncio
                     loop = asyncio.new_event_loop()
                     try:
-                        loop.run_until_complete(_parler_callback(f"🔔 Alarme ! {label_alarme}, mylane."))
+                        loop.run_until_complete(_parler_callback(f"🔔 Alarme ! {label_alarme}{nom_virgule()}."))
                     finally:
                         loop.close()
 

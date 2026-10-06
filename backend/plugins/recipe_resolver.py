@@ -4,6 +4,7 @@ import unicodedata
 import re
 import asyncio
 from google.genai import types
+from core.interlocuteur import nom_virgule
 
 def nettoyer_accent(texte):
     return "".join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
@@ -114,7 +115,7 @@ async def resoudre_recipe(cmd):
                     
                     # Correction de répétition dans le titre
                     vocal_response = (
-                        f"J'ai affiché la recette de {title} sur l'hud, mylane. "
+                        f"J'ai affiché la recette de {title} sur l'hud{nom_virgule()}. "
                         f"Voici la liste des ingrédients requis : {ingredients_text}. "
                         f"Concernant les étapes de préparation : {instructions_text}. Bon appétit !"
                     )
@@ -208,7 +209,7 @@ async def resoudre_recipe(cmd):
                     
                     # Correction de répétition dans le titre
                     return (
-                        f"J'ai affiché la recette de {title} sur l'hud, mylane. "
+                        f"J'ai affiché la recette de {title} sur l'hud{nom_virgule()}. "
                         f"Voici la liste des ingrédients requis : {ingredients_text}. "
                         f"Concernant les étapes de préparation : {instructions_text}. Bon appétit !"
                     )

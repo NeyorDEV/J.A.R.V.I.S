@@ -1,6 +1,7 @@
 import builtins
 import re
 import time
+from core.interlocuteur import nom_espace
 
 def nettoyer_accent(texte):
     import unicodedata
@@ -44,7 +45,7 @@ async def resoudre_local_mode(cmd):
                 icon="⚙"
             )
             
-        return "Bien reçu mylane, j'active le mode local. Toutes vos requêtes de réflexion seront désormais traitées hors-ligne par mon cortex Ollama."
+        return f"Bien reçu{nom_espace()}, j'active le mode local. Toutes vos requêtes de réflexion seront désormais traitées hors-ligne par mon cortex Ollama."
 
     # 2. ESSAI DE DÉACTIVATION
     if any(m in t for m in mots_desactivation) or t == "mode hybride":
@@ -63,7 +64,7 @@ async def resoudre_local_mode(cmd):
                 icon="◈"
             )
             
-        return "Bien reçu mylane, je désactive le mode local. Je repasse en mode hybride avec mes cortex cloud."
+        return f"Bien reçu{nom_espace()}, je désactive le mode local. Je repasse en mode hybride avec mes cortex cloud."
 
     return None
 

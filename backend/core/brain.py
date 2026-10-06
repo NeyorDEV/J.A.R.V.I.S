@@ -6,6 +6,7 @@ import google.genai as genai
 from google.genai import types
 from openai import OpenAI
 from core.config import GEMINI_API_KEY, GROQ_API_KEY, MODELS_LIST, CHOSEN_MODEL
+from core.interlocuteur import nom_virgule
 
 # Clients API
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -68,7 +69,7 @@ async def generer_reponse_ia(prompt, historique=None):
             except Exception as e_groq:
                 print(f"[BRAIN] Secours Groq indisponible : {e_groq}")
                 return ("Je rencontre des difficultés avec mes serveurs principaux "
-                        "et mon système de secours, mylane.")
+                        f"et mon système de secours{nom_virgule()}.")
         return f"Erreur système : {e}"
 
 # Exportation

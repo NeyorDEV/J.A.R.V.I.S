@@ -21,6 +21,7 @@ Le routage se fait en deux temps :
 import os
 import builtins
 from dotenv import load_dotenv
+from core.interlocuteur import nom_virgule
 
 _dir = os.path.dirname(os.path.abspath(__file__))
 _root = os.path.dirname(os.path.dirname(_dir))  # backend/core/ -> racine projet
@@ -95,7 +96,7 @@ async def appeler_outil_ha(nom_outil: str, arguments: dict) -> str:
 async def executer_action_ha(instruction: str) -> str:
     """Traduit une instruction en langage naturel en appel à un outil MCP Home Assistant."""
     if not ha_mcp_configure():
-        return "Home Assistant n'est pas configuré, mylane."
+        return f"Home Assistant n'est pas configuré{nom_virgule()}."
 
     outils = await lister_outils_ha()
     if not outils:

@@ -1,6 +1,7 @@
 import builtins
 import core.config as config
 import re
+from core.interlocuteur import nom_espace, nom_virgule
 
 async def resoudre_francais_localement(texte):
     """Gère les questions de base sur le français et les paramètres de JARVIS."""
@@ -11,8 +12,8 @@ async def resoudre_francais_localement(texte):
         if config.VOIX_ACTUELLE == "homme": return "Ma voix est déjà configurée sur le mode masculin, Monsieur."
         config.VOIX_ACTUELLE = "homme"; return "Très bien Monsieur, je reprends ma voix habituelle."
     if any(kw in t for kw in ["voix de femme", "voix feminine", "mode femme", "parle en femme"]):
-        if config.VOIX_ACTUELLE == "femme": return "Ma voix est déjà configurée sur le mode féminin, mylane."
-        config.VOIX_ACTUELLE = "femme"; return "C'est entendu mylane, je passe sur une fréquence vocale féminine."
+        if config.VOIX_ACTUELLE == "femme": return f"Ma voix est déjà configurée sur le mode féminin{nom_virgule()}."
+        config.VOIX_ACTUELLE = "femme"; return f"C'est entendu{nom_espace()}, je passe sur une fréquence vocale féminine."
 
     # 2. CALCULS MATHÉMATIQUES
     t_math = re.sub(r'([a-zA-Z])\-([a-zA-Z])', r'\1 \2', t)

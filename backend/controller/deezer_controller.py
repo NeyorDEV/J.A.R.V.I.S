@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 import contextlib
 import unicodedata
+from core.interlocuteur import nom_espace, nom_virgule
 
 try:
     import pyautogui
@@ -703,7 +704,7 @@ async def deezer_ouvrir():
                     _attendre_deezer_prete(3.0)
             except:
                 pass
-            return "Deezer est déjà ouvert et accessible, mylane."
+            return f"Deezer est déjà ouvert et accessible{nom_virgule()}."
 
         # Si processus présent mais pas de fenêtre accessible, on le redémarre (Desktop uniquement)
         if deezer_pids:
@@ -713,7 +714,7 @@ async def deezer_ouvrir():
                     except: pass
                 time.sleep(1.5)
             else:
-                return "Deezer est déjà ouvert en arrière-plan, mylane."
+                return f"Deezer est déjà ouvert en arrière-plan{nom_virgule()}."
 
         if os.path.exists(DEEZER_EXE):
             hwnd_before = None
@@ -730,7 +731,7 @@ async def deezer_ouvrir():
             _attendre_deezer_prete(8.0)
             if hwnd_before and hwnd_before != 0:
                 _restore_focus(hwnd_before)
-            return "Deezer lancé en mode accessible, mylane."
+            return f"Deezer lancé en mode accessible{nom_virgule()}."
         else:
             hwnd_before = None
             try: hwnd_before = win32gui.GetForegroundWindow()
@@ -744,7 +745,7 @@ async def deezer_ouvrir():
             _attendre_deezer_prete(6.0)
             if hwnd_before and hwnd_before != 0:
                 _restore_focus(hwnd_before)
-            return "Deezer lancé via protocole standard, mylane."
+            return f"Deezer lancé via protocole standard{nom_virgule()}."
     except Exception as e:
         return f"Je n'ai pas réussi à ouvrir Deezer : {e}"
 
@@ -758,7 +759,7 @@ async def deezer_lecture_pause():
             APPCOMMAND_MEDIA_PLAY_PAUSE = 14
             lParam = APPCOMMAND_MEDIA_PLAY_PAUSE << 16
             win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-            return "Lecture/Pause sur Deezer, mylane."
+            return f"Lecture/Pause sur Deezer{nom_virgule()}."
         except Exception as e:
             print(f"[DEEZER UIA] Échec PostMessage play/pause : {e}")
             
@@ -774,13 +775,13 @@ async def deezer_lecture_pause():
                 APPCOMMAND_MEDIA_PLAY_PAUSE = 14
                 lParam = APPCOMMAND_MEDIA_PLAY_PAUSE << 16
                 win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-                return "Lecture/Pause sur Deezer, mylane."
+                return f"Lecture/Pause sur Deezer{nom_virgule()}."
     except Exception as e:
         print(f"[DEEZER UIA] Échec fallback play/pause : {e}")
         
     if pyautogui:
         pyautogui.press('playpause')
-    return "Lecture/Pause sur Deezer, mylane."
+    return f"Lecture/Pause sur Deezer{nom_virgule()}."
 
 async def deezer_suivant():
     """Piste suivante en arrière-plan sans vol de focus."""
@@ -792,7 +793,7 @@ async def deezer_suivant():
             APPCOMMAND_MEDIA_NEXTTRACK = 11
             lParam = APPCOMMAND_MEDIA_NEXTTRACK << 16
             win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-            return "Piste suivante sur Deezer, mylane."
+            return f"Piste suivante sur Deezer{nom_virgule()}."
         except Exception as e:
             print(f"[DEEZER UIA] Échec PostMessage suivant : {e}")
             
@@ -808,13 +809,13 @@ async def deezer_suivant():
                 APPCOMMAND_MEDIA_NEXTTRACK = 11
                 lParam = APPCOMMAND_MEDIA_NEXTTRACK << 16
                 win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-                return "Piste suivante sur Deezer, mylane."
+                return f"Piste suivante sur Deezer{nom_virgule()}."
     except Exception as e:
         print(f"[DEEZER UIA] Échec fallback suivant : {e}")
         
     if pyautogui:
         pyautogui.press('nexttrack')
-    return "Piste suivante sur Deezer, mylane."
+    return f"Piste suivante sur Deezer{nom_virgule()}."
 
 async def deezer_precedent():
     """Piste précédente en arrière-plan sans vol de focus."""
@@ -826,7 +827,7 @@ async def deezer_precedent():
             APPCOMMAND_MEDIA_PREVTRACK = 12
             lParam = APPCOMMAND_MEDIA_PREVTRACK << 16
             win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-            return "Piste précédente sur Deezer, mylane."
+            return f"Piste précédente sur Deezer{nom_virgule()}."
         except Exception as e:
             print(f"[DEEZER UIA] Échec PostMessage précédent : {e}")
             
@@ -842,13 +843,13 @@ async def deezer_precedent():
                 APPCOMMAND_MEDIA_PREVTRACK = 12
                 lParam = APPCOMMAND_MEDIA_PREVTRACK << 16
                 win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-                return "Piste précédente sur Deezer, mylane."
+                return f"Piste précédente sur Deezer{nom_virgule()}."
     except Exception as e:
         print(f"[DEEZER UIA] Échec fallback précédent : {e}")
         
     if pyautogui:
         pyautogui.press('prevtrack')
-    return "Piste précédente sur Deezer, mylane."
+    return f"Piste précédente sur Deezer{nom_virgule()}."
 
 async def deezer_stop():
     """Arrête la lecture (Pause)."""
@@ -861,9 +862,9 @@ async def deezer_stop():
                 if btn:
                     if btn.Name in ["Pause", "Mettre en pause"]:
                         if _clic_control(btn):
-                            return "Musique mise en pause sur Deezer, mylane."
+                            return f"Musique mise en pause sur Deezer{nom_virgule()}."
                     elif btn.Name == "Écouter":
-                        return "La musique est déjà en pause, mylane."
+                        return f"La musique est déjà en pause{nom_virgule()}."
             return None
             
         res = await asyncio.to_thread(_stop_uia)
@@ -874,7 +875,7 @@ async def deezer_stop():
         
     if pyautogui:
         pyautogui.press('playpause')
-    return "Musique mise en pause sur Deezer, mylane."
+    return f"Musique mise en pause sur Deezer{nom_virgule()}."
 
 async def deezer_volume(direction, paliers=4):
     """Monte ou baisse le volume général du PC."""
@@ -888,7 +889,7 @@ async def deezer_volume(direction, paliers=4):
             pyautogui.press('volumedown')
         time.sleep(0.05)
     msg = "Volume monté" if direction in ("monter", "up", "augmenter", "plus") else "Volume baissé"
-    return f"{msg}, mylane."
+    return f"{msg}{nom_virgule()}."
 
 async def deezer_rechercher(recherche):
     """Recherche intelligente d'un morceau, album, artiste ou playlist, et lance la lecture."""
@@ -943,12 +944,12 @@ async def deezer_rechercher(recherche):
             
         resp = await asyncio.to_thread(requests.get, url, timeout=5)
         if resp.status_code != 200:
-            return f"Je n'ai pas trouvé '{recherche}' sur Deezer, mylane."
+            return f"Je n'ai pas trouvé '{recherche}' sur Deezer{nom_virgule()}."
             
         data = resp.json()
         results = data.get("data", [])
         if not results:
-            return f"Je n'ai pas trouvé '{recherche}' sur Deezer, mylane."
+            return f"Je n'ai pas trouvé '{recherche}' sur Deezer{nom_virgule()}."
             
         first_result = results[0]
         res_id = first_result.get("id")
@@ -956,19 +957,19 @@ async def deezer_rechercher(recherche):
         if type_recherche == "playlist":
             name = first_result.get("title")
             artist = ""
-            msg = f"C'est parti mylane, je lance la playlist « {name} » sur Deezer."
+            msg = f"C'est parti{nom_espace()}, je lance la playlist « {name} » sur Deezer."
         elif type_recherche == "artist":
             name = first_result.get("name")
             artist = name
-            msg = f"C'est parti mylane, je lance les titres de l'artiste « {name} » sur Deezer."
+            msg = f"C'est parti{nom_espace()}, je lance les titres de l'artiste « {name} » sur Deezer."
         elif type_recherche == "album":
             name = first_result.get("title")
             artist = first_result.get("artist", {}).get("name", "")
-            msg = f"C'est parti mylane, je lance l'album « {name} » de {artist} sur Deezer."
+            msg = f"C'est parti{nom_espace()}, je lance l'album « {name} » de {artist} sur Deezer."
         else:
             name = first_result.get("title")
             artist = first_result.get("artist", {}).get("name", "")
-            msg = f"C'est parti mylane, je lance « {name} » de {artist} sur Deezer."
+            msg = f"C'est parti{nom_espace()}, je lance « {name} » de {artist} sur Deezer."
             
         # 2. Exécution avec contrôle d'accessibilité
         await deezer_ouvrir()
@@ -1026,7 +1027,7 @@ async def deezer_rechercher(recherche):
                             12, wait_for_title=query
                         )
                         time.sleep(1.5)
-                        return f"C'est parti mylane, je lance votre playlist « {query} » sur Deezer."
+                        return f"C'est parti{nom_espace()}, je lance votre playlist « {query} » sur Deezer."
                 
                 # Navigation directe via URI
                 _ouvrir_uri_deezer(f"deezer://playlist/{res_id}")

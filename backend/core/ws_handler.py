@@ -62,6 +62,22 @@ def _origine_autorisee(websocket) -> bool:
         r")(:\d+)?$", o))
 
 
+def _en_tache_de_fond(coro):
+    """Lance un handler sans bloquer la lecture des messages suivants de la connexion.
+
+    Indispensable pour les actions qui attendent une confirmation (core/confirmation.py) :
+    attendues en ligne, elles bloquaient la boucle `async for` — le message
+    « confirm_response » envoyé par le clic HUD sur cette même connexion n'était lu
+    qu'après le délai d'expiration, et l'action était donc toujours annulée.
+    """
+    async def _executer():
+        try:
+            await coro
+        except Exception as e:
+            print(f"[WEB] Erreur traitement message : {e}")
+    return lancer_tache_arriere_plan(_executer())
+
+
 async def ws_handler(websocket):
     if not _origine_autorisee(websocket):
         print("[WEB] ⛔ Connexion refusée : origine non autorisée (site web distant ?).")
@@ -122,8 +138,10 @@ async def ws_handler(websocket):
                     resoudre_confirmation(data.get("id", ""), bool(data.get("confirmed")))
 
                 # handler n'existe ici : ils ne faisaient donc rien.
+                elif data.get("type") == "vault_delete_file":
+                    _en_tache_de_fond(ws_vault(websocket, data))  # attend une confirmation
                 elif data.get("type") in ("vault_unlock", "vault_lock", "vault_add_file",
-                                          "vault_export_file", "vault_delete_file"):
+                                          "vault_export_file"):
                     await ws_vault(websocket, data)
 
                 # ── Shopping List ──────────────────────────────────────────
@@ -137,9 +155,9 @@ async def ws_handler(websocket):
                     programs = list_installed_programs()
                     await websocket.send(json.dumps({"type": "installed_programs", "programs": programs}))
                 elif data.get("type") == "uninstall_program":
-                    await ws_uninstall_program(websocket, data)
+                    _en_tache_de_fond(ws_uninstall_program(websocket, data))  # attend une confirmation
                 elif data.get("type") == "clean_leftovers":
-                    await ws_clean_leftovers(websocket, data)
+                    _en_tache_de_fond(ws_clean_leftovers(websocket, data))  # attend une confirmation
                 elif data.get("type") in ["read_file", "write_file"] or data.get("action") in ["read_file", "write_file"]:
                     await ws_fichier(websocket, data)
                 elif data.get("type") == "get_winget_upgrades":
@@ -185,7 +203,10 @@ async def ws_handler(websocket):
                         await handle_cortex_ws(data, websocket)
                     else:
                         from plugins.spatial_explorer import handle_spatial_ws
-                        await handle_spatial_ws(data, websocket)
+                        if action == "delete":
+                            _en_tache_de_fond(handle_spatial_ws(data, websocket))  # attend une confirmation
+                        else:
+                            await handle_spatial_ws(data, websocket)
                 elif data.get("type") == "chess_action":
                     action = data.get("action", "")
                     if action == "start":

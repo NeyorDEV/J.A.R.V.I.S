@@ -17,6 +17,7 @@ import json
 import os
 import re
 import subprocess
+from core.interlocuteur import nom_espace, nom_virgule
 
 # SPOTIFY
 # ==========================================
@@ -47,7 +48,7 @@ async def spotify_ouvrir():
     try:
         # Déjà ouvert ?
         if _focus_spotify():
-            return "Spotify est déjà ouvert, mylane, je l'ai mis au premier plan."
+            return f"Spotify est déjà ouvert{nom_virgule()}, je l'ai mis au premier plan."
         chemin = os.path.expandvars(r"%APPDATA%\Spotify\Spotify.exe")
         if os.path.exists(chemin):
             subprocess.Popen([chemin])
@@ -56,31 +57,31 @@ async def spotify_ouvrir():
             subprocess.Popen(["explorer", "spotify:"], shell=False)
         time.sleep(4)
         _focus_spotify()
-        return "Spotify lancé, mylane."
+        return f"Spotify lancé{nom_virgule()}."
     except Exception as e:
         return f"Je n'ai pas réussi à ouvrir Spotify : {e}"
 
 async def spotify_lecture_pause():
     """Basculer lecture / pause via la touche média globale."""
     pyautogui.press('playpause')
-    return "Lecture/Pause, mylane."
+    return f"Lecture/Pause{nom_virgule()}."
 
 async def spotify_suivant():
     """Piste suivante via la touche média globale."""
     pyautogui.press('nexttrack')
-    return "Piste suivante, mylane."
+    return f"Piste suivante{nom_virgule()}."
 
 async def spotify_precedent():
     """Piste précédente via la touche média globale."""
     pyautogui.press('prevtrack')
-    return "Piste précédente, mylane."
+    return f"Piste précédente{nom_virgule()}."
 
 async def spotify_stop():
     """Met en pause (Spotify n'a pas de vrai stop)."""
     _focus_spotify()
     time.sleep(0.2)
     pyautogui.press('playpause')
-    return "Musique mise en pause, mylane."
+    return f"Musique mise en pause{nom_virgule()}."
 
 def spotify_lancer_playlist(playlist_uri: str = "") -> bool:
     """Ouvre Spotify et lance une playlist/piste par son URI ou son URL web.
@@ -123,7 +124,7 @@ def spotify_lancer_playlist(playlist_uri: str = "") -> bool:
 async def spotify_volume(direction, paliers=4):
     """Monte ou baisse le volume Spotify via Ctrl+Haut/Bas."""
     if not _focus_spotify():
-        return "Spotify ne semble pas ouvert, mylane."
+        return f"Spotify ne semble pas ouvert{nom_virgule()}."
     time.sleep(0.2)
     for _ in range(int(paliers)):
         if direction in ("monter", "up", "augmenter", "plus"):
@@ -132,7 +133,7 @@ async def spotify_volume(direction, paliers=4):
             pyautogui.hotkey('ctrl', 'down')
         time.sleep(0.05)
     msg = "Volume monté" if direction in ("monter", "up", "augmenter", "plus") else "Volume baissé"
-    return f"{msg} sur Spotify, mylane."
+    return f"{msg} sur Spotify{nom_virgule()}."
 
 async def spotify_rechercher(recherche):
     """Ouvre la barre de recherche Spotify, tape la requête et valide."""
@@ -174,5 +175,5 @@ async def spotify_rechercher(recherche):
     # (Note: l'appui sur 'space' peut être risqué si on n'est pas focus, mais Entrée est safe)
     pyautogui.press('enter')
     
-    return f"C'est fait mylane, je lance la lecture de '{recherche}' sur Spotify."
+    return f"C'est fait{nom_espace()}, je lance la lecture de '{recherche}' sur Spotify."
 

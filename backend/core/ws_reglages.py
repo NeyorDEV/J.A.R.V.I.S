@@ -126,7 +126,7 @@ async def ws_update_settings(websocket, data):
         shared.AV_LIVE_PROTECTION_ENABLED = settings["av_live_protection"]
     # Recharger l'identité globalement
     import builtins
-    builtins.USER_NAME = config_data.get("user_name", "mylane")
+    builtins.USER_NAME = config_data.get("user_name", "neyor")
     builtins.USER_AGE = config_data.get("user_age", "37")
 
     # Recharger les apps personnalisées

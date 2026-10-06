@@ -59,7 +59,7 @@ import subprocess
 _original_open = webbrowser.open
 
 def _custom_open(url, *args, **kwargs):
-    # Chemin détecté de l'exécutable Opera GX sur le PC de mylane
+    # Chemin détecté de l'exécutable Opera GX sur le PC de neyor
     opera_gx_path = r"C:\Users\mylan\AppData\Local\Programs\Opera GX\opera.exe"
     if os.path.exists(opera_gx_path):
         try:

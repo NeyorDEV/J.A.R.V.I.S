@@ -22,6 +22,7 @@ from core.micro import detecter_microphone
 from core.speech import parler
 from core.traitement import nettoyer_commande, traiter_reponse_ia
 from core.web_bridge import envoyer_carte_contextuelle, _safe_ws_send, send_web_state
+from core.interlocuteur import CREATEUR, NOM_CREATEUR, nom_espace, nom_virgule
 
 
 def ecouter():
@@ -263,7 +264,7 @@ def ecouter():
                                     name, score = shared.VOICE_BIOMETRICS.identify_speaker(raw_audio, RATE)
                                     voiceprints = shared.VOICE_BIOMETRICS.load_voiceprints()
                                     if not voiceprints:
-                                        shared.ACTIVE_SPEAKER = "mylane"
+                                        shared.ACTIVE_SPEAKER = "neyor"
                                         builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
                                         print(f"🎙  [SPEAKER] Aucun profil enregistré. Par défaut : {shared.ACTIVE_SPEAKER}")
                                     else:
@@ -279,8 +280,8 @@ def ecouter():
                                         shared.SPEAKER_ANNOUNCED = shared.ACTIVE_SPEAKER
                                         if shared.ACTIVE_SPEAKER == "guest":
                                             parler("Voix inconnue détectée, connexion en mode invité restreint.")
-                                        elif shared.ACTIVE_SPEAKER == "mylane":
-                                            parler("Voix de Mylane détectée, toutes les permissions sont accordées.")
+                                        elif shared.ACTIVE_SPEAKER == CREATEUR:
+                                            parler(f"Voix de {NOM_CREATEUR} détectée, toutes les permissions sont accordées.")
                                         else:
                                             parler(f"Voix de {shared.ACTIVE_SPEAKER.capitalize()} détectée, connexion sécurisée établie.")
                                 except Exception as eb:
@@ -319,7 +320,7 @@ def ecouter():
                                             type_carte="info",
                                             icon="◈"
                                         ))
-                                        parler("Carte de test affichée sur le HUD, mylane.")
+                                        parler(f"Carte de test affichée sur le HUD{nom_virgule()}.")
                                         loop.close()
                                         audio_buffer = []
                                         continue
@@ -359,7 +360,7 @@ def ecouter():
                                             finally:
                                                 loop.close()
                                 elif shared.WAKE_WORD in texte:
-                                    parler("Oui mylane, je vous écoute.")
+                                    parler(f"Oui{nom_espace()}, je vous écoute.")
                         else:
                             _safe_ws_send(json.dumps({"action": "jarvis_text", "text": ""}))
                                     

@@ -24,6 +24,7 @@ from module.file_manager import (
 )
 from module.image_generator import generer_image_ia
 from module.memory_manager import ajouter_memoire, charger_memoire, supprimer_memoire
+from core.interlocuteur import nom_espace, nom_ou_utilisateur, nom_virgule
 
 
 async def executer_action(action, data, block, texte_utilisateur, reponse_propre):
@@ -133,7 +134,7 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
         ajouter_memoire(cle, valeur)
         if hasattr(builtins, "_notify_factual_memory_added"):
             builtins._notify_factual_memory_added(cle, valeur)
-        parler(f"Bien note mylane, je me souviendrai que {valeur}.")
+        parler(f"Bien note{nom_espace()}, je me souviendrai que {valeur}.")
     elif action == "oublier":
         cle     = data.get("cle", "")
         # Supprimer de la mémoire clé-valeur
@@ -147,15 +148,15 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                 _safe_ws_send(json.dumps({"action": "cortex_update", "deleted_id": f"kv_{cle}"}))
             if success_vect:
                 _safe_ws_send(json.dumps({"action": "cortex_update", "deleted_id": cle}))
-            parler("Information oubliee, mylane.")
+            parler(f"Information oubliee{nom_virgule()}.")
         else:
             parler("Je n avais pas cette information en memoire.")
     elif action == "lister_memoire":
         memoire = charger_memoire()
         if not memoire:
-            parler("Aucune information personnalisee en memoire, mylane.")
+            parler(f"Aucune information personnalisee en memoire{nom_virgule()}.")
         else:
-            lignes = ["Voici ce que je sais sur vous mylane."]
+            lignes = [f"Voici ce que je sais sur vous{nom_espace()}."]
             for cle, data_m in memoire.items():
                 lignes.append(f"{cle} : {data_m['valeur']}.")
             parler(" ".join(lignes))
@@ -163,26 +164,26 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
         desc = data.get("description") or data.get("sujet") or data.get("prompt") or "un site web"
         from backend.plugins.dev_swarm_resolver import run_dev_swarm_process
         asyncio.create_task(run_dev_swarm_process(desc))
-        parler("Très bien mylane, je mobilise l'essaim d'agents d'élite pour coder votre projet. Suivi actif sur le HUD.")
+        parler(f"Très bien{nom_espace()}, je mobilise l'essaim d'agents d'élite pour coder votre projet. Suivi actif sur le HUD.")
     elif action == "generer_image":
         prompt = data.get("prompt", "")
         if prompt:
-            parler(f"Très bien mylane, je génère l'image de {prompt}. Un instant...")
+            parler(f"Très bien{nom_espace()}, je génère l'image de {prompt}. Un instant...")
             img_data = await asyncio.to_thread(generer_image_ia, prompt)
             if img_data:
                 await envoyer_image_web(img_data, prompt)
-                parler("Voici l'image demandée, mylane. Elle s'affiche sur votre interface.")
+                parler(f"Voici l'image demandée{nom_virgule()}. Elle s'affiche sur votre interface.")
             else:
-                parler("Désolé mylane, la génération d'image a échoué.")
+                parler(f"Désolé{nom_espace()}, la génération d'image a échoué.")
         else:
-            parler("Que souhaitez-vous que je dessine, mylane ?")
+            parler(f"Que souhaitez-vous que je dessine{nom_virgule()} ?")
     elif action == "ouvrir_dossier":
         chemin = data.get("chemin", "bureau")
         ok, resultat = ouvrir_dossier(chemin)
         if ok:
-            parler("Dossier ouvert, mylane. Dites-moi si vous voulez que je le trie.")
+            parler(f"Dossier ouvert{nom_virgule()}. Dites-moi si vous voulez que je le trie.")
         else:
-            parler(f"Je n ai pas trouve ce dossier, mylane. {resultat}")
+            parler(f"Je n ai pas trouve ce dossier{nom_virgule()}. {resultat}")
     elif action == "analyser_fichier":
         nom = data.get("nom", "")
         question = data.get("question", "Peux-tu me résumer ce document ?")
@@ -193,7 +194,7 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                 parler(err_ou_chemin)
             else:
                 prompt_analyse = (
-                    f"URGENT : Tu es JARVIS, l'assistant personnel de mylane.\n"
+                    f"URGENT : Tu es JARVIS, l'assistant personnel de Neyor. Tu réponds à {nom_ou_utilisateur()}.\n"
                     f"Tu viens d'extraire le contenu du fichier '{nom}'.\n"
                     f"Voici ce contenu :\n\n{texte_fichier}\n\n"
                     f"L'utilisateur demande : {question}\n"
@@ -203,7 +204,7 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                 if rep_analyse:
                     parler(rep_analyse)
                 else:
-                    parler("Désolé mylane, j'ai lu le fichier mais je n'arrive pas à synthétiser une réponse.")
+                    parler(f"Désolé{nom_espace()}, j'ai lu le fichier mais je n'arrive pas à synthétiser une réponse.")
         else:
             parler("Je n'ai pas compris quel fichier vous souhaitez que j'analyse.")
     elif action == "lister_dossier":
@@ -213,17 +214,17 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
         else:
             nb_fichiers = len(contenu["fichiers"])
             nb_dossiers = len(contenu["dossiers"])
-            parler(f"Le dossier contient {nb_fichiers} fichiers et {nb_dossiers} sous-dossiers, mylane.")
+            parler(f"Le dossier contient {nb_fichiers} fichiers et {nb_dossiers} sous-dossiers{nom_virgule()}.")
     elif action == "trier_par_type":
-        parler("Je trie vos fichiers par type, mylane. Un instant.")
+        parler(f"Je trie vos fichiers par type{nom_virgule()}. Un instant.")
         ok, msg = trier_par_type()
         parler(msg if ok else f"Probleme lors du tri : {msg}")
     elif action == "trier_par_date":
-        parler("Je trie vos fichiers par date, mylane. Un instant.")
+        parler(f"Je trie vos fichiers par date{nom_virgule()}. Un instant.")
         ok, msg = trier_par_date()
         parler(msg if ok else f"Probleme lors du tri : {msg}")
     elif action == "trier_complet":
-        parler("Je trie vos fichiers par type puis par date dans chaque categorie, mylane.")
+        parler(f"Je trie vos fichiers par type puis par date dans chaque categorie{nom_virgule()}.")
         ok, msg = trier_par_type_puis_date()
         parler(msg if ok else f"Probleme lors du tri : {msg}")
     elif action == "creer_dossier":
@@ -278,7 +279,7 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
         if err:
             parler(err)
         elif not resultats:
-            parler(f"Je n'ai rien trouvé correspondant à '{nom}', mylane.")
+            parler(f"Je n'ai rien trouvé correspondant à '{nom}'{nom_virgule()}.")
         else:
             cible = resultats[0]
             ok, msg = ouvrir_fichier_ou_dossier(cible)

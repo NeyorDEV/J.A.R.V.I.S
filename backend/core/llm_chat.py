@@ -5,6 +5,8 @@ import base64
 import builtins
 import json
 import re
+import threading
+from datetime import datetime
 
 import google.genai as genai
 from google.genai import types
@@ -21,6 +23,7 @@ from module.memory_manager import _sauvegarder_echange_conv
 from module.meteo_domotique import get_meteo_actuelle, get_meteo_ha, HA_URL
 from module.sports_web import recherche_web_serpapi
 from module.vector_memory import ajouter_souvenir, rechercher_souvenirs
+from core.interlocuteur import NOM_CREATEUR, nom_espace
 
 
 async def demander_ia(texte, update_hist=True, skip_local=False):
@@ -56,7 +59,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                 
             # Si le mode local forcé ou hors-ligne a échoué
             if force_local or offline:
-                return "Désolé mylane, mon cortex local Ollama n'est pas disponible ou n'est pas lancé actuellement."
+                return f"Désolé{nom_espace()}, mon cortex local Ollama n'est pas disponible ou n'est pas lancé actuellement."
                 
             # Failsafe : Si le local simple a échoué, on bascule silencieusement sur le cloud
             print("[CERVEAU] Failsafe : Échec d'Ollama local simple, bascule de secours sur le Cloud...")
@@ -300,7 +303,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
         _aucune_api = (not shared.gemini_actif and not shared.groq_client and not shared.grok_client and not shared.anthropic_client)
         if _aucune_api:
             return (
-                "Je suis bien en ligne mylane, mais mes moteurs d'intelligence artificielle ne sont pas encore configurés. "
+                f"Je suis bien en ligne{nom_espace()}, mais mes moteurs d'intelligence artificielle ne sont pas encore configurés. "
                 "Pour libérer tout mon potentiel, vous devez renseigner vos clés API dans le fichier .env. "
                 "En attendant, je reste disponible pour toutes vos commandes locales : domotique, heure, calculs, et bien plus encore !"
             )
@@ -371,7 +374,7 @@ async def demander_ia_vision(texte, img_b64):
             err_str = str(last_err).lower() if last_err else ""
             if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
                 print("[VISION] Quota Gemini epuise — vision impossible sans Gemini.")
-                return ("Désolé mylane, mon quota Gemini est épuisé pour aujourd'hui. "
+                return (f"Désolé{nom_espace()}, mon quota Gemini est épuisé pour aujourd'hui. "
                         "La vision par caméra et écran fonctionne uniquement avec Gemini — "
                         "je ne peux donc pas analyser d'images en ce moment. "
                         "Réessayez demain quand le quota sera réinitialisé.")
@@ -389,7 +392,7 @@ async def demander_ia_vision(texte, img_b64):
         print(f"[VISION] Erreur Gemini Vision : {e}")
         # On évite les accolades dans le message d'erreur pour ne pas perturber l'extracteur JSON
         err_msg = str(e).replace("{", "[").replace("}", "]")
-        return f"Désolé mylane, je n'ai pas pu analyser votre écran. Erreur : {err_msg}"
+        return f"Désolé{nom_espace()}, je n'ai pas pu analyser votre écran. Erreur : {err_msg}"
     finally:
         shared.is_thinking = False
         await send_web_state("idle")
@@ -402,6 +405,45 @@ def detecter_cerveau(texte):
     if any(m in cmd for m in mots_cles_grok):
         return "GROK"
     return "GEMINI"
+
+
+def generer_salutation_demarrage(timeout=6.0):
+    """Phrase d'accueil du démarrage, générée par l'IA (style JARVIS, différente à chaque fois).
+
+    Retourne None si Gemini est indisponible ou trop lent : l'appelant prononce alors
+    une phrase de secours. Aucun enregistrement dans l'historique ni la mémoire.
+    """
+    if not shared.client:
+        return None
+    resultat = {}
+
+    def _appel():
+        try:
+            maintenant = datetime.now()
+            jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+            consigne = (
+                f"Tu viens de démarrer. Nous sommes {jours[maintenant.weekday()]}, il est "
+                f"{maintenant.strftime('%H:%M')}. Salue {NOM_CREATEUR}, ton créateur, en une seule phrase courte "
+                "(8 à 18 mots), adaptée au moment de la journée, dans ton style. "
+                "Varie la formulation : ne dis pas 'Je suis prêt', 'Que puis-je faire pour vous' "
+                "ni 'Tous mes systèmes sont opérationnels'. Aucune flatterie, aucune action JSON."
+            )
+            rep = shared.client.models.generate_content(
+                model=shared.MODELS_LIST[0],
+                contents=consigne,
+                config=types.GenerateContentConfig(system_instruction=construire_system_prompt(), temperature=1.0),
+            )
+            resultat["texte"] = (rep.text or "").strip()
+        except Exception as e:
+            print(f"[JARVIS] Accueil généré indisponible ({formater_erreur_courte(e)}) — phrase de secours.")
+
+    t = threading.Thread(target=_appel, daemon=True)
+    t.start()
+    t.join(timeout)
+    texte = resultat.get("texte")
+    if not texte or "{" in texte or len(texte) > 220:
+        return None
+    return texte
 
 
 builtins.demander_ia_vision = demander_ia_vision

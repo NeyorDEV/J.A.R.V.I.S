@@ -39,9 +39,9 @@ def initialiser_vad_biometrie():
                 builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
                 print(f"🎙  [BIOMETRICS] Empreintes chargées : {list(voiceprints.keys())}. Mode initial : guest")
             else:
-                shared.ACTIVE_SPEAKER = "mylane"
+                shared.ACTIVE_SPEAKER = "neyor"
                 builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
-                print("🎙  [BIOMETRICS] Aucune empreinte vocale trouvée. Mode par défaut : mylane")
+                print("🎙  [BIOMETRICS] Aucune empreinte vocale trouvée. Mode par défaut : neyor")
     except Exception as e:
         print(f"❌  [VAD/BIOMETRICS] Erreur lors de l'initialisation : {e}")
 

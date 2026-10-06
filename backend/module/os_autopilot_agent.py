@@ -16,6 +16,7 @@ import google.genai as genai
 from google.genai import types
 from core.config import GEMINI_API_KEY, CHOSEN_MODEL
 from controller.app_launcher import _APPS_CATALOGUE, _boulot_lancer
+from core.interlocuteur import nom_espace, nom_virgule
 
 # Initialisation du client de génération
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -24,7 +25,7 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 pyautogui.FAILSAFE = True
 
 SYSTEM_INSTRUCTION = """
-Tu es l'agent d'Autopilote OS de J.A.R.V.I.S. Ton but est de traduire des instructions de l'utilisateur (mylane) en une séquence d'actions système Windows.
+Tu es l'agent d'Autopilote OS de J.A.R.V.I.S. Ton but est de traduire des instructions de l'utilisateur en une séquence d'actions système Windows.
 Tu devez renvoyer OBLIGATOIREMENT un tableau JSON contenant la suite d'instructions à exécuter.
 
 CONSIGNES IMPORTANTES DE RECHERCHE & SÉCURITÉ :
@@ -63,7 +64,7 @@ Exemple de réponse pour "ouvre le bloc-notes, écris bonjour et sauvegarde sur 
   {"action": "wait", "seconds": 1.0},
   {"action": "shortcut", "keys": ["ctrl", "n"]},
   {"action": "wait", "seconds": 0.5},
-  {"action": "type_text", "text": "Bonjour mylane, j'exécute vos ordres.", "app_title": "bloc-notes"},
+  {"action": "type_text", "text": "Bonjour, j'exécute vos ordres.", "app_title": "bloc-notes"},
   {"action": "wait", "seconds": 0.5},
   {"action": "shortcut", "keys": ["ctrl", "s"]},
   {"action": "wait", "seconds": 1.0},
@@ -492,9 +493,9 @@ async def executer_sequence_actions(sequence):
         parler = getattr(builtins, "parler", None)
         if parler:
             if execution_error:
-                parler("Désolé mylane, une erreur est survenue pendant l'autopilote OS.")
+                parler(f"Désolé{nom_espace()}, une erreur est survenue pendant l'autopilote OS.")
             else:
-                parler("J'ai terminé l'exécution de l'autopilote OS, mylane.")
+                parler(f"J'ai terminé l'exécution de l'autopilote OS{nom_virgule()}.")
         
         # Réinitialiser le timeout de session pour que JARVIS reste actif après l'exécution
         builtins.dernier_message = time.time()
@@ -523,12 +524,12 @@ async def lancer_autopilote(instruction):
             sequence = sequence.get("steps", [])
             
         if not sequence:
-            return "Je n'ai pas pu dresser un plan d'actions valide pour cette tâche, mylane."
+            return f"Je n'ai pas pu dresser un plan d'actions valide pour cette tâche{nom_virgule()}."
             
         print(f"[OS AGENT] Séquence planifiée avec succès ({len(sequence)} étapes)")
         asyncio.create_task(executer_sequence_actions(sequence))
         
-        return "C'est parti mylane, j'active l'autopilote OS. Regardez mon curseur virtuel à l'écran."
+        return f"C'est parti{nom_espace()}, j'active l'autopilote OS. Regardez mon curseur virtuel à l'écran."
         
     except Exception as e:
         print(f"[OS AGENT ERROR] Impossible de planifier la tâche : {e}")

@@ -6,6 +6,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 import datetime
+from core.interlocuteur import nom_virgule
 
 try:
     import google.oauth2.credentials
@@ -116,7 +117,7 @@ def creer_google_doc(titre="Nouveau Document", contenu=""):
             requests_body = [{"insertText": {"location": {"index": 1}, "text": contenu}}]
             service.documents().batchUpdate(documentId=doc_id, body={"requests": requests_body}).execute()
         webbrowser.open(f"https://docs.google.com/document/d/{doc_id}/edit")
-        return f"Document {titre} cree et ouvert, mylane."
+        return f"Document {titre} cree et ouvert{nom_virgule()}."
     except Exception as e:
         return f"Erreur Google Docs : {e}"
 
@@ -225,7 +226,7 @@ def creer_google_task(titre, notes=None):
         if notes:
             body['notes'] = notes
         task = service.tasks().insert(tasklist='@default', body=body).execute()
-        return f"Tâche '{titre}' ajoutée dans Google Tasks, mylane."
+        return f"Tâche '{titre}' ajoutée dans Google Tasks{nom_virgule()}."
     except Exception as e:
         return f"Erreur Google Tasks : {e}"
 
@@ -270,12 +271,12 @@ def complete_google_task(titre):
                 break
         
         if not task_id:
-            return f"Tâche '{titre}' introuvable dans votre Google Tasks, mylane."
+            return f"Tâche '{titre}' introuvable dans votre Google Tasks{nom_virgule()}."
         
         task = service.tasks().get(tasklist='@default', task=task_id).execute()
         task['status'] = 'completed'
         service.tasks().update(tasklist='@default', task=task_id, body=task).execute()
-        return f"Tâche '{exact_title}' validée dans Google Tasks, mylane."
+        return f"Tâche '{exact_title}' validée dans Google Tasks{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de la validation de la tâche : {e}"
 
@@ -298,17 +299,17 @@ def delete_google_task(titre):
                 break
         
         if not task_id:
-            return f"Tâche '{titre}' introuvable dans votre Google Tasks, mylane."
+            return f"Tâche '{titre}' introuvable dans votre Google Tasks{nom_virgule()}."
         
         service.tasks().delete(tasklist='@default', task=task_id).execute()
-        return f"Tâche '{exact_title}' supprimée de Google Tasks, mylane."
+        return f"Tâche '{exact_title}' supprimée de Google Tasks{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de la suppression de la tâche : {e}"
 
 def ouvrir_google_drive():
     try:
         webbrowser.open("https://drive.google.com/")
-        return "J'ai ouvert votre Google Drive, mylane."
+        return f"J'ai ouvert votre Google Drive{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de l'ouverture du Google Drive : {e}"
 
@@ -365,7 +366,7 @@ def envoyer_email(destinataire, sujet, corps):
         body = {'raw': raw_message}
         
         service.users().messages().send(userId="me", body=body).execute()
-        return f"E-mail envoyé avec succès à {destinataire}, mylane."
+        return f"E-mail envoyé avec succès à {destinataire}{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de l'envoi de l'e-mail : {e}"
 
@@ -380,7 +381,7 @@ def repondre_email(corps, original_msg_id=None):
         
         msg_id = original_msg_id or dernier_msg_id
         if not msg_id:
-            return "Aucun e-mail récent à qui répondre en session, mylane."
+            return f"Aucun e-mail récent à qui répondre en session{nom_virgule()}."
         
         orig_msg = service.users().messages().get(userId="me", id=msg_id, format="metadata").execute()
         thread_id = orig_msg.get('threadId')
@@ -406,7 +407,7 @@ def repondre_email(corps, original_msg_id=None):
         body = {'raw': raw_message, 'threadId': thread_id}
         
         service.users().messages().send(userId="me", body=body).execute()
-        return f"Réponse envoyée avec succès à {original_from}, mylane."
+        return f"Réponse envoyée avec succès à {original_from}{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de la réponse à l'e-mail : {e}"
 
@@ -419,7 +420,7 @@ def lire_detail_email(msg_id=None):
         
         target_id = msg_id or dernier_msg_id
         if not target_id:
-            return "Aucun e-mail trouvé en session, mylane."
+            return f"Aucun e-mail trouvé en session{nom_virgule()}."
             
         msg = service.users().messages().get(userId="me", id=target_id).execute()
         payload = msg.get('payload', {})
@@ -464,13 +465,13 @@ def archiver_email(msg_id=None):
         
         target_id = msg_id or dernier_msg_id
         if not target_id:
-            return "Aucun e-mail récent à archiver, mylane."
+            return f"Aucun e-mail récent à archiver{nom_virgule()}."
             
         service.users().messages().batchModify(
             userId="me",
             body={"ids": [target_id], "removeLabelIds": ["INBOX"]}
         ).execute()
-        return "L'e-mail a été archivé avec succès, mylane."
+        return f"L'e-mail a été archivé avec succès{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de l'archivage de l'e-mail : {e}"
 
@@ -483,10 +484,10 @@ def supprimer_email(msg_id=None):
         
         target_id = msg_id or dernier_msg_id
         if not target_id:
-            return "Aucun e-mail récent à supprimer, mylane."
+            return f"Aucun e-mail récent à supprimer{nom_virgule()}."
             
         service.users().messages().trash(userId="me", id=target_id).execute()
-        return "L'e-mail a été déplacé dans la corbeille avec succès, mylane."
+        return f"L'e-mail a été déplacé dans la corbeille avec succès{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de la suppression de l'e-mail : {e}"
 
@@ -511,7 +512,7 @@ def creer_evenement_calendar(summary, start_time, end_time, description=None):
             event['description'] = description
             
         service.events().insert(calendarId="primary", body=event).execute()
-        return f"Événement '{summary}' créé avec succès dans votre agenda, mylane."
+        return f"Événement '{summary}' créé avec succès dans votre agenda{nom_virgule()}."
     except Exception as e:
         return f"Erreur de création de l'événement Calendar : {e}"
 
@@ -538,7 +539,7 @@ def modifier_evenement_calendar(ancien_titre, nouveau_titre=None, nouvelle_heure
                 break
                 
         if not event_id:
-            return f"Événement '{ancien_titre}' introuvable dans votre agenda, mylane."
+            return f"Événement '{ancien_titre}' introuvable dans votre agenda{nom_virgule()}."
             
         if nouveau_titre:
             event_data['summary'] = nouveau_titre
@@ -556,7 +557,7 @@ def modifier_evenement_calendar(ancien_titre, nouveau_titre=None, nouvelle_heure
                     event_data['end']['dateTime'] = nouvelle_heure
             
         service.events().update(calendarId="primary", event=event_id, body=event_data).execute()
-        return f"Événement '{exact_summary}' modifié avec succès dans votre agenda, mylane."
+        return f"Événement '{exact_summary}' modifié avec succès dans votre agenda{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de la modification de l'événement : {e}"
 
@@ -581,10 +582,10 @@ def supprimer_evenement_calendar(titre):
                 break
                 
         if not event_id:
-            return f"Événement '{titre}' introuvable dans votre agenda, mylane."
+            return f"Événement '{titre}' introuvable dans votre agenda{nom_virgule()}."
             
         service.events().delete(calendarId="primary", event=event_id).execute()
-        return f"Événement '{exact_summary}' supprimé de votre agenda avec succès, mylane."
+        return f"Événement '{exact_summary}' supprimé de votre agenda avec succès{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de la suppression de l'événement : {e}"
 
@@ -597,7 +598,7 @@ def ajouter_ligne_sheet(valeurs, spreadsheet_id=None, onglet="Feuille 1"):
         
         target_id = spreadsheet_id or dernier_sheet_id
         if not target_id:
-            return "Aucune feuille de calcul active en session, mylane."
+            return f"Aucune feuille de calcul active en session{nom_virgule()}."
             
         if not isinstance(valeurs, list):
             valeurs = [valeurs]
@@ -613,7 +614,7 @@ def ajouter_ligne_sheet(valeurs, spreadsheet_id=None, onglet="Feuille 1"):
             body=body
         ).execute()
         
-        return "Données insérées avec succès dans la feuille, mylane."
+        return f"Données insérées avec succès dans la feuille{nom_virgule()}."
     except Exception as e:
         return f"Erreur lors de l'écriture dans Google Sheets : {e}"
 
@@ -626,7 +627,7 @@ def lire_donnees_sheet(cell_range, spreadsheet_id=None):
         
         target_id = spreadsheet_id or dernier_sheet_id
         if not target_id:
-            return "Aucune feuille de calcul active en session, mylane."
+            return f"Aucune feuille de calcul active en session{nom_virgule()}."
             
         result = service.spreadsheets().values().get(
             spreadsheetId=target_id,
@@ -653,7 +654,7 @@ def lire_contenu_doc(doc_id=None):
         
         target_id = doc_id or dernier_doc_id
         if not target_id:
-            return "Aucun document actif en session, mylane."
+            return f"Aucun document actif en session{nom_virgule()}."
             
         doc = service.documents().get(documentId=target_id).execute()
         
@@ -714,7 +715,7 @@ def partager_fichier_drive(email, role="reader", file_id=None):
         
         target_id = file_id or dernier_doc_id
         if not target_id:
-            return "Aucun document actif en session à partager, mylane."
+            return f"Aucun document actif en session à partager{nom_virgule()}."
             
         permission = {
             'type': 'user',
@@ -722,7 +723,7 @@ def partager_fichier_drive(email, role="reader", file_id=None):
             'emailAddress': email
         }
         service.permissions().create(fileId=target_id, body=permission).execute()
-        return f"Le document a été partagé avec succès avec {email} en tant que {role}, mylane."
+        return f"Le document a été partagé avec succès avec {email} en tant que {role}{nom_virgule()}."
     except Exception as e:
         return f"Erreur de partage du fichier : {e}"
 

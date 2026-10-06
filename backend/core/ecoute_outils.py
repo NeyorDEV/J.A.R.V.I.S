@@ -102,7 +102,7 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
 def _protocole_enrolement_vocal(commande, queue_ecoute, RATE, CHUNK, SILENCE_LIMIT, ENERGY_THRESHOLD):
     """Protocole d'enrôlement biométrique : 5 phrases répétées, une empreinte vocale par phrase."""
     import queue
-    prenom = "mylane"
+    prenom = "neyor"
     if "enregistre la voix de" in commande:
         prenom = commande.split("enregistre la voix de")[-1].strip()
     elif "apprends la voix de" in commande:
@@ -110,7 +110,7 @@ def _protocole_enrolement_vocal(commande, queue_ecoute, RATE, CHUNK, SILENCE_LIM
 
     prenom = re.sub(r'[^a-zA-Z0-9_-]', '', prenom).lower()
     if not prenom:
-        prenom = "mylane"
+        prenom = "neyor"
 
     # Liste des phrases à répéter proposées et validées par l'utilisateur
     phrases = [

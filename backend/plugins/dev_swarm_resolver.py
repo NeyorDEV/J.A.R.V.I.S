@@ -10,6 +10,7 @@ import difflib
 import google.genai as genai
 from core.config import GEMINI_API_KEY, CHOSEN_MODEL
 from module.sandbox_executor import executer_fichier_sandbox
+from core.interlocuteur import nom_virgule
 
 # Initialisation du client de génération Gemini
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -1193,9 +1194,9 @@ async def resoudre_lance_sandbox(cmd):
         # Même garde-fou que resoudre_creation_site_web : exécuter un script déjà
         # généré tourne avec les pleins privilèges de l'utilisateur. Un invité
         # non authentifié n'avait aucune restriction sur ce chemin.
-        if getattr(builtins, "ACTIVE_SPEAKER", "mylane") == "guest":
+        if getattr(builtins, "ACTIVE_SPEAKER", "neyor") == "guest":
             print("🔒 [DEV SWARM] Exécution refusée : locuteur non authentifié (invité).")
-            return "Désolé, l'exécution de scripts est réservée aux utilisateurs authentifiés, mylane."
+            return f"Désolé, l'exécution de scripts est réservée aux utilisateurs authentifiés{nom_virgule()}."
         import subprocess
         if entry_point.endswith(".py"):
             try:

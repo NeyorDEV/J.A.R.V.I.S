@@ -1084,7 +1084,7 @@ export class CortexMap {
     if (this.selectedNode) {
       this._send('cortex_speak', { entity_id: this.selectedNode.data.id });
     } else {
-      this._send('cortex_speak_error', { message: "Aucun souvenir sélectionné dans votre cortex, mylane. Veuillez en sélectionner un en cliquant sur un nœud." });
+      this._send('cortex_speak_error', { message: "Aucun souvenir sélectionné dans votre cortex. Veuillez en sélectionner un en cliquant sur un nœud." });
     }
   }
 
