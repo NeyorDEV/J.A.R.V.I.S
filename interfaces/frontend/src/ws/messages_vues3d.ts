@@ -1,55 +1,48 @@
 import { cardManager } from "../cards";
 import { handleHAMessage } from "../ha_dashboard";
 import { updateMusicUI, updateWeatherUI } from "../widgets";
-import { _holoActive, _openHolo } from "../hud/holo";
+import { fermerVues3D, ouvrirVue3D, vue3DOuverte } from "../hud/vues_3d";
 import { orb } from "../hud/orb_state";
 import { showConfirmDialog } from "../panels/confirm_dialog";
 import { showImageHUD } from "../panels/image_panels";
 import { openShoppingPanel, setShoppingList } from "../panels/shopping_panel";
 import { type JarvisMessage } from "./message_types";
 
-// Messages backend : échecs, radar réseau, domotique, cortex, explorateur 3D, cartes,
-// météo, musique, courses, Home Assistant (extrait du gestionnaire de main.ts).
-export function handleHoloMessage(data: JarvisMessage): boolean {
+// Messages backend : vues 3D (échecs, radar réseau, domotique, cortex, explorateur),
+// cartes, météo, musique, courses, Home Assistant (extrait du gestionnaire de main.ts).
+// Les vues 3D s'ouvrent directement, sans passer par l'ancien mode hologramme.
+export function handleVues3DMessage(data: JarvisMessage): boolean {
   // ── Chess Map 3D ──
   if (data.action === "chess_start") {
-    if (!_holoActive) {
-      _openHolo();
-    }
+    ouvrirVue3D("chess");
     setTimeout(() => {
-      const app = (window as any)._holoApp;
-      if (app) {
-        if (!app.chessMap) {
-          app.toggleChess();
+      const chess = (window as any)._chessMap;
+      if (chess) {
+        // Si la commande provient du serveur avec des paramètres de configuration
+        const anyData = data as any;
+        if (anyData.difficulty) {
+          const diffSelect = document.getElementById('chess-config-difficulty') as HTMLSelectElement | null;
+          if (diffSelect) diffSelect.value = anyData.difficulty;
         }
-        setTimeout(() => {
-          const chess = (window as any)._chessMap;
-          if (chess) {
-            // Si la commande provient du serveur avec des paramètres de configuration
-            const anyData = data as any;
-            if (anyData.difficulty) {
-              const diffSelect = document.getElementById('chess-config-difficulty') as HTMLSelectElement | null;
-              if (diffSelect) diffSelect.value = anyData.difficulty;
-            }
-            if (anyData.player_color) {
-              const colorSelect = document.getElementById('chess-config-color') as HTMLSelectElement | null;
-              if (colorSelect) colorSelect.value = anyData.player_color;
-            }
-            if (anyData.use_timer) {
-              const timerSelect = document.getElementById('chess-config-timer') as HTMLSelectElement | null;
-              if (timerSelect) timerSelect.value = anyData.use_timer;
-            }
+        if (anyData.player_color) {
+          const colorSelect = document.getElementById('chess-config-color') as HTMLSelectElement | null;
+          if (colorSelect) colorSelect.value = anyData.player_color;
+        }
+        if (anyData.use_timer) {
+          const timerSelect = document.getElementById('chess-config-timer') as HTMLSelectElement | null;
+          if (timerSelect) timerSelect.value = anyData.use_timer;
+        }
 
-            // Démarrer la partie avec les paramètres si fournis
-            if (anyData.difficulty && anyData.player_color && anyData.use_timer) {
-                                chess.startFromConfig(anyData.difficulty, anyData.player_color, anyData.use_timer === 'yes');
-            }
+        // Démarrer la partie avec les paramètres si fournis
+        if (anyData.difficulty && anyData.player_color && anyData.use_timer) {
+          chess.startFromConfig(anyData.difficulty, anyData.player_color, anyData.use_timer === 'yes');
+        }
 
-            chess.handleGameState(data.state);
-          }
-        }, 100);
+        // « On joue aux échecs » envoie chess_start sans état de partie (le plateau attend
+        // alors sa configuration) : handleGameState(undefined) levait une TypeError.
+        if (data.state) chess.handleGameState(data.state);
       }
-    }, 150);
+    }, 100);
     return true;
   }
 
@@ -62,10 +55,7 @@ export function handleHoloMessage(data: JarvisMessage): boolean {
   }
 
   if (data.action === "chess_stop") {
-    const app = (window as any)._holoApp;
-    if (app && app.chessMap) {
-      app.toggleChess();
-    }
+    if (vue3DOuverte("chess")) fermerVues3D();
     return true;
   }
 
@@ -86,18 +76,14 @@ export function handleHoloMessage(data: JarvisMessage): boolean {
   }
         // ── Network Radar 3D ──
   if (data.action === "network_radar_show") {
-    if (!_holoActive) _openHolo();
-    setTimeout(() => {
-      const app = (window as any)._holoApp;
-      if (app && !app.networkRadar) app.toggleNetworkRadar?.();
-      const connections = (data as any).connections;
-      if (connections) {
-        setTimeout(() => {
-          const radar = (window as any)._networkRadar;
-          if (radar) radar.handleRadarUpdate(connections);
-        }, 200);
-      }
-    }, 150);
+    ouvrirVue3D("radar");
+    const connections = (data as any).connections;
+    if (connections) {
+      setTimeout(() => {
+        const radar = (window as any)._networkRadar;
+        if (radar) radar.handleRadarUpdate(connections);
+      }, 200);
+    }
     return true;
   }
   if (data.action === "network_radar_update") {
@@ -106,8 +92,7 @@ export function handleHoloMessage(data: JarvisMessage): boolean {
     return true;
   }
   if (data.action === "network_radar_hide") {
-    const app = (window as any)._holoApp;
-    if (app?.networkRadar) app.toggleNetworkRadar?.();
+    if (vue3DOuverte("radar")) fermerVues3D();
     return true;
   }
   if (data.action === "blocked_ips") {
@@ -136,14 +121,7 @@ export function handleHoloMessage(data: JarvisMessage): boolean {
   }
 
   if (data.action === "cortex_search") {
-    if (!_holoActive) {
-      _openHolo();
-    }
-    const app = (window as any)._holoApp;
-    if (app && !app.cortexMap) {
-      app.toggleCortex();
-    }
-    
+    ouvrirVue3D("cortex");
     setTimeout(() => {
       const cortex = (window as any)._cortexMap;
       if (cortex && typeof (data as any).query === "string") {
@@ -162,63 +140,31 @@ export function handleHoloMessage(data: JarvisMessage): boolean {
   }
 
   if (data.action === "open_spatial_explorer") {
-    if (!_holoActive) {
-      _openHolo();
-    }
-            setTimeout(() => {
-      const app = (window as any)._holoApp;
-      if (app) {
-        if (!app.spatialExplorer) {
-          app.toggleExplorer();
-        }
-      }
-    }, 150);
+    ouvrirVue3D("explorer");
     return true;
   }
 
   if (data.action === "domotic_audio_route_animation") {
-    if (!_holoActive) {
-      _openHolo();
-    }
+    ouvrirVue3D("domotic");
     setTimeout(() => {
-      const app = (window as any)._holoApp;
-      if (app && !app.domoticMap) {
-        app.toggleDomotic();
-      }
-      setTimeout(() => {
-        const domMap = (window as any)._domoticMap;
-        if (domMap) domMap.handleServerResponse(data);
-      }, 250);
-    }, 200);
+      const domMap = (window as any)._domoticMap;
+      if (domMap) domMap.handleServerResponse(data);
+    }, 250);
     return true;
   }
 
   if (data.action === "open_domotic_map") {
-    if (!_holoActive) {
-      _openHolo();
-    }
-    setTimeout(() => {
-      const app = (window as any)._holoApp;
-      if (app) {
-        if (!app.domoticMap) {
-          app.toggleDomotic();
-        }
-      }
-    }, 150);
+    ouvrirVue3D("domotic");
     return true;
   }
-        if (data.action === "open_cortex") {
-    if (!_holoActive) {
-      _openHolo();
-    }
-    setTimeout(() => {
-      const app = (window as any)._holoApp;
-      if (app) {
-        if (!app.cortexMap) {
-          app.toggleCortex();
-        }
-      }
-    }, 150);
+  if (data.action === "open_cortex") {
+    ouvrirVue3D("cortex");
+    return true;
+  }
+
+  // Fermeture de la vue 3D ouverte (« ferme le cortex », « ferme la vue 3D »...)
+  if (data.action === "close_3d_view") {
+    fermerVues3D();
     return true;
   }
 

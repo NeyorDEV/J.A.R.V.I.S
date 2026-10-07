@@ -24,18 +24,6 @@ _API_PLACEHOLDERS = frozenset({"VOTRE_CLE_ICI", "Votre ID", "votre_id",
                                 "VOTRE_TOKEN_ICI", "votre_token_ici", ""})
 
 
-def get_local_ip():
-    import socket
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
-
-
 def _sauvegarder_env(data: dict) -> None:
     """Met à jour le fichier .env et met à jour os.environ en temps réel."""
     env_path = os.path.join(shared.RACINE_PROJET, ".env")

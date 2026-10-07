@@ -58,7 +58,6 @@ def installer_console():
                 "[ALARME]": ("⏰", "cyan"),
                 "[JARVIS]": ("🤖", "cyan"),
                 "[UPDATE]": ("🔄", "cyan"),
-                "[MOBILE]": ("📱", "cyan"),
                 "[CLAP]": ("👏", "cyan"),
                 "[CONV]": ("💬", "cyan"),
                 "[WEB]": ("🌐", "cyan"),

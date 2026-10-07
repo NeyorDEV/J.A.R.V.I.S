@@ -23,19 +23,19 @@ programmée dans le système J.A.R.V.I.S.
 * Visualiseur de fréquence : Barre de spectre audio dynamique en bas de l'écran.
 
 ================================================================================
-3. GLOBE TERRESTRE 3D (frontend/src/globe.ts, plugins/globe_resolver.py)
+3. GLOBE TERRESTRE 3D (frontend/src/globe.ts, module/globe_local.py)
 ================================================================================
 * Earth 3D : Modélisation Three.js réaliste de la Terre avec textures jour/nuit, nuages et scanlines.
 * Pilotage vocal : Commandes de zoom spatial ("rapproche/éloigne") et vols vers une ville avec géocodage.
 * Transition intelligente : Bascule automatique du globe vers la carte 2D si la caméra approche trop.
 
 ================================================================================
-4. MODE HOLOGRAMME & SUIVI GESTUEL AR (frontend/src/hologramme.js)
+4. VUES 3D PLEIN ÉCRAN & SUIVI GESTUEL (frontend/src/vues_3d.js, hud/vues_3d.ts)
 ================================================================================
-* Tracking MediaPipe : Capture webcam en direct pour dessiner le squelette 3D de vos mains.
-* Clics virtuels : Pincement de doigts pour cliquer à distance sur l'interface.
-* Manipulation 3D : Lancer, tourner, déformer ou compresser des formes 3D wireframe par gestes.
-* Jeu spatial (Ball Game) : Jeu de balle physique avec multiplicateur de score et rebond sur la paume.
+* Ouverture à la voix : explorateur spatial, maison 3D, cortex, échecs et radar réseau s'ouvrent directement, une vue à la fois (l'ancien mode hologramme a été supprimé).
+* Rendu commun : scène Three.js avec lueur (bloom), aberration chromatique et fond étoilé.
+* Tracking MediaPipe : Capture webcam en direct pour dessiner le squelette de vos mains et piloter la vue (pincer pour attraper, deux mains pour tourner).
+* Clics virtuels : Pincement de doigts pour cliquer à distance sur les panneaux des vues.
 * Jeu d'Échecs 3D (ChessMap) : Plateau d'échecs 3D interactif et tactile avec options vocales/HUD complets, boutons 3D flottants orientés intelligemment et suivi gestuel.
 
 ================================================================================
@@ -67,20 +67,14 @@ programmée dans le système J.A.R.V.I.S.
 * Bannière de statut : Bandeau affiché sur le navigateur résumant l'action en cours.
 
 ================================================================================
-9. APPLICATION MOBILE (mobile/)
-================================================================================
-* Interface mobile : Orbe 3D réactif et commandes d'action optimisés pour smartphone.
-* Synthèse et reconnaissance vocales locales : Utilise la Web Speech API pour le contrôle à distance.
-
-================================================================================
-10. ROUTAGE HYBRIDE MULTI-CERVEAU & SÉCURITÉ (main.py, core/brain.py)
+9. ROUTAGE HYBRIDE MULTI-CERVEAU & SÉCURITÉ (main.py, core/brain.py)
 ================================================================================
 * IA hybride : Résolution locale (Ollama) si hors-ligne, sinon routeur Cloud intelligent (Groq / Claude / Gemini).
 * Auto-évolution : Pipeline de modification de son propre code avec tests unitaires automatiques et rollback.
 * Protection invité : Blocage d'accès aux fichiers, emails et commandes système pour les voix non reconnues.
 
 ================================================================================
-11. ASSISTANTS PRATIQUES & VIE QUOTIDIENNE (plugins/, module/)
+10. ASSISTANTS PRATIQUES & VIE QUOTIDIENNE (plugins/, module/)
 ================================================================================
 * Recettes de cuisine : Génération adaptative selon le nombre de personnes et affichage/lecture du processus.
 * Système d'alarmes : Alarmes persistantes (`alarmes.json`) en arrière-plan à heure fixe ou relative.
@@ -88,58 +82,58 @@ programmée dans le système J.A.R.V.I.S.
 * Générateur d'images : Génération d'illustrations via Pollinations.ai converties en base64 pour le HUD.
 
 ================================================================================
-12. NAVIGATEUR VISUEL & AUTOPILOTE OS (module/)
+11. NAVIGATEUR VISUEL & AUTOPILOTE OS (module/)
 ================================================================================
 * Autopilote Windows : Traduction de requêtes en actions système (clavier, clics, lancements) via PyAutoGUI.
 * Saisie et dossiers sécurisés : Presse-papiers AZERTY anti-conflit et détection des créations de fichiers.
 * Agent web visuel (Opera GX) : Lance Opera avec vos cookies et sessions et navigue par analyse de screenshots (Gemini Vision).
 
 ================================================================================
-13. INTÉGRATIONS SERVICES CLOUD & WEB (module/)
+12. INTÉGRATIONS SERVICES CLOUD & WEB (module/)
 ================================================================================
 * Google Services : Lecture et écriture autonomes sur Gmail, Calendar, Drive, Docs, Sheets et Tasks.
 * Chromecast & TV (ADB) : Allumage TV (WoL), contrôle du volume, Youtube Cast et lancement d'applications.
 * Musique (Deezer/Spotify) : Commandes multimédias Windows et récupération du titre en cours.
 * Sports & Météo : Résultats/classements de football en direct (TheSportsDB) et météo (Open-Meteo/wttr.in).
 ================================================================================
-14. CONFIGURATION API À CHAUD (main.py, frontend/)
+13. CONFIGURATION API À CHAUD (main.py, frontend/)
 ================================================================================
 * Sauvegarde en direct : Modification des clés d'API (Gemini, Mistral, Groq, SerpApi, etc.) depuis le HUD avec écriture asynchrone automatique dans le fichier `.env` à la racine et rechargement des clients IA à chaud.
 
 ================================================================================
-15. MENU CONTROLE SYSTÈME UNIFIÉ & DIALOGUES (frontend/index.html, main.ts)
+14. MENU CONTROLE SYSTÈME UNIFIÉ & DIALOGUES (frontend/index.html, main.ts)
 ================================================================================
-* Hub central : Regroupe l'ensemble des contrôles (GPU Boost, Hologramme, Clavier visuel, Désinstallateur, Domotique, Vider Cache, Liste Commandes, Config API, Paramètres).
+* Hub central : Regroupe l'ensemble des contrôles (GPU Boost, Clavier visuel, Désinstallateur, Domotique, Vider Cache, Liste Commandes, Config API, Paramètres).
 * Liaison robuste : Liaison événementielle directe et résiliente pour basculer les écrans, masquer le clavier visuel ou fermer le menu de manière fluide.
 
 ================================================================================
-16. DÉSINSTATEUR D'APPLICATIONS INTERACTIF (frontend/src/uninstaller.ts)
+15. DÉSINSTATEUR D'APPLICATIONS INTERACTIF (frontend/src/uninstaller.ts)
 ================================================================================
 * Registry Scanner : Analyse en arrière-plan des logiciels Windows installés via les registres 32/64 bits.
 * UI Réactive : Filtre de recherche instantané, bouton de désinstallation et barre de progression fluide pendant le processus système.
 
 ================================================================================
-17. MISE A JOUR LOGICIELLE INTÉGRÉE - WINGET (frontend/src/winget.ts)
+16. MISE A JOUR LOGICIELLE INTÉGRÉE - WINGET (frontend/src/winget.ts)
 ================================================================================
 * Détecteur d'obsolescence : Vérifie asynchronement les versions logicielles de Windows via Winget.
 * Badge de notification : Affiche sur le bouton menu le nombre de paquets à mettre à jour.
 * Console en temps réel : Log dynamique et asynchrone des étapes de téléchargement et d'installation.
 
 ================================================================================
-19. ANTIVIRUS SCANNNEUR & PROTECTION RESIDENTE (antivirus_scanner.py)
+17. ANTIVIRUS SCANNNEUR & PROTECTION RESIDENTE (antivirus_scanner.py)
 ================================================================================
 * Scanner à la demande : Scan rapide de répertoires ou fichiers spécifiques avec reporting.
 * Protection en temps réel : Moniteur résident activable à chaud pour bloquer l'écriture de scripts malveillants.
 
 ================================================================================
-20. MORPHING DE MOTS 3D ET ORIENTATION DE L'ORBE (frontend/src/orb.ts)
+18. MORPHING DE MOTS 3D ET ORIENTATION DE L'ORBE (frontend/src/orb.ts)
 ================================================================================
 * Rejection Sampling : Algorithme d'échantillonnage de pixels haute résolution pour projeter exactement 2000 points d'un mot dans le plan 3D Three.js.
 * Stabilisation de tracé : Figeage de la caméra en position (0, 0, 75) et annulation des rotations et forces de dérives/bruits de volume de l'orbe pendant l'écriture pour un rendu 100% stable et net de gauche à droite.
 * Masquage de lignes : Désactivation totale des lignes de liaison pendant le dessin du mot pour éviter les effets de toile d'araignée rigides.
 
 ================================================================================
-21. EXHAUSTIVITÉ DES COMMANDES SUGGÉRÉES (frontend/src/main.ts)
+19. EXHAUSTIVITÉ DES COMMANDES SUGGÉRÉES (frontend/src/main.ts)
 ================================================================================
 * Index Exhaustif : Liste de suggestions alimentée par la totalité des 164 commandes vocales réelles de J.A.R.V.I.S.
 * Popups Aléatoires : Affichage harmonieux de 16 exemples tirés au sort lors du clic sur le bouton "Liste Commandes".

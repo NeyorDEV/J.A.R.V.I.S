@@ -1,7 +1,7 @@
 /* ============================================================
    spatial_explorer.ts — Explorateur de Fichiers Spatial 3D
-   Module autonome pour naviguer dans les fichiers en hologramme.
-   Utilise la scène Three.js existante de hologramme.js.
+   Module autonome pour naviguer dans les fichiers en 3D.
+   Utilise la scène Three.js commune des vues 3D (vues_3d.js).
    ============================================================ */
 
 import * as THREE from 'three';

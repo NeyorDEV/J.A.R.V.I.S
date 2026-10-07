@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-10-07 — Suppression de l'interface mobile
+
+- **Dossier `interfaces/mobile/` supprimé** (page web pour smartphone), ainsi que son serveur HTTP sur le port 8080, le bouton MOBILE du carrousel et sa fenêtre d'adresse.
+- **Le WebSocket n'écoute plus que sur la machine** (`localhost:8765`, et non plus sur tout le réseau) : un appareil du réseau local ne peut plus piloter JARVIS. Les pages servies depuis une adresse du réseau local sont aussi refusées.
+- Retirés côté backend : la commande `mobile_command`, l'envoi de la voix au téléphone (`jarvis_audio`), le drapeau `_skip_pc_audio` (qui ne fonctionnait d'ailleurs pas : il était lu dans `core.config`, où il restait toujours faux) et l'affichage de l'adresse réseau au démarrage.
+
+## 2026-10-07 — Globe 3D : correction de tous les bugs recensés
+
+- **Un seul resolver** : `plugins/globe_resolver.py` (supprimé) et `module/globe_local.py` s'enregistraient sous le même nom et l'emportaient selon l'ordre de chargement ; la version du plugin envoyait « affiche la Terre » vers un lieu-dit près de La Rochelle, « ma position » au Bénin, et ne savait ni fermer, ni tracer d'itinéraire.
+- **Plus de faux lieux** : un lieu n'est retenu que si Nominatim le juge assez important (les lieux-dits, rues, commerces homonymes sont écartés) ; « montre-moi la Terre » affiche la vue spatiale. Les déclencheurs génériques (« trouve », « où est »...) laissent la main à l'IA s'il n'y a pas de vrai lieu.
+- **Itinéraires** : « de A à B » fonctionne (le « à » accentué n'était pas reconnu) ; tracé en grand cercle, cadré au milieu réel du trajet (Tokyo → Los Angeles visait l'Afrique).
+- **Ma position** : position actuelle donnée par le service de localisation de Windows (Wi-Fi / réseau, à quelques kilomètres près, annoncée comme telle) au lieu de la géolocalisation du navigateur, refusée dans la fenêtre JARVIS ; à défaut, le domicile réglé dans JARVIS, présenté comme tel.
+- **En-tête du globe retiré** (« J.A.R.V.I.S / SYSTÈME DE NAVIGATION / by Neyor »).
+- **Vols** : un deuxième vol ne bascule plus sur la carte 2D ; la Terre reste centrée (le pivot de la caméra restait sur le dernier lieu survolé) ; altitude selon le type de lieu ; trajectoire sphérique qui ne traverse plus la Terre ; plus de vol vers 0,0 si un lieu est inconnu.
+- **Carte 2D** : fermée avec le globe (elle réapparaissait à la réouverture) ; recentrée si un vol arrive pendant qu'elle est affichée ; imagerie satellite Esri avec noms de lieux (les tuiles Google n'étaient pas une API publique).
+- **Zoom vocal** (« rapproche-toi », « éloigne-toi ») quand le globe est ouvert (le frontend signale son état au backend).
+- **Gestes** : les mains tournent la Terre avec ses marqueurs et itinéraires (ils restaient en place) ; zoom à deux mains cohérent.
+- **Performances** : la boucle de rendu du globe ne tourne plus que globe affiché (elle tournait en permanence depuis le démarrage de JARVIS) ; étoiles créées une seule fois.
+- Divers : double fermeture du bouton ✕, fermeture puis réouverture rapides, latitude 0 traitée comme absente, horloge marquée « UTC » qui affichait l'heure locale, en-tête du globe masqué par le bouton CLAVIER.
+- **Échecs** : « on joue aux échecs » ne lève plus d'erreur JavaScript (message sans état de partie).
+
+## 2026-10-07 — Suppression du mode hologramme, vues 3D autonomes
+
+- **Mode hologramme supprimé** : formes 3D, jeu de balle, dock, HUD, raccourcis clavier, bouton HOLO du carrousel et commandes vocales « mode hologramme » / « miroir holo » (`hologramme.js`, `hud/holo.ts` retirés).
+- **Les vues 3D s'ouvrent directement à la voix**, sans passer par le holo : explorateur spatial, maison 3D, cortex, échecs, radar réseau. Nouveau module `vues_3d.js` (rendu Three.js avec lueur et fond étoilé, contrôle par les mains via la webcam conservé) piloté par `hud/vues_3d.ts`.
+- **Une seule vue à la fois** : avant, ouvrir la maison laissait le cortex actif (jusqu'à trois vues superposées), et fermer le radar rouvrait le cortex. Fermer une vue ramène désormais à JARVIS.
+- **Fermeture à la voix** : « ferme le cortex », « ferme la maison », « ferme l'explorateur spatial », « ferme le radar », « ferme la vue 3D », « retour Jarvis » (et l'ancien « ferme l'hologramme »). Bouton « ⌂ RETOUR JARVIS » conservé.
+- **Corrigé au passage** : « explorateur spatial / 3D » ouvrait l'Explorateur Windows (`plugins/app_launcher_resolver.py`), si bien que l'explorateur 3D ne s'ouvrait jamais à la voix ; « quitte les échecs » relançait le plateau (`plugins/dom_controller_resolver.py`). Le message d'erreur de la webcam (accès refusé…) s'affiche maintenant.
+
+## 2026-10-06 — Contrôle Deezer en arrière-plan (`controller/deezer_cdp.py`)
+
+- **Tout se fait en arrière-plan** : JARVIS pilote directement la page de l'appli Deezer par son port de débogage local (127.0.0.1). Deezer n'est jamais affiché ni mis au premier plan, qu'il soit réduit, caché dans la zone de notification ou sous un jeu plein écran. Commandes en 0,1 à 3 s.
+- **Un titre est lancé depuis la liste des résultats de recherche** (et non plus depuis la page de l'album ou du titre) : Deezer enchaîne ensuite sur les titres suivants. La ligne visée a exactement ce titre et le bon album (pas de version karaoké ou de reprise).
+- **Albums, playlists (les vôtres d'abord), « Top titres » ou mix d'un artiste** : ouverture par identifiant puis bouton de lecture de la page ou de la carte de l'artiste.
+- **Résultat vérifié exactement** (identifiant du morceau ou du contexte de lecture) : en cas d'échec, JARVIS le dit au lieu d'annoncer « C'est parti ».
+- **Pause, reprise, suivant, précédent** passent par le lecteur interne de Deezer : fini les « déjà en pause » erronés.
+- **Plus aucun lien deezer://** : ils restauraient Deezer et lui donnaient le focus, ce qui vous sortait de votre jeu.
+- Deezer est lancé avec ce port par JARVIS. S'il a été démarré autrement (raccourci, démarrage de Windows), JARVIS le relance une fois, réduit, à la première commande qui lance une musique.
+- L'artiste choisi est l'homonyme le plus suivi (l'API Deezer plaçait parfois un « Ziak » à 252 fans avant le vrai).
+- En secours, si ce pilotage est indisponible : accessibilité Windows, sans lien deezer:// ni clic souris réel, avec la même vérification. Deezer réduit est rendu réceptif de façon invisible le temps de l'action (il refuse sinon les commandes d'accessibilité).
+
 ## 2026-10-06 — Découpage de `main.ts` (HUD)
 
 `interfaces/frontend/src/main.ts` passe de **3 323 à ~115 lignes** : il ne fait plus qu'orchestrer le démarrage. Son contenu est réparti dans 24 nouveaux fichiers (tous sous 350 lignes), **sans changement de logique** : code déplacé à l'identique, ordre d'évaluation des modules et d'initialisation conservé.

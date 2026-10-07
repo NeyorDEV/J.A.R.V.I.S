@@ -169,8 +169,7 @@ except ImportError:
 load_dotenv()
 
 # ── Clés API et clients des moteurs IA ──────────────────────────────────────
-from core.ai_clients import get_local_ip, initialiser_cles_et_clients
-shared.LOCAL_IP = get_local_ip()
+from core.ai_clients import initialiser_cles_et_clients
 initialiser_cles_et_clients()
 
 # Météo / Home Assistant / MCP : importés APRÈS la lecture des clés (ils rechargent
@@ -189,8 +188,8 @@ builtins.FORCE_LOCAL_MODE = False
 
 shared.historique = _charger_historique_recent()
 
-# Resolver local du globe : injecté dans builtins au même moment qu'avant (le
-# plugin globe_resolver.py, chargé en arrière-plan, injecte aussi ce nom).
+# Resolver local du globe, injecté dans builtins (seul resolver du globe : l'ancien
+# plugins/globe_resolver.py, qui écrasait ce nom selon l'ordre de chargement, a été supprimé).
 import module.globe_local  # noqa: F401
 
 # ── Mixer audio ─────────────────────────────────────────────────────────────
@@ -212,7 +211,6 @@ from core.llm_chat import generer_salutation_demarrage
 from core.micro import monitor_claps
 from core.lancement import (
     afficher_statut_services, liberer_ports_occupes, lancer_frontend, ouvrir_interface,
-    start_mobile_http_server,
 )
 from module.antivirus_live import boucle_antivirus_live
 from module.domotique_sim import broadcast_ha_stats, update_homepods_metadata_loop
@@ -246,7 +244,8 @@ def start_ia():
         # Le gestionnaire de parole est déjà lancé au démarrage du script
 
 
-        async with websockets.serve(ws_handler, "0.0.0.0", 8765):
+        # Écoute locale uniquement (HUD, PyWebView, extension Chrome) : rien n'est exposé au réseau
+        async with websockets.serve(ws_handler, "localhost", 8765):
             await asyncio.Future()
 
     threading.Thread(target=lambda: asyncio.run(start_ws()), daemon=True).start()
@@ -291,7 +290,6 @@ def main():
     frontend_process, FRONTEND_URL = lancer_frontend()
 
     # Lancer les services en arriere-plan
-    threading.Thread(target=start_mobile_http_server, daemon=True).start()
     threading.Thread(target=start_ia, daemon=True).start()
 
     # Nettoyage automatique du cache WebView2 si version changée

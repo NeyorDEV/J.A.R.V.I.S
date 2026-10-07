@@ -51,6 +51,19 @@ async def _commandes_identite_hud(t):
     if any(k in t for k in ["mosaïque dossiers", "range mes dossiers", "range les dossiers", "range tous les dossiers", "range tous mes dossiers", "mosaïque"]):
         return arranger_fenetres_dossiers()
 
+    # --- FERMETURE DES VUES 3D (explorateur, maison, cortex, radar) ---
+    # Avant les commandes d'ouverture : « ferme le cortex » contient « cortex ».
+    # (Les échecs ont leur propre « quitte les échecs », qui arrête aussi la partie.)
+    if any(k in t for k in [
+        "ferme le cortex", "ferme ton cortex", "quitte le cortex", "ferme l'explorateur spatial", "ferme l'explorateur 3d",
+        "ferme la carte domotique", "ferme la carte 3d", "ferme la maison", "ferme ma maison", "ferme le radar",
+        "ferme la vue 3d", "quitte la vue 3d", "ferme les vues 3d", "ferme la 3d", "retour jarvis",
+        "ferme l'hologramme", "désactive l'hologramme", "desactive l'hologramme",
+        "désactive le mode hologramme", "desactive le mode hologramme", "ferme le mode holo",
+    ]):
+        _safe_ws_send(json.dumps({"action": "close_3d_view"}))
+        return f"Vue 3D fermée{nom_virgule()}."
+
     # --- MODE EXPLORATEUR SPATIAL 3D ---
     if any(k in t for k in [
         "ouvre tous les dossiers", "ouvre tous mes dossiers", "ouvre mes dossiers", "ouvre les dossiers", 

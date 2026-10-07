@@ -15,6 +15,8 @@ def _charger_listes():
 
 def _sauvegarder_listes(data):
     try:
+        # data/ n'existe pas encore sur une installation neuve (dossier non versionné)
+        os.makedirs(os.path.dirname(_LISTES_PATH), exist_ok=True)
         with open(_LISTES_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
     except: pass

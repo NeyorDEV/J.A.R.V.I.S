@@ -3,7 +3,6 @@ import { toggleVision } from "../screen_capture";
 import { wsRef } from "../ws_link";
 import { helpOverlayEl, jarvisMenuBtn, jarvisMenuDropdown, settingsModalEl } from "./dom_refs";
 import { hideHelpHUD, showHelpHUD } from "./help_hud";
-import { _closeHolo, _holoActive, _openHolo } from "./holo";
 import { closeSettingsModal, openSettingsModal } from "./settings";
 import { hudState } from "./state";
 import { closeAntivirusPanel, openAntivirusPanel } from "../panels/antivirus_panel";
@@ -22,17 +21,6 @@ export function initCarouselActions(): void {
   // 0. Vision Button
   bindCarouselAction("vision-button", (btn) => {
     toggleVision(btn);
-  });
-
-  // 2. Hologramme
-  bindCarouselAction("holo-button", (btn) => {
-    if (_holoActive) {
-      _closeHolo();
-      setCarouselBtnState(btn, false);
-    } else {
-      _openHolo();
-      setCarouselBtnState(btn, true);
-    }
   });
 
   // 3. HUD Text Subtitles
@@ -167,19 +155,6 @@ export function initCarouselActions(): void {
     });
   });
 
-  // 9.5. Application Mobile Smartphone
-  bindCarouselAction("carousel-mobile-btn", (btn) => {
-    toggleHudPanel("mobile-info-modal", btn as HTMLElement, () => {
-      const urlDisplay = document.getElementById("mobile-url-display");
-      const host = window.location.hostname || "localhost";
-      if (urlDisplay) {
-        urlDisplay.textContent = `http://${host}:8080`;
-      }
-    });
-  });
-
-
-
   // 11. Liste des commandes (Toggle ON/OFF)
   bindCarouselAction("carousel-commands-btn", () => {
     if (!helpOverlayEl) return;
@@ -244,7 +219,6 @@ export function initCarouselActions(): void {
     "uninstaller-panel": ["carousel-uninstaller-btn"],
     "winget-panel":      ["carousel-winget-btn"],
     "ha-panel":          ["carousel-ha-btn"],
-    "mobile-info-modal": ["carousel-mobile-btn"],
     "av-panel":          ["carousel-av-scan-btn"],
     "help-overlay":      ["carousel-commands-btn"],
     // La page paramètres unifiée a deux points d'entrée (bouton haut + dock) : les deux

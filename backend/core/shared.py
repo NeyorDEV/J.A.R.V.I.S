@@ -23,7 +23,6 @@ historique = []                     # remplacé au démarrage par l'historique r
 _derniere_reponse_streamed = False
 phrases_streamed = []
 is_thinking = False
-_skip_pc_audio = False              # True quand la commande vient du mobile (le tél gère son propre TTS)
 _USE_LLM_INTENT = True              # Dispatch d'intentions par function calling Gemini (fallback resolvers)
 MODE_IRON_MAN = False
 VOIX_ACTUELLE = "homme"             # "homme" ou "femme"
@@ -47,6 +46,8 @@ CLAP_THRESHOLD = 1200
 VAD_MODEL = None
 VOICE_BIOMETRICS = None
 ACTIVE_SPEAKER = "neyor"
+# Globe 3D affiché ? (signalé par le frontend, message « globe_state ») — sert au zoom vocal
+GLOBE_VISIBLE = False
 SPEAKER_ANNOUNCED = None
 WAKEWORD_MODEL = None
 WAKEWORD_THRESHOLD = 0.35
@@ -82,7 +83,6 @@ CONNECTED_CLIENTS = set()
 interface_deja_connectee = False
 PENDING_SCREEN_CAPTURES = {}
 BACKGROUND_TASKS = set()
-LOCAL_IP = None
 _WEBVIEW_WINDOW = None
 # Passer à True si WebView2 est définitivement cassé sur votre système
 FORCE_BROWSER_MODE = False

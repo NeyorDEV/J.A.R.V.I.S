@@ -8,7 +8,6 @@ def _charger_plugins():
     import plugins.local_resolver
     import plugins.system_resolver
     import plugins.extras
-    import plugins.globe_resolver
     import plugins.memory_resolver
     import plugins.list_manager
     import plugins.time_resolver

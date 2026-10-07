@@ -81,7 +81,7 @@ async def _essayer_resolvers_statiques(texte):
     return reponse
 
 
-async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False, de_confiance=False):
+async def traiter_reponse_ia(texte_utilisateur, from_voice=False, de_confiance=False):
     """Enveloppe garantissant que l'état « réflexion » est toujours relâché.
 
     Sans ce try/finally, is_thinking restait à True dès qu'une commande était
@@ -92,8 +92,7 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
     """
     try:
         return await _traiter_reponse_ia_impl(
-            texte_utilisateur, mobile_ws=mobile_ws,
-            from_voice=from_voice, de_confiance=de_confiance
+            texte_utilisateur, from_voice=from_voice, de_confiance=de_confiance
         )
     finally:
         shared.is_thinking = False
@@ -103,7 +102,7 @@ async def traiter_reponse_ia(texte_utilisateur, mobile_ws=None, from_voice=False
             pass
 
 
-async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice=False, de_confiance=False):
+async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confiance=False):
     shared.dernier_message = time.time()
     shared._derniere_reponse_streamed = False
     shared.phrases_streamed = []
@@ -121,10 +120,6 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
         # Clavier du HUD local : l'utilisateur est physiquement devant la machine.
         shared.ACTIVE_SPEAKER = "neyor"
         builtins.ACTIVE_SPEAKER = "neyor"
-    # NB : les commandes distantes (mobile) ne promeuvent PLUS le locuteur.
-    # Auparavant tout message écrit forçait ACTIVE_SPEAKER = "neyor" : un locuteur
-    # classé « guest » par la biométrie n'avait qu'à passer par le mobile pour
-    # débloquer toutes les actions sensibles pour le reste de la session.
 
     if shared.traiter_lock.locked():
         parler(f"Je termine ce que je fais{nom_virgule()}. Un instant.")
@@ -138,8 +133,6 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
         set_stop_parler(False)
         shared.is_thinking = True
         reponse = None
-        # Reset du flag audio au début de chaque commande
-        shared._skip_pc_audio = False
         
         # NETTOYAGE DU TEXTE (Enlever 'Jarvis' au début pour ne pas perturber les plugins)
         texte_utilisateur = nettoyer_commande(texte_utilisateur)
@@ -198,10 +191,6 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
             reponse = await demander_ia(texte_utilisateur, skip_local=force_skip_local)
         
         # print(f"[JARVIS] {reponse}")
-
-        # Si commande mobile : activer le flag pour couper l'audio PC et répondre via mobile
-        if mobile_ws:
-            shared._skip_pc_audio = True
 
         # Robustesse type : Si le résolveur a retourné un booléen, le convertir en chaîne
         if isinstance(reponse, bool):
@@ -304,5 +293,4 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, mobile_ws=None, from_voice
                     if res_grok: parler(res_grok)
                 continue
 
-        shared._skip_pc_audio = False
         return

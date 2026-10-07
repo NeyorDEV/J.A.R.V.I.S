@@ -18,7 +18,7 @@ except ImportError:
 
 
 def afficher_statut_services():
-    """Affiche le tableau « STATUT DES SERVICES » (ports WebSocket, interface mobile, commande vocale)."""
+    """Affiche le tableau « STATUT DES SERVICES » (port WebSocket, commande vocale)."""
     try:
         from rich.console import Console
         from rich.table import Table
@@ -28,8 +28,6 @@ def afficher_statut_services():
         table = Table(show_header=False, box=None, padding=(0, 2))
         table.add_row("[cyan]⚙  Backend[/cyan]", "[green]Actif (Terminal)[/green]")
         table.add_row("[cyan]🌐  WebSocket (Local)[/cyan]", "[green]ws://localhost:8765[/green]")
-        table.add_row("[cyan]🌐  WebSocket (Réseau)[/cyan]", f"[green]ws://{shared.LOCAL_IP}:8765[/green]")
-        table.add_row("[cyan]📱  Interface Mobile[/cyan]", f"[green]http://{shared.LOCAL_IP}:8080[/green]")
         table.add_row("[cyan]🎙  Commande Vocale[/cyan]", "[yellow]Active (Mot-clé: 'Jarvis')[/yellow]")
 
         print()
@@ -42,8 +40,7 @@ def afficher_statut_services():
         print()
     except Exception:
         print("  Backend   : actif (terminal)")
-        print(f"  WebSocket : ws://localhost:8765  (LAN: ws://{shared.LOCAL_IP}:8765)")
-        print(f"  Mobile    : http://{shared.LOCAL_IP}:8080")
+        print("  WebSocket : ws://localhost:8765")
         print()
         print("  Commandes vocales actives.")
         print("  Dites 'Jarvis' pour activer la session.")
@@ -52,10 +49,10 @@ def afficher_statut_services():
 
 
 def liberer_ports_occupes():
-    """Termine une éventuelle instance précédente qui occuperait les ports 8765, 8080 ou 5173."""
+    """Termine une éventuelle instance précédente qui occuperait les ports 8765 ou 5173."""
     # Liberer les ports si une instance precedente tourne encore
-    # Un seul appel netstat pour les 3 ports (évite 3x ~1.5s de latence)
-    _ports_a_liberer = [8765, 8080, 5173]
+    # Un seul appel netstat pour les 2 ports (évite 2x ~1.5s de latence)
+    _ports_a_liberer = [8765, 5173]
     try:
         _result = subprocess.run(["netstat", "-ano"], capture_output=True)
         _stdout = _result.stdout.decode(errors='ignore')
@@ -279,23 +276,6 @@ def ouvrir_interface(frontend_process, FRONTEND_URL):
     else:
         # MODE NAVIGATEUR (fallback si pywebview absent)
         _ouvrir_dans_navigateur(FRONTEND_URL, frontend_process)
-
-
-def start_mobile_http_server():
-    """Serveur HTTP minimal pour servir l'interface mobile sur le port 8080."""
-    import http.server
-    mobile_dir = os.path.join(shared.RACINE_PROJET, "interfaces", "mobile")
-    if not os.path.exists(mobile_dir):
-        print("[MOBILE] Dossier mobile/ introuvable, serveur non demarre.")
-        return
-    class MobileHandler(http.server.SimpleHTTPRequestHandler):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, directory=mobile_dir, **kwargs)
-        def log_message(self, format, *args):
-            pass  # Silencieux
-    server = http.server.HTTPServer(("0.0.0.0", 8080), MobileHandler)
-    print("[MOBILE] Serveur HTTP mobile démarré.")
-    server.serve_forever()
 
 
 def _trouver_chemin_navigateur():

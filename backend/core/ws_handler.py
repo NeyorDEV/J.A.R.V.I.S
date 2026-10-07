@@ -33,8 +33,8 @@ from plugins.list_manager import _charger_listes
 # Les WebSockets ne sont PAS soumis à la politique CORS : n'importe quel site web
 # visité dans un navigateur peut ouvrir ws://localhost:8765 et piloter JARVIS.
 # On filtre donc l'en-tête Origin : les clients légitimes sont soit natifs
-# (pywebview / mobile natif : pas d'Origin), soit servis en local (Vite, serveur
-# mobile). Tout le reste — c'est-à-dire un vrai site distant — est refusé.
+# (pywebview : pas d'Origin), soit servis en local (Vite).
+# Tout le reste — c'est-à-dire un vrai site distant — est refusé.
 def _origine_autorisee(websocket) -> bool:
     try:
         # websockets >= 12 expose request.headers ; les versions antérieures request_headers
@@ -46,20 +46,14 @@ def _origine_autorisee(websocket) -> bool:
         return True  # en cas de doute on n'enferme pas l'utilisateur dehors
 
     if not origine:
-        return True  # client natif (pywebview, appli mobile) : pas d'Origin
+        return True  # client natif (pywebview) : pas d'Origin
 
     o = origine.lower().strip()
     if o == "null" or o.startswith("file://"):
         return True
-    # Hôtes locaux + adresses privées du réseau domestique
+    # Hôtes locaux uniquement (le WebSocket n'écoute plus que sur localhost)
     import re as _re_o
-    return bool(_re_o.match(
-        r"^https?://("
-        r"localhost|127\.0\.0\.1|\[::1\]|"
-        r"10\.\d+\.\d+\.\d+|"
-        r"192\.168\.\d+\.\d+|"
-        r"172\.(1[6-9]|2\d|3[01])\.\d+\.\d+"
-        r")(:\d+)?$", o))
+    return bool(_re_o.match(r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$", o))
 
 
 def _en_tache_de_fond(coro):
@@ -104,22 +98,19 @@ async def ws_handler(websocket):
         async for message in websocket:
             try:
                 data = json.loads(message)
-                if data.get("type") == "mobile_command":
-                    texte = data.get("text", "").strip()
-                    if texte:
-                        print(f"[MOBILE] Commande recue : {texte}")
-                        asyncio.ensure_future(traiter_reponse_ia(texte, mobile_ws=websocket))
-                elif data.get("type") == "stop_audio":
+                if data.get("type") == "stop_audio":
                     shared.STOP_PARLER = True
                     set_stop_parler(True)
                     speech.vider_files()
-                    print("[MOBILE] Signal STOP audio recu")
+                    print("[WEB] Signal STOP audio recu")
                 elif data.get("type") == "toggle_mic":
                     shared.MIC_MUTED = not shared.MIC_MUTED
                     await websocket.send(json.dumps({"type": "mic_state", "muted": shared.MIC_MUTED}))
                     if shared.MIC_MUTED:
                         await send_web_state("idle")
                     print(f"[WEB] Micro {'COUPE' if shared.MIC_MUTED else 'REACTIF'}")
+                elif data.get("type") == "globe_state":
+                    shared.GLOBE_VISIBLE = bool(data.get("visible"))
                 elif data.get("type") == "toggle_fullscreen":
                     if hasattr(shared, "_WEBVIEW_WINDOW") and shared._WEBVIEW_WINDOW:
                         shared._WEBVIEW_WINDOW.toggle_fullscreen()

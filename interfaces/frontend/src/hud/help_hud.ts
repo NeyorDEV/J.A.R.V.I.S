@@ -69,9 +69,7 @@ const HELP_COMMANDS = [
   "Active le clavier",
   "Ferme la météo",
   "Montre le widget Calendrier",
-  "Active le mode hologramme",
   "Active le mode AR",
-  "Active le miroir holo",
 
   // Minuteurs Interactifs
   "Mets un minuteur de 10 minutes",

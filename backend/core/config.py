@@ -8,20 +8,6 @@ load_dotenv()
 # --- VERSION ---
 CURRENT_VERSION = "8.9.5"
 
-# --- RÉSEAU ---
-def get_local_ip():
-    import socket
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
-
-LOCAL_IP = get_local_ip()
-
 # --- CLÉS API ---
 GEMINI_API_KEY       = os.getenv("GEMINI_API_KEY")
 YOUTUBE_API_KEY      = os.getenv("YOUTUBE_API_KEY")
@@ -45,7 +31,6 @@ VOIX_ACTUELLE = "homme" # "homme" ou "femme"
 # --- CONSTANTES ---
 SESSION_TIMEOUT = 30
 WAKE_WORD = "jarvis"
-_skip_pc_audio = False
 
 # Exportation vers builtins pour compatibilité descendante immédiate
 builtins._cle_valide = _cle_valide

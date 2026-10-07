@@ -246,10 +246,8 @@ export class ChessMap {
     const stopBtn = document.getElementById('chess-stop-btn');
     if (stopBtn) {
       stopBtn.onclick = () => {
-        const app = (window as any)._holoApp;
-        if (app && app.chessMap) {
-          app.toggleChess();
-        }
+        // Ferme la vue 3D (la partie est arrêtée côté backend), retour à JARVIS
+        (window as any)._fermerVues3D?.();
       };
     }
   }
@@ -2000,8 +1998,7 @@ export class ChessMap {
 
   // Mouse selection / drag and drop helpers
   private isEventOnUI(e: MouseEvent): boolean {
-    return !!((e.target as HTMLElement).closest('#holo-dock') || 
-              (e.target as HTMLElement).closest('#settings-modal') || 
+    return !!((e.target as HTMLElement).closest('#settings-modal') || 
               (e.target as HTMLElement).closest('#holo-chess-panel') || 
               (e.target as HTMLElement).tagName === 'BUTTON');
   }

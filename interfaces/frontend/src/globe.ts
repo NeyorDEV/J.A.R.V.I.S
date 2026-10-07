@@ -2,37 +2,53 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 /**
- * JARVIS GLOBE 3D — Realistic Earth Implementation
- * Replaces the old 2D canvas logic with a high-fidelity Three.js globe.
+ * JARVIS GLOBE 3D — Terre réaliste Three.js, pilotée par le backend (window.jarvisGlobe)
+ * et par les mains (mode AR, événement « jarvis-hand-move »).
+ *
+ * Repères : la Terre, les marqueurs et les itinéraires sont dans un même groupe
+ * (globeGroup), que les gestes font tourner ; la caméra orbite toujours autour du centre
+ * de la Terre (controls.target reste à l'origine), si bien que la Terre reste centrée et
+ * que les vols, marqueurs et itinéraires suivent la rotation.
  */
 
 let scene: THREE.Scene;
 let camera: THREE.PerspectiveCamera;
 let renderer: THREE.WebGLRenderer;
 let controls: OrbitControls;
+let globeGroup: THREE.Group;
 let earth: THREE.Mesh;
-let clouds: THREE.Mesh;
+let clouds: THREE.Mesh | null = null;
 let atmosphere: THREE.Mesh;
 let markersGroup: THREE.Group;
 let routesGroup: THREE.Group;
+let stars: THREE.Points;
+let scanLine: THREE.Mesh;
 
 let isInitialized = false;
 let animationId: number | null = null;
 const overlay = document.getElementById("globe-overlay") as HTMLDivElement;
 const canvas = document.getElementById("globe-canvas") as HTMLCanvasElement;
+const mapOverlay = document.getElementById("map-overlay") as HTMLDivElement | null;
 const tLabel = document.getElementById("globe-target-label");
 const cLabel = document.getElementById("globe-coords");
 const orbCanvas = document.getElementById("orb-canvas") as HTMLCanvasElement;
-let scanLine: THREE.Mesh;
-let flightTarget: { lat: number, lon: number, distance: number } | null = null;
+
+// Vol en cours : direction (dans le repère de la Terre, suit sa rotation) et distance au
+// centre. distanceOnly : zoom / recul sur place (la direction suit la caméra, ce qui laisse
+// tourner la rotation automatique pendant le mouvement).
+let flightTarget: { localDir: THREE.Vector3; distance: number; distanceOnly?: boolean } | null = null;
 
 // Configuration
 const EARTH_RADIUS = 100;
+const DEFAULT_DISTANCE = 400;
+const MIN_DISTANCE = 160;
+const MAX_DISTANCE = 600;
+const MAP_SWITCH_DISTANCE = 175; // en dessous : bascule sur la carte 2D détaillée
 const TEXTURES = {
   day: "/assets/textures/earth-blue-marble.jpg",
   night: "/assets/textures/earth-night.jpg",
   bump: "/assets/textures/earth-topology.png",
-  clouds: null, // Texture non disponible dans la version actuelle de three-globe
+  clouds: null as string | null, // Texture non disponible dans la version actuelle de three-globe
 };
 
 export function initJarvisGlobe() {
@@ -42,46 +58,27 @@ export function initJarvisGlobe() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
 
-  camera = new THREE.PerspectiveCamera(
-    45,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    2000
-  );
-  camera.position.z = 400;
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+  camera.position.z = DEFAULT_DISTANCE;
 
-  renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: true,
-    alpha: true,
-  });
-  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
 
   // ── Lights ──────────────────────────────────────────────────────────────────
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-  scene.add(ambientLight);
-
+  scene.add(new THREE.AmbientLight(0xffffff, 0.4));
   const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
   sunLight.position.set(5, 3, 5);
   scene.add(sunLight);
 
-  // ── Stars ──────────────────────────────────────────────────────────────────
-  const starGeo = new THREE.BufferGeometry();
-  const starPos = new Float32Array(5000 * 3);
-  for (let i = 0; i < 5000; i++) {
-    starPos[i * 3] = (Math.random() - 0.5) * 2000;
-    starPos[i * 3 + 1] = (Math.random() - 0.5) * 2000;
-    starPos[i * 3 + 2] = (Math.random() - 0.5) * 2000;
-  }
-  starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
-  const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, transparent: true, opacity: 0.8 });
-  const stars = new THREE.Points(starGeo, starMat);
-  scene.add(stars);
+  // ── Stars (une seule fois : elles étaient créées deux fois, dont la moitié immobiles) ──
+  createStarfield();
 
-  // ── Earth ───────────────────────────────────────────────────────────────────
+  // ── Terre, marqueurs et itinéraires dans un même groupe ──────────────────────
+  globeGroup = new THREE.Group();
+  scene.add(globeGroup);
+
   const loader = new THREE.TextureLoader();
-
   const earthGeo = new THREE.SphereGeometry(EARTH_RADIUS, 64, 64);
   const earthMat = new THREE.MeshStandardMaterial({
     map: loader.load(TEXTURES.day),
@@ -91,13 +88,7 @@ export function initJarvisGlobe() {
     roughness: 0.8,
   });
   earth = new THREE.Mesh(earthGeo, earthMat);
-  scene.add(earth);
-
-  // Night lights (optional addition if we want cool blending, but let's keep it simple for now)
-  // For a Jarvis look, night lights are actually cooler.
-  // earthMat.emissiveMap = loader.load(TEXTURES.night);
-  // earthMat.emissive = new THREE.Color(0xffff88);
-  // earthMat.emissiveIntensity = 0.5;
+  globeGroup.add(earth);
 
   // ── Clouds ──────────────────────────────────────────────────────────────────
   if (TEXTURES.clouds) {
@@ -109,7 +100,7 @@ export function initJarvisGlobe() {
       depthWrite: false,
     });
     clouds = new THREE.Mesh(cloudGeo, cloudMat);
-    scene.add(clouds);
+    globeGroup.add(clouds);
   }
 
   // ── Atmosphere Glow ────────────────────────────────────────────────────────
@@ -143,7 +134,7 @@ export function initJarvisGlobe() {
     transparent: true,
     opacity: 0.3,
     side: THREE.DoubleSide,
-    blending: THREE.AdditiveBlending
+    blending: THREE.AdditiveBlending,
   });
   scanLine = new THREE.Mesh(scanGeo, scanMat);
   scanLine.rotation.x = Math.PI / 2;
@@ -155,21 +146,19 @@ export function initJarvisGlobe() {
   controls.dampingFactor = 0.05;
   controls.rotateSpeed = 0.5;
   controls.zoomSpeed = 0.5; // Slower zoom for more control
-  controls.minDistance = 160; // Keep camera further away
-  controls.maxDistance = 600;
+  controls.enablePan = false; // le pivot doit rester au centre de la Terre
+  controls.minDistance = MIN_DISTANCE;
+  controls.maxDistance = MAX_DISTANCE;
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.5;
 
   markersGroup = new THREE.Group();
-  scene.add(markersGroup);
-
+  globeGroup.add(markersGroup);
   routesGroup = new THREE.Group();
-  scene.add(routesGroup);
-
-  createStarfield();
+  globeGroup.add(routesGroup);
 
   window.addEventListener("resize", onResize);
-  
+
   const closeBtn = document.getElementById("globe-close");
   if (closeBtn) {
     closeBtn.addEventListener("click", (e) => {
@@ -180,19 +169,15 @@ export function initJarvisGlobe() {
   }
 
   isInitialized = true;
-  animate();
+  // La boucle de rendu ne tourne que globe affiché (voir show / hide) : avant, elle
+  // tournait en permanence dès le démarrage de JARVIS, même globe fermé.
 }
-
-let stars: THREE.Points;
-let starRotationSpeed = 0.0001;
 
 function createStarfield() {
   const vertices = [];
   for (let i = 0; i < 5000; i++) {
-    const x = THREE.MathUtils.randFloatSpread(2000);
-    const y = THREE.MathUtils.randFloatSpread(2000);
-    const z = THREE.MathUtils.randFloatSpread(2000);
-    vertices.push(x, y, z);
+    vertices.push(THREE.MathUtils.randFloatSpread(2000), THREE.MathUtils.randFloatSpread(2000),
+                  THREE.MathUtils.randFloatSpread(2000));
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
@@ -201,41 +186,41 @@ function createStarfield() {
   scene.add(stars);
 }
 
+// ── Carte 2D détaillée (Leaflet, définie dans index.html) ─────────────────────
 let isTransitioning = false;
 
-function checkZoomLevel() {
-  if (isTransitioning) return;
+function mapVisible(): boolean {
+  return !!mapOverlay && mapOverlay.style.display === "block";
+}
 
-  const distance = camera.position.distanceTo(controls.target);
-  if (distance < 175 && overlay.style.display !== "none" && overlay.style.opacity === "1") {
-    // Zoomed in enough to switch to map
+function closeDetailedMap() {
+  if (mapOverlay) {
+    mapOverlay.style.opacity = "0";
+    mapOverlay.style.display = "none";
+  }
+  isTransitioning = false;
+}
+
+function checkZoomLevel() {
+  if (isTransitioning || flightTarget || mapVisible()) return;
+  if (camera.position.length() < MAP_SWITCH_DISTANCE && overlay.style.opacity === "1") {
     switchToDetailedMap();
   }
 }
 
 function switchToDetailedMap() {
   isTransitioning = true;
-  // Get current Lat/Lon from center
-  const vector = new THREE.Vector3(0, 0, -1);
-  vector.applyQuaternion(camera.quaternion);
-
-  // Calculate approximate lat/lon from view vector (simplified)
-  // For better accuracy, we'd raycast to earth mesh
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
   const intersects = raycaster.intersectObject(earth);
 
   if (intersects.length > 0) {
-    const point = intersects[0].point;
-    // Projection en coordonnées locales pour être robuste aux futures rotations de l'objet
-    const localPoint = earth.worldToLocal(point.clone());
-    const lat = Math.asin(localPoint.y / EARTH_RADIUS) * (180 / Math.PI);
-    let lon = Math.atan2(localPoint.z, -localPoint.x) * (180 / Math.PI) - 180;
-    if (lon < -180) lon += 360;
-    if (lon > 180) lon -= 360;
-
-    // Dispatch event or call a function to show map
+    // Coordonnées dans le repère de la Terre (robuste à sa rotation par les gestes)
+    const localPoint = earth.worldToLocal(intersects[0].point.clone());
+    const { lat, lon } = vector3ToLatLon(localPoint);
     (window as any).showDetailedMap(lat, lon);
+  } else {
+    isTransitioning = false;
   }
 }
 
@@ -245,51 +230,65 @@ function onResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+// Retour de la carte 2D vers l'espace (bouton « RETOUR À L'ESPACE » / « FERMER »)
 (window as any).resetGlobeTransition = () => {
   isTransitioning = false;
-  // Push camera back further to see the whole earth
-  if (camera) camera.position.setLength(350);
-  if (controls) controls.update();
+  if (!camera) return;
+  // On garde le lieu face à la caméra, en reprenant de l'altitude, Terre centrée
+  controls.target.set(0, 0, 0);
+  camera.position.setLength(350);
+  controls.update();
 };
 
 function animate() {
   animationId = requestAnimationFrame(animate);
+
+  // Vol : rotation de la caméra autour du centre (interpolation sphérique, pour ne jamais
+  // traverser la Terre) et ajustement de la distance
+  if (flightTarget) {
+    const curDir = camera.position.clone().normalize();
+    const targetDir = flightTarget.distanceOnly ? curDir.clone()
+      : flightTarget.localDir.clone().applyQuaternion(globeGroup.quaternion).normalize();
+    const curDist = camera.position.length();
+    const step = new THREE.Quaternion().setFromUnitVectors(curDir, targetDir);
+    const partial = new THREE.Quaternion().slerp(step, 0.06);
+    const newDir = curDir.applyQuaternion(partial);
+    const newDist = THREE.MathUtils.lerp(curDist, flightTarget.distance, 0.06);
+    camera.position.copy(newDir.multiplyScalar(newDist));
+    if (camera.position.clone().normalize().angleTo(targetDir) < 0.002 && Math.abs(newDist - flightTarget.distance) < 0.5) {
+      flightTarget = null;
+    }
+  }
+
   controls.update();
 
-  // Rotate clouds slightly faster than earth
   if (clouds) clouds.rotation.y += 0.0002;
+  if (stars) stars.rotation.y += 0.0001;
 
-  // Rotate stars
-  if (stars) stars.rotation.y += starRotationSpeed;
-
-  // Update scan line position
   if (scanLine) {
     const time = Date.now() * 0.001;
     scanLine.position.y = Math.sin(time * 0.5) * (EARTH_RADIUS * 0.8);
     (scanLine.material as THREE.MeshBasicMaterial).opacity = 0.2 + Math.abs(Math.sin(time)) * 0.2;
   }
 
-  // Smooth flight animation
-  if (flightTarget) {
-    const targetPos = latLonToVector3(flightTarget.lat, flightTarget.lon, flightTarget.distance);
-    const lookAtPos = latLonToVector3(flightTarget.lat, flightTarget.lon, EARTH_RADIUS);
-
-    camera.position.lerp(targetPos, 0.05);
-    controls.target.lerp(lookAtPos, 0.05);
-
-    // Stop flight when close enough
-    if (camera.position.distanceTo(targetPos) < 1) {
-      flightTarget = null;
-    }
-  }
-
   checkZoomLevel();
-
   renderer.render(scene, camera);
+}
+
+function startLoop() {
+  if (animationId === null) animate();
+}
+
+function stopLoop() {
+  if (animationId !== null) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
 }
 
 // ── API for J.A.R.V.I.S ──────────────────────────────────────────────────────
 
+/** Coordonnées dans le repère de la Terre (globeGroup). */
 function latLonToVector3(lat: number, lon: number, radius: number) {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lon + 180) * (Math.PI / 180);
@@ -297,6 +296,19 @@ function latLonToVector3(lat: number, lon: number, radius: number) {
   const z = radius * Math.sin(phi) * Math.sin(theta);
   const y = radius * Math.cos(phi);
   return new THREE.Vector3(x, y, z);
+}
+
+function vector3ToLatLon(v: THREE.Vector3) {
+  const r = v.length();
+  const lat = Math.asin(v.y / r) * (180 / Math.PI);
+  let lon = Math.atan2(v.z, -v.x) * (180 / Math.PI) - 180;
+  if (lon < -180) lon += 360;
+  if (lon > 180) lon -= 360;
+  return { lat, lon };
+}
+
+function isNum(v: any): v is number {
+  return typeof v === "number" && !isNaN(v);
 }
 
 function clearGroups() {
@@ -323,39 +335,104 @@ function addMarker(lat: number, lon: number, color: string = "#00e5ff") {
   markersGroup.add(dot);
 }
 
+/** Informe le backend (zoom vocal « rapproche-toi » seulement globe affiché). */
+function notifyBackend(visible: boolean) {
+  const ws = (window as any)._jarvisWs as WebSocket | undefined;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "globe_state", visible }));
+  }
+}
+
+let showTimer: ReturnType<typeof setTimeout> | null = null;
+let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
 function show() {
+  // Une fermeture en cours ne doit pas masquer le globe qu'on rouvre
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+  const wasHidden = overlay.style.display === "none" || overlay.style.opacity !== "1";
   overlay.style.display = "flex";
   if (orbCanvas) orbCanvas.classList.add("minimized");
 
   // Masquer les brackets HUD pour l'intégration
-  const brackets = document.querySelectorAll('.globe-bracket');
-  brackets.forEach(b => (b as HTMLElement).style.opacity = '0');
+  document.querySelectorAll(".globe-bracket").forEach(b => (b as HTMLElement).style.opacity = "0");
 
-  setTimeout(() => {
+  if (showTimer) clearTimeout(showTimer);
+  showTimer = setTimeout(() => {
     overlay.style.transition = "opacity 0.8s ease";
     overlay.style.opacity = "1";
+    showTimer = null;
   }, 10);
   controls.autoRotate = true;
+  startLoop();
+  if (wasHidden) notifyBackend(true);
 }
 
 function hide() {
+  if (showTimer) { clearTimeout(showTimer); showTimer = null; }
   overlay.style.transition = "opacity 0.5s ease";
   overlay.style.opacity = "0";
   if (orbCanvas) orbCanvas.classList.remove("minimized");
 
   // Réafficher les brackets HUD
-  const brackets = document.querySelectorAll('.globe-bracket');
-  brackets.forEach(b => (b as HTMLElement).style.opacity = '0.6');
+  document.querySelectorAll(".globe-bracket").forEach(b => (b as HTMLElement).style.opacity = "0.6");
 
-  setTimeout(() => {
+  // La carte 2D se ferme avec le globe : sinon elle réapparaissait à la réouverture
+  closeDetailedMap();
+  flightTarget = null;
+
+  if (hideTimer) clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
     overlay.style.display = "none";
+    stopLoop();
+    hideTimer = null;
   }, 520);
   clearGroups();
+  notifyBackend(false);
 }
 
+/** Vole vers (lat, lon) ; distance = éloignement de la caméra au centre de la Terre. */
 function flyTo(lat: number, lon: number, distance: number = 300) {
   controls.autoRotate = false;
-  flightTarget = { lat, lon, distance };
+  flightTarget = {
+    localDir: latLonToVector3(lat, lon, 1).normalize(),
+    distance: THREE.MathUtils.clamp(distance, MIN_DISTANCE, MAX_DISTANCE),
+  };
+}
+
+/** Zoom / recul sur place : seule la distance au centre de la Terre change. */
+function flyToDistance(distance: number) {
+  flightTarget = {
+    localDir: camera.position.clone().normalize(),
+    distance: THREE.MathUtils.clamp(distance, MIN_DISTANCE, MAX_DISTANCE),
+    distanceOnly: true,
+  };
+}
+
+/** Arc de grand cercle entre deux points (repère de la Terre), légèrement surélevé. */
+function greatCirclePoints(a: THREE.Vector3, b: THREE.Vector3, segments = 64) {
+  const da = a.clone().normalize(), db = b.clone().normalize();
+  const angle = da.angleTo(db);
+  let full: THREE.Quaternion;
+  if (Math.PI - angle < 1e-3) {
+    // Points opposés : n'importe quel grand cercle convient, on passe par un axe perpendiculaire
+    const axis = Math.abs(da.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    full = new THREE.Quaternion().setFromAxisAngle(axis.cross(da).normalize(), Math.PI);
+  } else {
+    full = new THREE.Quaternion().setFromUnitVectors(da, db);
+  }
+  const lift = 0.04 + 0.25 * (angle / Math.PI);
+  const points: THREE.Vector3[] = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const q = new THREE.Quaternion().slerp(full, t);
+    const r = EARTH_RADIUS * (1 + lift * Math.sin(Math.PI * t));
+    points.push(da.clone().applyQuaternion(q).multiplyScalar(r));
+  }
+  return { points, angle };
+}
+
+function setCoords(lat: number, lon: number) {
+  if (cLabel) cLabel.textContent = `LAT ${lat.toFixed(4)}°  LON ${lon.toFixed(4)}°`;
 }
 
 // Expose to window for the backend
@@ -366,76 +443,97 @@ function flyTo(lat: number, lon: number, distance: number = 300) {
   switch (action) {
     case "show_earth":
       show();
+      closeDetailedMap();
+      clearGroups();
+      // Vue d'ensemble : Terre recentrée, droite, à distance par défaut
+      globeGroup.rotation.set(0, 0, 0);
+      controls.target.set(0, 0, 0);
+      flyToDistance(DEFAULT_DISTANCE);
+      controls.autoRotate = true;
       if (tLabel) tLabel.textContent = "GLOBE TERRESTRE";
       if (cLabel) cLabel.textContent = "";
       break;
 
-    case "fly_to":
+    case "fly_to": {
+      if (!isNum(data.lat) || !isNum(data.lon)) break; // jamais vers 0,0 par défaut
+      const lt = data.lat, ln = data.lon;
       show();
-      const lt = data.lat || 0;
-      const ln = data.lon || 0;
       clearGroups();
       addMarker(lt, ln);
-      flyTo(lt, ln);
-
-      // If we are already in map mode, update the map too!
-      if (overlay.style.display !== "none" && overlay.style.opacity === "1") {
-        if (typeof (window as any).showDetailedMap === "function") {
-          (window as any).showDetailedMap(lt, ln);
-        }
+      if (mapVisible() && typeof (window as any).showDetailedMap === "function") {
+        // Déjà sur la carte 2D : on y recentre le lieu
+        (window as any).showDetailedMap(lt, ln);
+      } else {
+        flyTo(lt, ln, isNum(data.distance) ? data.distance : 300);
       }
-
       if (tLabel) tLabel.textContent = "⊕ " + (data.target || "").toUpperCase();
-      if (cLabel) cLabel.textContent = `LAT ${lt.toFixed(4)}°  LON ${ln.toFixed(4)}°`;
+      setCoords(lt, ln);
       break;
+    }
 
-    case "route":
+    case "route": {
       show();
+      closeDetailedMap();
       clearGroups();
-      if (data.from_lat !== undefined) addMarker(data.from_lat, data.from_lon, "#00e5ff");
-      if (data.to_lat !== undefined) addMarker(data.to_lat, data.to_lon, "#ff6b35");
+      const hasFrom = isNum(data.from_lat) && isNum(data.from_lon);
+      const hasTo = isNum(data.to_lat) && isNum(data.to_lon);
+      if (hasFrom) addMarker(data.from_lat, data.from_lon, "#00e5ff");
+      if (hasTo) addMarker(data.to_lat, data.to_lon, "#ff6b35");
 
-      // Draw route curve
-      if (data.from_lat !== undefined && data.to_lat !== undefined) {
+      if (hasFrom && hasTo) {
         const start = latLonToVector3(data.from_lat, data.from_lon, EARTH_RADIUS);
         const end = latLonToVector3(data.to_lat, data.to_lon, EARTH_RADIUS);
-
-        // Midpoint pushed out for curve
-        const mid = start.clone().lerp(end, 0.5).normalize().multiplyScalar(EARTH_RADIUS * 1.5);
-        const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
-        const points = curve.getPoints(50);
+        const { points, angle } = greatCirclePoints(start, end);
         const geometry = new THREE.BufferGeometry().setFromPoints(points);
         const material = new THREE.LineBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.6 });
-        const line = new THREE.Line(geometry, material);
-        routesGroup.add(line);
+        routesGroup.add(new THREE.Line(geometry, material));
 
-        flyTo((data.from_lat + data.to_lat) / 2, (data.from_lon + data.to_lon) / 2);
+        // Milieu du trajet sur le grand cercle (et non la moyenne des longitudes, fausse
+        // de l'autre côté du Pacifique) ; plus le trajet est long, plus on prend de recul.
+        const mid = vector3ToLatLon(points[Math.floor(points.length / 2)]);
+        flyTo(mid.lat, mid.lon, 260 + 200 * (angle / Math.PI));
       }
 
       if (tLabel) tLabel.textContent = `ROUTE : ${(data.from_name || "?").toUpperCase()} → ${(data.to_name || "?").toUpperCase()}`;
+      if (cLabel) cLabel.textContent = "";
       break;
+    }
 
     case "my_location":
       show();
-      if (data.lat) {
+      closeDetailedMap();
+      if (isNum(data.lat) && isNum(data.lon)) {
         clearGroups();
         addMarker(data.lat, data.lon, "#00ff88");
-        flyTo(data.lat, data.lon);
-        if (tLabel) tLabel.textContent = "📍 VOTRE POSITION";
-        if (cLabel) cLabel.textContent = `LAT ${data.lat.toFixed(4)}°  LON ${data.lon.toFixed(4)}°`;
+        flyTo(data.lat, data.lon, 230);
+        if (tLabel) tLabel.textContent = "📍 " + (data.target ? String(data.target).toUpperCase() : "VOTRE POSITION");
+        setCoords(data.lat, data.lon);
       } else if (navigator.geolocation) {
         if (tLabel) tLabel.textContent = "📍 LOCALISATION...";
+        if (cLabel) cLabel.textContent = "";
         navigator.geolocation.getCurrentPosition((pos) => {
           const mLat = pos.coords.latitude;
           const mLon = pos.coords.longitude;
           clearGroups();
           addMarker(mLat, mLon, "#00ff88");
-          flyTo(mLat, mLon);
+          flyTo(mLat, mLon, 230);
           if (tLabel) tLabel.textContent = "📍 VOTRE POSITION";
-          if (cLabel) cLabel.textContent = `LAT ${mLat.toFixed(4)}°  LON ${mLon.toFixed(4)}°`;
+          setCoords(mLat, mLon);
         }, () => {
           if (tLabel) tLabel.textContent = "⚠ LOCALISATION REFUSÉE";
+          if (cLabel) cLabel.textContent = "";
         });
+      }
+      break;
+
+    case "zoom_in":
+      if (overlay.style.display !== "none") flyToDistance(camera.position.length() * 0.7);
+      break;
+
+    case "zoom_out":
+      if (overlay.style.display !== "none") {
+        if (mapVisible()) (window as any).resetGlobeTransition();
+        flyToDistance(camera.position.length() * 1.4);
       }
       break;
 
@@ -446,6 +544,8 @@ function flyTo(lat: number, lon: number, distance: number = 300) {
 };
 
 // ── Hand Tracking Gestures Integration for 3D Globe ──────────────────────────
+// Les gestes tournent le groupe Terre + marqueurs + itinéraires (et non plus le seul
+// maillage de la Terre, qui laissait les marqueurs en place pendant qu'elle tournait).
 let lastHandX = 0;
 let lastHandY = 0;
 let isHandDragging = false;
@@ -456,16 +556,15 @@ let lastMidY = 0;
 
 document.addEventListener("jarvis-hand-move", (e: any) => {
   // Tourner la Terre seulement si le globe est visible à l'écran
-  const globeOverlay = document.getElementById("globe-overlay");
-  const isGlobeVisible = globeOverlay && globeOverlay.style.display !== "none" && globeOverlay.style.opacity === "1";
-  
-  if (!isInitialized || !earth || !isGlobeVisible) return;
+  const isGlobeVisible = overlay && overlay.style.display !== "none" && overlay.style.opacity === "1";
+  if (!isInitialized || !globeGroup || !isGlobeVisible || mapVisible()) return;
 
   const { x, y, pinched, x1, y1, pinched1 } = e.detail;
 
   // ── GESTE DE ROTATION / SCALE / ROULIS À 2 MAINS ────────────────────
   if (x1 !== undefined && y1 !== undefined && pinched && pinched1) {
     if (controls) controls.autoRotate = false;
+    flightTarget = null;
     isHandDragging = false; // Réinitialise l'état de glissement mono-main
 
     const midX = (x + x1) / 2;
@@ -477,25 +576,15 @@ document.addEventListener("jarvis-hand-move", (e: any) => {
 
     if (lastTwoDist !== null && lastAngle !== null) {
       // 1. Rotation par glissement du point central (pan)
-      const dx_mid = midX - lastMidX;
-      const dy_mid = midY - lastMidY;
-      
-      earth.rotation.y += dx_mid * 0.007;
-      earth.rotation.x += dy_mid * 0.007;
-      if (clouds) {
-        clouds.rotation.y += dx_mid * 0.0075;
-        clouds.rotation.x += dy_mid * 0.007;
-      }
+      globeGroup.rotation.y += (midX - lastMidX) * 0.007;
+      globeGroup.rotation.x += (midY - lastMidY) * 0.007;
 
-      // 2. Zoom par écartement / rapprochement des mains
+      // 2. Zoom par écartement / rapprochement des mains (distance au centre de la
+      //    Terre, qui est aussi le pivot de la caméra)
       if (dist > 5) {
         const ratio = dist / lastTwoDist;
-        const currentDist = camera.position.distanceTo(controls.target);
-        
-        // On écarte les mains (ratio > 1) -> la distance diminue (zoom in)
         const factor = 1 + (1 - ratio) * 1.8;
-        const newDist = THREE.MathUtils.clamp(currentDist * factor, 160, 600);
-        camera.position.setLength(newDist);
+        camera.position.setLength(THREE.MathUtils.clamp(camera.position.length() * factor, MIN_DISTANCE, MAX_DISTANCE));
         controls.update();
       }
 
@@ -503,9 +592,7 @@ document.addEventListener("jarvis-hand-move", (e: any) => {
       let dAngle = angle - lastAngle;
       while (dAngle > Math.PI) dAngle -= Math.PI * 2;
       while (dAngle < -Math.PI) dAngle += Math.PI * 2;
-      
-      earth.rotation.z += dAngle;
-      if (clouds) clouds.rotation.z += dAngle;
+      globeGroup.rotation.z += dAngle;
     }
 
     lastTwoDist = dist;
@@ -521,43 +608,26 @@ document.addEventListener("jarvis-hand-move", (e: any) => {
 
   // ── GESTE DE DÉPLACEMENT MONO-MAIN ──────────────────────────────────
   if (pinched) {
-    // Si on vient de commencer le pincement, on mémorise le point de départ
     if (!isHandDragging) {
       isHandDragging = true;
       lastHandX = x;
       lastHandY = y;
-      
       // Désactiver la rotation automatique pendant que l'utilisateur manipule le globe
       if (controls) controls.autoRotate = false;
+      flightTarget = null;
     } else {
-      const dx = x - lastHandX;
-      const dy = y - lastHandY;
-
-      // Appliquer la rotation à la Terre et aux nuages
-      // Le mouvement horizontal (dx) tourne sur l'axe Y global
-      earth.rotation.y += dx * 0.006;
-      
-      // Le mouvement vertical (dy) tourne sur l'axe X local de la vue
-      earth.rotation.x += dy * 0.006;
-
-      if (clouds) {
-        clouds.rotation.y += dx * 0.0065;
-        clouds.rotation.x += dy * 0.006;
-      }
-
+      globeGroup.rotation.y += (x - lastHandX) * 0.006;
+      globeGroup.rotation.x += (y - lastHandY) * 0.006;
       lastHandX = x;
       lastHandY = y;
     }
-  } else {
-    // Rétablir la rotation automatique douce après le relâchement si nécessaire
-    if (isHandDragging) {
-      isHandDragging = false;
-      setTimeout(() => {
-        if (!isHandDragging && controls && !flightTarget) {
-          controls.autoRotate = true;
-        }
-      }, 5000);
-    }
+  } else if (isHandDragging) {
+    // Rétablir la rotation automatique douce après le relâchement
+    isHandDragging = false;
+    setTimeout(() => {
+      if (!isHandDragging && controls && !flightTarget) {
+        controls.autoRotate = true;
+      }
+    }, 5000);
   }
 });
-

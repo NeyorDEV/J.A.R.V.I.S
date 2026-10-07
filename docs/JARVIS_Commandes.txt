@@ -46,7 +46,7 @@
   - On joue à Rocket League -> Lance directement le jeu Rocket League sur votre PC
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  DIVERTISSEMENT, INTERFACES HUD, MODE HOLO & AR
+  DIVERTISSEMENT, INTERFACES HUD, VUES 3D & AR
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 [ Contrôle de l'Interface Graphique (HUD) ]
@@ -58,10 +58,8 @@
   - Ferme le panneau température / Masque la température -> Masque le volet des capteurs domotiques
   - Ferme la météo / Masque la météo -> Fermeture du panneau météo latéral
   - Montre / Cache le widget [Calendrier / Météo / Musique] -> Affichage dynamique des modules de bureau
-  - Active / Désactive le mode hologramme (ou "mode holo") -> Environnement spatial 3D interactif dans votre navigateur
   - Active / Désactive le mode AR -> Hand-tracking webcam et contrôle gestuel à distance sans contact
   - Active / Désactive le miroir AR -> Commutation d'orientation caméra (direct vs miroir) pour le tracking des mains
-  - Active / Désactive le miroir holo -> Inverse l'orientation des mains dans la scène 3D Hologramme
 
 [ Minuteurs Interactifs (HUD) ]
   - Mets un minuteur de [X] minutes / Lance un timer de [X] minutes -> Démarre un compte à rebours et l'affiche sur le HUD
@@ -70,22 +68,15 @@
   - Annule le minuteur / Arrête le minuteur / Stop le chrono -> Arrête immédiatement le compte à rebours et l'efface du HUD
   - Combien de minuteurs actifs ? / Combien de temps reste-t-il ? -> Affiche l'état et le nombre de minuteurs en cours
 
-[ Mode Hologramme 3D - Gestes & Commandes ]
-  - *Balayage Main (Swipe Gauche/Droite)* -> Fait défiler les formes géométriques 3D actives (Sphère, Cube, Tore, Cône...)
-  - *Balayage avec 2 Mains* -> Efface instantanément toutes les formes de la scène (CLR)
-  - *Main Ouverte* -> Déclenche une explosion de particules de lumière cyan et détruit la forme Three.js ciblée
-  - *Poing Fermé* -> Compresse et déforme la figure 3D active (effet de compression gravitationnelle)
-  - *Serrer Index + Pouce (Pinch 1 Main)* -> Attrape un sommet de la figure 3D pour étirer et sculpter sa géométrie en temps réel
-  - *Serrer Index + Pouce (Pinch 2 Mains)* -> Permet de translater, d'appliquer un zoom orbital (Scale) et de tourner la figure dans l'espace
-  - *Bouton "JEU" (Interface)* -> Lance ou arrête le jeu de briques holographique (fais rebondir la balle physique avec ta main !)
-  - *Bouton "CLR" (Interface)* -> Supprime toutes les figures géométriques de la scène d'un seul clic
-  - *Raccourcis Clavier* :
-    - Touches [1-9] -> Génère instantanément une forme (1: Sphère, 2: Cube, 3: Cylindre, 6: Octaèdre, 7: Tore, 8: Noeud ADN...)
-    - Touche [Delete / Backspace] -> Efface la scène
-    - Touche [R] -> Réinitialise la déformation de la figure ciblée
+[ Vues 3D plein écran - Généralités ]
+  - Les vues 3D (explorateur, maison, cortex, échecs, radar réseau) s'ouvrent directement à la voix, une seule à la fois
+  - Ferme le cortex / Ferme la maison / Ferme l'explorateur spatial / Ferme le radar / Ferme la vue 3D / Retour Jarvis -> Referme la vue 3D ouverte et revient à l'interface JARVIS
+  - *Bouton "⌂ RETOUR JARVIS"* -> Même effet, à la souris
+  - *Contrôle par les mains (webcam)* -> Pincer (index + pouce) pour attraper ou déplacer, deux mains pincées pour tourner ; un pincement sur un bouton le clique
+  - *Geste circulaire de l'index* -> Coupe / réactive le micro de JARVIS
 
-[ Explorateur de Fichiers Spatial 3D (Hologramme) ]
-  - Ouvre mes dossiers / Explorateur 3D / Mode explorer / Affiche mes fichiers / Ouvre l'explorateur spatial -> Déploie l'explorateur de fichiers spatial 3D en hologramme
+[ Explorateur de Fichiers Spatial 3D ]
+  - Explorateur 3D / Explorateur spatial / Affiche l'explorateur spatial / Mode explorer -> Déploie l'explorateur de fichiers spatial 3D (« mes dossiers » / « mes fichiers » ouvrent l'Explorateur Windows)
   - *Clic Gauche / Pincement Main sur un Dossier (Cube)* -> Entre dans le dossier et l'affiche au centre en 3D concentrique
   - *Clic Gauche / Pincement Main sur un Fichier (Sphère)* -> Ouvre le fichier avec son application par défaut sur le PC
   - *Clic Gauche / Pincement Main sur la Pyramide Jaune (Retour)* -> Dépile l'arborescence et remonte au dossier parent en 3D
@@ -96,15 +87,15 @@
     - Fichier/Dossier sur la Corbeille -> Envoie l'élément à la Corbeille Windows native (ou le supprime définitivement si déjà dans la Corbeille)
     - Déplacer un élément hors de la Corbeille vers le dossier parent -> Restaure le fichier avec son nom et son extension d'origine préservés
   - *Glisser Clic Gauche en zone vide (Souris)* -> Translation (panning) de toute la scène 3D pour naviguer confortablement
-  - *Glisser Clic Droit (Souris)* -> Rotation orbitale tridimensionnelle complète (spin) pour observer l'hologramme sous tous les angles
+  - *Glisser Clic Droit (Souris)* -> Rotation orbitale tridimensionnelle complète (spin) pour observer la scène sous tous les angles
 
-[ Carte Domotique 3D de la Maison (Hologramme) ]
+[ Carte Domotique 3D de la Maison ]
   - Jarvis, affiche ma maison / Carte domotique / Mode carte 3D / Affiche la carte 3D / Ma maison 3D -> Déploie la maquette 3D interactive et dynamique de la maison
   - *Interaction tactile ou geste* -> Permet d'allumer/éteindre ou changer l'intensité/couleur des lumières et prises connectées directement en 3D
   - *Glisser Clic Gauche en zone vide (Souris)* -> Déplacement latéral (translation) dans l'environnement 3D de la maquette
   - *Glisser Clic Droit (Souris)* -> Rotation orbitale complète de la structure de la maison 3D
 
-[ Cortex Neuronal 3D - Constellation de la Mémoire (Hologramme) ]
+[ Cortex Neuronal 3D - Constellation de la Mémoire ]
   - Cortex / Affiche ton cortex / Mode cortex / Ouvre le cortex / Connexions neuronales -> Déploie la double constellation synaptique 3D interactive (mémoires vectorielles et faits)
   - *Lobe Gauche (Cyan)* -> Constellation des souvenirs conversationnels sémantiques (ChromaDB)
   - *Lobe Droit (Magenta)* -> Constellation des faits et informations statiques (jarvis_memoire.json)
@@ -114,7 +105,7 @@
   - *Glisser Clic Gauche en zone vide (Souris)* -> Déplacement de la constellation dans l'espace 3D
   - *Glisser Clic Droit (Souris)* -> Rotation de la structure neuronale tridimensionnelle
 
-[ Jeu d'Échecs 3D (Hologramme) ]
+[ Jeu d'Échecs 3D ]
   - On joue aux échecs / Lance une partie d'échecs / Partie d'échecs -> Ouvre le plateau d'échecs 3D sur le HUD
   - Lance la partie avec les [blancs/noirs] [facile/moyen/difficile] [avec/sans] chrono -> Lance et configure une nouvelle partie
   - Recommence la partie / Réinitialise le jeu -> Réinitialise le jeu à chaud sans message de confirmation et revient à l'écran de configuration du plateau
@@ -124,13 +115,12 @@
     - Pincer/Cliquer les boutons 3D flottants à gauche de l'échiquier (DÉMARRER, RECOMMENCER, QUITTER) pour piloter le jeu à distance (boutons orientés automatiquement face à la caméra)
 
 [ Globe Terrestre 3D ]
-  - Affiche la Terre / Globe terrestre / Vue depuis l'espace -> Initialise et affiche le globe terrestre 3D en mode orbital
-  - Zoom / Rapproche / Plus près -> Zoom orbital sur la Terre
-  - Dézoom / Éloigne / Plus loin -> Éloignement orbital de la caméra
-  - Montre-moi / Va à / Vol vers [Lieu/Ville/Pays] -> Décollage et vol orbital vers la destination ciblée
-  - Direction / Cherche [Nom de Lieu] -> Géocodage et centrage immédiat de la caméra sur le point d'intérêt
-  - Affiche ma position / Où suis-je ? / Localise-moi -> Utilise la géolocalisation du navigateur pour voler au-dessus de chez vous
-  - Trace un itinéraire de [Ville A] à [Ville B] / Trajet de [A] à [B] -> Calcule et trace une route visuelle entre deux villes sur le globe
+  - Affiche la Terre / Globe terrestre / Vue depuis l'espace -> Affiche le globe terrestre 3D, recentré, en rotation lente
+  - Zoome / Rapproche-toi / Plus près (globe ouvert) -> Rapproche la caméra ; en dessous d'une certaine altitude, bascule sur la carte satellite 2D
+  - Dézoome / Éloigne-toi / Plus loin (globe ouvert) -> Éloigne la caméra (et quitte la carte 2D)
+  - Montre-moi / Survole / Vol vers / Zoome sur [Lieu, ville, pays] -> Vol vers la destination (plus haut pour un pays, plus bas pour une ville)
+  - Affiche ma position / Où suis-je ? / Localise-moi -> Vole au-dessus de la ville réglée dans JARVIS (sinon, géolocalisation du navigateur)
+  - Trace un itinéraire de [Ville A] à [Ville B] / Trajet de [A] à [B] -> Trace la route (grand cercle) entre deux villes et la cadre
   - Ferme la carte / Ferme le globe / Retour à JARVIS -> Ferme le globe et revient à l'interface principale
 
 [ Télévision (Philips / Android TV) ]

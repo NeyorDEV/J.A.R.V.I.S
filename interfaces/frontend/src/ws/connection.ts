@@ -7,7 +7,7 @@ import { handleSettingsMessage } from "../hud/settings";
 import { hudState } from "../hud/state";
 import { handleCodeWorkshopMessage } from "../panels/code_workshop";
 import { type JarvisMessage } from "./message_types";
-import { handleHoloMessage } from "./messages_holo";
+import { handleVues3DMessage } from "./messages_vues3d";
 import { handleHudMessage } from "./messages_hud";
 import { handleAutopilotMessage, handleSystemMessage } from "./messages_system";
 
@@ -86,7 +86,7 @@ export function connect(): void {
 
       if (handleSystemMessage(data)) return;
       if (handleCodeWorkshopMessage(data)) return;
-      if (handleHoloMessage(data)) return;
+      if (handleVues3DMessage(data)) return;
       if (handleSettingsMessage(data)) return;
       handleHudMessage(data, pushDomAction);
     } catch {

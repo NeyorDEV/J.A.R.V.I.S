@@ -144,19 +144,9 @@ async def resoudre_dom_hud(cmd):
 
 
 
-    # --- 11. MODE HOLOGRAMME (HOLO) ---
-    if any(k in t for k in ["holo", "mode holo", "hologramme", "mode hologramme", "active le mode hologramme", "active le mode holo", "active l'hologramme", "ouvre l'hologramme", "lance le mode hologramme", "active hologramme", "lance l'hologramme", "active holo", "ouvre holo"]):
-        if hasattr(builtins, "send_web_action"):
-            await builtins.send_web_action("click", selector="#holo-button:not([aria-pressed=\"true\"])")
-            return "J'active le mode hologramme, Monsieur."
-
-    if any(k in t for k in ["desactive le mode hologramme", "desactive l'hologramme", "ferme l'hologramme", "masque l'hologramme", "coupe l'hologramme", "desactive le mode holo", "desactive holo", "ferme holo", "coupe holo"]):
-        if hasattr(builtins, "send_web_action"):
-            await builtins.send_web_action("click", selector="#holo-button[aria-pressed=\"true\"]")
-            return "Je désactive le mode hologramme, Monsieur."
-
     # --- 11b. MODE ÉCHECS ---
-    if any(k in t for k in ["echecs", "echec", "mode echecs", "joue aux echecs", "on joue aux echecs", "on joue une partie d echecs", "partie d echecs", "jeu d echecs", "lance les echecs", "ouvre les echecs"]):
+    # (« quitte / ferme / arrête les échecs » est laissé à module/echecs_local.py)
+    if any(k in t for k in ["echecs", "echec", "mode echecs", "joue aux echecs", "on joue aux echecs", "on joue une partie d echecs", "partie d echecs", "jeu d echecs", "lance les echecs", "ouvre les echecs"])             and not any(k in t for k in ["quitte", "ferme", "arrete", "stop"]):
         if hasattr(builtins, "CONNECTED_CLIENTS") and builtins.CONNECTED_CLIENTS:
             import json, asyncio
             msg = json.dumps({"action": "chess_start"})
@@ -184,17 +174,6 @@ async def resoudre_dom_hud(cmd):
         if hasattr(builtins, "send_web_action"):
             await builtins.send_web_action("click", selector="#gestures-mirror.active")
             return "Mode miroir AR désactivé. Retour au flux direct, Monsieur."
-
-    # --- 14. MODE HOLO MIROIR ---
-    if any(k in t for k in ["active le miroir en mode holo", "active le miroir holo", "active l'hologramme miroir", "miroir holo"]):
-        if hasattr(builtins, "send_web_action"):
-            await builtins.send_web_action("click", selector="#holo-btn-mirror:not(.active)")
-            return "Mode miroir activé pour l'hologramme, Monsieur."
-
-    if any(k in t for k in ["desactive le miroir en mode holo", "desactive le miroir holo", "desactive l'hologramme miroir", "reviens en holo direct", "hologramme direct"]):
-        if hasattr(builtins, "send_web_action"):
-            await builtins.send_web_action("click", selector="#holo-btn-mirror.active")
-            return "Mode miroir désactivé pour l'hologramme, Monsieur."
 
     return None
 

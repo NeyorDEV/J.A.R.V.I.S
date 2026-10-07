@@ -2,7 +2,7 @@
 // Extrait de main.ts. Tout est encapsulé dans initCarouselDock() pour
 // conserver exactement l'ordre d'initialisation d'origine.
 
-// Contrôles de la flèche exposés au mode hologramme (renseignés par initCarouselDock)
+// Contrôles de la flèche exposés aux vues 3D plein écran (renseignés par initCarouselDock)
 let _arrowControls: { hide: () => void; show: () => void } | null = null;
 
 export function hideCarouselArrow(): void {
@@ -30,9 +30,9 @@ const _carouselArrow = document.getElementById("carousel-toggle-arrow") as HTMLB
 // La flèche reste TOUJOURS à bottom:8px, seule son apparence change
 function _positionArrow(open: boolean) {
   if (!_carouselArrow) return;
-  // Si la flèche a été masquée (mode hologramme), on ne la ré-affiche pas :
+  // Si la flèche a été masquée (vue 3D ouverte), on ne la ré-affiche pas :
   // Object.assign forçait display:'flex' à chaque redimensionnement de fenêtre
-  // et la faisait réapparaître par-dessus l'hologramme.
+  // et la faisait réapparaître par-dessus la vue 3D.
   if (_carouselArrow.style.display === "none") return;
   const w = 36, h = 22;
   Object.assign(_carouselArrow.style, {
@@ -305,7 +305,7 @@ createIndicators();   // (n'était plus appelé : aucun point indicateur n'appar
 updateCarousel();
 _refresh = updateCarousel;
 
-// Exposer les contrôles de la flèche pour le mode hologramme
+// Exposer les contrôles de la flèche pour les vues 3D plein écran
 _arrowControls = {
   hide: () => { if (_carouselArrow) _carouselArrow.style.display = "none"; },
   show: () => { if (_carouselArrow) { _carouselArrow.style.display = "flex"; _positionArrow(_carouselOpen); } },

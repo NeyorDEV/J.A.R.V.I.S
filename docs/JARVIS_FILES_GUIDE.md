@@ -192,20 +192,13 @@ Interface utilisateur principale, de style "Iron Man HUD".
 
 ---
 
-## 🔌 MODULES EXTENSION CHROME & APPLICATION MOBILE
+## 🔌 MODULE EXTENSION CHROME
 
 ### 🌐 Extension Google Chrome (`chrome_extension/`)
 Permet à JARVIS de contrôler le navigateur de l'utilisateur par l'intermédiaire d'un WebSocket local.
 *   **[manifest.json](file:///n:/JARVIS/interfaces/chrome_extension/manifest.json)** : Fichier d'enregistrement de l'extension Chrome.
 *   **[background.js](file:///n:/JARVIS/interfaces/chrome_extension/background.js)** : Script de fond qui ouvre la connexion avec le serveur local de JARVIS.
 *   **[content.js](file:///n:/JARVIS/interfaces/chrome_extension/content.js)** : Script injecté dans les pages web. Dessine le curseur néon virtuel et exécute les clics et saisies demandés par JARVIS.
-
-### 📱 Application Mobile (`mobile/`)
-Version simplifiée du HUD optimisée pour les smartphones.
-*   **[index.html](file:///n:/JARVIS/interfaces/mobile/index.html)** : Structure simplifiée du HUD mobile.
-*   **[app.js](file:///n:/JARVIS/interfaces/mobile/app.js)** : Liaison WebSocket mobile, gestionnaire de requêtes vocales locales via la Web Speech API du téléphone.
-*   **[orb.js](file:///n:/JARVIS/interfaces/mobile/orb.js)** : Version allégée de l'orbe 3D Three.js.
-*   **[style.css](file:///n:/JARVIS/interfaces/mobile/style.css)** : Thème néon responsive pour mobile.
 
 ---
 

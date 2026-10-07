@@ -8,6 +8,7 @@ from datetime import datetime
 import contextlib
 import unicodedata
 from core.interlocuteur import nom_espace, nom_virgule
+import controller.deezer_cdp as cdp
 
 try:
     import pyautogui
@@ -34,6 +35,31 @@ def _normalize(text):
     text = "".join(c for c in text if unicodedata.category(c) != 'Mn')
     text = re.sub(r'[^a-zA-Z0-9]', '', text)
     return text.lower().strip()
+
+def _titre_court(titre):
+    """Titre sans les mentions entre parenthèses/crochets (« (feat. X) », « [Remastered] »)
+    que Deezer n'affiche pas toujours de la même façon partout."""
+    court = re.sub(r"\(.*?\)|\[.*?\]", "", titre or "").strip()
+    return court or (titre or "")
+
+# Repérage par position dans la fenêtre Deezer (pixels, relatifs à la fenêtre) :
+# - la barre du lecteur est collée en bas. L'ancien repérage par boutons voisins
+#   (« Précédent »/« Suivant ») confondait les carrousels de la page avec le lecteur ;
+# - le bandeau du haut contient la barre de recherche, qui affiche la requête tapée ;
+# - l'en-tête d'une page (titre de la piste, de l'album...) est dans sa partie haute.
+HAUTEUR_BARRE_LECTEUR = 120
+HAUTEUR_BANDEAU = 110
+ZONE_TITRE_PAGE = 330
+LARGEUR_BARRE_LATERALE = 260
+NOMS_BOUTON_PAUSE = ["Pause", "Mettre en pause"]
+NOMS_LECTURE = ["Écouter", "Lecture", "Mix", "Reprendre"]
+
+def _limite_barre_lecteur(deezer_ctrl):
+    """Ordonnée à partir de laquelle commence la barre du lecteur."""
+    try:
+        return deezer_ctrl.BoundingRectangle.bottom - HAUTEUR_BARRE_LECTEUR
+    except Exception:
+        return 10 ** 6
 
 def _initialize_com():
     """Initialise COM en MTA pour le thread actuel si ce n'est pas déjà fait."""
@@ -296,6 +322,83 @@ def prevent_focus_theft():
             except:
                 pass
 
+def _fenetre_deezer(hwnd):
+    """Vrai si la fenêtre appartient au processus Deezer."""
+    try:
+        import win32process
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        return pid in _get_deezer_pids()
+    except Exception:
+        return False
+
+@contextlib.contextmanager
+def _garder_focus_utilisateur():
+    """Rend le focus à la fenêtre de l'utilisateur si Deezer l'a pris pendant l'opération.
+
+    Deezer s'active parfois de lui-même après un clic, avec un temps de retard que la
+    vérification de _clic_control (0,1 s après le clic) ne voit pas."""
+    avant = None
+    try:
+        import win32gui
+        avant = win32gui.GetForegroundWindow()
+    except Exception:
+        pass
+    try:
+        yield
+    finally:
+        try:
+            if avant and not _fenetre_deezer(avant):
+                time.sleep(0.3)
+                if _fenetre_deezer(win32gui.GetForegroundWindow()):
+                    _restore_focus(avant)
+        except Exception:
+            pass
+
+@contextlib.contextmanager
+def _deezer_actionnable():
+    """Rend Deezer réceptif aux actions d'accessibilité sans jamais l'afficher.
+
+    Fenêtre réduite (ou cachée dans la zone de notification), Deezer refuse clics et
+    saisies par accessibilité (erreur 0x80040200). Le temps de l'opération, la fenêtre
+    est donc sortie de cet état de façon invisible : totalement transparente, ignorant
+    la souris, sans activation et tout en bas de la pile des fenêtres. Elle retrouve
+    ensuite son état d'origine. Recouverte par une autre fenêtre (jeu plein écran...),
+    elle reste réceptive : rien à faire dans ce cas."""
+    hwnd = _get_deezer_hwnd_rapide()
+    etat = None
+    try:
+        import win32gui, win32con
+        if hwnd:
+            if win32gui.IsIconic(hwnd):
+                etat = "reduite"
+            elif not win32gui.IsWindowVisible(hwnd):
+                etat = "cachee"
+    except Exception:
+        hwnd = None
+    if not etat:
+        yield
+        return
+    ex_style = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
+    try:
+        win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE,
+                               ex_style | win32con.WS_EX_LAYERED | win32con.WS_EX_TRANSPARENT)
+        win32gui.SetLayeredWindowAttributes(hwnd, 0, 0, win32con.LWA_ALPHA)
+        win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
+        win32gui.SetWindowPos(hwnd, win32con.HWND_BOTTOM, 0, 0, 0, 0,
+                              win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE)
+        time.sleep(0.4)
+    except Exception as e:
+        print(f"[DEEZER UIA] Échec sortie invisible de la fenêtre : {e}")
+    try:
+        yield
+    finally:
+        try:
+            win32gui.ShowWindow(hwnd, win32con.SW_SHOWMINNOACTIVE if etat == "reduite" else win32con.SW_HIDE)
+            time.sleep(0.2)
+            win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, ex_style)
+        except Exception as e:
+            print(f"[DEEZER UIA] Échec remise en état de la fenêtre : {e}")
+
 def _clic_control(btn):
     """Effectue un clic sur un contrôle UIA de manière silencieuse (background)."""
     with prevent_focus_theft():
@@ -317,8 +420,7 @@ def _clic_control(btn):
             # 1. LegacyIAccessible (virtuel, n'affecte pas le focus)
             try:
                 legacy_pat = btn.GetLegacyIAccessiblePattern()
-                if legacy_pat:
-                    legacy_pat.DoDefaultAction()
+                if legacy_pat and legacy_pat.DoDefaultAction():
                     time.sleep(0.1)
                     active_now = win32gui.GetForegroundWindow()
                     if active_now != hwnd_before and hwnd_before != 0:
@@ -330,96 +432,131 @@ def _clic_control(btn):
             # 2. InvokePattern
             try:
                 pattern = btn.GetInvokePattern()
-                if pattern:
-                    pattern.Invoke()
+                if pattern and pattern.Invoke():
                     _restore_focus(hwnd_before)
                     return True
             except Exception as e:
                 pass
 
-            # 3. Fallback clic physique
-            try:
-                btn.Click(simulateMove=False)
-                _restore_focus(hwnd_before)
-                return True
-            except Exception as e:
-                pass
-                
+            # Pas de clic souris réel en secours : il faudrait afficher Deezer, ce qui
+            # dérangerait l'utilisateur (en pleine partie, par exemple).
+            print(f"[DEEZER UIA] Clic refusé par Deezer sur '{btn.Name}'")
             return False
         except Exception as ex:
             print(f"[DEEZER UIA] Erreur clic contrôle : {ex}")
             return False
 
 def find_player_button(deezer_ctrl, button_names):
-    """Trouve un bouton du player principal."""
-    buttons = []
-    def _collect_buttons(control):
-        if control.ControlTypeName == "ButtonControl":
-            name = control.Name or ""
-            if name in button_names or any(b in name for b in button_names):
-                buttons.append(control)
-        for child in control.GetChildren():
-            _collect_buttons(child)
-            
-    _collect_buttons(deezer_ctrl)
-    
-    for btn in buttons:
-        curr = btn
-        for _ in range(5):
-            if not curr:
-                break
-            parent = curr.GetParentControl()
-            if not parent:
-                break
-            sibling_names = [c.Name for c in parent.GetChildren() if c.ControlTypeName == "ButtonControl"]
-            if any(s in sibling_names for s in ["Suivant", "Précédent", "Activer la lecture aléatoire", "Répéter", "Muet"]):
-                return btn
-            curr = parent
-            
-    if buttons:
-        return buttons[0]
-    return None
+    """Trouve un bouton de la barre du lecteur (en bas de la fenêtre), ou None.
 
-def find_page_play_button(deezer_ctrl, button_names):
-    """Recherche le bouton de lecture au sein de la page (exclut le lecteur du bas)."""
-    buttons = []
+    Ne renvoie jamais un bouton de la page : l'ancienne version se rabattait sur le
+    premier « Écouter » trouvé (une carte de la page d'accueil), d'où des « La musique
+    est déjà en pause » alors qu'elle jouait."""
+    limite = _limite_barre_lecteur(deezer_ctrl)
+    exacts, partiels = [], []
     def _collect_buttons(control):
         if control.ControlTypeName == "ButtonControl":
             name = control.Name or ""
             if name in button_names or any(b in name for b in button_names):
                 try:
                     rect = control.BoundingRectangle
-                    if rect.right - rect.left > 0:
-                        buttons.append(control)
+                    if rect.right - rect.left > 0 and rect.top >= limite:
+                        (exacts if name in button_names else partiels).append(control)
                 except:
                     pass
         for child in control.GetChildren():
             _collect_buttons(child)
-            
+
     _collect_buttons(deezer_ctrl)
-    
-    page_buttons = []
-    for btn in buttons:
-        is_player_bar = False
-        curr = btn
-        for _ in range(5):
-            if not curr:
-                break
-            parent = curr.GetParentControl()
-            if not parent:
-                break
-            sibling_names = [c.Name for c in parent.GetChildren() if c.ControlTypeName == "ButtonControl"]
-            if any(s in sibling_names for s in ["Suivant", "Précédent", "Activer la lecture aléatoire", "Répéter", "Muet"]):
-                is_player_bar = True
-                break
-            curr = parent
-            
-        if not is_player_bar:
-            page_buttons.append(btn)
-            
-    if page_buttons:
-        return page_buttons[0]
+    boutons = exacts + partiels
+    return boutons[0] if boutons else None
+
+def find_page_play_button(deezer_ctrl, button_names, sous=None):
+    """Recherche le bouton de lecture au sein de la page (hors barre du lecteur).
+
+    Avec `sous` (ordonnée de l'en-tête de la page), ne retient que les boutons placés
+    sous cet en-tête et prend le plus proche ; sinon le premier dans l'ordre de la page.
+    Les noms exacts passent avant les noms qui ne font que les contenir."""
+    limite = _limite_barre_lecteur(deezer_ctrl)
+    candidats = []
+    def _collect_buttons(control):
+        if control.ControlTypeName == "ButtonControl":
+            name = control.Name or ""
+            if name in button_names or any(b in name for b in button_names):
+                try:
+                    rect = control.BoundingRectangle
+                    if rect.right - rect.left > 0 and rect.top < limite and (sous is None or rect.top >= sous):
+                        candidats.append((name not in button_names, rect.top, rect.left, control))
+                except:
+                    pass
+        for child in control.GetChildren():
+            _collect_buttons(child)
+
+    _collect_buttons(deezer_ctrl)
+    if not candidats:
+        return None
+    if sous is not None:
+        candidats.sort(key=lambda c: (c[0], c[1], c[2]))
+    else:
+        candidats.sort(key=lambda c: c[0])  # tri stable : garde l'ordre de la page
+    return candidats[0][3]
+
+def _attendre_titre_page(titre, timeout=12):
+    """Attend que la page affiche `titre` (ou l'un des titres d'une liste) dans son en-tête
+    et renvoie l'ordonnée de ce titre, ou None. Ignore le bandeau du haut, la barre
+    latérale et le lecteur."""
+    titres = titre if isinstance(titre, (list, tuple)) else [titre]
+    cibles = {_normalize(t) for t in titres if _normalize(t)}
+    if not cibles:
+        return None
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        try:
+            ctrl = get_deezer_main_control()
+            if ctrl:
+                R = ctrl.BoundingRectangle
+                haut, bas = R.top + HAUTEUR_BANDEAU, R.top + ZONE_TITRE_PAGE
+                trouve = []
+                def _walk(c, depth=0):
+                    if trouve or depth > 25:
+                        return
+                    if c.ControlTypeName in ("TextControl", "HeaderControl") and _normalize(c.Name or "") in cibles:
+                        r = c.BoundingRectangle
+                        if r.right - r.left > 0 and haut <= r.top <= bas and r.right > LARGEUR_BARRE_LATERALE:
+                            trouve.append(r.top)
+                            return
+                    for child in c.GetChildren():
+                        _walk(child, depth + 1)
+                _walk(ctrl)
+                if trouve:
+                    return trouve[0]
+        except Exception:
+            pass
+        time.sleep(0.3)
     return None
+
+def _verifier_lecture(titre=None, artiste=None, timeout=8):
+    """Vérifie que Deezer joue (bouton Pause dans la barre du lecteur) et, si fournis,
+    que le titre et l'artiste figurent dans le titre de la fenêtre, qui suit le morceau
+    en cours (« TITRE - ARTISTE - Deezer »)."""
+    titre_n = _normalize(_titre_court(titre)) if titre else ""
+    artiste_n = _normalize(artiste) if artiste else ""
+    fenetre = ""
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        try:
+            ctrl = get_deezer_main_control()
+            if ctrl:
+                fenetre = ctrl.Name or ""
+                f_n = _normalize(fenetre)
+                if (find_player_button(ctrl, NOMS_BOUTON_PAUSE)
+                        and (not titre_n or titre_n in f_n) and (not artiste_n or artiste_n in f_n)):
+                    return True
+        except Exception:
+            pass
+        time.sleep(0.4)
+    print(f"[DEEZER] Lecture non confirmée (attendu : {titre or '-'} / {artiste or '-'} ; fenêtre : {fenetre})")
+    return False
 
 def _uia_clic_bouton(noms_boutons):
     """Recherche le bouton dans le lecteur et clique dessus."""
@@ -437,22 +574,30 @@ def _uia_clic_bouton(noms_boutons):
     return False
 
 def _uia_clic_bouton_page_dynamique(noms_boutons, timeout=12, wait_for_title=None):
-    """Attend le chargement de la page et clique sur son bouton de lecture."""
+    """Attend le chargement de la page et clique sur son bouton de lecture.
+
+    Avec wait_for_title, attend que la page affiche ce titre dans son en-tête, puis
+    clique le bouton le plus proche sous ce titre ; sans en-tête, ne clique rien.
+    (L'ancienne version comparait au titre de la FENÊTRE, qui contient toujours
+    « Deezer » et désigne le morceau en cours : elle ne patientait jamais et cliquait
+    le premier « Écouter » de la page encore affichée, lançant un autre contenu.)"""
     if not auto:
         return False
     t0 = time.time()
-    while time.time() - t0 < timeout:
+    sous = None
+    if wait_for_title:
+        sous = _attendre_titre_page(wait_for_title, timeout)
+        if sous is None:
+            print(f"[DEEZER UIA] Page « {wait_for_title} » non affichée après {timeout}s : aucun clic.")
+            return False
+    fin = time.time() + max(3.0, timeout - (time.time() - t0))
+    while time.time() < fin:
         try:
             deezer_ctrl = get_deezer_main_control()
             if deezer_ctrl:
-                if wait_for_title:
-                    doc_title = deezer_ctrl.Name or ""
-                    if wait_for_title.lower() not in doc_title.lower() and "deezer" not in doc_title.lower():
-                        time.sleep(0.25)
-                        continue
-                        
-                btn = find_page_play_button(deezer_ctrl, noms_boutons)
+                btn = find_page_play_button(deezer_ctrl, noms_boutons, sous=sous)
                 if btn:
+                    print(f"[DEEZER UIA] Clic sur le bouton de la page : '{btn.Name}'")
                     if _clic_control(btn):
                         return True
         except:
@@ -461,97 +606,44 @@ def _uia_clic_bouton_page_dynamique(noms_boutons, timeout=12, wait_for_title=Non
     return False
 
 def _uia_clic_bouton_piste_album(track_title, artist_name=None, timeout=15):
-    """Trouve et clique la ligne d'un morceau ou son bouton de lecture dans les résultats ou sur une page."""
+    """Clique le bouton « Écouter <titre> par <artiste> » d'une ligne de morceau
+    (résultats de recherche, page d'artiste...).
+
+    Ne retient que les boutons dont le nom commence par « Écouter », hors bandeau du
+    haut et barre du lecteur : l'ancienne version cliquait le premier élément contenant
+    le titre et l'artiste, souvent le bouton de la barre de recherche, qui affiche la
+    requête tapée — rien ne se lançait."""
     if not auto:
         return False
+    titre = _normalize(_titre_court(track_title))
+    artiste = _normalize(artist_name) if artist_name else None
     t0 = time.time()
-    track_title_lower = _normalize(track_title)
-    artist_lower = _normalize(artist_name) if artist_name else None
-    
     while time.time() - t0 < timeout:
         try:
             deezer_ctrl = get_deezer_main_control()
-            if not deezer_ctrl:
-                time.sleep(0.3)
-                continue
-                
-            # Étape 1 : Parcourir le DOM pour trouver la ligne (row/item) du morceau
-            row_control = None
-            def _find_row(c, depth=0):
-                if depth > 18:
-                    return None
-                name = _normalize(c.Name or "")
-                
-                if track_title_lower in name:
-                    if not artist_lower or artist_lower in name:
-                        try:
-                            rect = c.BoundingRectangle
-                            if (rect.right - rect.left) > 0 and (rect.bottom - rect.top) > 0:
-                                return c
-                        except:
-                            pass
-                            
-                for child in c.GetChildren():
-                    res = _find_row(child, depth + 1)
-                    if res:
-                        return res
-                return None
-                
-            row_control = _find_row(deezer_ctrl)
-            
-            if row_control:
-                # Étape 2 : Chercher un bouton de lecture à l'intérieur de cette ligne
-                btn_play = None
-                def _find_play_btn(c, depth=0):
-                    if depth > 5:
-                        return None
-                    ctype = c.ControlTypeName or ""
-                    name = (c.Name or "").lower()
-                    if ctype == "ButtonControl" and (name.startswith("écouter") or "play" in name or "lire" in name or not name):
-                        return c
+            if deezer_ctrl:
+                haut = deezer_ctrl.BoundingRectangle.top + HAUTEUR_BANDEAU
+                limite = _limite_barre_lecteur(deezer_ctrl)
+                trouve = []
+                def _walk(c, depth=0):
+                    if trouve or depth > 25:
+                        return
+                    if c.ControlTypeName == "ButtonControl":
+                        n = _normalize(c.Name or "")
+                        if n.startswith("ecouter") and titre in n and (not artiste or artiste in n):
+                            r = c.BoundingRectangle
+                            if r.right - r.left > 0 and haut <= r.top < limite:
+                                trouve.append(c)
+                                return
                     for child in c.GetChildren():
-                        res = _find_play_btn(child, depth + 1)
-                        if res:
-                            return res
-                    return None
-                    
-                btn_play = _find_play_btn(row_control)
-                
-                if btn_play:
-                    print(f"[DEEZER UIA] Clic sur le bouton de lecture de la ligne : '{btn_play.Name}'")
-                    if _clic_control(btn_play):
+                        _walk(child, depth + 1)
+                _walk(deezer_ctrl)
+                if trouve:
+                    print(f"[DEEZER UIA] Clic sur le bouton de lecture de la ligne : '{trouve[0].Name}'")
+                    if _clic_control(trouve[0]):
                         return True
-                else:
-                    # Cliquer directement sur la ligne
-                    print(f"[DEEZER UIA] Clic sur la ligne elle-même : '{row_control.Name}'")
-                    if _clic_control(row_control):
-                        return True
-                        
-            # Étape 3 : Fallback historique (chercher n'importe quel bouton qui commence par écouter)
-            def _find_any_button(c, depth=0):
-                if depth > 15:
-                    return None
-                ctype = c.ControlTypeName or ""
-                name = (c.Name or "").lower()
-                if ctype == "ButtonControl" and name.startswith("écouter"):
-                    if track_title_lower in _normalize(name):
-                        if not artist_lower or artist_lower in _normalize(name):
-                            return c
-                for child in c.GetChildren():
-                    res = _find_any_button(child, depth + 1)
-                    if res:
-                        return res
-                return None
-                
-            btn = _find_any_button(deezer_ctrl)
-            if btn:
-                print(f"[DEEZER UIA] Clic sur le bouton global trouvé : '{btn.Name}'")
-                if _clic_control(btn):
-                    return True
-                    
         except Exception as e:
             print(f"[DEEZER UIA] Avertissement _uia_clic_bouton_piste_album : {e}")
-            
         time.sleep(0.3)
     return False
 
@@ -562,10 +654,6 @@ def _uia_taper_dans_recherche(query):
     try:
         _initialize_com()
         with prevent_focus_theft():
-            deezer_ctrl = get_deezer_main_control()
-            if not deezer_ctrl:
-                return False
-                
             search_edit = None
             def _find_edit(c, depth=0):
                 if c.ControlTypeName == "EditControl" and depth < 15:
@@ -579,8 +667,16 @@ def _uia_taper_dans_recherche(query):
                         if res:
                             return res
                 return None
-            search_edit = _find_edit(deezer_ctrl)
-            
+            # La barre peut mettre quelques secondes à apparaître quand Deezer vient
+            # d'être ramené au premier plan : on réessaie au lieu d'abandonner.
+            t0 = time.time()
+            while not search_edit and time.time() - t0 < 5:
+                deezer_ctrl = get_deezer_main_control()
+                if deezer_ctrl:
+                    search_edit = _find_edit(deezer_ctrl)
+                if not search_edit:
+                    time.sleep(0.4)
+
             if not search_edit:
                 print("[DEEZER UIA] Barre de recherche introuvable")
                 return False
@@ -609,51 +705,27 @@ def _uia_taper_dans_recherche(query):
         print(f"[DEEZER UIA] Échec saisie recherche : {e}")
     return False
 
-def _ouvrir_uri_deezer(uri):
-    """Ouvre une URI Deezer en ciblant directement l'exécutable de l'instance en cours si elle tourne,
-    ou l'exécutable standard sinon (évite d'ouvrir de nouvelles fenêtres unlinked)."""
-    try:
-        import psutil
-        running_exe = None
-        for proc in psutil.process_iter(['name', 'exe']):
-            try:
-                if proc.info['name'] and 'deezer' in proc.info['name'].lower():
-                    exe = proc.info['exe']
-                    if exe and os.path.exists(exe):
-                        running_exe = exe
-                        break
-            except:
-                pass
-                
-        if running_exe:
-            print(f"[DEEZER UIA] Envoi URI à l'exécutable en cours : {running_exe}")
-            subprocess.Popen([running_exe, uri], shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        elif os.path.exists(DEEZER_EXE):
-            print(f"[DEEZER UIA] Envoi URI à l'exécutable par défaut : {DEEZER_EXE}")
-            subprocess.Popen([DEEZER_EXE, uri], shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        else:
-            print(f"[DEEZER UIA] Envoi URI via explorer")
-            subprocess.Popen(["explorer", uri], shell=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception as e:
-        print(f"[DEEZER UIA] Échec ouverture URI {uri} : {e}")
-
 def _get_deezer_hwnd_rapide():
-    """Trouve le HWND de Deezer (même en tray/minimisé) SANS le restaurer ni voler le focus.
-    Utilisé pour les commandes média rapides : play/pause, suivant, précédent."""
+    """Trouve le HWND de la fenêtre principale de Deezer (même en tray/minimisé) SANS la
+    restaurer ni voler le focus. Utilisé pour les commandes média rapides (play/pause,
+    suivant, précédent) et pour rendre Deezer réceptif quand il est réduit.
+
+    Deezer peut avoir plusieurs fenêtres de premier niveau, dont certaines vides (une
+    fenêtre « Deezer » sans contenu a été observée) : on prend celle qui contient la page
+    web (Chrome_RenderWidgetHostHWND), sinon la première trouvée."""
     try:
         import win32gui, win32process
         deezer_pids = _get_deezer_pids()
         if not deezer_pids:
             return None
-        hwnd_result = [None]
+        candidats = []
         def _cb(hwnd, _):
             try:
                 _, pid = win32process.GetWindowThreadProcessId(hwnd)
                 if pid in deezer_pids:
                     classname = win32gui.GetClassName(hwnd)
                     if "Chrome_WidgetWin" in classname and not win32gui.GetParent(hwnd):
-                        hwnd_result[0] = hwnd
-                        return False
+                        candidats.append(hwnd)
             except Exception:
                 pass
             return True
@@ -661,12 +733,30 @@ def _get_deezer_hwnd_rapide():
             win32gui.EnumWindows(_cb, None)
         except:
             pass
-        return hwnd_result[0]
+        for hwnd in candidats:
+            rendus = []
+            def _enfant(child, _):
+                if win32gui.GetClassName(child) == "Chrome_RenderWidgetHostHWND":
+                    rendus.append(child)
+                    return False
+                return True
+            try:
+                win32gui.EnumChildWindows(hwnd, _enfant, None)
+            except Exception:
+                pass
+            if rendus:
+                return hwnd
+        return candidats[0] if candidats else None
     except Exception:
         return None
 
-async def deezer_ouvrir():
-    """Lance Deezer s'il n'est pas ouvert en s'assurant que l'accessibilité soit active."""
+async def deezer_ouvrir(afficher=True):
+    """Lance Deezer s'il n'est pas ouvert en s'assurant que l'accessibilité soit active.
+
+    afficher=False (opérations internes de JARVIS : lancer un titre, pause...) : la
+    fenêtre existante n'est pas touchée, et un Deezer tout juste lancé est aussitôt
+    réduit en rendant le focus à l'utilisateur. Seule la commande « ouvre Deezer »
+    l'affiche."""
     try:
         _initialize_com()
         import win32gui
@@ -696,6 +786,8 @@ async def deezer_ouvrir():
                 pass
 
         if hwnd:
+            if not afficher:
+                return f"Deezer est déjà ouvert{nom_virgule()}."
             try:
                 if not win32gui.IsWindowVisible(hwnd) or win32gui.IsIconic(hwnd):
                     win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
@@ -722,7 +814,7 @@ async def deezer_ouvrir():
             except: pass
             
             subprocess.Popen(
-                [DEEZER_EXE, "--force-renderer-accessibility"],
+                [DEEZER_EXE, "--force-renderer-accessibility", cdp.ARG_PORT],
                 cwd=DEEZER_DIR,
                 shell=False,
                 stdout=subprocess.DEVNULL,
@@ -731,6 +823,11 @@ async def deezer_ouvrir():
             _attendre_deezer_prete(8.0)
             if hwnd_before and hwnd_before != 0:
                 _restore_focus(hwnd_before)
+            if not afficher:
+                # Lancé pour une opération interne : on le réduit aussitôt
+                _h = _get_deezer_hwnd_rapide()
+                if _h:
+                    win32gui.ShowWindow(_h, win32con.SW_SHOWMINNOACTIVE)
             return f"Deezer lancé en mode accessible{nom_virgule()}."
         else:
             hwnd_before = None
@@ -745,12 +842,20 @@ async def deezer_ouvrir():
             _attendre_deezer_prete(6.0)
             if hwnd_before and hwnd_before != 0:
                 _restore_focus(hwnd_before)
+            if not afficher:
+                # Lancé pour une opération interne : on le réduit aussitôt
+                _h = _get_deezer_hwnd_rapide()
+                if _h:
+                    win32gui.ShowWindow(_h, win32con.SW_SHOWMINNOACTIVE)
             return f"Deezer lancé via protocole standard{nom_virgule()}."
     except Exception as e:
         return f"Je n'ai pas réussi à ouvrir Deezer : {e}"
 
 async def deezer_lecture_pause():
     """Bascule Play/Pause en arrière-plan sans vol de focus."""
+    # Pilotage direct si Deezer a été lancé avec son port (jamais de relancement ici)
+    if await cdp.pret(1) and await cdp.controle("bascule") is not None:
+        return f"Lecture/Pause sur Deezer{nom_virgule()}."
     hwnd = _get_deezer_hwnd_rapide()
     if hwnd:
         try:
@@ -763,7 +868,7 @@ async def deezer_lecture_pause():
         except Exception as e:
             print(f"[DEEZER UIA] Échec PostMessage play/pause : {e}")
             
-    await deezer_ouvrir()
+    await deezer_ouvrir(afficher=False)
     try:
         ctrl = get_deezer_main_control()
         if ctrl:
@@ -785,6 +890,9 @@ async def deezer_lecture_pause():
 
 async def deezer_suivant():
     """Piste suivante en arrière-plan sans vol de focus."""
+    # Pilotage direct si Deezer a été lancé avec son port (jamais de relancement ici)
+    if await cdp.pret(1) and await cdp.controle("suivant") is not None:
+        return f"Piste suivante sur Deezer{nom_virgule()}."
     hwnd = _get_deezer_hwnd_rapide()
     if hwnd:
         try:
@@ -797,7 +905,7 @@ async def deezer_suivant():
         except Exception as e:
             print(f"[DEEZER UIA] Échec PostMessage suivant : {e}")
             
-    await deezer_ouvrir()
+    await deezer_ouvrir(afficher=False)
     try:
         ctrl = get_deezer_main_control()
         if ctrl:
@@ -819,6 +927,9 @@ async def deezer_suivant():
 
 async def deezer_precedent():
     """Piste précédente en arrière-plan sans vol de focus."""
+    # Pilotage direct si Deezer a été lancé avec son port (jamais de relancement ici)
+    if await cdp.pret(1) and await cdp.controle("precedent") is not None:
+        return f"Piste précédente sur Deezer{nom_virgule()}."
     hwnd = _get_deezer_hwnd_rapide()
     if hwnd:
         try:
@@ -831,7 +942,7 @@ async def deezer_precedent():
         except Exception as e:
             print(f"[DEEZER UIA] Échec PostMessage précédent : {e}")
             
-    await deezer_ouvrir()
+    await deezer_ouvrir(afficher=False)
     try:
         ctrl = get_deezer_main_control()
         if ctrl:
@@ -853,21 +964,29 @@ async def deezer_precedent():
 
 async def deezer_stop():
     """Arrête la lecture (Pause)."""
-    await deezer_ouvrir()
+    if await cdp.pret(1):
+        e = await cdp.etat()
+        if e is not None:
+            if not e.get("joue"):
+                return f"La musique est déjà en pause{nom_virgule()}."
+            if await cdp.controle("pause") is not None:
+                return f"Musique mise en pause sur Deezer{nom_virgule()}."
+    await deezer_ouvrir(afficher=False)
     try:
         def _stop_uia():
             deezer_ctrl = get_deezer_main_control()
             if deezer_ctrl:
-                btn = find_player_button(deezer_ctrl, ["Écouter", "Pause", "Mettre en pause"])
+                btn = find_player_button(deezer_ctrl, ["Écouter"] + NOMS_BOUTON_PAUSE)
                 if btn:
-                    if btn.Name in ["Pause", "Mettre en pause"]:
+                    if btn.Name in NOMS_BOUTON_PAUSE:
                         if _clic_control(btn):
                             return f"Musique mise en pause sur Deezer{nom_virgule()}."
                     elif btn.Name == "Écouter":
                         return f"La musique est déjà en pause{nom_virgule()}."
             return None
             
-        res = await asyncio.to_thread(_stop_uia)
+        with _garder_focus_utilisateur(), _deezer_actionnable():
+            res = await asyncio.to_thread(_stop_uia)
         if res:
             return res
     except:
@@ -890,6 +1009,177 @@ async def deezer_volume(direction, paliers=4):
         time.sleep(0.05)
     msg = "Volume monté" if direction in ("monter", "up", "augmenter", "plus") else "Volume baissé"
     return f"{msg}{nom_virgule()}."
+
+async def _deezer_pilotable(relancer=True):
+    """Vrai si Deezer est pilotable par son port local (controller/deezer_cdp.py).
+
+    Sinon, avec relancer=True, (re)lance Deezer avec ce port, réduit et sans prendre le
+    focus. Un Deezer démarré sans le port (raccourci, démarrage de Windows) est fermé puis
+    relancé : la lecture en cours s'interrompt, une seule fois par session de Deezer.
+    Réservé aux commandes qui lancent une musique (pas à pause/suivant)."""
+    if await cdp.pret(2):
+        return True
+    if not relancer or not os.path.exists(DEEZER_EXE):
+        return False
+    try:
+        import psutil, win32gui, win32con
+        print("[DEEZER] (Re)lancement de Deezer avec le port de pilotage, en arrière-plan...")
+        avant = win32gui.GetForegroundWindow()
+        for pid in _get_deezer_pids():
+            try:
+                psutil.Process(pid).kill()
+            except Exception:
+                pass
+        await asyncio.sleep(1.5)
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = win32con.SW_SHOWMINNOACTIVE
+        subprocess.Popen([DEEZER_EXE, "--force-renderer-accessibility", cdp.ARG_PORT], cwd=DEEZER_DIR,
+                         startupinfo=si, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        def _discret():
+            # Deezer s'affiche parfois au démarrage malgré la demande : on le réduit
+            # aussitôt et on rend le focus à la fenêtre de l'utilisateur.
+            h = _get_deezer_hwnd_rapide()
+            if h and win32gui.IsWindowVisible(h) and not win32gui.IsIconic(h):
+                win32gui.ShowWindow(h, win32con.SW_SHOWMINNOACTIVE)
+            if avant and not _fenetre_deezer(avant) and _fenetre_deezer(win32gui.GetForegroundWindow()):
+                _restore_focus(avant)
+
+        # Surveillance rapprochée (50 ms) dans un fil dédié pendant tout le démarrage
+        import threading
+        stop = threading.Event()
+        def _veille():
+            while not stop.is_set():
+                try:
+                    _discret()
+                except Exception:
+                    pass
+                time.sleep(0.05)
+        threading.Thread(target=_veille, daemon=True).start()
+        try:
+            pret = False
+            fin = time.time() + 30
+            while time.time() < fin and not pret:
+                pret = await cdp.pret(0.5)
+                await asyncio.sleep(0.2)
+            await asyncio.sleep(8)  # Deezer se réaffiche parfois quelques secondes après
+        finally:
+            stop.set()
+        print(f"[DEEZER] Deezer pilotable : {pret}")
+        return pret
+    except Exception as e:
+        print(f"[DEEZER] Échec du relancement pilotable : {e}")
+        return False
+
+# ── Lancement sans lien deezer:// ─────────────────────────────────────────────
+# Ouvrir un lien deezer:// restaure Deezer et lui donne le focus quand il est réduit
+# (et parfois même sinon) : en pleine partie, le jeu passerait en arrière-plan. Toute
+# la navigation passe donc par la barre de recherche et la barre latérale, pilotées
+# par accessibilité, donc sans jamais afficher Deezer.
+
+def _uia_clic_meilleur_resultat(titre, noms_boutons, timeout=10):
+    """Clique un bouton (« Écouter », « Top titres »...) de la carte « Meilleur résultat »
+    de la page de recherche, si le titre de cette carte correspond à `titre`."""
+    if not auto:
+        return False
+    cibles = {_normalize(titre), _normalize(_titre_court(titre))} - {""}
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        try:
+            ctrl = get_deezer_main_control()
+            if ctrl:
+                limite = _limite_barre_lecteur(ctrl)
+                ancre, titres, boutons = [], [], []
+                def _walk(c, depth=0):
+                    if depth > 25:
+                        return
+                    t = c.ControlTypeName
+                    n = c.Name or ""
+                    if t == "TextControl" and n == "Meilleur résultat":
+                        ancre.append(c.BoundingRectangle.top)
+                    elif t == "TextControl" and _normalize(n) in cibles:
+                        titres.append(c.BoundingRectangle.top)
+                    elif t == "ButtonControl" and n in noms_boutons:
+                        r = c.BoundingRectangle
+                        if r.right - r.left > 0 and r.top < limite:
+                            boutons.append((r.top, c))
+                    for child in c.GetChildren():
+                        _walk(child, depth + 1)
+                _walk(ctrl)
+                if ancre:
+                    titres_carte = [y for y in titres if ancre[0] < y < ancre[0] + 450]
+                    if titres_carte:
+                        y_titre = titres_carte[0]
+                        sous_titre = sorted((b for b in boutons if y_titre <= b[0] <= y_titre + 160),
+                                            key=lambda b: b[0])
+                        if sous_titre:
+                            btn = sous_titre[0][1]
+                            print(f"[DEEZER UIA] Clic « {btn.Name} » sur le meilleur résultat « {titre} »")
+                            if _clic_control(btn):
+                                return True
+        except Exception as e:
+            print(f"[DEEZER UIA] Avertissement meilleur résultat : {e}")
+        time.sleep(0.3)
+    return False
+
+def _trouver_playlist_barre_laterale(requete):
+    """Playlist de l'utilisateur dans la barre latérale dont le nom contient `requete`."""
+    deezer_ctrl = get_deezer_main_control()
+    if not deezer_ctrl:
+        return None
+    requete = requete.lower().strip()
+    trouve = []
+    def _walk(c, depth=0):
+        if trouve or depth > 8:
+            return
+        try:
+            rect = c.BoundingRectangle
+            if rect.left >= 350 or rect.top >= 940:
+                return
+            if c.ControlTypeName in ("DataItemControl", "TextControl", "HyperlinkControl"):
+                if requete in (c.Name or "").lower() and rect.right < 350:
+                    trouve.append(c)
+                    return
+        except:
+            pass
+        for child in c.GetChildren():
+            _walk(child, depth + 1)
+    _walk(deezer_ctrl)
+    return trouve[0] if trouve else None
+
+def _lancer_morceau_ui(titre, artiste):
+    """Recherche « titre artiste » et lance le morceau depuis la liste « Titres » des
+    résultats : Deezer enchaîne ensuite sur les titres suivants de cette liste (la page
+    de la piste, elle, ne joue que ce titre)."""
+    if _uia_taper_dans_recherche(f"{titre} {artiste}") and _uia_clic_bouton_piste_album(titre, artiste, timeout=10):
+        return _verifier_lecture(titre, artiste)
+    return False
+
+def _lancer_meilleur_resultat_ui(requete, titre, noms_boutons, titre_attendu=None, artiste_attendu=None):
+    """Recherche `requete` puis clique `noms_boutons` sur la carte « Meilleur résultat »
+    intitulée `titre` (album, artiste, playlist)."""
+    if _uia_taper_dans_recherche(requete) and _uia_clic_meilleur_resultat(titre, noms_boutons):
+        return _verifier_lecture(titre_attendu, artiste_attendu)
+    return False
+
+def _lancer_playlist_ui(nom, requete=None):
+    """Lance une playlist : celles de l'utilisateur via la barre latérale, sinon via la
+    carte « Meilleur résultat » de la recherche. Renvoie le nom affiché, ou None."""
+    elem = _trouver_playlist_barre_laterale(requete or nom)
+    if elem:
+        # La barre latérale affiche « Werenoi par Neyor », l'en-tête de la page « Werenoi ».
+        nom_complet = elem.Name or nom
+        nom_court = nom_complet.rsplit(" par ", 1)[0]
+        if _clic_control(elem):
+            _trier_si_playlist("playlist")
+            if _uia_clic_bouton_page_dynamique(NOMS_LECTURE, 12, wait_for_title=[nom_complet, nom_court]) \
+                    and _verifier_lecture():
+                return nom_court
+        return None
+    if _lancer_meilleur_resultat_ui(nom, nom, ["Écouter"]):
+        return nom
+    return None
 
 async def deezer_rechercher(recherche):
     """Recherche intelligente d'un morceau, album, artiste ou playlist, et lance la lecture."""
@@ -919,13 +1209,11 @@ async def deezer_rechercher(recherche):
             resp_art = await asyncio.to_thread(requests.get, url_artist, timeout=3)
             if resp_art.status_code == 200:
                 artists = resp_art.json().get("data", [])
-                if artists:
-                    top_artist = artists[0]
-                    top_artist_name = top_artist.get("name", "")
-                    if _normalize(top_artist_name) == _normalize(recherche):
-                        type_recherche = "artist"
-                        query = top_artist_name
-                        print(f"[DEEZER] Artiste exact détecté automatiquement : '{query}'")
+                exacts = [a for a in artists if _normalize(a.get("name", "")) == _normalize(recherche)]
+                if exacts:
+                    type_recherche = "artist"
+                    query = exacts[0].get("name", "")
+                    print(f"[DEEZER] Artiste exact détecté automatiquement : '{query}'")
         except Exception as e:
             print(f"[DEEZER] Erreur auto-détection artiste : {e}")
             
@@ -952,8 +1240,14 @@ async def deezer_rechercher(recherche):
             return f"Je n'ai pas trouvé '{recherche}' sur Deezer{nom_virgule()}."
             
         first_result = results[0]
+        if type_recherche == "artist":
+            # L'API classe parfois un homonyme peu connu en premier (« Ziak », 252 fans,
+            # avant le vrai, 627 000) : parmi les noms exacts, on prend le plus suivi.
+            exacts = [r for r in results if _normalize(r.get("name", "")) == _normalize(query)]
+            if exacts:
+                first_result = max(exacts, key=lambda r: r.get("nb_fan", 0))
         res_id = first_result.get("id")
-        
+
         if type_recherche == "playlist":
             name = first_result.get("title")
             artist = ""
@@ -961,7 +1255,8 @@ async def deezer_rechercher(recherche):
         elif type_recherche == "artist":
             name = first_result.get("name")
             artist = name
-            msg = f"C'est parti{nom_espace()}, je lance les titres de l'artiste « {name} » sur Deezer."
+            msg = (f"C'est parti{nom_espace()}, je lance le mix de l'artiste « {name} » sur Deezer." if veux_mix
+                   else f"C'est parti{nom_espace()}, je lance les titres de l'artiste « {name} » sur Deezer.")
         elif type_recherche == "album":
             name = first_result.get("title")
             artist = first_result.get("artist", {}).get("name", "")
@@ -971,114 +1266,60 @@ async def deezer_rechercher(recherche):
             artist = first_result.get("artist", {}).get("name", "")
             msg = f"C'est parti{nom_espace()}, je lance « {name} » de {artist} sur Deezer."
             
-        # 2. Exécution avec contrôle d'accessibilité
-        await deezer_ouvrir()
-        
-        with prevent_focus_theft():
+        echecs = {
+            "track": f"J'ai trouvé « {name} » de {artist}, mais je n'ai pas réussi à le lancer sur Deezer{nom_virgule()}.",
+            "playlist": f"J'ai trouvé la playlist « {name} », mais je n'ai pas réussi à la lancer sur Deezer{nom_virgule()}.",
+            "artist": f"J'ai trouvé l'artiste « {name} », mais je n'ai pas réussi à lancer sa musique sur Deezer{nom_virgule()}.",
+            "album": f"J'ai trouvé l'album « {name} », mais je n'ai pas réussi à le lancer sur Deezer{nom_virgule()}.",
+        }
+
+        # 2. Pilotage direct de la page Deezer (controller/deezer_cdp.py) : tout se fait en
+        #    arrière-plan, Deezer réduit ou sous un jeu, et un titre est lancé depuis la
+        #    liste des résultats pour que Deezer enchaîne. Chaque lancement est vérifié.
+        if await _deezer_pilotable():
             if type_recherche == "track":
-                search_query = f"{name} {artist}"
-                if _uia_taper_dans_recherche(search_query):
-                    ok = _uia_clic_bouton_piste_album(name, artist, timeout=10)
-                    if ok:
-                        time.sleep(1.5)
-                        return msg
-                
-                # Fallback direct : ouvrir la piste sans passer par l'album complet
-                print(f"[DEEZER] Fallback page piste directe pour '{name}'")
-                _ouvrir_uri_deezer(f"deezer://track/{res_id}")
-                _uia_clic_bouton_page_dynamique(
-                    ["Écouter", "Lecture", "Mix", "Reprendre", "À l'écoute", "Pause", "Mettre en pause"],
-                    12, wait_for_title=name
-                )
-                return msg
-                
+                ok = await cdp.lancer_titre(name, artist, (first_result.get("album") or {}).get("id"),
+                                            _titre_court(name), morceau_id=res_id)
             elif type_recherche == "playlist":
-                # Vérifier la barre latérale en premier
-                deezer_ctrl = get_deezer_main_control()
-                elem_playlist = None
-                if deezer_ctrl:
-                    query_lower = query.lower().strip()
-                    def _find_sidebar(c, depth=0):
-                        nonlocal elem_playlist
-                        if elem_playlist or depth > 8:
-                            return
-                        try:
-                            rect = c.BoundingRectangle
-                            if rect.left >= 350 or rect.top >= 940:
-                                return
-                            n = c.Name or ""
-                            ctype = c.ControlTypeName or ""
-                            if ctype in ("DataItemControl", "TextControl", "HyperlinkControl"):
-                                if query_lower in n.lower() and rect.right < 350:
-                                    elem_playlist = c
-                                    return
-                        except:
-                            pass
-                        for child in c.GetChildren():
-                            _find_sidebar(child, depth + 1)
-                            
-                    _find_sidebar(deezer_ctrl)
-                    
-                if elem_playlist:
-                    if _clic_control(elem_playlist):
-                        _trier_si_playlist("playlist")
-                        _uia_clic_bouton_page_dynamique(
-                            ["Écouter", "Lecture", "Mix", "Reprendre", "À l'écoute", "Pause", "Mettre en pause"],
-                            12, wait_for_title=query
-                        )
-                        time.sleep(1.5)
-                        return f"C'est parti{nom_espace()}, je lance votre playlist « {query} » sur Deezer."
-                
-                # Navigation directe via URI
-                _ouvrir_uri_deezer(f"deezer://playlist/{res_id}")
-                _trier_si_playlist(f"deezer://playlist/{res_id}")
-                _uia_clic_bouton_page_dynamique(
-                    ["Écouter", "Lecture", "Mix", "Reprendre", "À l'écoute", "Pause", "Mettre en pause"],
-                    12, wait_for_title=name
-                )
-                return msg
-                
+                # Les playlists de l'utilisateur (barre latérale) passent avant la recherche
+                perso = await cdp.trouver_playlist_bibliotheque(query)
+                if perso:
+                    res_id, name = perso
+                    msg = f"C'est parti{nom_espace()}, je lance votre playlist « {name} » sur Deezer."
+                ok = await cdp.lancer_page("playlist", res_id, name)
             elif type_recherche == "artist":
-                _ouvrir_uri_deezer(f"deezer://artist/{res_id}")
-                if veux_mix:
-                    print(f"[DEEZER UIA] Lancement du Mix de l'artiste {name}")
-                    _uia_clic_bouton_page_dynamique(
-                        ["Mix de l'artiste", "Mix"],
-                        12, wait_for_title=name
-                    )
-                else:
-                    print(f"[DEEZER UIA] Lancement des Top Titres de l'artiste {name}")
-                    first_track_name = None
-                    try:
-                        url_top = f"https://api.deezer.com/artist/{res_id}/top"
-                        resp_top = await asyncio.to_thread(requests.get, url_top, timeout=3)
-                        if resp_top.status_code == 200:
-                            top_tracks = resp_top.json().get("data", [])
-                            if top_tracks:
-                                first_track_name = top_tracks[0].get("title", "")
-                                print(f"[DEEZER UIA] Premier top morceau détecté : '{first_track_name}'")
-                    except Exception as e:
-                        print(f"[DEEZER UIA] Impossible de récupérer le premier morceau : {e}")
-                        
-                    clicked = False
-                    if first_track_name:
-                        clicked = _uia_clic_bouton_piste_album(first_track_name, name, timeout=12)
-                        
-                    if not clicked:
-                        _uia_clic_bouton_page_dynamique(
-                            ["Écouter", "Lecture", "Reprendre", "À l'écoute", "Pause", "Mettre en pause"],
-                            12, wait_for_title=name
-                        )
-                return msg
-                
+                ok = await cdp.lancer_artiste(name, res_id, mix=veux_mix)
+            else:
+                ok = await cdp.lancer_page("album", res_id, name, artist)
+            return msg if ok else echecs[type_recherche]
+
+        # 3. Secours, si le pilotage direct est indisponible : accessibilité Windows, sans
+        #    jamais de lien deezer:// (voir plus haut), avec la même vérification.
+        await deezer_ouvrir(afficher=False)
+
+        with _garder_focus_utilisateur(), _deezer_actionnable(), prevent_focus_theft():
+            if type_recherche == "track":
+                if _lancer_morceau_ui(name, artist):
+                    return msg
+                return f"J'ai trouvé « {name} » de {artist}, mais je n'ai pas réussi à le lancer sur Deezer{nom_virgule()}."
+
+            elif type_recherche == "playlist":
+                nom_lance = _lancer_playlist_ui(name, requete=query)
+                if nom_lance:
+                    return f"C'est parti{nom_espace()}, je lance la playlist « {nom_lance} » sur Deezer."
+                return f"J'ai trouvé la playlist « {name} », mais je n'ai pas réussi à la lancer sur Deezer{nom_virgule()}."
+
+            elif type_recherche == "artist":
+                bouton = ["Mix artiste", "Mix de l'artiste", "Mix"] if veux_mix else ["Top titres"]
+                if _lancer_meilleur_resultat_ui(name, name, bouton, artiste_attendu=None if veux_mix else name):
+                    return msg
+                return f"J'ai trouvé l'artiste « {name} », mais je n'ai pas réussi à lancer sa musique sur Deezer{nom_virgule()}."
+
             elif type_recherche == "album":
-                _ouvrir_uri_deezer(f"deezer://album/{res_id}")
-                _uia_clic_bouton_page_dynamique(
-                    ["Écouter", "Lecture", "Mix", "Reprendre", "À l'écoute", "Pause", "Mettre en pause"],
-                    12, wait_for_title=name
-                )
-                return msg
-                
+                if _lancer_meilleur_resultat_ui(f"{name} {artist}", name, ["Écouter"], artiste_attendu=artist):
+                    return msg
+                return f"J'ai trouvé l'album « {name} », mais je n'ai pas réussi à le lancer sur Deezer{nom_virgule()}."
+
         return msg
     except Exception as e:
         return f"Erreur lors de la recherche Deezer : {e}"
@@ -1159,10 +1400,13 @@ def _trier_si_playlist(uri):
         print(f"[DEEZER] Échec tri auto : {e}")
 
 async def deezer_lancer_playlist(url=None):
-    """Lance la playlist configurée ou par défaut, puis démarre la lecture."""
+    """Lance la playlist configurée (lien Deezer : playlist, album, artiste ou titre) ou,
+    sans lien, reprend la lecture. Tout se fait en arrière-plan : le lien sert seulement
+    à retrouver le nom via l'API Deezer, jamais à ouvrir une URI deezer:// (qui
+    afficherait Deezer et lui donnerait le focus)."""
     try:
         playlist_url = url or os.getenv("DEEZER_PLAYLIST_URL")
-        
+
         if playlist_url:
             if "link.deezer.com" in playlist_url:
                 try:
@@ -1170,28 +1414,43 @@ async def deezer_lancer_playlist(url=None):
                     playlist_url = r.url
                 except:
                     pass
-            if "/playlist/" in playlist_url:
-                p_id = playlist_url.split("/playlist/")[-1].split("?")[0]
-                deezer_uri = f"deezer://playlist/{p_id}"
-            else:
-                deezer_uri = playlist_url
-                
-            _ouvrir_uri_deezer(deezer_uri)
-            _trier_si_playlist(deezer_uri)
-            
-            # Clic lecture
-            await asyncio.to_thread(
-                _uia_clic_bouton_page_dynamique,
-                ["Écouter", "Lecture", "Mix", "Reprendre", "À l'écoute", "Pause", "Mettre en pause"],
-                12
-            )
-            time.sleep(1.5)
-            return True
+            m = re.search(r"/(playlist|album|artist|track)/(\d+)", playlist_url)
+            if not m:
+                print(f"[DEEZER] Lien non reconnu : {playlist_url}")
+                return False
+            genre, ident = m.groups()
+            resp = await asyncio.to_thread(requests.get, f"https://api.deezer.com/{genre}/{ident}", timeout=5)
+            info = resp.json() if resp.status_code == 200 else {}
+            nom = info.get("title") or info.get("name")
+            if not nom:
+                print(f"[DEEZER] Impossible de retrouver le nom de {genre}/{ident}")
+                return False
+            artiste = (info.get("artist") or {}).get("name", "")
+
+            if await _deezer_pilotable():
+                if genre == "track":
+                    return await cdp.lancer_titre(nom, artiste, (info.get("album") or {}).get("id"),
+                                                  _titre_court(nom), morceau_id=ident)
+                if genre == "artist":
+                    return await cdp.lancer_artiste(nom, ident)
+                return await cdp.lancer_page(genre, ident, nom, artiste or None)
+
+            await deezer_ouvrir(afficher=False)
+            with _garder_focus_utilisateur(), _deezer_actionnable(), prevent_focus_theft():
+                if genre == "playlist":
+                    return bool(_lancer_playlist_ui(nom))
+                if genre == "track":
+                    return _lancer_morceau_ui(nom, artiste)
+                if genre == "album":
+                    return _lancer_meilleur_resultat_ui(f"{nom} {artiste}", nom, ["Écouter"], artiste_attendu=artiste)
+                return _lancer_meilleur_resultat_ui(nom, nom, ["Top titres"], artiste_attendu=nom)
         else:
-            await deezer_ouvrir()
-            with prevent_focus_theft():
+            if await cdp.pret(1):
+                return await cdp.controle("lecture") is not None
+            await deezer_ouvrir(afficher=False)
+            with _garder_focus_utilisateur(), _deezer_actionnable(), prevent_focus_theft():
                 time.sleep(1)
-                await asyncio.to_thread(_uia_clic_bouton, ["Écouter", "Pause", "Mettre en pause"])
+                await asyncio.to_thread(_uia_clic_bouton, ["Écouter"])
                 time.sleep(1.5)
                 return True
     except Exception as e:

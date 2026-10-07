@@ -1,5 +1,5 @@
 import { wsRef } from "../ws_link";
-import { apiKeysButtonEl, apiKeysCloseBtn, apiKeysSaveBtn, haPanel, holoButtonEl, jarvisMenuBtn, jarvisMenuDropdown, keyboardHudEl, keyboardToggleButtonEl, settingsCameraSelect, settingsModalEl, subtitleToggleButtonEl } from "./dom_refs";
+import { apiKeysButtonEl, apiKeysCloseBtn, apiKeysSaveBtn, haPanel, jarvisMenuBtn, jarvisMenuDropdown, keyboardHudEl, keyboardToggleButtonEl, settingsCameraSelect, settingsModalEl, subtitleToggleButtonEl } from "./dom_refs";
 import { showHelpHUD } from "./help_hud";
 import { closeSettingsModal, openSettingsModal } from "./settings";
 import { hudState } from "./state";
@@ -42,7 +42,7 @@ export function initMenu(): void {
     jarvisMenuDropdown.querySelectorAll(".menu-action-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const id = btn.id;
-        if (id === "menu-settings-btn" || id === "shopping-toggle-btn" || id === "menu-uninstaller-toggle-btn" || id === "winget-toggle-btn" || id === "menu-holo-btn" || id === "menu-ha-toggle-btn" || id === "menu-keyboard-toggle" || id === "clear-cache-btn" || id === "api-keys-button" || id === "menu-av-scan-btn" || id === "menu-av-live-btn") {
+        if (id === "menu-settings-btn" || id === "shopping-toggle-btn" || id === "menu-uninstaller-toggle-btn" || id === "winget-toggle-btn" || id === "menu-ha-toggle-btn" || id === "menu-keyboard-toggle" || id === "clear-cache-btn" || id === "api-keys-button" || id === "menu-av-scan-btn" || id === "menu-av-live-btn") {
           jarvisMenuDropdown.classList.add("hidden");
           jarvisMenuBtn.classList.remove("active");
         }
@@ -53,11 +53,6 @@ export function initMenu(): void {
   const menuSubtitleToggle = document.getElementById("menu-subtitle-toggle");
   if (menuSubtitleToggle && subtitleToggleButtonEl) {
     menuSubtitleToggle.addEventListener("click", () => subtitleToggleButtonEl.click());
-  }
-
-  const menuHoloBtn = document.getElementById("menu-holo-btn");
-  if (menuHoloBtn && holoButtonEl) {
-    menuHoloBtn.addEventListener("click", () => holoButtonEl.click());
   }
 
   const menuUninstallerToggleBtn = document.getElementById("menu-uninstaller-toggle-btn");

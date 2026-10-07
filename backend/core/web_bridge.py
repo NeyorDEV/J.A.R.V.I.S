@@ -120,6 +120,52 @@ async def geocode_lieu(nom_lieu: str):
     return None, None, nom_lieu
 
 
+async def geocode_lieu_detaille(nom_lieu: str):
+    """Géocode un lieu via Nominatim et renvoie {lat, lon, nom, importance, rang} ou None.
+
+    « importance » (0 à 1) permet d'écarter les faux lieux : un lieu-dit, une rue, un
+    commerce ou un bâtiment qui porte le nom demandé (« La Terre », « Ma position »...)
+    sont sous 0,2, alors que les vrais lieux, même de petits villages, dépassent 0,5.
+    « rang » (place_rank) : 2-4 continent/pays, 5-12 région, 13+ ville et plus précis."""
+    try:
+        url = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(nom_lieu)}&format=jsonv2&limit=1"
+        headers = {"User-Agent": "JARVIS-Assistant/1.0 (personal use)"}
+        resp = await asyncio.wait_for(
+            asyncio.to_thread(requests.get, url, headers=headers, timeout=6),
+            timeout=8.0
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if data:
+                d = data[0]
+                return {"lat": float(d["lat"]), "lon": float(d["lon"]), "nom": d.get("display_name", nom_lieu),
+                        "importance": float(d.get("importance") or 0), "rang": int(d.get("place_rank") or 30)}
+    except Exception as e:
+        print(f"[GLOBE] Erreur géocodage '{nom_lieu}': {e}")
+    return None
+
+
+async def nom_lieu_inverse(lat: float, lon: float):
+    """Nom de la commune (ou du lieu le plus proche) pour des coordonnées, via Nominatim, ou None."""
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&zoom=10&format=jsonv2"
+        headers = {"User-Agent": "JARVIS-Assistant/1.0 (personal use)", "Accept-Language": "fr"}
+        resp = await asyncio.wait_for(
+            asyncio.to_thread(requests.get, url, headers=headers, timeout=6),
+            timeout=8.0
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            adresse = data.get("address", {})
+            for cle in ("city", "town", "village", "municipality", "county", "state"):
+                if adresse.get(cle):
+                    return adresse[cle]
+            return data.get("name") or None
+    except Exception as e:
+        print(f"[GLOBE] Erreur géocodage inverse ({lat}, {lon}) : {e}")
+    return None
+
+
 async def request_screen_capture():
     """Demande une capture d'écran au frontend via WebSocket."""
     if not shared.CONNECTED_CLIENTS:

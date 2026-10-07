@@ -84,7 +84,7 @@
     }
   </style>
     <script type="module" src="/src/main.ts"></script>
-  <!-- MediaPipe — chargé globalement pour le mode hologramme -->
+  <!-- MediaPipe — chargé globalement pour le contrôle par les mains (vues 3D, mode AR) -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
@@ -414,7 +414,6 @@
       <div class="carousel-track" id="carousel-track">
         <!-- Section IA / Core -->
         <button id="vision-button" title="Activer la vision de JARVIS"><span class="btn-icon">👁️</span> VISION</button>
-        <button id="holo-button" aria-pressed="false" title="Activer le mode hologramme"><span class="btn-icon">⬡</span> HOLO</button>
         <button id="subtitle-toggle" aria-pressed="true" title="Activer les sous-titres du HUD"><span class="btn-icon">💬</span> HUD TEXT</button>
         <button id="gestures-toggle" aria-pressed="false" title="Activer la détection de gestes AR"><span class="btn-icon">🖐️</span> MODE AR</button>
         
@@ -423,7 +422,6 @@
         <button id="carousel-winget-btn" aria-pressed="false" title="Mettre à jour les logiciels avec Winget"><span class="btn-icon">🚀</span> WINGET <span id="winget-count-badge" class="badge hidden" style="background:#ff3366; color:white; font-size:8px; padding:1px 4px; border-radius:10px; margin-left:3px;">0</span></button>
         <button id="carousel-av-scan-btn" aria-pressed="false" title="Lancer un scan antivirus rapide"><span class="btn-icon">🛡️</span> ANTIVIRUS</button>
         <button id="carousel-ha-btn" aria-pressed="false" title="Contrôler la domotique Home Assistant"><span class="btn-icon">🏠</span> DOMOTIQUE</button>
-        <button id="carousel-mobile-btn" aria-pressed="false" title="Connecter l'application mobile smartphone"><span class="btn-icon">📱</span> MOBILE</button>
 
         <!-- Section Système -->
         <button id="carousel-commands-btn" aria-pressed="false" title="Afficher la liste des commandes vocales"><span class="btn-icon">📋</span> COMMANDES</button>
@@ -558,7 +556,7 @@
 
   </div>
 
-  <!-- ══ JARVIS GLOBE — Canvas 2D pur (aucune dépendance) ════════════ -->
+  <!-- ══ JARVIS GLOBE — Terre 3D Three.js (src/globe.ts) + carte 2D Leaflet ══ -->
      <div id="globe-overlay"
     style="display:none;position:fixed;inset:0;z-index:100;background:#000;opacity:0;flex-direction:column;transition:opacity 0.8s ease-in-out;">
     <canvas id="globe-canvas"
@@ -577,15 +575,9 @@
     </div>
 
     <div
-      style="position:absolute;top:14px;left:20px;z-index:20;color:rgba(0,229,255,.7);font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;pointer-events:none;line-height:1.8;">
-      <div style="font-size:20px;font-weight:bold;letter-spacing:5px;margin-bottom:5px;">J.A.R.V.I.S</div>
-      <div style="font-size:10px;letter-spacing:3px;opacity:0.7;margin-bottom:10px;">SYSTÈME DE NAVIGATION</div>
-      <div style="font-size:9px;letter-spacing:1px;opacity:0.5;">by Neyor</div>
-    </div>
-    <div
           style="position:absolute;top:14px;right:20px;text-align:right;z-index:20;color:rgba(0,229,255,.7);font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;pointer-events:none;line-height:1.8;">
       <div id="globe-clock">--:--:--</div>
-      <div style="font-size:9px;opacity:.5">UTC</div>
+      <div style="font-size:9px;opacity:.5">HEURE LOCALE</div>
     </div>
     <div
       style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);text-align:center;z-index:20;pointer-events:none;">
@@ -616,10 +608,7 @@
   </div>
 
   <script>
-    // The globe logic is now handled in src/globe.ts via Vite
-    document.getElementById('globe-close').addEventListener('click', () => {
-      if (window.jarvisGlobe) window.jarvisGlobe({ globe_action: 'hide' });
-    });
+    // La logique du globe est dans src/globe.ts (qui gère aussi le bouton ✕ FERMER).
 
     // Transition to detailed map
     let leafletMap = null;
@@ -638,9 +627,13 @@
             zoomControl: false
           });
 
-          // Google Satellite Tiles (More reliable)
-          L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-            attribution: '&copy; Google'
+          // Imagerie satellite Esri + noms de lieux (les tuiles Google utilisées avant ne
+          // sont pas une API publique : blocage possible, et contraire à leurs conditions)
+          L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics', maxZoom: 19
+          }).addTo(leafletMap);
+          L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19
           }).addTo(leafletMap);
         } else {
           if (!isNaN(lat) && !isNaN(lon)) {
@@ -874,7 +867,8 @@
     </div>
   </div>
 
-  <!-- ══ HOLOGRAMME OVERLAY ════════════════════════════════════════════════ -->
+  <!-- ══ VUES 3D (explorateur, maison, cortex, échecs, radar) ═══════════════ -->
+  <!-- Ex-mode hologramme : les identifiants holo-* sont conservés car les vues les utilisent. -->
   <div id="holo-overlay" style="display:none;">
     <!-- Corner brackets -->
     <div class="holo-corner holo-corner-tl"></div>
@@ -888,7 +882,6 @@
     <!-- Canvases empilés -->
     <canvas id="holo-starfield"></canvas>
     <canvas id="holo-three-canvas"></canvas>
-    <canvas id="holo-game-canvas"></canvas>
     <canvas id="holo-hand-canvas"></canvas>
 
     <!-- Bouton retour accueil -->
@@ -896,33 +889,6 @@
 
     <!-- Toast geste -->
     <div id="holo-gesture-toast"></div>
-        <!-- HUD Haut-Gauche -->
-    <div class="holo-hud-corner holo-hud-tl">
-      <div class="holo-hud-block">
-        <div class="holo-hud-line"><span class="holo-key">FPS</span><span id="holo-hud-fps">--</span></div>
-        <div class="holo-hud-line"><span class="holo-key">HANDS</span><span id="holo-hud-hands">0</span></div>
-        <div class="holo-hud-line"><span class="holo-key">SHAPES</span><span id="holo-hud-shapes">0</span></div>
-        <div class="holo-hud-line holo-muted"><span class="holo-key">GESTURE</span><span id="holo-hud-gesture">--</span></div>
-      </div>
-    </div>
-
-    <!-- HUD Haut-Droite -->
-    <div class="holo-hud-corner holo-hud-tr">
-      <div class="holo-hud-block" style="text-align:right">
-        <div class="holo-hud-title">J.A.R.V.I.S · HOLO MODE</div>
-        <div class="holo-hud-line holo-muted" style="justify-content:flex-end;" id="holo-hud-date">--</div>
-      </div>
-    </div>
-
-    <!-- HUD Bas-Gauche — barres d'énergie -->
-    <div class="holo-hud-corner holo-hud-bl">
-      <div class="holo-hud-bars">
-        <div class="holo-bar-row"><span class="holo-key">ENERGY</span><div class="holo-bar"><div class="holo-bar-fill holo-cyan" id="holo-bar-energy" style="width:70%"></div></div></div>
-        <div class="holo-bar-row"><span class="holo-key">FLUX</span><div class="holo-bar"><div class="holo-bar-fill holo-orange" id="holo-bar-flux" style="width:50%"></div></div></div>
-        <div class="holo-bar-row"><span class="holo-key">LINK</span><div class="holo-bar"><div class="holo-bar-fill holo-red" id="holo-bar-link" style="width:30%"></div></div></div>
-      </div>
-    </div>
-
     <!-- ══ CORTEX NODE DETAILS PANEL — Iron Man HUD (right side) ════════ -->
     <div id="holo-cortex-panel" style="display:none;">
       <div class="cp-scanlines"></div>
@@ -958,7 +924,7 @@
       <!-- Header -->
       <div style="padding:10px 14px 8px; border-bottom:1px solid rgba(0,229,255,0.2); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
         <span style="color:#00e5ff; font-size:11px; letter-spacing:2px; font-weight:bold;">◈ RADAR RÉSEAU</span>
-        <button onclick="window._holoApp?.toggleNetworkRadar?.()" style="background:none;border:none;color:rgba(0,229,255,0.5);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
+        <button onclick="window._fermerVues3D?.()" style="background:none;border:none;color:rgba(0,229,255,0.5);cursor:pointer;font-size:14px;padding:0 4px;">✕</button>
       </div>
       <!-- Stats bar — visible uniquement onglet Actives -->
       <div id="radar-stats-bar" style="padding:6px 14px; border-bottom:1px solid rgba(0,229,255,0.1); display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:10px; flex-shrink:0;">
@@ -1073,23 +1039,6 @@
           <button class="cp-delete-btn" id="chess-stop-btn" style="flex: 1; margin: 0; padding: 10px; background: rgba(255, 46, 77, 0.12); border: 1px solid rgba(255, 46, 77, 0.35); color: #ff2e4d; font-family: monospace; font-size: 10px; cursor: pointer; border-radius: 3px; font-weight: bold; letter-spacing: 1px; transition: all 0.3s ease; height: 36px; display: flex; align-items: center; justify-content: center;">QUITTER</button>
         </div>
       </div>
-    </div>
-        <!-- Dock — boutons de formes (touches 1-9) -->
-    <div id="holo-dock">
-      <button class="holo-dock-btn" data-shape="sphere" title="Sphère [1]">⬤</button>
-      <button class="holo-dock-btn" data-shape="cube" title="Cube [2]">■</button>
-      <button class="holo-dock-btn" data-shape="pyramid" title="Pyramide [3]">▲</button>
-      <button class="holo-dock-btn" data-shape="torus" title="Tore [7]">◎</button>
-      <button class="holo-dock-btn" data-shape="dna" title="DNA Knot [8]">⬡</button>
-      <button class="holo-dock-btn" data-shape="octa" title="Octaèdre [6]">✦</button>
-      <button class="holo-dock-btn holo-dock-sep" id="holo-btn-explorer" title="Explorateur de Fichiers Spatial 3D">EXPLORER</button>
-      <button class="holo-dock-btn holo-dock-sep" id="holo-btn-domotic" title="Carte Domotique 3D Immersive">CARTE 3D</button>
-      <button class="holo-dock-btn holo-dock-sep" id="holo-btn-cortex" title="Cortex Neuronal (Mémoire 3D)">CORTEX</button>
-
-      <button class="holo-dock-btn holo-dock-sep" id="holo-btn-game" title="Jeu balle — utilise ta main pour faire rebondir la balle">JEU</button>
-      <button class="holo-dock-btn holo-dock-sep active" id="holo-btn-mirror" title="Inverser les mains">MIROIR</button>
-      <button class="holo-dock-btn holo-dock-sep" id="holo-btn-clear" title="Effacer tout [Suppr]">CLR</button>
-      <button class="holo-dock-btn holo-dock-sep" id="holo-btn-fullscreen" title="Plein écran">⛶</button>
     </div>
   </div>
 
@@ -1456,29 +1405,6 @@
         <div class="sys-stat-bar-fill" id="ram-bar-fill"></div>
       </div>
       <span id="ram-value" class="sys-stat-value">--%</span>
-    </div>
-  </div>
-
-  <!-- ══ MOBILE APP CONNECTION MODAL ═══════════════════════════════════ -->
-  <div id="mobile-info-modal" class="hidden" style="position: fixed; inset: 0; z-index: 30000; background: rgba(5, 5, 8, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: none; align-items: center; justify-content: center;">
-    <div style="width: 500px; max-width: 90vw; background: rgba(10, 16, 26, 0.95); border: 1px solid rgba(0, 229, 255, 0.4); border-radius: 16px; padding: 24px; box-shadow: 0 15px 45px rgba(0, 0, 0, 0.75), 0 0 30px rgba(0, 229, 255, 0.2); text-align: center; position: relative;">
-      <button type="button" onclick="const m=document.getElementById('mobile-info-modal'); if(m){ m.classList.add('hidden'); m.style.setProperty('display', 'none', 'important'); }" style="position: absolute; top: 16px; right: 16px; background: transparent; border: none; color: #00e5ff; font-size: 16px; font-weight: bold; cursor: pointer;">[ X ]</button>
-      <div style="font-size: 32px; margin-bottom: 10px;">📱</div>
-      <div style="font-size: 16px; font-weight: bold; color: #00e5ff; letter-spacing: 2px; margin-bottom: 8px;">ÉCOSYSTÈME MOBILE JARVIS v9.0</div>
-      <div style="font-size: 11px; color: rgba(255, 255, 255, 0.7); line-height: 1.6; margin-bottom: 20px;">
-        L'interface et le fonctionnement mobile ont été revus en profondeur pour s'adapter aux nouveaux usages et offrir la meilleure expérience sur smartphone.
-      </div>
-      
-      <div style="background: rgba(0, 229, 255, 0.06); border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 8px; padding: 14px; margin-bottom: 20px;">
-        <div style="font-size: 10px; color: rgba(0, 229, 255, 0.6); letter-spacing: 1px; margin-bottom: 6px;">ADRESSE D'ACCÈS DEPUIS VOTRE SMARTPHONE</div>
-        <div id="mobile-url-display" style="font-size: 16px; font-weight: bold; color: #00ffcc; font-family: monospace; letter-spacing: 1px;">http://192.168.1.XX:8080</div>
-      </div>
-
-      <div style="text-align: left; font-size: 10px; color: rgba(255, 255, 255, 0.5); line-height: 1.7; background: rgba(0,0,0,0.4); padding: 12px; border-radius: 6px;">
-        🔹 <b>Web App / PWA</b> : Ouvrez l'URL dans Chrome / Safari sur votre smartphone.<br>
-        🔹 <b>Voix & Orbe 3D</b> : Reconnaissance vocale temps réel & réponse synthétisée.<br>
-        🔹 <b>Réseau local</b> : Assurez-vous d'être connecté au même Wi-Fi.
-      </div>
     </div>
   </div>
 

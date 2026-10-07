@@ -17,7 +17,7 @@ import { initWidgets } from "./widgets";
 import "./cards";
 import "./holo_clock";
 import { initHandTracking } from "./hand_tracking";
-import "./hologramme";
+import "./vues_3d";
 import { SpatialFileExplorer } from "./spatial_explorer";
 import { DomoticMap } from "./domotic_map";
 import { CortexMap } from "./cortex_map";
@@ -42,7 +42,7 @@ import "./widgets.css";
 import { initBootOrbSphere, runBootSequence } from "./hud/boot";
 import { initCarouselActions } from "./hud/carousel_actions";
 import { initControlButtons, initPanelShortcuts } from "./hud/control_buttons";
-import { initHolo } from "./hud/holo";
+import { initVues3D } from "./hud/vues_3d";
 import { initKeyboard } from "./hud/keyboard";
 import { initMenu } from "./hud/menu";
 import { applyState, initOrb, setConnected, setMuted } from "./hud/orb_state";
@@ -55,7 +55,7 @@ import { initVaultPanel } from "./panels/vault_panel";
 import { initWeatherTempPanels } from "./panels/weather_temp_panels";
 import { connect } from "./ws/connection";
 
-// Expose SpatialFileExplorer class globally for hologramme.js
+// Classes des vues 3D exposées pour vues_3d.js (qui les instancie à la demande)
 (window as any).SpatialFileExplorer = SpatialFileExplorer;
 (window as any).DomoticMap = DomoticMap;
 (window as any).CortexMap = CortexMap;
@@ -73,7 +73,7 @@ initOrb();
 initMenu();
 initKeyboard();
 initSettingsNav();
-initHolo();
+initVues3D();
 initSettingsForm();
 
 // ── Boot ──────────────────────────────────────────────────────────────────────

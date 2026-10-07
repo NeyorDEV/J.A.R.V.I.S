@@ -116,7 +116,9 @@ async def resoudre_apps_localement(texte):
                     pass
 
     # 4. ACTIONS SYSTÈME RAPIDES
-    if any(k in t for k in ["explorateur", "mes dossiers", "mes fichiers"]):
+    # (« explorateur spatial / 3D » est la vue 3D de JARVIS, et « ferme ... » une
+    #  fermeture : ces phrases sont laissées aux commandes locales.)
+    if any(k in t for k in ["explorateur", "mes dossiers", "mes fichiers"])             and not any(k in t for k in ["spatial", "3d", "ferme", "quitte"]):
         subprocess.Popen(["explorer.exe"])
         return "Explorateur de fichiers ouvert, Monsieur."
     if any(k in t for k in ["notepad", "bloc-notes", "note rapide"]):

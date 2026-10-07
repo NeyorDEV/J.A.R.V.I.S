@@ -110,7 +110,6 @@ backend/
   sandbox/           — Generated output (websites built by the dev swarm)
 interfaces/
   frontend/          — Web HUD (Three.js, TypeScript, Vite)
-  mobile/            — Companion mobile interface
   chrome_extension/  — Browser extension
 scratch/             — Debug/exploration scripts (not versioned)
 ```

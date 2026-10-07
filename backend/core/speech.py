@@ -5,8 +5,6 @@ import time
 import os
 import math
 import random
-import base64
-import json
 import re
 import edge_tts
 import builtins
@@ -106,30 +104,16 @@ async def _jouer_tts_fichier(texte, tmp_path):
         except: pass
         return
 
-    texte_tts = texte.replace("**", "").replace("*", "").replace("#", "").replace("`", "").strip()
-    
     send_web_state = getattr(builtins, "send_web_state", None)
     send_web_text = getattr(builtins, "send_web_text", None)
     send_web_volume = getattr(builtins, "send_web_volume", None)
-    connected_clients = getattr(builtins, "CONNECTED_CLIENTS", [])
 
     is_speaking = True
     if send_web_state: await send_web_state("speaking")
     if send_web_text: await send_web_text(texte)
 
     try:
-        from core.config import _skip_pc_audio
-
-        if _skip_pc_audio:
-            if connected_clients:
-                try:
-                    with open(tmp_path, "rb") as f:
-                        audio_b64 = base64.b64encode(f.read()).decode('utf-8')
-                    message = json.dumps({"action": "jarvis_audio", "text": texte_tts, "audio_b64": audio_b64})
-                    await asyncio.gather(*[ws.send(message) for ws in connected_clients], return_exceptions=True)
-                except Exception as e:
-                    print(f"[MOBILE] Erreur envoi audio : {e}")
-        elif _USE_HOMEPOD:
+        if _USE_HOMEPOD:
             # Lecture sur le HomePod via AirPlay — PC reste silencieux
             speak_volume = 0.8
             if send_web_volume: await send_web_volume(speak_volume)

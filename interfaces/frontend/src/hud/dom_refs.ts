@@ -27,7 +27,6 @@ export const visualizerHudEl = document.getElementById("visualizer-hud") as HTML
 
 export const settingsButtonEl = document.getElementById("settings-button") as HTMLButtonElement;
 export const settingsModalEl = document.getElementById("settings-modal") as HTMLDivElement;
-export const holoButtonEl = document.getElementById("holo-button") as HTMLButtonElement;
 export const haToggleBtn = document.getElementById("ha-toggle-btn") as HTMLButtonElement;
 export const haPanel = document.getElementById("ha-panel") as HTMLDivElement;
 export const settingsCloseBtn = document.getElementById("settings-close-btn") as HTMLSpanElement;

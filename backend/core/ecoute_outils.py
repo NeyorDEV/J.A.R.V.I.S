@@ -126,7 +126,7 @@ def _protocole_enrolement_vocal(commande, queue_ecoute, RATE, CHUNK, SILENCE_LIM
     idx_phrase = 0
     enrolement_annule = False
     while idx_phrase < len(phrases):
-        # Un appui sur STOP (mobile/HUD) doit annuler tout le protocole,
+        # Un appui sur STOP (HUD) doit annuler tout le protocole,
         # pas seulement couper la phrase en cours : avant ce correctif,
         # la boucle continuait à capturer sans plus rien annoncer, et
         # enregistrait n'importe quel bruit ambiant comme échantillon

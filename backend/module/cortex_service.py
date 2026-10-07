@@ -267,6 +267,8 @@ async def handle_cortex_ws(data, websocket):
             if not exists:
                 custom_links.append({"from": from_id, "to": to_id})
                 try:
+                    # data/ n'existe pas encore sur une installation neuve (dossier non versionné)
+                    os.makedirs(os.path.dirname(synapses_path), exist_ok=True)
                     with open(synapses_path, "w", encoding="utf-8") as f:
                         json.dump(custom_links, f, ensure_ascii=False, indent=2)
                     print(f"[CORTEX] Liaison synaptique créée : {from_id} <-> {to_id}")
