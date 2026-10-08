@@ -63,7 +63,8 @@ def recherche_images_web(query, nb_images=6, engine="serpapi"):
     urls = []
     
     # ── Moteur SerpAPI ───────────────────────────────────────────────────────
-    if engine == "serpapi" and _cle_valide(SERPAPI_API_KEY):
+    from core.ai_clients import api_activee
+    if engine == "serpapi" and _cle_valide(SERPAPI_API_KEY) and api_activee("serpapi"):
         try:
             print(f"[IMAGE] Recherche SerpAPI Images pour : {query}")
             params = {

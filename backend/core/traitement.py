@@ -16,7 +16,17 @@ from core.speech import parler
 from core.web_bridge import send_web_state
 from module.commandes_locales import resoudre_commandes_locales
 from module.echecs_local import resoudre_echecs_localement
+from module.alarmes_local import resoudre_alarmes_localement
 from core.interlocuteur import nom_ou_utilisateur, nom_virgule
+
+
+# « Deezer » (« dizeur ») est transcrit « 10 heures » par Whisper (mesuré : « Jarvis, ferme
+# Deezer » → « jarvis, ferme 10 heures »). Après un verbe d'application ou « sur », une heure
+# n'a pas de sens : c'est Deezer. « mets une alarme à 10 heures » n'est pas touché (« à »).
+_DEEZER_ENTENDU = r"(?:10 ?heures?|10 ?h|dix heures?|dizz?e?u?r|deesear|dieser)"
+_RE_DEEZER_MAL_ENTENDU = re.compile(
+    r"\b(ferme|fermes|quitte|ouvre|ouvres|lance|lances|relance|redemarre|redémarre|coupe|sur|dans)\s+"
+    + _DEEZER_ENTENDU + r"(?=\s*[.!?]*\s*$|\s+(?:stp|s'il te pla[iî]t|svp)\b)")
 
 
 def nettoyer_commande(texte):
@@ -24,6 +34,8 @@ def nettoyer_commande(texte):
     for variante in ["jarvis,", "jarvis", "jervis,", "jervis", "service,", "service"]:
         if t.startswith(variante):
             t = t[len(variante):].strip()
+    # (« fermes », « lances » : conjugaisons fantaisistes de Whisper, ramenées à l'impératif)
+    t = _RE_DEEZER_MAL_ENTENDU.sub(lambda m: re.sub(r"(ferme|ouvre|lance)s$", r"\1", m.group(1)) + " deezer", t)
     return t
 
 
@@ -54,30 +66,116 @@ def _texte_substantiel(texte: str) -> bool:
     return lettres >= 3
 
 
+# Ordre de priorité des resolvers, du plus spécifique au plus générique.
+# Avant, une boucle passait d'abord TOUS les builtins.resoudre_* dans l'ordre
+# ALPHABÉTIQUE, puis la chaîne « statique » : l'ordre voulu était ignoré, et des
+# resolvers génériques (lanceur d'applis par sous-chaîne, calcul, système…) passaient
+# avant des commandes précises (« lance le radar réseau » lançait EA App).
+# Les resolvers ajoutés à chaud (compétences, plugins créés en cours de route) sont
+# insérés à la place marquée par None ; la mémoire (et son cache sémantique, qui
+# répond à toute phrase ressemblant à un ancien échange) reste en tout dernier.
+_ORDRE_RESOLVEURS = [
+    # Commandes précises (phrases ou mots-clés explicites)
+    "resoudre_dom_hud", "resoudre_developpement", "resoudre_uninstaller_localement", "resoudre_local_mode",
+    "resoudre_lancer_enigme", "resoudre_os_autopilot", "resoudre_creation_plugin",
+    "resoudre_generation_document", "resoudre_images_locales", "resoudre_modifier_image",
+    "resoudre_recipe", "resoudre_connexions_reseau",
+    "resoudre_dev_swarm", "resoudre_lance_sandbox", "resoudre_creation_site_web",
+    "resoudre_ouvrir_site_web", "resoudre_tv_localement",
+    None,  # ← resolvers ajoutés à chaud
+    # Commandes générales
+    "commandes_locales", "resoudre_commandes_systeme", "resoudre_infos_systeme_localement",
+    "resoudre_listes_locales", "resoudre_temps_localement", "resoudre_conversion_localement",
+    "resoudre_traduction_localement", "resoudre_francais_localement", "resoudre_extras_locaux",
+    # Globe : déclencheurs génériques (« montre… », « affiche… ») suivis d'un géocodage réseau
+    "resoudre_globe_localement", "resoudre_apps_localement",
+    # En dernier : mémoire (cache sémantique)
+    "resoudre_memoire_locale",
+]
+# Resolvers refusés à une voix non reconnue (mode invité) : ils agissent sur le PC, le
+# code ou des fichiers. (Les commandes sensibles de commandes_locales — coffre-fort,
+# compétences, fermeture des navigateurs — vérifient le locuteur elles-mêmes.)
+_INTERDITS_INVITE = {
+    "resoudre_os_autopilot", "resoudre_creation_plugin", "resoudre_dev_swarm",
+    "resoudre_lance_sandbox", "resoudre_creation_site_web", "resoudre_uninstaller_localement",
+    "resoudre_local_mode", "resoudre_generation_document", "resoudre_modifier_image",
+    "resoudre_memoire_locale", "resoudre_developpement",
+}
+# Fonctions builtins.resoudre_* qui ne sont pas des resolvers de commande
+_HORS_CHAINE = {"resoudre_chemin", "resoudre_echecs_localement",
+                "resoudre_mon_resolver"}
+
+
+def _sequence_resolveurs():
+    connus = set(_ORDRE_RESOLVEURS) | _HORS_CHAINE
+    a_chaud = sorted(n for n in dir(builtins) if n.startswith("resoudre_") and n not in connus)
+    sequence = []
+    for nom in _ORDRE_RESOLVEURS:
+        sequence.extend(a_chaud if nom is None else [nom])
+    return sequence
+
+
 async def _essayer_resolvers_statiques(texte):
-    """Chaîne des resolvers par mots-clés, dans l'ordre de priorité.
+    """Chaîne des resolvers par mots-clés, dans l'ordre de priorité (_ORDRE_RESOLVEURS).
 
     Appelée avec la phrase de l'utilisateur, puis éventuellement une seconde
     fois avec la phrase canonique produite par le dispatch function calling.
     """
+    global dernier_resolveur
+    for nom in _sequence_resolveurs():
+        if nom in _INTERDITS_INVITE and getattr(shared, "ACTIVE_SPEAKER", "guest") == "guest":
+            continue   # mode invité (avant, seules les actions JSON du LLM étaient filtrées)
+        fn = resoudre_commandes_locales if nom == "commandes_locales" else getattr(builtins, nom, None)
+        if fn is None:
+            continue
+        try:
+            reponse = await fn(texte) if asyncio.iscoroutinefunction(fn) else fn(texte)
+        except Exception as e:
+            # Un resolver en erreur ne doit pas priver l'utilisateur de réponse
+            # (avant, l'exception remontait et la commande restait sans suite).
+            print(f"[RESOLVEUR] Erreur dans {nom} : {type(e).__name__} : {e}")
+            continue
+        if reponse:
+            dernier_resolveur = nom
+            print(f"[DEBUG] Commande résolue par : {nom}")
+            return reponse
+    return None
+
+
+dernier_resolveur = None   # nom du resolver qui a répondu à la dernière commande (journal, tests)
+
+
+async def _resoudre_localement(texte_utilisateur):
+    """Résolution sans IA : échecs, alarmes, contextes en attente, puis les resolvers."""
+    global dernier_resolveur
+    dernier_resolveur = None
     reponse = None
-    if not reponse: reponse = await builtins.resoudre_dom_hud(texte)
-    if not reponse: reponse = await resoudre_commandes_locales(texte)
+    # Échecs (Priorité absolue pour intercepter les coups et éviter de charger la DB vectorielle de la mémoire locale)
     if not reponse:
-        if hasattr(builtins, "resoudre_creation_site_web"):
-            reponse = await builtins.resoudre_creation_site_web(texte)
-    if not reponse: reponse = await builtins.resoudre_commandes_systeme(texte)
-    if not reponse: reponse = await builtins.resoudre_tv_localement(texte)
-    if not reponse: reponse = await builtins.resoudre_apps_localement(texte)
-    if not reponse: reponse = await builtins.resoudre_infos_systeme_localement(texte)
-    if not reponse: reponse = await builtins.resoudre_memoire_locale(texte)
-    if not reponse: reponse = await builtins.resoudre_temps_localement(texte)
-    if not reponse: reponse = await builtins.resoudre_listes_locales(texte)
-    if not reponse: reponse = await builtins.resoudre_francais_localement(texte)
-    if not reponse: reponse = await builtins.resoudre_conversion_localement(texte)
-    if not reponse: reponse = await builtins.resoudre_traduction_localement(texte)
-    if not reponse: reponse = await builtins.resoudre_globe_localement(texte)
-    if not reponse: reponse = await builtins.resoudre_extras_locaux(texte)
+        reponse = await resoudre_echecs_localement(texte_utilisateur)
+        if reponse: dernier_resolveur = "echecs"
+
+    # Alarmes, minuteurs, rappels : avant tout plugin, sinon « mets une alarme à 7 h »
+    # partait dans la recherche Deezer de secours (phrases commençant par « mets »).
+    if not reponse:
+        reponse = await resoudre_alarmes_localement(texte_utilisateur)
+        if reponse: dernier_resolveur = "alarmes"
+
+    # Modification d'image en attente d'instruction (Priorité absolue pour éviter qu'un
+    # mot de l'instruction de retouche ne soit intercepté par un autre resolver avant elle)
+    if not reponse and hasattr(builtins, "resoudre_modifier_image"):
+        from plugins.image_edit_resolver import _attente_modif_image
+        if _attente_modif_image["actif"]:
+            reponse = await builtins.resoudre_modifier_image(texte_utilisateur)
+            if reponse: dernier_resolveur = "resoudre_modifier_image"
+
+    # Interception prioritaire des compétences vocales personnalisées pour éviter les conflits avec les plugins (ex: radar réseau)
+    if not reponse and any(k in texte_utilisateur.lower() for k in ["compétence", "competence"]):
+        reponse = await resoudre_commandes_locales(texte_utilisateur)
+        if reponse: dernier_resolveur = "commandes_locales"
+
+    if not reponse:
+        reponse = await _essayer_resolvers_statiques(texte_utilisateur)
     return reponse
 
 
@@ -122,8 +220,8 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
         builtins.ACTIVE_SPEAKER = "neyor"
 
     if shared.traiter_lock.locked():
-        parler(f"Je termine ce que je fais{nom_virgule()}. Un instant.")
-        return
+        # La commande attend son tour (avant, elle était purement et simplement jetée).
+        parler(f"Je termine ce que je fais{nom_virgule()}, je m'en occupe juste après.")
 
     async with shared.traiter_lock:
         # STOP_PARLER doit être réarmé APRÈS l'obtention du verrou : le remettre à
@@ -139,37 +237,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
 
         # TENTATIVE DE RÉSOLUTION LOCALE (Commandes, Math, Français, etc.)
         print(f"[DEBUG] Tentative de résolution locale pour : {texte_utilisateur}")
-        # Échecs (Priorité absolue pour intercepter les coups et éviter de charger la DB vectorielle de la mémoire locale)
-        if not reponse: reponse = await resoudre_echecs_localement(texte_utilisateur)
-
-        # Modification d'image en attente d'instruction (Priorité absolue pour éviter qu'un
-        # mot de l'instruction de retouche ne soit intercepté par un autre resolver avant elle)
-        if not reponse and hasattr(builtins, "resoudre_modifier_image"):
-            from plugins.image_edit_resolver import _attente_modif_image
-            if _attente_modif_image["actif"]:
-                reponse = await builtins.resoudre_modifier_image(texte_utilisateur)
-
-        # Interception prioritaire des compétences vocales personnalisées pour éviter les conflits avec les plugins (ex: radar réseau)
-        if not reponse and any(k in texte_utilisateur.lower() for k in ["compétence", "competence"]):
-            reponse = await resoudre_commandes_locales(texte_utilisateur)
-
-        # Résolution locale dynamique (Pour les résolveurs additionnels enregistrés à chaud sans redémarrage)
-        if not reponse:
-            for attr_name in sorted(dir(builtins)):
-                if attr_name.startswith("resoudre_") and attr_name not in ["resoudre_developpement", "resoudre_dom_hud", "resoudre_chemin", "resoudre_echecs_localement", "resoudre_globe_localement"]:
-                    try:
-                        resolver_fn = getattr(builtins, attr_name)
-                        if asyncio.iscoroutinefunction(resolver_fn):
-                            reponse = await resolver_fn(texte_utilisateur)
-                        else:
-                            reponse = resolver_fn(texte_utilisateur)
-                        if reponse:
-                            print(f"[DEBUG] Commande résolue dynamiquement par : {attr_name}")
-                            break
-                    except Exception as e:
-                        print(f"[DEBUG DYNAMIC] Erreur lors de l'appel du résolveur {attr_name} : {e}")
-
-        if not reponse: reponse = await _essayer_resolvers_statiques(texte_utilisateur)
+        reponse = await _resoudre_localement(texte_utilisateur)
 
         # FUNCTION CALLING GEMINI : aucun resolver par mots-clés n'a compris la phrase.
         # Un modèle rapide la mappe sur une intention connue (→ phrase canonique) qu'on
@@ -180,7 +248,10 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
                 from core.intent_dispatcher import resoudre_intention_llm
                 phrase_canonique = await resoudre_intention_llm(texte_utilisateur)
                 if phrase_canonique and phrase_canonique.lower().strip() != texte_utilisateur.lower().strip():
-                    reponse = await _essayer_resolvers_statiques(phrase_canonique)
+                    # Résolution locale complète : avec la seule chaîne des plugins, alarmes,
+                    # minuteurs et échecs (traités avant elle) n'étaient jamais atteints —
+                    # « mets une alarme à 10h » repartait à l'IA
+                    reponse = await _resoudre_localement(phrase_canonique)
                     if reponse:
                         print(f"[INTENT] Résolu via phrase canonique : « {phrase_canonique} »")
             except Exception as e:
@@ -276,7 +347,10 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
                     "read_sheet", "read_doc", "upload_file", "share_file", "create_folder", "append_sheet",
                     "read_emails", "send_email", "reply_email", "read_full_email", "archive_email", "delete_email",
                     "read_calendar", "create_event", "update_event", "delete_event",
-                    "create_task", "list_tasks", "complete_task", "delete_task"
+                    "create_task", "list_tasks", "complete_task", "delete_task",
+                    # Code, sites, saisie, appels, mémoire de l'utilisateur
+                    "creer_site_web", "creer_site", "generer_site", "dictee", "whatsapp_appel",
+                    "memoriser", "auto_memoriser", "oublier", "lister_memoire", "github_action",
                 }
                 if getattr(shared, "ACTIVE_SPEAKER", "neyor") == "guest" and action in restricted_actions:
                     print(f"🔒 [SPEAKER] Action '{action}' bloquée en mode invité.")

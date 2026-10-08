@@ -354,6 +354,52 @@ def _garder_focus_utilisateur():
         except Exception:
             pass
 
+def reparer_fenetres_deezer():
+    """Rend les fenêtres de Deezer de nouveau affichables si une opération en arrière-plan les a
+    laissées « non activables » (clic dans la barre des tâches sans effet) ou transparentes
+    (invisibles) : opération interrompue, ancienne version de JARVIS… Sans effet sinon.
+    Appelée au démarrage de JARVIS, à « ouvre Deezer » et après chaque opération invisible."""
+    try:
+        import ctypes
+        import win32gui, win32con, win32process
+        pids = set(_get_deezer_pids())
+        if not pids:
+            return 0
+        lire_calque = ctypes.windll.user32.GetLayeredWindowAttributes
+        reparees = []
+
+        def examiner(h, _):
+            try:
+                _, pid = win32process.GetWindowThreadProcessId(h)
+                if pid not in pids or "Chrome_WidgetWin" not in win32gui.GetClassName(h):
+                    return True
+                ex = win32gui.GetWindowLong(h, win32con.GWL_EXSTYLE)
+                nouveau = ex & ~0x08000000 & ~win32con.WS_EX_TRANSPARENT   # WS_EX_NOACTIVATE, clics traversants
+                if nouveau != ex:
+                    win32gui.SetWindowLong(h, win32con.GWL_EXSTYLE, nouveau)
+                    reparees.append(h)
+                if nouveau & win32con.WS_EX_LAYERED:
+                    alpha, drapeaux, cle = ctypes.c_ubyte(), ctypes.c_uint(), ctypes.c_uint()
+                    if lire_calque(h, ctypes.byref(cle), ctypes.byref(alpha), ctypes.byref(drapeaux)) \
+                            and (drapeaux.value & win32con.LWA_ALPHA) and alpha.value < 255:
+                        win32gui.SetLayeredWindowAttributes(h, 0, 255, win32con.LWA_ALPHA)
+                        reparees.append(h)
+                if h in reparees:
+                    win32gui.SetWindowPos(h, 0, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE
+                                          | win32con.SWP_NOZORDER | win32con.SWP_FRAMECHANGED | win32con.SWP_NOACTIVATE)
+            except Exception:
+                pass
+            return True
+
+        win32gui.EnumWindows(examiner, None)
+        if reparees:
+            print(f"[DEEZER] Fenêtre de Deezer réparée (de nouveau affichable) : {len(set(reparees))} fenêtre(s).")
+        return len(set(reparees))
+    except Exception as e:
+        print(f"[DEEZER] Réparation des fenêtres impossible : {e}")
+        return 0
+
+
 @contextlib.contextmanager
 def _deezer_actionnable():
     """Rend Deezer réceptif aux actions d'accessibilité sans jamais l'afficher.
@@ -396,8 +442,14 @@ def _deezer_actionnable():
             win32gui.ShowWindow(hwnd, win32con.SW_SHOWMINNOACTIVE if etat == "reduite" else win32con.SW_HIDE)
             time.sleep(0.2)
             win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, ex_style)
+            # Fenêtre déjà « calque » avant (fréquent sous Electron) : rendre au style d'origine
+            # gardait le calque ET l'opacité 0 posée plus haut — Deezer restait invisible, même
+            # JARVIS fermé, et impossible à afficher depuis la barre des tâches.
+            if ex_style & win32con.WS_EX_LAYERED:
+                win32gui.SetLayeredWindowAttributes(hwnd, 0, 255, win32con.LWA_ALPHA)
         except Exception as e:
             print(f"[DEEZER UIA] Échec remise en état de la fenêtre : {e}")
+        reparer_fenetres_deezer()
 
 def _clic_control(btn):
     """Effectue un clic sur un contrôle UIA de manière silencieuse (background)."""
@@ -788,12 +840,18 @@ async def deezer_ouvrir(afficher=True):
         if hwnd:
             if not afficher:
                 return f"Deezer est déjà ouvert{nom_virgule()}."
+            reparer_fenetres_deezer()   # fenêtre restée non activable / transparente : affichable
             try:
                 if not win32gui.IsWindowVisible(hwnd) or win32gui.IsIconic(hwnd):
                     win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
                     if win32gui.IsIconic(hwnd):
                         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
                     _attendre_deezer_prete(3.0)
+                # « Ouvre Deezer » : l'utilisateur veut la voir, au premier plan
+                try:
+                    win32gui.SetForegroundWindow(hwnd)
+                except Exception:
+                    pass
             except:
                 pass
             return f"Deezer est déjà ouvert et accessible{nom_virgule()}."
@@ -804,7 +862,7 @@ async def deezer_ouvrir(afficher=True):
                 for pid in deezer_pids:
                     try: psutil.Process(pid).kill()
                     except: pass
-                time.sleep(1.5)
+                await asyncio.sleep(1.5)
             else:
                 return f"Deezer est déjà ouvert en arrière-plan{nom_virgule()}."
 
@@ -1000,13 +1058,13 @@ async def deezer_volume(direction, paliers=4):
     """Monte ou baisse le volume général du PC."""
     if not pyautogui:
         return "Volume impossible, pyautogui non disponible."
-    time.sleep(0.2)
+    await asyncio.sleep(0.2)
     for _ in range(int(paliers)):
         if direction in ("monter", "up", "augmenter", "plus"):
             pyautogui.press('volumeup')
         else:
             pyautogui.press('volumedown')
-        time.sleep(0.05)
+        await asyncio.sleep(0.05)
     msg = "Volume monté" if direction in ("monter", "up", "augmenter", "plus") else "Volume baissé"
     return f"{msg}{nom_virgule()}."
 
@@ -1181,8 +1239,69 @@ def _lancer_playlist_ui(nom, requete=None):
         return nom
     return None
 
-async def deezer_rechercher(recherche):
+_MOTS_VIDES = {"de", "du", "des", "la", "le", "les", "un", "une", "et", "par", "sur", "the"}
+
+
+def _resultat_fiable(requete, resultat):
+    """Le titre trouvé correspond-il à la demande ? (les mots significatifs de la requête se
+    retrouvent dans « titre + artiste »). Sinon, la transcription a sans doute déformé un nom."""
+    cible = _normalize(f"{resultat.get('title', '')} {(resultat.get('artist') or {}).get('name', '')}")
+    mots = [_normalize(m) for m in re.split(r"\s+", requete) if len(m) >= 3 and m.lower() not in _MOTS_VIDES]
+    mots = [m for m in mots if m]
+    if not mots:
+        return True
+    return sum(m in cible for m in mots) / len(mots) >= 0.75
+
+
+def _proche(requete, propose):
+    """La correction ressemble-t-elle à ce qui a été entendu ? (« ou est renoi » / « Werenoi » : 0,71 ;
+    « nique ta mère booba » / « Nekfeu », proposé à tort par l'IA : 0,24)"""
+    import difflib
+    a, b = _normalize(requete), _normalize(propose)
+    return difflib.SequenceMatcher(None, a, b).ratio() >= 0.5 or (len(b) >= 4 and b in a)
+
+
+async def _corriger_recherche(requete):
+    """Nom d'artiste ou de titre probablement prononcé, quand la transcription l'a déformé
+    (« Werenoi » entendu « au renoir », « ou est renoi »). None si rien de mieux.
+    1. Deezer classe parfois le bon artiste en tête de sa recherche d'artistes : retenu s'il est
+       très suivi (« au renoir » → Werenoi, 2,1 M de fans).
+    2. Sinon, Gemini avec recherche Google (« ou est renoi » → Werenoi)."""
+    try:
+        r = await asyncio.to_thread(requests.get, "https://api.deezer.com/search/artist",
+                                    params={"q": requete}, timeout=4)
+        artistes = r.json().get("data", []) if r.status_code == 200 else []
+        if artistes and artistes[0].get("nb_fan", 0) >= 500_000 and _proche(requete, artistes[0]["name"]):
+            return artistes[0]["name"]
+    except Exception as e:
+        print(f"[DEEZER] Correction (artistes) impossible : {e}")
+    try:
+        from google.genai import types
+        from core.ai_clients import client_gemini, api_activee
+        if not api_activee("gemini"):
+            return None
+        consigne = ("Commande vocale française transcrite automatiquement, avec de probables erreurs "
+                    "d'homophonie sur un nom d'artiste ou de titre. L'utilisateur veut écouter : "
+                    f"« {requete} ». Cherche sur le web quel artiste ou titre existant se prononce ainsi, "
+                    "puis réponds uniquement par la recherche Deezer correcte, en une ligne.")
+        rep = await asyncio.wait_for(client_gemini.aio.models.generate_content(
+            model="gemini-3.5-flash-lite", contents=consigne,
+            config=types.GenerateContentConfig(temperature=0, tools=[types.Tool(google_search=types.GoogleSearch())])),
+            timeout=6)
+        propose = (rep.text or "").strip().strip("«»\"' .").splitlines()[0] if rep.text else ""
+        if propose and _normalize(propose) != _normalize(requete) and len(propose) <= 80 and _proche(requete, propose):
+            return propose
+    except Exception as e:
+        print(f"[DEEZER] Correction (IA) impossible : {e}")
+    return None
+
+
+async def deezer_rechercher(recherche, _deja_corrige=False, _preparation=None):
     """Recherche intelligente d'un morceau, album, artiste ou playlist, et lance la lecture."""
+    # Deezer est rendu pilotable (et relancé si besoin, ~13 s à froid) PENDANT la recherche et
+    # l'éventuelle correction du nom, au lieu d'après : « joue Werenoi » prenait 20 s.
+    preparation = _preparation or asyncio.ensure_future(_deezer_pilotable())
+    recherche = recherche.strip(" ?!.,;")
     recherche_lower = recherche.lower().strip()
     type_recherche = "track"
     query = recherche
@@ -1246,6 +1365,12 @@ async def deezer_rechercher(recherche):
             exacts = [r for r in results if _normalize(r.get("name", "")) == _normalize(query)]
             if exacts:
                 first_result = max(exacts, key=lambda r: r.get("nb_fan", 0))
+        elif type_recherche == "track" and not _deja_corrige and not _resultat_fiable(query, first_result):
+            # Titre sans rapport avec la demande : nom probablement déformé à la transcription
+            corrige = await _corriger_recherche(query)
+            if corrige:
+                print(f"[DEEZER] Recherche corrigée : « {query} » → « {corrige} »")
+                return await deezer_rechercher(corrige, _deja_corrige=True, _preparation=preparation)
         res_id = first_result.get("id")
 
         if type_recherche == "playlist":
@@ -1276,7 +1401,7 @@ async def deezer_rechercher(recherche):
         # 2. Pilotage direct de la page Deezer (controller/deezer_cdp.py) : tout se fait en
         #    arrière-plan, Deezer réduit ou sous un jeu, et un titre est lancé depuis la
         #    liste des résultats pour que Deezer enchaîne. Chaque lancement est vérifié.
-        if await _deezer_pilotable():
+        if await preparation:
             if type_recherche == "track":
                 ok = await cdp.lancer_titre(name, artist, (first_result.get("album") or {}).get("id"),
                                             _titre_court(name), morceau_id=res_id)
@@ -1449,9 +1574,9 @@ async def deezer_lancer_playlist(url=None):
                 return await cdp.controle("lecture") is not None
             await deezer_ouvrir(afficher=False)
             with _garder_focus_utilisateur(), _deezer_actionnable(), prevent_focus_theft():
-                time.sleep(1)
+                await asyncio.sleep(1)
                 await asyncio.to_thread(_uia_clic_bouton, ["Écouter"])
-                time.sleep(1.5)
+                await asyncio.sleep(1.5)
                 return True
     except Exception as e:
         print(f"[DEEZER] Erreur lancement playlist : {e}")

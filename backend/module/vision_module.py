@@ -20,27 +20,31 @@ except ImportError:
 from dotenv import load_dotenv
 from core.interlocuteur import nom_espace, nom_ou_utilisateur, nom_virgule
 
-# --- IDE HELPERS ---
-try:
-    client = builtins.client
-    CHOSEN_MODEL = builtins.CHOSEN_MODEL
-    parler = builtins.parler
-    demander_ia_vision = builtins.demander_ia_vision
-    CONNECTED_CLIENTS = builtins.CONNECTED_CLIENTS
-    request_screen_capture = builtins.request_screen_capture
-except AttributeError:
-    # Ce module est importé AVANT que main.py n'ait injecté ses builtins : le
-    # bloc ci-dessus échoue donc systématiquement au démarrage normal.
-    # `parler` n'était pas réassigné ici, donc le nom restait indéfini et
-    # jarvis_vision_camera() levait un NameError, présenté à l'utilisateur
-    # comme « une erreur technique ». On résout maintenant à l'APPEL.
-    client = CHOSEN_MODEL = demander_ia_vision = CONNECTED_CLIENTS = request_screen_capture = None
+# --- Dépendances résolues à l'APPEL ---
+# Ce module est importé avant que main.py ne crée le client Gemini et n'injecte ses
+# builtins : les lire ici à l'import laissait client, demander_ia_vision,
+# CONNECTED_CLIENTS et request_screen_capture à None, si bien que « clique sur… »,
+# la caméra et la vision du navigateur échouaient toujours.
+import core.shared as shared
+from core.ai_clients import client_gemini as client
+from core.config import CHOSEN_MODEL
 
-    def parler(*args, **kwargs):
-        _f = getattr(builtins, "parler", None)
-        if _f:
-            return _f(*args, **kwargs)
-        print("[VISION]", *args)
+CONNECTED_CLIENTS = shared.CONNECTED_CLIENTS   # même ensemble que le serveur WebSocket
+
+
+def parler(*args, **kwargs):
+    _f = getattr(builtins, "parler", None)
+    if _f:
+        return _f(*args, **kwargs)
+    print("[VISION]", *args)
+
+
+async def demander_ia_vision(*args, **kwargs):
+    return await builtins.demander_ia_vision(*args, **kwargs)
+
+
+async def request_screen_capture(*args, **kwargs):
+    return await builtins.request_screen_capture(*args, **kwargs)
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -50,7 +54,7 @@ async def jarvis_vision_cliquer(instruction):
         return f"Désolé{nom_espace()}, le client Gemini Vision n'est pas initialisé ou est inactif pour le moment."
     try:
         # On attend un peu que l'UI soit stable
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
         path_ss = "jarvis_vision_temp.png"
         screenshot = pyautogui.screenshot()
         screenshot.save(path_ss)
@@ -86,7 +90,7 @@ async def jarvis_vision_cliquer(instruction):
         print(f"[VISION] Cible identifiée : {data.get('description', 'inconnu')} à ({target_x}, {target_y})")
 
         pyautogui.moveTo(target_x, target_y, duration=0.5)
-        time.sleep(0.2)
+        await asyncio.sleep(0.2)
 
         # DOUBLE-CLIC si c'est une musique ou un chiffre pour être sûr de lancer la lecture
         t_inst = instruction.lower()
@@ -141,15 +145,15 @@ async def jarvis_vision_ecrire(instruction, texte_a_taper):
         target_y = int((center_y / 1000) * img_h)
 
         pyautogui.moveTo(target_x, target_y, duration=0.5)
-        time.sleep(0.15)
+        await asyncio.sleep(0.15)
         pyautogui.click()
-        time.sleep(0.3)
+        await asyncio.sleep(0.3)
         pyautogui.hotkey('ctrl', 'a')  # Effacer le contenu existant
-        time.sleep(0.1)
+        await asyncio.sleep(0.1)
         # Coller via presse-papiers pour supporter les accents et caractères spéciaux
         pyperclip.copy(texte_a_taper)
         pyautogui.hotkey('ctrl', 'v')
-        time.sleep(0.1)
+        await asyncio.sleep(0.1)
         pyautogui.press('enter')
 
         if os.path.exists(path_ss):
@@ -200,14 +204,14 @@ async def jarvis_vision_rechercher_sur_site(texte_recherche):
         target_y = int((center_y / 1000) * img_h)
 
         pyautogui.moveTo(target_x, target_y, duration=0.5)
-        time.sleep(0.15)
+        await asyncio.sleep(0.15)
         pyautogui.click()
-        time.sleep(0.35)
+        await asyncio.sleep(0.35)
         pyautogui.hotkey('ctrl', 'a')
-        time.sleep(0.1)
+        await asyncio.sleep(0.1)
         pyperclip.copy(texte_recherche)
         pyautogui.hotkey('ctrl', 'v')
-        time.sleep(0.15)
+        await asyncio.sleep(0.15)
         pyautogui.press('enter')
 
         if os.path.exists(path_ss):

@@ -1,6 +1,10 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
-cd /d "%~dp0\.."
+:: Racine du projet = dossier qui contient main.py (depuis tools\_setup, " .. " ne
+:: menait qu'a tools\ : venv et requirements.txt etaient cherches au mauvais endroit)
+cd /d "%~dp0"
+if not exist "main.py" cd ..
+if not exist "main.py" cd ..
 
 :: ======================================================
 ::  J.A.R.V.I.S - Installation des dependances
@@ -15,10 +19,11 @@ set "WARNINGS=0"
 :: ======================================================
 echo [1/6] Detection de Python...
 
+:: Python 3.12 exige (3.13+ : plus d'audioop, paquets epingles incompatibles)
 set "PYTHON_CMD="
-python --version >nul 2>&1 && set "PYTHON_CMD=python"
+py -3.12 --version >nul 2>&1 && set "PYTHON_CMD=py -3.12"
 if not defined PYTHON_CMD (
-    py --version >nul 2>&1 && set "PYTHON_CMD=py"
+    python -c "import sys; sys.exit(0 if sys.version_info[:2]==(3,12) else 1)" >nul 2>&1 && set "PYTHON_CMD=python"
 )
 
 if not defined PYTHON_CMD (
@@ -37,7 +42,7 @@ echo [OK] Python detecte :
 echo [2/6] Creation de l'environnement virtuel...
 
 if not exist "venv" (
-    "%PYTHON_CMD%" -m venv venv
+    %PYTHON_CMD% -m venv venv
     if !errorlevel! neq 0 (
         echo [ERREUR] Impossible de creer le venv.
         set /a ERRORS+=1
@@ -126,6 +131,20 @@ if !errorlevel! neq 0 (
     set /a WARNINGS+=1
 ) else (
     echo [OK] PyWebView installe.
+)
+
+:: --- Dependances completes (requirements.txt) ---
+:: Sans cette etape (presente dans install.bat), l'installateur ne posait que la liste
+:: ci-dessus : chess, chromadb, pytz, reportlab... manquaient et JARVIS ne demarrait pas.
+echo [SYSTEME] Installation des dependances completes (requirements.txt)...
+if exist "requirements.txt" (
+    "%V_PY%" -m pip install -r requirements.txt --quiet
+    if !errorlevel! neq 0 (
+        echo [AVERTISSEMENT] Certaines dependances de requirements.txt n'ont pas pu etre installees.
+        set /a WARNINGS+=1
+    ) else (
+        echo [OK] Dependances completes installees.
+    )
 )
 
 :: --- Edge WebView2 Runtime (moteur requis par PyWebView sur Windows) ---

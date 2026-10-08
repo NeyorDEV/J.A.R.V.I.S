@@ -22,7 +22,14 @@ _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _CORE_DIR = os.path.join(_BASE_DIR, "core")
 
 VAD_MODEL_PATH = os.path.join(_CORE_DIR, "silero_vad.onnx")
-SPEAKER_MODEL_PATH = os.path.join(_CORE_DIR, "3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx")
+# CAM++ (3D-Speaker, 200k locuteurs zh/en), ~30 ms par phrase. WeSpeaker ResNet293-LM, meilleur
+# sur le papier (VoxCeleb1-O), a été écarté : sur de vraies voix il ne séparait pas les locuteurs
+# (personnes différentes jusqu'à 0,85, même personne dès 0,75 ; CAM++ : 0,46 contre 0,65).
+# Changer de modèle rend les empreintes incomparables : elles sont recalculées depuis l'audio
+# d'enrôlement conservé (sample_N.wav), cf. SpeakerBiometrics._adapter_au_modele.
+SPEAKER_MODEL_NOM = "3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx"
+SPEAKER_MODEL_URL = "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/" + SPEAKER_MODEL_NOM
+SPEAKER_MODEL_PATH = os.path.join(_CORE_DIR, SPEAKER_MODEL_NOM)
 VOICEPRINTS_DIR = os.path.join(_CORE_DIR, "voiceprints")
 
 def _telecharger_atomique(url, destination, timeout=60, taille_min=10_000):
@@ -70,12 +77,11 @@ def init_models():
         except Exception as e:
             print(f"❌  [VAD] Échec du téléchargement Silero VAD : {e}")
             
-    # 2. CAM++ Speaker Recognition (23 Mo)
+    # 2. Reconnaissance du locuteur, CAM++ (28 Mo)
     if not os.path.exists(SPEAKER_MODEL_PATH):
-        url_speaker = "https://huggingface.co/csukuangfj/speaker-embedding-models/resolve/main/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx"
-        print("🎙  [BIOMETRICS] Téléchargement du modèle de reconnaissance vocale (23 Mo)...")
+        print("🎙  [BIOMETRICS] Téléchargement du modèle de reconnaissance vocale (28 Mo)...")
         try:
-            _telecharger_atomique(url_speaker, SPEAKER_MODEL_PATH)
+            _telecharger_atomique(SPEAKER_MODEL_URL, SPEAKER_MODEL_PATH)
             print("✔  [BIOMETRICS] Modèle de reconnaissance vocale téléchargé avec succès.")
         except Exception as e:
             print(f"❌  [BIOMETRICS] Échec du téléchargement du modèle de reconnaissance vocale : {e}")
@@ -135,11 +141,65 @@ class SpeakerBiometrics:
         
         config = sherpa_onnx.SpeakerEmbeddingExtractorConfig(
             model=self.model_path,
-            num_threads=1,
+            num_threads=2,
             debug=False,
         )
         self.extractor = sherpa_onnx.SpeakerEmbeddingExtractor(config)
-        
+        self.dim = self.extractor.dim
+        self.modele = os.path.basename(self.model_path)
+        self._adapter_au_modele()
+
+    def _adapter_au_modele(self):
+        """Après un changement de modèle, recalcule les empreintes depuis l'audio d'enrôlement
+        conservé (sample_N.wav). Une empreinte sans audio (enrôlée avant la conservation) est
+        mise de côté (sample_N.npy.<ancien modèle>, ignorée) : le profil est à réenregistrer."""
+        import wave
+        marqueur = os.path.join(self.voiceprints_dir, "_modele.txt")
+        ancien = ""
+        if os.path.exists(marqueur):
+            with open(marqueur, encoding="utf-8") as f:
+                ancien = f.read().strip()
+        if ancien == self.modele:
+            return
+        # Sans marqueur (installation antérieure) : les empreintes de la bonne dimension sont
+        # supposées venir de ce modèle et gardées telles quelles
+        sans_marqueur = not ancien
+        suffixe = os.path.splitext(ancien)[0] if ancien else "ancien_modele"
+        recalcules, ecartes = 0, 0
+        for profil in os.listdir(self.voiceprints_dir):
+            dossier = os.path.join(self.voiceprints_dir, profil)
+            if not os.path.isdir(dossier):
+                continue
+            for f in os.listdir(dossier):
+                if not f.endswith(".npy"):
+                    continue
+                chemin = os.path.join(dossier, f)
+                if sans_marqueur:
+                    try:
+                        if np.load(chemin).shape == (self.dim,):
+                            continue
+                    except Exception:
+                        pass
+                wav = chemin[:-4] + ".wav"
+                emb = None
+                if os.path.exists(wav):
+                    try:
+                        with wave.open(wav, "rb") as w:
+                            emb = self.get_embedding(w.readframes(w.getnframes()), w.getframerate())
+                    except Exception as e:
+                        print(f"[BIOMETRICS] Audio illisible {wav} : {e}")
+                if emb is not None:
+                    np.save(chemin, emb)
+                    recalcules += 1
+                else:
+                    os.replace(chemin, f"{chemin}.{suffixe}")
+                    ecartes += 1
+        with open(marqueur, "w", encoding="utf-8") as f:
+            f.write(self.modele)
+        if recalcules or ecartes:
+            print(f"[BIOMETRICS] Modèle {self.modele} : {recalcules} empreinte(s) recalculée(s), "
+                  f"{ecartes} mise(s) de côté (profil à réenregistrer).")
+
     def get_embedding(self, raw_audio_bytes, sample_rate=16000):
         samples = np.frombuffer(raw_audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
         
@@ -152,7 +212,9 @@ class SpeakerBiometrics:
             return np.array(emb)
         return None
         
-    def save_voiceprint(self, username, embedding):
+    def save_voiceprint(self, username, embedding, audio=None, sample_rate=16000):
+        """Enregistre l'empreinte, et l'audio d'enrôlement (sample_N.wav) s'il est fourni :
+        il permet de recalculer l'empreinte si le modèle change, sans réenregistrer la voix."""
         username_clean = username.lower().strip()
         user_dir = os.path.join(self.voiceprints_dir, username_clean)
         os.makedirs(user_dir, exist_ok=True)
@@ -181,6 +243,16 @@ class SpeakerBiometrics:
             chosen_file = oldest_file or os.path.join(user_dir, "sample_1.npy")
             
         np.save(chosen_file, embedding)
+        wav = chosen_file[:-4] + ".wav"
+        if audio:
+            import wave
+            with wave.open(wav, "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(sample_rate)
+                w.writeframes(audio)
+        elif os.path.exists(wav):
+            os.remove(wav)  # audio d'une ancienne empreinte, qui ne correspond plus
         print(f"[BIOMETRICS] Empreinte sauvegardée dans : {chosen_file}")
         
     def load_voiceprints(self):
@@ -222,6 +294,8 @@ class SpeakerBiometrics:
                     if f.endswith(".npy"):
                         try:
                             emb = np.load(os.path.join(dir_path, f))
+                            if emb.shape != (self.dim,):
+                                continue  # empreinte d'un autre modèle : incomparable
                             if username not in voiceprints:
                                 voiceprints[username] = []
                             voiceprints[username].append(emb)

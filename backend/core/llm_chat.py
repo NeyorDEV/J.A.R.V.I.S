@@ -23,7 +23,7 @@ from module.memory_manager import _sauvegarder_echange_conv
 from module.meteo_domotique import get_meteo_actuelle, get_meteo_ha, HA_URL
 from module.sports_web import recherche_web_serpapi
 from module.vector_memory import ajouter_souvenir, rechercher_souvenirs
-from core.interlocuteur import NOM_CREATEUR, nom_espace
+from core.interlocuteur import NOM_CREATEUR, nom_espace, nom_virgule
 
 
 async def demander_ia(texte, update_hist=True, skip_local=False):
@@ -53,7 +53,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                     icon="⚙" if force_local else "⚠"
                 )
                 
-            rep_ollama = await demander_ollama(texte, update_hist=update_hist)
+            rep_ollama = await demander_ollama(texte, update_hist=update_hist, skip_local=skip_local)
             if rep_ollama:
                 return rep_ollama
                 
@@ -71,20 +71,26 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
         # ── RÉSOLUTION LOCALE DÉPORTÉE DANS LES PLUGINS ────────────
 
         # ── PRIORITÉS 1-3 — moteurs génériques (registre, cf. core/llm_registry) ──
-        for engine in llm_registry.available_engines():
-            if not _quota_mgr.is_available(engine.name):
-                print(f"[CERVEAU] {engine.label} en cooldown ({_quota_mgr.remaining_cooldown(engine.name)}s). Bascule directe.")
-                continue
-            print(f"[CERVEAU] Tentative avec {engine.label}...")
-            try:
-                rep_engine = await engine.call(texte, update_hist=update_hist, skip_local=skip_local)
-                if rep_engine:
-                    return rep_engine
-                print(f"[CERVEAU] {engine.label} KO (réponse vide). Bascule suivante.")
-            except _QuotaExceededError:
-                print(f"[CERVEAU] {engine.label} quota épuisé — cooldown {_quota_mgr.remaining_cooldown(engine.name)}s. Bascule.")
-            except Exception as e:
-                print(f"[CERVEAU] {engine.label} erreur ({e}). Bascule suivante.")
+        async def _essayer_registre():
+            for engine in llm_registry.available_engines():
+                if not _quota_mgr.is_available(engine.name):
+                    print(f"[CERVEAU] {engine.label} en cooldown ({_quota_mgr.remaining_cooldown(engine.name)}s). Bascule directe.")
+                    continue
+                print(f"[CERVEAU] Tentative avec {engine.label}...")
+                try:
+                    rep_engine = await engine.call(texte, update_hist=update_hist, skip_local=skip_local)
+                    if rep_engine:
+                        return rep_engine
+                    print(f"[CERVEAU] {engine.label} KO (réponse vide). Bascule suivante.")
+                except _QuotaExceededError:
+                    print(f"[CERVEAU] {engine.label} quota épuisé — cooldown {_quota_mgr.remaining_cooldown(engine.name)}s. Bascule.")
+                except Exception as e:
+                    print(f"[CERVEAU] {engine.label} erreur ({e}). Bascule suivante.")
+                # Une réponse déjà en partie prononcée ne doit pas être reprise depuis le
+                # début par le moteur suivant (phrases répétées) : on s'arrête là.
+                if shared._derniere_reponse_streamed:
+                    return " ".join(shared.phrases_streamed)
+            return None
 
         cerveau = detecter_cerveau(texte)
 
@@ -111,11 +117,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                 try:
                     print(f"[CERVEAU] Essai modele : {model_name} (Streaming)...")
                     # Google Search uniquement si la question semble nécessiter des infos en temps réel
-                    _mots_recherche = ["actualité", "actu", "news", "météo", "résultat", "score",
-                                       "prix", "cours", "bourse", "aujourd'hui", "maintenant",
-                                       "récent", "dernier", "2024", "2025", "2026", "qui est",
-                                       "c'est quoi", "cherche", "recherche", "trouve"]
-                    _need_search = any(m in texte.lower() for m in _mots_recherche)
+                    _need_search = besoin_recherche_web(texte)
                     _tools = [types.Tool(google_search=types.GoogleSearch())] if (_need_search and "3.1-flash-lite" not in model_name) else []
 
                     # 1. Création du stream avec un timeout adapté (plus long si recherche Google Search active)
@@ -129,7 +131,8 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                             ),
                             contents=temp_hist
                         ),
-                        timeout=10.0 if _need_search else 4.0
+                        # (Flash-Lite démarre en ~1 s ; les Flash « réfléchissent » d'abord : 3 à 6 s)
+                        timeout=10.0 if _need_search else (4.0 if "lite" in model_name else 8.0)
                     )
                     
                     full_text = ""
@@ -181,6 +184,11 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                     return full_text
 
                 except Exception as e:
+                    if shared._derniere_reponse_streamed:
+                        # Une partie de la réponse a déjà été prononcée : la reprendre avec un
+                        # autre modèle la répéterait depuis le début.
+                        print(f"[CERVEAU] Flux {model_name} interrompu après des phrases déjà dites : {formater_erreur_courte(e)}")
+                        return " ".join(shared.phrases_streamed)
                     # Réinitialiser le client global pour purger le pool de connexions corrompu/bloqué
                     try:
                         print("[CERVEAU] Réinitialisation du client Gemini suite à une erreur...")
@@ -211,6 +219,25 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                 raise Exception("Grok n'a rien renvoyé ou est mal configuré")
             return rep_grok
 
+        # ── Gemini d'abord (3.5 Flash-Lite : 1re phrase en ~1,2 s, seul moteur qui fasse une
+        #    recherche Google). Groq gratuit est limité à 8 000 jetons/min alors que le prompt
+        #    système en pèse ~6 000 : une question par minute au plus, la suivante attendait
+        #    jusqu'à 20 s. Le registre (Groq, Claude, Mistral) sert désormais de secours.
+        #    Une question routée vers Grok (detecter_cerveau) lui reste réservée.
+        gemini_deja_tente = False
+        if shared.gemini_actif and _quota_mgr.is_available("gemini") and not (cerveau == "GROK" and shared.grok_client):
+            gemini_deja_tente = True
+            try:
+                return await _call_gemini()
+            except _QuotaExceededError as e:
+                print(f"[CERVEAU] Gemini quota ({formater_erreur_courte(e)}). Bascule sur les autres moteurs.")
+            except Exception as e:
+                print(f"[CERVEAU] Gemini erreur ({formater_erreur_courte(e)}). Bascule sur les autres moteurs.")
+
+        rep_registre = await _essayer_registre()
+        if rep_registre:
+            return rep_registre
+
         # ── ROUTING DYNAMIQUE avec gestion quota ─────────────────────────────
         if cerveau == "GROK" and shared.grok_client:
             try:
@@ -219,12 +246,13 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                 print(f"[CERVEAU] Grok quota ({formater_erreur_courte(e)}). Bascule Gemini.")
             except Exception as e:
                 print(f"[CERVEAU] Grok erreur ({formater_erreur_courte(e)}). Bascule Gemini.")
-        try:
-            return await _call_gemini()
-        except _QuotaExceededError as e:
-            print(f"[CERVEAU] Gemini quota ({formater_erreur_courte(e)}). Bascule SerpAPI/Groq/Grok.")
-        except Exception as e:
-            print(f"[CERVEAU] Gemini erreur ({formater_erreur_courte(e)}). Bascule SerpAPI.")
+        if not gemini_deja_tente:
+            try:
+                return await _call_gemini()
+            except _QuotaExceededError as e:
+                print(f"[CERVEAU] Gemini quota ({formater_erreur_courte(e)}). Bascule SerpAPI/Groq/Grok.")
+            except Exception as e:
+                print(f"[CERVEAU] Gemini erreur ({formater_erreur_courte(e)}). Bascule SerpAPI.")
 
         # ── FALLBACKS (Gemini KO ou quota) ───────────────────────────────────
         # --- FALLBACK MÉTÉO/TEMP (HA + OpenMeteo) ---
@@ -288,7 +316,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
 
         # --- FALLBACK OLLAMA (100% offline) ---
         print("[CERVEAU] Gemini et Grok KO. Tentative Ollama (local)...")
-        rep_ollama = await demander_ollama(texte)
+        rep_ollama = await demander_ollama(texte, update_hist=update_hist, skip_local=skip_local)
         if rep_ollama:
             return rep_ollama
 
@@ -307,7 +335,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                 "Pour libérer tout mon potentiel, vous devez renseigner vos clés API dans le fichier .env. "
                 "En attendant, je reste disponible pour toutes vos commandes locales : domotique, heure, calculs, et bien plus encore !"
             )
-        return "Quota API dépassé, Monsieur. Mes capacités de réflexion sont temporairement limitées."
+        return f"Quota API dépassé{nom_virgule()}. Mes capacités de réflexion sont temporairement limitées."
     finally:
         shared.is_thinking = False
         await send_web_state("idle")
@@ -399,12 +427,24 @@ async def demander_ia_vision(texte, img_b64):
 
 
 def detecter_cerveau(texte):
-    # Heuristique pour basculer sur Grok uniquement pour X/Twitter
-    mots_cles_grok = ["sur x", "twitter", "grok", "elon", "x.com"]
-    cmd = texte.lower()
-    if any(m in cmd for m in mots_cles_grok):
+    # Heuristique pour basculer sur Grok uniquement pour X/Twitter (mots entiers :
+    # « elon » était trouvé dans « selon », « sur x » dans « sur xbox »)
+    if re.search(r"(\bsur x\b|\btwitter\b|\bgrok\b|\belon\b|\bx\.com\b)", texte.lower()):
         return "GROK"
     return "GEMINI"
+
+
+_MOTS_RECHERCHE = ["actualité", "actu", "news", "météo", "résultat", "score",
+                   "prix", "cours", "bourse", "aujourd'hui", "maintenant",
+                   "récent", "dernier", "2024", "2025", "2026", "qui est",
+                   "c'est quoi", "cherche", "recherche", "trouve", "qui a gagné",
+                   "en ce moment", "cette semaine", "hier soir"]
+
+
+def besoin_recherche_web(texte):
+    """La question demande-t-elle une information à jour (recherche Google) ?"""
+    t = texte.lower()
+    return any(m in t for m in _MOTS_RECHERCHE)
 
 
 def generer_salutation_demarrage(timeout=6.0):

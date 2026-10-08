@@ -117,9 +117,15 @@ async def ws_update_settings(websocket, data):
             # Recharger les variables et réinitialiser les clients d'IA à chaud
             recharger_clients_ia()
 
+    interrupteurs_changes = any(
+        k.startswith("api_") and k.endswith("_enabled") and config_data.get(k, True) != v
+        for k, v in settings.items()
+    )
     config_data.update(settings)
     with open(_p, "w", encoding="utf-8") as _f:
         _j.dump(config_data, _f, ensure_ascii=False, indent=4)
+    if interrupteurs_changes:
+        recharger_clients_ia()   # appliquer l'activation / la désactivation des API
     if "mic_device_index" in settings and settings["mic_device_index"] != old_mic_index:
         shared.MIC_NEED_RELOAD = True
     if "av_live_protection" in settings:

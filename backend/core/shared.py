@@ -49,6 +49,10 @@ ACTIVE_SPEAKER = "neyor"
 # Globe 3D affiché ? (signalé par le frontend, message « globe_state ») — sert au zoom vocal
 GLOBE_VISIBLE = False
 SPEAKER_ANNOUNCED = None
+DERNIER_LOCUTEUR = None   # (profil, instant) de la dernière voix reconnue (core/ecoute.py)
+ETAT_HUD = None            # dernier état envoyé au HUD : idle / listening / thinking / speaking
+MUSIQUE_EN_COURS = None    # {"title", "artist", "status"} du morceau Deezer (weather_music_service)
+ENROLEMENT_CLAVIER = False  # « enregistre ma voix » tapé au clavier du HUD → enrôlement du créateur
 WAKEWORD_MODEL = None
 WAKEWORD_THRESHOLD = 0.35
 
@@ -69,17 +73,20 @@ anthropic_client = None
 mistral_client = None
 MODELS_LIST = [
     "gemini-3.5-flash-lite",   # Rapide, parfait pour usage vocal (succède à 3.1-flash-lite)
-    "gemini-3.7-flash",        # Fallback puissant — le Flash le plus fort actuellement (sorti 13/08/2026)
+    "gemini-3.8-flash",        # Fallback puissant — le Flash le plus récent (meilleur que 3.7, même délai)
     "gemini-flash-latest",
     "gemini-pro-latest",
 ]
 # Ollama (LLMs locaux — fallback 100% offline)
 OLLAMA_URL = "http://127.0.0.1:11434"
-OLLAMA_MODELS = ["mistral-nemo", "llama3.1:8b", "gemma4"]
+# Mesuré sur RTX 4070 Super (12 Go) : gemma4:12b = meilleur français, 1re phrase ~2 s ;
+# gemma4 (e4b) en secours = ~1 s, chargement 14 s au lieu de 45 s
+OLLAMA_MODELS = ["gemma4:12b", "gemma4:latest"]
 
 # ── WebSocket / interface ────────────────────────────────────────────────────
 WS_LOOP = None
 CONNECTED_CLIENTS = set()
+CLIENTS_EXTENSION = set()           # connexions de l'extension Chrome (pas des HUD)
 interface_deja_connectee = False
 PENDING_SCREEN_CAPTURES = {}
 BACKGROUND_TASKS = set()
@@ -87,7 +94,7 @@ _WEBVIEW_WINDOW = None
 # Passer à True si WebView2 est définitivement cassé sur votre système
 FORCE_BROWSER_MODE = False
 # Version utilisée pour l'invalidation du cache WebView2
-CURRENT_VERSION = "9.0.0"
+CURRENT_VERSION = "9.5.0"
 
 # ── Divers ───────────────────────────────────────────────────────────────────
 _plugins_prets = threading.Event()  # levé quand tous les plugins sont importés

@@ -6,7 +6,9 @@ import io
 import json
 import os
 import threading
+import re
 import time
+import unicodedata
 import wave
 
 import numpy as np
@@ -14,7 +16,6 @@ import speech_recognition as sr
 
 import core.shared as shared
 import core.speech as speech
-from controller.actions_pc import executer_action_pc
 from core.audio_stream import AudioStreamManager
 from core.ecoute_outils import _protocole_enrolement_vocal, transcribe_audio_groq
 from core.etat_parole import get_dernier_parle_time, get_is_speaking, set_stop_parler
@@ -23,6 +24,56 @@ from core.speech import parler
 from core.traitement import nettoyer_commande, traiter_reponse_ia
 from core.web_bridge import envoyer_carte_contextuelle, _safe_ws_send, send_web_state
 from core.interlocuteur import CREATEUR, NOM_CREATEUR, nom_espace, nom_virgule
+
+
+# Ordres d'interruption de la parole (texte sans accents, mots entiers). « arrête » seul n'est
+# retenu que dans un énoncé bref (_est_ordre_stop) : dans une transcription intermédiaire qui
+# mêle la voix de JARVIS, « j'arrête le minuteur » l'aurait fait se couper lui-même.
+_RE_STOP = re.compile(r"\b(stop|stoppe|arrete[- ]toi|tais[- ]toi|taisez[- ]vous|silence|chut|ca suffit)\b")
+# Énoncé bref : on accepte aussi les erreurs de transcription fréquentes d'un mot isolé
+# entendu par-dessus la voix de JARVIS (mesuré : « stop » → « top », « step » ;
+# « tais-toi » → « c'est toi »). Interrompre à tort une réponse est sans gravité.
+_RE_STOP_BREF = re.compile(r"\b(stop+e?|stopper|top|step|arrete[sz]?|arrete[- ]toi|tais[- ]?toi|taisez[- ]vous"
+                           r"|c'?est toi|t'?es toi|tes toi|silence|chut+e?|ca suffit|ta gueule)\b")
+# Amorce Whisper pour la transcription d'un énoncé bref pendant que JARVIS parle : oriente vers
+# le vocabulaire d'arrêt. Phrase longue exprès : si Whisper la recopie (hallucination sur un
+# bruit), elle dépasse 4 mots et n'est pas prise pour un ordre.
+_AMORCE_STOP = "Commandes vocales pour interrompre l'assistant : stop, tais-toi, arrête, silence, chut."
+# Un « stop » dit pendant que JARVIS parle est bref : au-delà, l'enregistrement est surtout
+# JARVIS qui s'entend lui-même (jeté sans transcription, comme avant)
+DUREE_MAX_ORDRE_STOP = 3.0
+
+# Reconnaissance du locuteur : seuil normal, et seuil abaissé pour la voix reconnue dans la
+# dernière minute. Mesuré : une autre voix (Clara) obtient 0,33 à 0,42 contre le profil de Neyor.
+SEUIL_VOIX = 0.60
+SEUIL_VOIX_SESSION = 0.50
+MEMOIRE_LOCUTEUR = 60
+
+
+def _sans_accents(texte):
+    return "".join(c for c in unicodedata.normalize("NFD", texte) if unicodedata.category(c) != "Mn")
+
+
+def _contient_stop(texte):
+    """Le texte contient-il un ordre d'interruption ? (transcription intermédiaire, qui peut
+    mêler la voix de JARVIS)"""
+    return bool(texte) and bool(_RE_STOP.search(_sans_accents(texte.lower())))
+
+
+def _est_ordre_stop(texte):
+    """Énoncé complet qui EST un ordre d'interruption (« stop », « Jarvis, tais-toi »…), et
+    pas une phrase qui contient le mot par hasard."""
+    if not texte:
+        return False
+    t = re.sub(r"\b(jarvis|jervis|gervis)\b", " ", _sans_accents(texte.lower()))
+    return bool(_RE_STOP_BREF.search(t)) and len(re.findall(r"[a-z']+", t)) <= 4
+
+
+def _interrompre_parole(source):
+    shared.STOP_PARLER = True
+    set_stop_parler(True)
+    speech.vider_files()
+    print(f"[JARVIS] Interruption forcée ({source}) : parole coupée, file vidée.")
 
 
 def ecouter():
@@ -98,7 +149,12 @@ def ecouter():
                 delattr(builtins, "dernier_message")
 
             # 1. Gestion du timeout de session
-            if shared.jarvis_actif and (time.time() - shared.dernier_message > shared.SESSION_TIMEOUT):
+            # Le délai court depuis la dernière parole (de l'utilisateur OU de JARVIS) et jamais
+            # pendant une commande : un lancement de Deezer de plus de 20 s refermait la session
+            # en plein traitement, et il fallait redire « Jarvis » juste après la réponse.
+            inactif_depuis = time.time() - max(shared.dernier_message, get_dernier_parle_time())
+            if (shared.jarvis_actif and not shared.is_thinking and not get_is_speaking()
+                    and inactif_depuis > shared.SESSION_TIMEOUT):
                 print(f"[JARVIS] Timeout session ({shared.SESSION_TIMEOUT}s). Retour en veille.")
                 shared.jarvis_actif = False
                 _safe_ws_send(json.dumps({"action": "jarvis_text", "text": ""}))
@@ -125,6 +181,17 @@ def ecouter():
                     threading.Thread(target=_run_consolidation, daemon=True).start()
                 except Exception as ce:
                     print(f"[JARVIS] Échec du déclenchement de la consolidation automatique : {ce}")
+
+            # 1 bis. « Enregistre ma voix » tapé au clavier du HUD (canal de confiance, cf.
+            #        ws_handler) : le créateur peut refaire son profil même si sa voix n'est plus
+            #        reconnue (sinon la demande vocale lui serait refusée, par sécurité)
+            if shared.ENROLEMENT_CLAVIER:
+                shared.ENROLEMENT_CLAVIER = False
+                shared.ACTIVE_SPEAKER = builtins.ACTIVE_SPEAKER = CREATEUR
+                _protocole_enrolement_vocal("enregistre ma voix", queue_ecoute, RATE, CHUNK, SILENCE_LIMIT, ENERGY_THRESHOLD)
+                audio_buffer = []
+                is_recording = False
+                continue
 
             # 2. Lecture du flux audio
             try:
@@ -190,7 +257,9 @@ def ecouter():
                         ecouter._recorded_during_speech = True
                     # --- TRANSCRIPTION INTÉRIMAIRE EN TEMPS RÉEL (Active uniquement si réveillé) ---
                     now = time.time()
-                    if shared.jarvis_actif and (now - last_interim_time >= INTERIM_INTERVAL) and shared.groq_client:
+                    # (aussi pendant que JARVIS parle, même hors session : c'est là qu'un « stop »
+                    #  noyé dans sa propre voix peut être repéré)
+                    if (shared.jarvis_actif or get_is_speaking()) and (now - last_interim_time >= INTERIM_INTERVAL) and shared.groq_client:
                         last_interim_time = now
                         # Copie du buffer pour le thread (évite les race conditions)
                         buffer_copy = list(audio_buffer)
@@ -223,7 +292,15 @@ def ecouter():
                         # Si l'enregistrement a eu lieu pendant que Jarvis parlait, qu'il n'a pas été interrompu,
                         # et qu'on est configuré pour ignorer le micro pendant la parole, on rejette directement.
                         if was_during_speech and cfg_eco.get("ignore_mic_while_speaking", True) and not shared.STOP_PARLER:
-                            # print("[JARVIS] Phrase complète ignorée sans transcription (auto-audition de Jarvis).")
+                            # Énoncé bref pendant que JARVIS parle : peut-être un « stop ». Avant, il
+                            # était jeté sans transcription, et seule la transcription intermédiaire
+                            # (après 1,2 s de parole continue) pouvait le voir : un « stop » court et
+                            # isolé n'interrompait jamais JARVIS.
+                            if len(raw_audio) <= DUREE_MAX_ORDRE_STOP * RATE * 2:
+                                texte_stop = transcribe_audio_groq(raw_audio, RATE, r, prompt=_AMORCE_STOP)
+                                if _est_ordre_stop(texte_stop):
+                                    _interrompre_parole(f"« {texte_stop} »")
+                            # Sinon : JARVIS qui s'entend lui-même, jeté sans transcription
                             audio_buffer = []
                             continue
 
@@ -261,7 +338,22 @@ def ecouter():
                             # --- BIOMÉTRIE : IDENTIFIER LE LOCUTEUR ---
                             if shared.VOICE_BIOMETRICS:
                                 try:
-                                    name, score = shared.VOICE_BIOMETRICS.identify_speaker(raw_audio, RATE)
+                                    # Profil le plus proche, puis décision : seuil normal, ou seuil
+                                    # abaissé pour la voix reconnue il y a moins d'une minute (une
+                                    # phrase courte la faisait souvent retomber sous le seuil :
+                                    # 0,57 au lieu de 0,60 → mode invité au milieu d'une conversation)
+                                    proche, score = shared.VOICE_BIOMETRICS.identify_speaker(raw_audio, RATE, threshold=0.0)
+                                    recent = shared.DERNIER_LOCUTEUR
+                                    if proche != "guest" and score >= SEUIL_VOIX:
+                                        name = proche
+                                    elif (proche != "guest" and recent and recent[0] == proche
+                                          and time.time() - recent[1] < MEMOIRE_LOCUTEUR and score >= SEUIL_VOIX_SESSION):
+                                        name = proche
+                                        print(f"🎙  [SPEAKER] {proche} maintenu (Similarité {score:.2f}, reconnu il y a {time.time() - recent[1]:.0f} s).")
+                                    else:
+                                        name = "guest"
+                                    if name != "guest":
+                                        shared.DERNIER_LOCUTEUR = (name, time.time())
                                     voiceprints = shared.VOICE_BIOMETRICS.load_voiceprints()
                                     if not voiceprints:
                                         shared.ACTIVE_SPEAKER = "neyor"
@@ -289,12 +381,9 @@ def ecouter():
                             
                             was_during_speech = getattr(ecouter, "_recorded_during_speech", False)
                             
-                            if was_during_speech and any(w in texte for w in ["tais-toi", "silence", "stop", "chut", "arrête-toi", "arrête toi", "stoppe"]):
-                                shared.STOP_PARLER = True
-                                set_stop_parler(True)
-                                speech.vider_files()
+                            if was_during_speech and _contient_stop(texte):
+                                _interrompre_parole("barge-in")
                                 audio_buffer = []
-                                print("[JARVIS] Interruption forcée (barge-in) : File de parole vidée.")
                                 continue
                             
                             if was_during_speech and cfg_eco.get("ignore_mic_while_speaking", True):
@@ -332,33 +421,38 @@ def ecouter():
                                         audio_buffer = []
                                         continue
 
-                                    action_pc = executer_action_pc(commande)
-                                    if action_pc:
-                                        parler(action_pc)
+                                    # (controller/actions_pc.executer_action_pc passait ici avant toute la
+                                    #  chaîne, avec des règles grossières en double : « ouvre l'explorateur
+                                    #  spatial » ouvrait l'Explorateur Windows, tout « capture » faisait une
+                                    #  capture d'écran… La chaîne de resolvers gère ces commandes.)
+                                    # On exécute la commande sur la boucle du WebSocket, pas sur
+                                    # une boucle jetable. L'ancienne version créait une boucle,
+                                    # la fermait aussitôt, et emportait avec elle :
+                                    #   - les asyncio.create_task() lancés pendant le traitement
+                                    #     (ex. le dev swarm ne démarrait jamais à la voix),
+                                    #   - les envois WebSocket, dont les objets appartiennent à
+                                    #     WS_LOOP (HUD jamais mis à jour, échec silencieux),
+                                    #   - les futures de capture d'écran (« regarde l'écran »
+                                    #     attendait systématiquement les 15 s de timeout).
+                                    if shared.WS_LOOP is not None and not shared.WS_LOOP.is_closed():
+                                        _fut_cmd = asyncio.run_coroutine_threadsafe(
+                                            traiter_reponse_ia(commande, from_voice=True), shared.WS_LOOP
+                                        )
+                                        # Non bloquant : l'écoute continue pendant le traitement.
+                                        # Avant, la boucle attendait la fin de la commande : la file
+                                        # audio grossissait sans limite et était rejouée après coup,
+                                        # et un « oui » prononcé pour confirmer une action vocale ne
+                                        # pouvait pas être entendu (la confirmation expirait).
+                                        _fut_cmd.add_done_callback(_fin_commande_vocale)
                                     else:
-                                        # On exécute la commande sur la boucle du WebSocket, pas sur
-                                        # une boucle jetable. L'ancienne version créait une boucle,
-                                        # la fermait aussitôt, et emportait avec elle :
-                                        #   - les asyncio.create_task() lancés pendant le traitement
-                                        #     (ex. le dev swarm ne démarrait jamais à la voix),
-                                        #   - les envois WebSocket, dont les objets appartiennent à
-                                        #     WS_LOOP (HUD jamais mis à jour, échec silencieux),
-                                        #   - les futures de capture d'écran (« regarde l'écran »
-                                        #     attendait systématiquement les 15 s de timeout).
-                                        if shared.WS_LOOP is not None and not shared.WS_LOOP.is_closed():
-                                            _fut_cmd = asyncio.run_coroutine_threadsafe(
-                                                traiter_reponse_ia(commande, from_voice=True), shared.WS_LOOP
+                                        # Repli si le serveur WebSocket n'est pas encore prêt
+                                        loop = asyncio.new_event_loop()
+                                        try:
+                                            loop.run_until_complete(
+                                                traiter_reponse_ia(commande, from_voice=True)
                                             )
-                                            _fut_cmd.result()   # bloquant, comme l'ancien comportement
-                                        else:
-                                            # Repli si le serveur WebSocket n'est pas encore prêt
-                                            loop = asyncio.new_event_loop()
-                                            try:
-                                                loop.run_until_complete(
-                                                    traiter_reponse_ia(commande, from_voice=True)
-                                                )
-                                            finally:
-                                                loop.close()
+                                        finally:
+                                            loop.close()
                                 elif shared.WAKE_WORD in texte:
                                     parler(f"Oui{nom_espace()}, je vous écoute.")
                         else:
@@ -374,6 +468,18 @@ def ecouter():
             time.sleep(1)
 
     audio_manager.unsubscribe(queue_ecoute)
+
+
+def _fin_commande_vocale(fut):
+    """Fin d'une commande vocale traitée en arrière-plan : relance le délai de session
+    (une longue réponse ne doit pas fermer la session) et journalise une éventuelle erreur."""
+    shared.dernier_message = time.time()
+    try:
+        exc = fut.exception()
+    except Exception:
+        return
+    if exc:
+        print(f"[VAD] Erreur de traitement de la commande : {type(exc).__name__} : {exc}")
 
 
 def _envoyer_interim(audio_chunks, rate):
@@ -423,11 +529,8 @@ def _envoyer_interim(audio_chunks, rate):
 
             # Interruption immédiate si un mot-clé de stop est détecté pendant qu'il parle
             is_speaking_active = speech.is_speaking or not speech.lecture_queue.empty() or not speech.parole_queue.empty()
-            if is_speaking_active and any(w in texte for w in ["tais-toi", "silence", "stop", "chut", "arrête-toi", "arrête toi", "stoppe"]):
-                shared.STOP_PARLER = True
-                set_stop_parler(True)
-                speech.vider_files()
+            if is_speaking_active and _contient_stop(texte):
+                _interrompre_parole("barge-in interim")
                 ecouter._recorded_during_speech = True
-                print("[JARVIS] Interruption forcée (barge-in interim) : File de parole vidée.")
     except Exception as e:
         pass  # Silencieux — l'interim est cosmétique, pas critique

@@ -53,15 +53,16 @@ async def resoudre_memoire_locale(texte):
                 ajouter_memoire("note_rapide", content)
                 return f"C'est noté{nom_espace()}, j'ai mis cela en mémoire : {content}."
     # ── SUPPRESSION / OUBLI (ex: "oublie le code du portail", "oublie mon code", "supprime le code du garage")
-    _triggers_forget = [
-        "oublie que", "oublie le", "oublie la", "oublie les", "oublie mon", "oublie ma", "oublie mes", "oublie",
-        "supprime le", "supprime la", "supprime les", "supprime mon", "supprime ma", "supprime mes", "supprime",
-        "efface le", "efface la", "efface les", "efface mon", "efface ma", "efface mes", "efface"
-    ]
-    if any(m in t for m in _triggers_forget):
+    # Oubli : seulement sur une demande explicite. Avant, « supprime » ou « efface »
+    # n'importe où dans la phrase (« supprime l'alarme », « efface la liste de
+    # courses ») effaçait les faits et les souvenirs proches du reste de la phrase.
+    m_oubli = re.match(r"^(?:oublie|oublies)\s+(?:que |le |la |les |l'|mon |ma |mes |ce que )?(.+)", t) \
+        or re.match(r"^(?:supprime|efface|retire)\s+(?:le |la |les |l'|mon |ma |mes )?(.+?)\s+(?:de|dans) (?:ta |tes |ton )(?:memoire|mémoire|notes|souvenirs|cortex)\b", t)
+    _triggers_forget = ["__oubli__"] if m_oubli else []
+    if _triggers_forget:
         for trig in _triggers_forget:
-            if trig in t:
-                sujet = t.split(trig)[-1].strip()
+            if trig:
+                sujet = m_oubli.group(1).strip()
                 if not sujet: continue
                 # Enlever la ponctuation de fin
                 sujet = re.sub(r'[?!\.]', '', sujet).strip()

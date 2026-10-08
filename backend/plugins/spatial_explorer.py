@@ -10,6 +10,8 @@ import shutil
 import builtins
 from pathlib import Path
 
+from core.dossiers import dossier_connu
+
 # Réutilisation des fonctions existantes du file_manager
 from module.file_manager import (
     lister_dossier,
@@ -137,7 +139,7 @@ async def _handle_list(data: dict, websocket) -> None:
             "action": "list",
             "success": True,
             "path": "corbeille",
-            "parent": str(Path(os.path.join(os.environ.get("USERPROFILE", ""), "Downloads"))),
+            "parent": str(Path(dossier_connu("telechargements"))),
             "folder_name": "Corbeille",
             "items": items,
         }))
@@ -148,7 +150,7 @@ async def _handle_list(data: dict, websocket) -> None:
 
     # Fallback : Téléchargements par défaut
     if not chemin_resolu or not os.path.exists(chemin_resolu):
-        chemin_resolu = os.path.join(os.environ.get("USERPROFILE", ""), "Downloads")
+        chemin_resolu = dossier_connu("telechargements")
         # Variante française si le dossier anglais n'existe pas
         if not os.path.exists(chemin_resolu):
             chemin_resolu = os.path.join(os.environ.get("USERPROFILE", ""), "Téléchargements")

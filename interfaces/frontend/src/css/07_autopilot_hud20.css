@@ -528,6 +528,10 @@
 #connection-badge.connected #connection-label { color: rgba(34, 197, 94, 0.7) !important; }
 #connection-badge.disconnected #connection-label { color: rgba(239, 68, 68, 0.6) !important; }
 
+/* Connecté : rien à signaler, le badge est masqué. Il ne réapparaît (en rouge) que pendant une
+   reconnexion au backend. */
+#connection-badge.connected { display: none !important; }
+
 /* ══════════════════════════════════════════════════════════════════════════════
    5. NOTIFICATION BANNER — Centered top (ex: nettoyage du cache)
    ══════════════════════════════════════════════════════════════════════════════ */

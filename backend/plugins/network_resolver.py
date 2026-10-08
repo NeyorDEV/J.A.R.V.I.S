@@ -5,6 +5,7 @@ import asyncio
 import json
 import unicodedata
 import builtins
+from core.interlocuteur import nom_virgule
 
 _radar_active = False
 _radar_task = None
@@ -58,7 +59,7 @@ async def _radar_loop() -> None:
                         if c['ip'] in new_high:
                             proc = c['process'].replace('.exe', '')
                             asyncio.create_task(_speak(
-                                f"Alerte, Monsieur ! Connexion à risque élevé détectée "
+                                f"Alerte{nom_virgule()} ! Connexion à risque élevé détectée "
                                 f"vers {c['country']} via {proc}."
                             ))
                             break
@@ -71,7 +72,7 @@ async def _radar_loop() -> None:
                 if new_scan:
                     ip = next(iter(new_scan))
                     asyncio.create_task(_speak(
-                        f"Attention, Monsieur. Tentative de scan de ports détectée depuis {ip}."
+                        f"Attention{nom_virgule()}. Tentative de scan de ports détectée depuis {ip}."
                     ))
             _prev_scan_ips = current_scan
 
@@ -95,7 +96,10 @@ async def resoudre_connexions_reseau(cmd: str):
     global _radar_active, _radar_task, _prev_high_ips, _prev_scan_ips
     t = _clean(cmd)
 
-    if not any(m in t for m in ["radar", "reseau", "connexion", "connexions", "trafic"]):
+    # Il faut parler du radar ou du trafic du réseau : « connexion » seul visait aussi
+    # « coupe la connexion wifi » (→ « Radar réseau désactivé »).
+    import re as _re
+    if not ("radar" in t or _re.search(r"\b(connexions? (reseau|actives?|du pc|de l'ordinateur)|trafic( reseau)?|carte (du )?reseau|qui est connecte)\b", t)):
         return None
 
     mots_hide = ["cache", "ferme", "stop", "arrete", "desactive", "masque", "quitte", "coupe", "eteins"]
@@ -104,7 +108,7 @@ async def resoudre_connexions_reseau(cmd: str):
         if _radar_task and not _radar_task.done():
             _radar_task.cancel()
         await _broadcast({"action": "network_radar_hide"})
-        return "Radar réseau désactivé, Monsieur."
+        return "Radar réseau désactivé."
 
     mots_show = ["montre", "affiche", "active", "lance", "ouvre", "voir", "demarre", "radar reseau", "connexions"]
     if any(m in t for m in mots_show) or t in ("radar", "carte reseau", "carte du reseau"):

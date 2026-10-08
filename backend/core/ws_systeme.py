@@ -8,7 +8,9 @@ import core.shared as shared
 from core.confirmation import demander_confirmation
 from core.micro import _charger_config
 from core.web_bridge import lancer_tache_arriere_plan
-from module.weather_music_service import broadcast_weather_stats_once, update_client_city
+from module.weather_music_service import (
+    actualiser_position_reelle, broadcast_weather_stats_once, update_client_city,
+)
 from module.winget_manager import lister_mises_a_jour_winget, run_winget_upgrade_sync
 from plugins.list_manager import _charger_listes, _sauvegarder_listes
 
@@ -70,6 +72,15 @@ async def ws_vault(websocket, data):
         # de risque de traversée de chemin côté serveur ici.
         chemin_fichier = data.get("file_path", "")
         ok = await asyncio.to_thread(voice_vault.add_file_to_vault, chemin_fichier) if chemin_fichier else False
+        # L'original restait en clair à côté de sa copie chiffrée : on propose de le
+        # mettre à la corbeille (récupérable).
+        if ok and os.path.exists(chemin_fichier) and await demander_confirmation(
+                websocket, f"Fichier chiffré dans le coffre. Mettre l'original « {os.path.basename(chemin_fichier)} » à la corbeille ?"):
+            try:
+                from send2trash import send2trash
+                await asyncio.to_thread(send2trash, chemin_fichier)
+            except Exception as e:
+                print(f"[VOICE VAULT] Original non déplacé à la corbeille : {e}")
         await _diffuser_vault({
             "type": "vault_file_added",
             "success": ok,
@@ -80,7 +91,8 @@ async def ws_vault(websocket, data):
 
     elif action_vault == "vault_export_file":
         nom_fichier = data.get("filename", "")
-        dossier_telechargements = os.path.join(os.environ.get("USERPROFILE", ""), "Downloads")
+        from core.dossiers import dossier_connu
+        dossier_telechargements = dossier_connu("telechargements")
         chemin_final = ""
         if nom_fichier:
             chemin_final = await asyncio.to_thread(
@@ -142,7 +154,19 @@ async def ws_uninstall_program(websocket, data):
         "status": "started",
         "message": f"Lancement de la désinstallation officielle de {app_name}..."
     }))
-    success, msg_un = await asyncio.to_thread(run_uninstall_process, uninstall_string)
+    success, msg_un = await asyncio.to_thread(run_uninstall_process, uninstall_string, app_name)
+    if not success:
+        # Désinstallation annulée ou ratée : pas de recherche de « résidus » d'un
+        # programme encore installé (on proposerait de supprimer ses vrais fichiers).
+        print(f"[UNINSTALLER] {msg_un}")
+        await websocket.send(json.dumps({
+            "type": "uninstall_complete",
+            "app_name": app_name,
+            "success": False,
+            "message": msg_un,
+            "leftovers": []
+        }))
+        return
     await websocket.send(json.dumps({
         "type": "uninstall_progress",
         "status": "scanning",
@@ -277,7 +301,13 @@ async def ws_run_winget_upgrade(websocket, data):
 
 
 async def ws_set_location(websocket, data):
-    """Message WS « set_location » : met à jour la position client puis la météo."""
+    """Message WS « set_location » : met à jour la position client puis la météo.
+
+    Priorité : position réelle donnée par Windows (comme « ma position » sur le globe),
+    puis position réglée dans la configuration, puis celle du navigateur."""
+    if await actualiser_position_reelle():
+        await broadcast_weather_stats_once()
+        return
     _cfg = _charger_config()
     if _cfg.get("latitude") is not None and _cfg.get("longitude") is not None:
         shared.CLIENT_LOCATION["lat"] = _cfg["latitude"]
@@ -288,3 +318,23 @@ async def ws_set_location(websocket, data):
     asyncio.ensure_future(update_client_city())
     # Forcer un broadcast immédiat après mise à jour
     asyncio.ensure_future(asyncio.sleep(1)).add_done_callback(lambda _: asyncio.ensure_future(broadcast_weather_stats_once()))
+
+
+async def ws_select_folder(websocket, data):
+    """Message WS « select_folder » (bouton Parcourir de l'atelier de création de site) :
+    ouvre le sélecteur de dossier de Windows et renvoie le chemin choisi. Le bouton
+    n'avait aucun gestionnaire côté backend et ne faisait donc rien."""
+    def _choisir():
+        import tkinter as tk
+        from tkinter import filedialog
+        racine = tk.Tk()
+        racine.withdraw()
+        racine.attributes("-topmost", True)
+        try:
+            return filedialog.askdirectory(title="Choisissez le dossier du projet") or ""
+        finally:
+            racine.destroy()
+
+    dossier = await asyncio.to_thread(_choisir)
+    if dossier:
+        await websocket.send(json.dumps({"type": "folder_selected", "folder": os.path.normpath(dossier)}))

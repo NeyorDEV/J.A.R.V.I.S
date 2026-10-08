@@ -12,6 +12,43 @@ def clean_name_for_search(name):
     name = re.sub(r'[^a-zA-Z0-9\s-]', '', name)
     return name.strip()
 
+def _cle_nom(nom):
+    """Nom réduit à ses lettres et chiffres, en minuscules (« Node.js » → « nodejs »)."""
+    return re.sub(r'[^a-z0-9]', '', (nom or "").lower())
+
+
+def _cle_recherche(app_name):
+    """Clé de comparaison des résidus, ou "" si le nom est trop court ou partagé.
+
+    Avant, un dossier ou une clé de registre était un « résidu » dès qu'il CONTENAIT le
+    nom du programme : « Node.js » visait aussi AppData\\Local\\claude-cli-nodejs, et
+    « Python 3.12 » tout AppData\\Local\\Programs\\Python (autres versions comprises).
+    Désormais le nom doit être identique, et un nom que porte encore un autre programme
+    installé (Python 3.12 / Python 3.14 → « Python ») n'est pas utilisé du tout.
+    """
+    cle = _cle_nom(clean_name_for_search(app_name))
+    if len(cle) < 4:
+        return ""
+    for p in list_installed_programs():
+        if p["name"] != app_name and _cle_nom(clean_name_for_search(p["name"])) == cle:
+            return ""
+    return cle
+
+
+def _dossier_en_cours_utilisation(chemin):
+    """True si un processus en cours d'exécution a son exécutable dans ce dossier."""
+    try:
+        import psutil
+        racine = os.path.normcase(os.path.abspath(chemin)) + os.sep
+        for proc in psutil.process_iter(['exe']):
+            exe = proc.info.get('exe')
+            if exe and os.path.normcase(exe).startswith(racine):
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def list_installed_programs():
     """Énumère toutes les applications installées sur la machine à partir du Registre."""
     paths = [
@@ -86,188 +123,157 @@ def list_installed_programs():
     return programs
 
 def scan_file_leftovers(app_name, publisher="", install_location=""):
-    """Recherche heuristique des traces de dossiers sur le disque dur."""
-    app_name_clean = clean_name_for_search(app_name).lower()
-    app_name_no_space = app_name_clean.replace(" ", "")
-    
-    publisher_clean = clean_name_for_search(publisher).lower() if publisher else ""
-    
+    """Recherche des dossiers laissés par l'application (nom identique, voir _cle_recherche)."""
+    cle = _cle_recherche(app_name)
+    cle_editeur = _cle_nom(clean_name_for_search(publisher)) if publisher else ""
+
     leftovers = []
     seen_paths = set()
-    
-    # 1. Traiter le dossier d'installation officiel du registre s'il existe
-    if install_location and os.path.exists(install_location):
-        abs_path = os.path.abspath(install_location)
-        # Éviter de cibler la racine d'un disque dur par erreur !
-        if len(abs_path) > 4:
-            seen_paths.add(abs_path)
-            leftovers.append({
-                "type": "folder",
-                "path": abs_path,
-                "desc": "Dossier d'installation officiel configuré dans le Registre Windows."
-            })
-            
-    # Dossiers sensibles par défaut
+
+    def _ajouter(chemin, desc):
+        abs_path = os.path.abspath(chemin)
+        # Jamais la racine d'un disque, ni un dossier dont un programme tourne encore
+        if abs_path in seen_paths or len(abs_path) <= 4 or _dossier_en_cours_utilisation(abs_path):
+            return
+        seen_paths.add(abs_path)
+        leftovers.append({"type": "folder", "path": abs_path, "desc": desc})
+
+    # 1. Dossier d'installation officiel indiqué par le Registre
+    if install_location and os.path.isdir(install_location):
+        _ajouter(install_location, "Dossier d'installation officiel configuré dans le Registre Windows.")
+
+    if not cle:
+        return leftovers
+
     search_dirs = [
         os.environ.get("ProgramFiles", "C:\\Program Files"),
         os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"),
         os.environ.get("ProgramData", "C:\\ProgramData"),
         os.path.expanduser("~/AppData/Local"),
         os.path.expanduser("~/AppData/Roaming"),
-        os.path.expanduser("~/AppData/LocalLow")
+        os.path.expanduser("~/AppData/LocalLow"),
+        os.path.expanduser("~/AppData/Local/Programs"),
     ]
-    
     for base_dir in search_dirs:
-        if not base_dir or not os.path.exists(base_dir):
+        if not base_dir or not os.path.isdir(base_dir):
             continue
         try:
-            # Niveau 1
             for item in os.listdir(base_dir):
                 item_path = os.path.join(base_dir, item)
                 if not os.path.isdir(item_path):
                     continue
-                    
-                item_lower = item.lower()
-                item_no_space = item_lower.replace(" ", "")
-                
-                match = False
-                if app_name_clean and len(app_name_clean) > 3 and app_name_clean in item_lower:
-                    match = True
-                elif app_name_no_space and len(app_name_no_space) > 3 and app_name_no_space in item_no_space:
-                    match = True
-                    
-                if match:
-                    abs_path = os.path.abspath(item_path)
-                    if abs_path not in seen_paths and len(abs_path) > 4:
-                        seen_paths.add(abs_path)
-                        leftovers.append({
-                            "type": "folder",
-                            "path": abs_path,
-                            "desc": f"Dossier associé à l'application dans {os.path.basename(base_dir)}."
-                        })
-                    continue  # Ne pas descendre au niveau 2 si le dossier parent correspond déjà
-                    
-                # Niveau 2 (ex: base_dir\Google\Android Studio)
+                if _cle_nom(item) == cle:
+                    _ajouter(item_path, f"Dossier associé à l'application dans {os.path.basename(base_dir)}.")
+                    continue
+                # Niveau 2, seulement sous le dossier de l'éditeur (ex : Google\Android Studio)
+                if not cle_editeur or _cle_nom(item) != cle_editeur:
+                    continue
                 try:
                     for subitem in os.listdir(item_path):
                         subitem_path = os.path.join(item_path, subitem)
-                        if not os.path.isdir(subitem_path):
-                            continue
-                            
-                        subitem_lower = subitem.lower()
-                        subitem_no_space = subitem_lower.replace(" ", "")
-                        
-                        sub_match = False
-                        if app_name_clean and len(app_name_clean) > 3 and app_name_clean in subitem_lower:
-                            sub_match = True
-                        elif app_name_no_space and len(app_name_no_space) > 3 and app_name_no_space in subitem_no_space:
-                            sub_match = True
-                            
-                        if sub_match:
-                            abs_path = os.path.abspath(subitem_path)
-                            if abs_path not in seen_paths and len(abs_path) > 4:
-                                seen_paths.add(abs_path)
-                                leftovers.append({
-                                    "type": "folder",
-                                    "path": abs_path,
-                                    "desc": f"Dossier associé à l'application sous l'éditeur/catégorie '{item}'."
-                                })
+                        if os.path.isdir(subitem_path) and _cle_nom(subitem) == cle:
+                            _ajouter(subitem_path, f"Dossier associé à l'application sous l'éditeur '{item}'.")
                 except OSError:
                     pass
         except OSError:
             continue
-            
+
     return leftovers
 
+
 def scan_registry_leftovers(app_name, publisher=""):
-    """Recherche heuristique des traces de clés de registre obsolètes."""
-    app_name_clean = clean_name_for_search(app_name).lower()
-    app_name_no_space = app_name_clean.replace(" ", "")
-    
-    publisher_clean = clean_name_for_search(publisher).lower() if publisher else ""
-    
+    """Recherche des clés de registre laissées par l'application (nom identique)."""
+    cle = _cle_recherche(app_name)
+    if not cle:
+        return []
+    cle_editeur = _cle_nom(clean_name_for_search(publisher)) if publisher else ""
     leftovers = []
-    
+
     hives = [
         (winreg.HKEY_CURRENT_USER, "Software"),
         (winreg.HKEY_LOCAL_MACHINE, "Software"),
         (winreg.HKEY_LOCAL_MACHINE, "Software\\Wow6432Node")
     ]
-    
     for hive, base_path in hives:
         hive_name = "HKCU" if hive == winreg.HKEY_CURRENT_USER else "HKLM"
         try:
             key = winreg.OpenKey(hive, base_path, 0, winreg.KEY_READ)
-            info = winreg.QueryInfoKey(key)
-            num_subkeys = info[0]
-            
+            num_subkeys = winreg.QueryInfoKey(key)[0]
             for i in range(num_subkeys):
                 try:
                     subkey_name = winreg.EnumKey(key, i)
-                    subkey_name_lower = subkey_name.lower()
-                    subkey_name_no_space = subkey_name_lower.replace(" ", "")
                     full_path = f"{hive_name}\\{base_path}\\{subkey_name}"
-                    
-                    match = False
-                    if app_name_clean and len(app_name_clean) > 3 and app_name_clean in subkey_name_lower:
-                        match = True
-                    elif app_name_no_space and len(app_name_no_space) > 3 and app_name_no_space in subkey_name_no_space:
-                        match = True
-                        
-                    if match:
+                    if _cle_nom(subkey_name) == cle:
                         leftovers.append({
                             "type": "registry",
                             "hive": hive_name,
                             "path": full_path,
                             "desc": "Clé de registre associée au nom de l'application."
                         })
-                        continue  # Pas besoin d'entrer si la racine correspond
-                        
-                    # Niveau 2 (ex: HKLM\Software\Publisher\AppName)
-                    if publisher_clean and len(publisher_clean) > 3 and publisher_clean in subkey_name_lower:
-                        try:
-                            pub_key = winreg.OpenKey(hive, f"{base_path}\\{subkey_name}", 0, winreg.KEY_READ)
-                            pub_info = winreg.QueryInfoKey(pub_key)
-                            for j in range(pub_info[0]):
-                                subkey_subname = winreg.EnumKey(pub_key, j)
-                                subkey_subname_lower = subkey_subname.lower()
-                                subkey_subname_no_space = subkey_subname_lower.replace(" ", "")
-                                
-                                sub_match = False
-                                if app_name_clean and len(app_name_clean) > 3 and app_name_clean in subkey_subname_lower:
-                                    sub_match = True
-                                elif app_name_no_space and len(app_name_no_space) > 3 and app_name_no_space in subkey_subname_no_space:
-                                    sub_match = True
-                                    
-                                if sub_match:
-                                    leftovers.append({
-                                        "type": "registry",
-                                        "hive": hive_name,
-                                        "path": f"{full_path}\\{subkey_subname}",
-                                        "desc": f"Clé de registre associée sous l'éditeur '{subkey_name}'."
-                                    })
-                            winreg.CloseKey(pub_key)
-                        except OSError:
-                            pass
+                        continue
+                    # Niveau 2 (ex : HKLM\Software\Editeur\Application)
+                    if not cle_editeur or _cle_nom(subkey_name) != cle_editeur:
+                        continue
+                    try:
+                        pub_key = winreg.OpenKey(hive, f"{base_path}\\{subkey_name}", 0, winreg.KEY_READ)
+                        for j in range(winreg.QueryInfoKey(pub_key)[0]):
+                            subkey_subname = winreg.EnumKey(pub_key, j)
+                            if _cle_nom(subkey_subname) == cle:
+                                leftovers.append({
+                                    "type": "registry",
+                                    "hive": hive_name,
+                                    "path": f"{full_path}\\{subkey_subname}",
+                                    "desc": f"Clé de registre associée sous l'éditeur '{subkey_name}'."
+                                })
+                        winreg.CloseKey(pub_key)
+                    except OSError:
+                        pass
                 except OSError:
                     continue
             winreg.CloseKey(key)
         except OSError:
             continue
-            
+
     return leftovers
 
-def run_uninstall_process(uninstall_string):
-    """Lance le processus de désinstallation officielle de l'application."""
+
+def programme_installe(app_name, uninstall_string=""):
+    """True si le programme figure encore dans la liste des programmes installés."""
+    for p in list_installed_programs():
+        if p["name"] == app_name or (uninstall_string and p["uninstall_string"] == uninstall_string.strip()):
+            return True
+    return False
+
+
+def run_uninstall_process(uninstall_string, app_name="", delai_max=300):
+    """Lance le désinstallateur officiel et vérifie que le programme a bien disparu.
+
+    Avant, le code de retour était ignoré : une désinstallation annulée ou ratée était
+    annoncée « terminée », puis on cherchait les « résidus » d'un programme encore
+    installé. De nombreux désinstalleurs (Inno Setup, certains MSI) se relancent en
+    arrière-plan et rendent la main tout de suite : on attend donc que l'entrée du
+    programme disparaisse du Registre (au plus `delai_max` secondes).
+    """
     try:
         print(f"[UNINSTALLER] Lancement du désinstallateur officiel : {uninstall_string}")
-        # Lancer le désinstallateur et attendre qu'il finisse
         p = subprocess.Popen(uninstall_string, shell=True)
-        p.wait()
-        return True, "Désinstallation officielle terminée."
+        code = p.wait()
     except Exception as e:
         print(f"[UNINSTALLER] Erreur lors du lancement de la désinstallation : {e}")
         return False, str(e)
+
+    if not app_name:
+        return code == 0, ("Désinstallation officielle terminée." if code == 0
+                           else f"Le désinstalleur s'est arrêté avec le code {code}.")
+
+    import time
+    debut = time.time()
+    while programme_installe(app_name, uninstall_string):
+        if time.time() - debut > delai_max:
+            return False, (f"{app_name} est toujours installé : la désinstallation a été annulée "
+                           f"ou n'est pas terminée.")
+        time.sleep(2)
+    return True, "Désinstallation officielle terminée."
 
 def delete_registry_key_recursive(hive, path):
     """Supprime une clé de registre et toutes ses sous-clés récursivement."""

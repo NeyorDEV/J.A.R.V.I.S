@@ -8,7 +8,7 @@ import unicodedata
 # sys.path. Mélanger les deux formes chargeait le MÊME fichier deux fois
 # comme deux modules distincts, avec des états globaux dupliqués.
 from module.website_builder import generer_site_web_autonome
-from core.interlocuteur import nom_virgule
+from core.interlocuteur import nom_espace, nom_virgule
 def nettoyer_accent(texte: str) -> str:
     """Supprime les accents et met en minuscules pour faciliter la comparaison."""
     return "".join(c for c in unicodedata.normalize('NFD', texte.lower().strip()) if unicodedata.category(c) != 'Mn')
@@ -39,6 +39,11 @@ async def resoudre_lancer_enigme(cmd: str):
     
     _dir_courant = os.path.dirname(os.path.abspath(__file__))
     site_path = os.path.abspath(os.path.join(_dir_courant, "..", "sandbox", "surprise_disney", "index.html"))
+    # Le site n'est pas versionné : sans lui, un navigateur s'ouvrait en plein écran sur
+    # une page introuvable.
+    if not os.path.exists(site_path):
+        print(f"[ENIGME RESOLVER] Site introuvable : {site_path}")
+        return f"Le site de l'énigme est introuvable sur cet ordinateur{nom_virgule()}."
     file_url = f"file:///{site_path.replace('\\', '/')}"
     http_url = "http://localhost:8088"
     launched = False
@@ -72,12 +77,14 @@ async def resoudre_lancer_enigme(cmd: str):
         except Exception as e:
             print(f"[ENIGME RESOLVER ERROR] {e}")
     
-    if hasattr(builtins, "send_web_action"):
+    # (send_web_action n'accepte pas title / type / icon : la carte n'apparaissait jamais)
+    if hasattr(builtins, "envoyer_carte_contextuelle"):
         try:
-            await builtins.send_web_action("ctx_card", title="PROTOCOLE ÉNIGME", text="Lancement du coffre-fort d'énigmes d'anniversaire.", type="info", icon="🔐")
+            await builtins.envoyer_carte_contextuelle("PROTOCOLE ÉNIGME", "Lancement du coffre-fort d'énigmes d'anniversaire.",
+                                                      type_carte="info", icon="🔐")
         except Exception:
             pass
-    return "Très bien Monsieur, activation immédiate du protocole d'énigme secret. Bonne chance !"
+    return f"Très bien{nom_espace()}, activation immédiate du protocole d'énigme secret. Bonne chance !"
 async def resoudre_creation_site_web(cmd: str):
     """
     Résout les commandes vocales et écrites liées à la création de sites internet.
@@ -88,8 +95,10 @@ async def resoudre_creation_site_web(cmd: str):
     verbes = ["cree", "creer", "genere", "generer", "fais", "fabrique", "concois", "construis", "developpe"]
     noms = ["site", "page web", "application web", "app web", "projet web"]
 
-    has_verbe = any(re.search(rf'\b{v}\b', t_clean) or v in t_clean for v in verbes)
-    has_nom = any(re.search(rf'\b{n}\b', t_clean) or n in t_clean for n in noms)
+    # Mots entiers seulement : « visite » contient « site » (« fais une visite guidée du
+    # château » lançait l'essaim de 6 agents).
+    has_verbe = any(re.search(rf'\b{v}\b', t_clean) for v in verbes)
+    has_nom = any(re.search(rf'\b{n}\b', t_clean) for n in noms)
 
     if not (has_verbe and has_nom):
         return None
@@ -174,7 +183,7 @@ async def resoudre_ouvrir_site_web(cmd: str):
                 webbrowser.open(file_url)
                 
             print(f"[WEBSITE RESOLVER] Ouverture du site '{matched_name}' -> {file_url}")
-            return f"Très bien Monsieur, ouverture immédiate du site '{matched_name}' en plein écran."
+            return f"Très bien{nom_espace()}, ouverture immédiate du site '{matched_name}' en plein écran."
             
     return None
 # Enregistrement dans builtins pour découverte automatique par main.py

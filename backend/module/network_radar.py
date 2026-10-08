@@ -8,6 +8,7 @@ import socket
 import time
 from typing import Set
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from core.interlocuteur import nom_virgule
 
 # ── Config ────────────────────────────────────────────────────────────────────
 _LOCAL_LAT = 46.0
@@ -255,7 +256,7 @@ def get_radar_data() -> list:
 
 def get_radar_summary(data: list) -> str:
     if not data:
-        return "Aucune connexion externe active détectée, Monsieur."
+        return f"Aucune connexion externe active détectée{nom_virgule()}."
     visible = [c for c in data if not c.get("is_filtered")]
     n_sys = len(data) - len(visible)
     countries = list(set(c["country"] for c in visible)) if visible else []

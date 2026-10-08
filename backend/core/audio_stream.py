@@ -19,6 +19,21 @@ except ImportError:
     print("[AVERTISSEMENT] pyaudio non installe — le micro sera desactive.")
     print("  -> Pour l'installer : pip install pipwin && pipwin install pyaudio")
 
+def _filtre_anticrenelage():
+    """Passe-bas (FIR, coupure 7 kHz) appliqué AVANT de ramener le flux de 48 kHz à 16 kHz.
+
+    Garder un échantillon sur trois sans filtrer (ancien `[::3]`) repliait tout ce qui dépasse
+    8 kHz (sifflantes « s »/« ch », souffle, bruit) dans la bande de la voix : le spectre
+    changeait d'une phrase à l'autre et l'empreinte vocale avec (0,57 à 0,66 en usage réel
+    contre 0,77 à 0,89 entre échantillons d'enrôlement). None si scipy est absent."""
+    try:
+        from scipy.signal import firwin
+        return firwin(121, 7000, fs=48000)
+    except Exception as e:
+        print(f"[AudioStreamManager] Filtre anti-repliement indisponible ({e}) : décimation brute.")
+        return None
+
+
 class AudioStreamManager:
     _instance = None
     _lock = threading.Lock()
@@ -214,25 +229,28 @@ class AudioStreamManager:
                     self.running = False
 
     def _run(self):
+        # Filtre et son état propres à ce flux (réinitialisés à chaque (re)démarrage du thread)
+        fir = _filtre_anticrenelage() if self.downsample_factor == 3 else None
+        etat_fir = np.zeros(len(fir) - 1) if fir is not None else None
+        if fir is not None:
+            from scipy.signal import lfilter
         while self.running:
             try:
                 if not self.stream or not self.running:
                     time.sleep(0.01)
                     continue
-                
+
                 if self.downsample_factor == 3:
                     data = self.stream.read(self.chunk * 3, exception_on_overflow=False)
                     if not data:
                         continue
-                    
-                    audio_chunk = np.frombuffer(data, dtype=np.int16)
-                    
-                    # Appliquer le gain logiciel si nécessaire
-                    if self.software_gain != 1.0:
-                        audio_float = audio_chunk.astype(np.float32) * self.software_gain
-                        audio_chunk = np.clip(audio_float, -32768, 32767).astype(np.int16)
-                        
-                    downsampled = audio_chunk[::3]
+
+                    # Gain logiciel, filtre passe-bas puis 1 échantillon sur 3. L'écrêtage se fait
+                    # après filtrage (avant, le gain écrêté avant filtre ajoutait de la distorsion).
+                    audio_float = np.frombuffer(data, dtype=np.int16).astype(np.float32) * self.software_gain
+                    if fir is not None:
+                        audio_float, etat_fir = lfilter(fir, 1.0, audio_float, zi=etat_fir)
+                    downsampled = np.clip(audio_float[::3], -32768, 32767).astype(np.int16)
                     data_to_send = downsampled.tobytes()
                 else:
                     data = self.stream.read(self.chunk, exception_on_overflow=False)

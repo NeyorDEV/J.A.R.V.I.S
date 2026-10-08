@@ -4,9 +4,9 @@ try:
     import psutil
 except ImportError:
     psutil = None
-import time
 import asyncio
 import shutil
+import time
 from typing import TYPE_CHECKING
 from core.interlocuteur import nom_espace, nom_virgule
 
@@ -82,20 +82,48 @@ def _boulot_lancer(label: str, noms_exe: list,
     return False
 
 
-def _fermer_app(noms_process: list) -> bool:
-    """Termine tous les processus correspondant aux noms donnés (insensible à la casse)."""
+# « Update.exe » est le nom générique de l'installeur Squirrel, partagé par de nombreuses applis :
+# le fermer pour Discord tuait aussi les mises à jour des autres.
+_JAMAIS_FERMER = {"update.exe"}
+
+
+def _fermer_app(noms_process: list, forcer: bool = False):
+    """Ferme les processus nommés : demande de fermeture d'abord (l'application peut proposer
+    d'enregistrer), puis, si `forcer`, arrêt forcé de ceux qui résistent au bout de 3 s.
+    Avant, tout était tué d'office (proc.terminate) : « ferme Word » perdait le document en cours.
+
+    Renvoie None si aucun n'était lancé, True s'ils sont fermés, False s'ils résistent."""
     if psutil is None:
         return False
-    tues = 0
-    noms_lower = [n.lower() for n in noms_process]
-    for proc in psutil.process_iter(['name']):
-        try:
-            if proc.info['name'] and proc.info['name'].lower() in noms_lower:
-                proc.terminate()
-                tues += 1
-        except Exception:
-            pass
-    return tues > 0
+    noms = [n for n in noms_process if n.lower() not in _JAMAIS_FERMER]
+    cibles = {n.lower() for n in noms}
+
+    def vivants():
+        trouves = []
+        for proc in psutil.process_iter(['name']):
+            try:
+                if (proc.info['name'] or "").lower() in cibles:
+                    trouves.append(proc)
+            except Exception:
+                pass
+        return trouves
+
+    if not vivants():
+        return None
+    for n in noms:
+        subprocess.run(["taskkill", "/IM", n], capture_output=True)
+    for _ in range(15):
+        time.sleep(0.2)
+        if not vivants():
+            return True
+    if forcer:
+        for proc in vivants():
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        time.sleep(0.5)
+    return not vivants()
 
 
 # Catalogue d'applications ouvrables / fermables par commande vocale
@@ -433,12 +461,12 @@ async def mode_boulot():
 
     # ── 1. Deezer (musique de fond) ───────────────────────────
     subprocess.Popen(["explorer", "deezer:"], shell=False)
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
 
     # ── 2. Discord ────────────────────────────────────────────
     discord_lnk = r"C:\Users\mylan\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk"
     subprocess.Popen(["explorer", discord_lnk], shell=False)
-    time.sleep(0.3)
+    await asyncio.sleep(0.3)
 
     return f"Mode boulot activé{nom_virgule()} ! Deezer et Discord sont lancés. Bonne journée !"
 
@@ -449,12 +477,12 @@ async def mode_gaming():
 
     # ── 1. Deezer (musique) ───────────────────────────────────
     subprocess.Popen(["explorer", "deezer:"], shell=False)
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
 
     # ── 2. Discord ────────────────────────────────────────────
     discord_lnk = r"C:\Users\mylan\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk"
     subprocess.Popen(["explorer", discord_lnk], shell=False)
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
 
     # ── 3. Epic Games Launcher ────────────────────────────────
     _boulot_lancer(
@@ -464,7 +492,7 @@ async def mode_gaming():
             r"%PROGRAMFILES%\Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe",
         ]
     )
-    time.sleep(0.3)
+    await asyncio.sleep(0.3)
 
     return f"Mode gaming activé{nom_virgule()} ! Deezer, Discord et Epic Games sont lancés. Bonne session !"
 
@@ -475,17 +503,17 @@ async def mode_rocket_league():
 
     # ── 1. Deezer ─────────────────────────────────────────────
     subprocess.Popen(["explorer", "deezer:"], shell=False)
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
 
     # ── 2. Discord ────────────────────────────────────────────
     discord_lnk = r"C:\Users\mylan\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk"
     subprocess.Popen(["explorer", discord_lnk], shell=False)
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
 
     # ── 3. JoyToKey ───────────────────────────────────────────
     joy_lnk = r"C:\Users\mylan\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\JoyToKey.lnk"
     subprocess.Popen(["explorer", joy_lnk], shell=False)
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
 
     # ── 4. Rocket League (Epic Games) ─────────────────────────
     # URI pour lancer Rocket League directement sur Epic

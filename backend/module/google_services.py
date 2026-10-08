@@ -103,6 +103,46 @@ def get_calendar_service():
     creds = get_google_creds()
     return build("calendar", "v3", credentials=creds) if creds else None
 
+def _trouver_par_titre(elements, titre, cle):
+    """Élément dont le titre correspond (exact d'abord, sinon inclusion), ou None.
+
+    Avant, « titre contenu dans » sans garde-fou : un titre vide correspondait au premier
+    élément de la liste (supprimé sans confirmation), un titre court au mauvais élément.
+    """
+    cherche = (titre or "").strip().lower()
+    if not cherche:
+        return None
+    for e in elements:
+        if (e.get(cle) or "").strip().lower() == cherche:
+            return e
+    if len(cherche) < 4:
+        return None
+    for e in elements:
+        nom = (e.get(cle) or "").strip().lower()
+        if nom and (cherche in nom or (len(nom) >= 4 and nom in cherche)):
+            return e
+    return None
+
+
+_JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+_MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
+         "septembre", "octobre", "novembre", "décembre"]
+
+
+def _date_lisible(debut):
+    """« 2026-10-08T14:00:00+02:00 » → « jeudi 8 octobre à 14 h » (lu par la synthèse vocale)."""
+    from datetime import datetime as _dt
+    try:
+        if "T" in debut:
+            d = _dt.fromisoformat(debut)
+            heure = f"{d.hour} h" + (f" {d.minute:02d}" if d.minute else "")
+            return f"{_JOURS[d.weekday()]} {d.day} {_MOIS[d.month - 1]} à {heure}"
+        d = _dt.fromisoformat(debut)
+        return f"{_JOURS[d.weekday()]} {d.day} {_MOIS[d.month - 1]}, toute la journée"
+    except Exception:
+        return debut
+
+
 def creer_google_doc(titre="Nouveau Document", contenu=""):
     global dernier_doc_id, dernier_doc_titre
     try:
@@ -169,12 +209,8 @@ def lire_emails(max_results=5):
             reponse += f"De: {from_val} | Sujet: {subject_val}\n"
             msg_ids.append(msg["id"])
             
-        if msg_ids:
-            service.users().messages().batchModify(
-                userId="me",
-                body={"ids": msg_ids, "removeLabelIds": ["UNREAD"]}
-            ).execute()
-            
+        # (Les messages ne sont plus marqués comme lus : seuls l'expéditeur et le sujet
+        #  sont énoncés, le message n'a pas été lu.)
         return reponse.strip()
     except Exception as e:
         return f"Erreur Gmail : {e}"
@@ -193,7 +229,7 @@ def lister_evenements_calendar():
         reponse = ""
         for e in items:
             start    = e["start"].get("dateTime", e["start"].get("date"))
-            reponse += f"{start} : {e['summary']}\n"
+            reponse += f"{_date_lisible(start)} : {e.get('summary', 'sans titre')}\n"
         return reponse.strip()
     except Exception as e:
         return f"Erreur Calendar : {e}"
@@ -261,14 +297,9 @@ def complete_google_task(titre):
         results = service.tasks().list(tasklist='@default', showCompleted=False).execute()
         items = results.get('items', [])
         
-        task_id = None
-        exact_title = None
-        for item in items:
-            t_title = item.get('title', '').strip().lower()
-            if t_title == titre.strip().lower() or titre.strip().lower() in t_title or t_title in titre.strip().lower():
-                task_id = item['id']
-                exact_title = item.get('title')
-                break
+        trouvee = _trouver_par_titre(items, titre, 'title')
+        task_id = trouvee['id'] if trouvee else None
+        exact_title = trouvee.get('title') if trouvee else None
         
         if not task_id:
             return f"Tâche '{titre}' introuvable dans votre Google Tasks{nom_virgule()}."
@@ -289,14 +320,9 @@ def delete_google_task(titre):
         results = service.tasks().list(tasklist='@default', showCompleted=True).execute()
         items = results.get('items', [])
         
-        task_id = None
-        exact_title = None
-        for item in items:
-            t_title = item.get('title', '').strip().lower()
-            if t_title == titre.strip().lower() or titre.strip().lower() in t_title or t_title in titre.strip().lower():
-                task_id = item['id']
-                exact_title = item.get('title')
-                break
+        trouvee = _trouver_par_titre(items, titre, 'title')
+        task_id = trouvee['id'] if trouvee else None
+        exact_title = trouvee.get('title') if trouvee else None
         
         if not task_id:
             return f"Tâche '{titre}' introuvable dans votre Google Tasks{nom_virgule()}."
@@ -530,9 +556,8 @@ def modifier_evenement_calendar(ancien_titre, nouveau_titre=None, nouvelle_heure
         event_id = None
         exact_summary = None
         event_data = None
-        for e in items:
-            summary = e.get("summary", "").strip().lower()
-            if ancien_titre.strip().lower() in summary or summary in ancien_titre.strip().lower():
+        cible = _trouver_par_titre(items, ancien_titre, "summary")
+        for e in ([cible] if cible else []):
                 event_id = e["id"]
                 exact_summary = e.get("summary")
                 event_data = e
@@ -574,9 +599,8 @@ def supprimer_evenement_calendar(titre):
         
         event_id = None
         exact_summary = None
-        for e in items:
-            summary = e.get("summary", "").strip().lower()
-            if titre.strip().lower() in summary or summary in titre.strip().lower():
+        cible = _trouver_par_titre(items, titre, "summary")
+        for e in ([cible] if cible else []):
                 event_id = e["id"]
                 exact_summary = e.get("summary")
                 break

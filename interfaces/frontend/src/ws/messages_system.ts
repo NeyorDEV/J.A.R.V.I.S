@@ -1,21 +1,15 @@
+import { cardManager } from "../cards";
 import { handleAntivirusWSMessage, openAntivirusPanel } from "../panels/antivirus_panel";
 import { showImagePanel } from "../panels/image_panels";
 import { handleInstalledPrograms, openUninstallerPanel, showCleanComplete, showUninstallComplete, updateUninstallProgress } from "../panels/uninstaller_panel";
 import { appendWingetProgress, handleWingetUpgrades, openWingetPanel } from "../panels/winget_panel";
 import { type JarvisMessage } from "./message_types";
 
-// Messages backend : audio live, autopilote OS, explorateur, images, antivirus,
+// Messages backend : autopilote OS, explorateur, images, antivirus,
 // désinstallateur, winget, fichiers (extrait du gestionnaire de main.ts).
 // La capture d'écran, seule branche asynchrone, est restée dans wsRef.current/connection.ts.
 
 export function handleAutopilotMessage(data: JarvisMessage): boolean {
-  // ── Gemini Multimodal Live Audio Handler ──
-  if (data.action === "live_audio_output" && data.pcm_base64) {
-    if ((window as any).liveAudioEngine) {
-      (window as any).liveAudioEngine.playIncomingPCM(data.pcm_base64, data.sample_rate || 24000);
-    }
-  }
-
   // ── OS Autopilot & Virtual Cursor ──
   if (data.action === "draw_virtual_cursor" && (data as any).x !== undefined && (data as any).y !== undefined) {
     const cursor = document.getElementById("virtual-cursor");
@@ -113,6 +107,41 @@ export function handleSystemMessage(data: JarvisMessage): boolean {
 
   if (data.type === "av_start" || data.type === "av_progress" || data.type === "av_threat_detected" || data.type === "av_complete" || data.type === "av_cancel" || data.type === "av_action_result") {
     handleAntivirusWSMessage(data);
+    return true;
+  }
+
+  // Messages que le HUD ignorait : alerte de la protection temps réel, résultat de
+  // l'export du coffre-fort, vidage du cache WebView.
+  if (data.type === "av_live_threat_intercepted") {
+    const menace = (data as any).threat || {};
+    cardManager.showCard({
+      title: "PROTECTION TEMPS RÉEL",
+      content: `${menace.name || "Élément inconnu"} — ${menace.desc || ""}`,
+      type: "alert" as any,
+      duration: 15000,
+      icon: "🛡",
+    });
+    return true;
+  }
+  if (data.type === "vault_export_result") {
+    const ok = (data as any).success;
+    cardManager.showCard({
+      title: "COFFRE-FORT",
+      content: ok ? `Fichier exporté : ${(data as any).path}` : `Impossible d'exporter ${(data as any).filename || "le fichier"}.`,
+      type: (ok ? "info" : "alert") as any,
+      duration: 8000,
+      icon: "🔐",
+    });
+    return true;
+  }
+  if (data.type === "cache_cleared") {
+    cardManager.showCard({
+      title: "CACHE",
+      content: (data as any).success ? "Cache de l'interface vidé, rechargement…" : "Le cache n'a pas pu être vidé.",
+      type: ((data as any).success ? "info" : "alert") as any,
+      duration: 5000,
+      icon: "🧹",
+    });
     return true;
   }
 

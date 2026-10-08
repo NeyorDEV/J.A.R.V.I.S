@@ -110,6 +110,28 @@ async def etat():
         return None
 
 
+# Position et durée en secondes quand le lecteur les expose (sinon null)
+_JS_LECTURE = """
+const f = (n) => (typeof dzPlayer[n] === 'function') ? dzPlayer[n]() : null;
+return { joue: dzPlayer.isPlaying(), titre: dzPlayer.getSongTitle() || '', artiste: dzPlayer.getArtistName() || '',
+         position: f('getPosition'), duree: f('getDuration') };
+"""
+
+
+async def lecture_en_cours():
+    """Morceau affiché par le lecteur (titre, artiste, lecture/pause, position/durée).
+    Source exacte et immédiate, contrairement au titre de fenêtre ou à l'historique d'écoute
+    (qui a toujours un morceau de retard). None si la page n'est pas joignable."""
+    # (hors de la boucle : port_actif() attend jusqu'à 1 s quand Deezer est fermé, et ceci est
+    #  appelé toutes les 2 s par weather_music_service)
+    if not await asyncio.to_thread(port_actif):
+        return None
+    try:
+        return await evaluer(_JS_LECTURE, timeout=3)
+    except Exception:
+        return None
+
+
 async def controle(action):
     """pause / lecture / suivant / precedent. Renvoie l'état avant l'action, ou None."""
     js = {

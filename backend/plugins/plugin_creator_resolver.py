@@ -8,10 +8,13 @@ import importlib
 import subprocess
 import google.genai as genai
 from core.config import GEMINI_API_KEY, CHOSEN_MODEL
-from module.sandbox_executor import executer_code_sandbox
+from core.interlocuteur import nom_espace, nom_virgule
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+# Client Gemini différé (core/ai_clients.py) : pas de plantage à l'import sans clé,
+# et une clé changée dans les Paramètres est prise en compte sans redémarrer.
+from core.ai_clients import client_gemini as client
 PLUGINS_DIR = os.path.dirname(os.path.abspath(__file__))
+_MARQUEUR_PLUGIN_GENERE = "# Plugin généré par JARVIS (plugin_creator_resolver)"
 
 async def interroger_model(prompt: str) -> str:
     """Interroge Gemini de façon asynchrone."""
@@ -37,7 +40,7 @@ async def installer_package_pip(package_name: str) -> bool:
         print(f"[PLUGIN CREATOR] ⛔ Nom de package refusé : {package_name!r}")
         return False
 
-    python_exe = os.path.join(PLUGINS_DIR, "..", "venv", "Scripts", "python.exe")
+    python_exe = os.path.join(PLUGINS_DIR, "..", "..", "venv", "Scripts", "python.exe")  # venv à la racine
     if not os.path.exists(python_exe):
         python_exe = sys.executable
 
@@ -95,22 +98,56 @@ Réponds uniquement avec un objet JSON au format suivant :
         code = data.get("code", "")
     except Exception as e:
         print(f"[PLUGIN CREATOR JSON ERROR] {e}\nBrut: {response_text}")
-        return f"Désolé monsieur, je n'ai pas pu parser les spécifications du nouveau plugin. Erreur : {e}"
+        return f"Désolé{nom_espace()}, je n'ai pas pu parser les spécifications du nouveau plugin. Erreur : {e}"
 
-    # Étape 1 : Installation des dépendances PyPI si requises
-    for req in pip_reqs:
-        if req and req.strip():
-            succes = await installer_package_pip(req.strip())
-            if not succes:
-                print(f"[PLUGIN CREATOR WARNING] Échec d'installation de {req}, poursuite...")
+    # Ordre revu : avant, les paquets pip choisis par l'IA étaient installés AVANT le
+    # contrôle de sûreté (un paquet s'exécute à l'installation), et le code tournait dans
+    # la sandbox avant d'être analysé ; un nom comme « tv » écrasait tv_resolver.py.
+    from module.competences import scanner_appels_dangereux
+    from core.confirmation import demander_confirmation
 
-    # Étape 2 : Validation syntaxique & exécution dans la Sandbox
-    resultat_sandbox = await executer_code_sandbox(code, language="python", timeout=10)
-    if not resultat_sandbox["success"] and "SyntaxError" in resultat_sandbox["stderr"]:
-        print(f"[PLUGIN CREATOR SANDBOX ERROR] {resultat_sandbox['stderr']}")
-        # Tentative de correction automatique avec Gemini
+    # Étape 1 : nom du fichier (pas de traversée de répertoire, pas d'écrasement d'un
+    # resolver écrit à la main : seul un plugin déjà généré par JARVIS peut être remplacé)
+    import re as _re_nom
+    if not _re_nom.fullmatch(r"[a-z][a-z0-9_]{0,40}", plugin_name or ""):
+        return (f"Nom de plugin invalide ({plugin_name!r}) : lettres minuscules, "
+                f"chiffres et underscores uniquement.")
+    file_name = f"{plugin_name}_resolver.py"
+    file_path = os.path.join(PLUGINS_DIR, file_name)
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f_exist:
+            if _MARQUEUR_PLUGIN_GENERE not in f_exist.readline():
+                return (f"Un plugin « {file_name} » existe déjà et n'a pas été généré par moi : "
+                        f"je ne l'écrase pas{nom_virgule()}.")
+
+    # Étape 2 : contrôle de sûreté du code (avant toute installation ou exécution)
+    _ok_sec, _raison_sec = scanner_appels_dangereux(code, autoriser_builtins=True)
+    if not _ok_sec:
+        print(f"[PLUGIN CREATOR] ⛔ Plugin refusé par le contrôle de sûreté : {_raison_sec}")
+        return (f"J'ai refusé d'installer ce plugin : son code n'a pas passé "
+                f"le contrôle de sûreté ({_raison_sec}).")
+
+    # Étape 3 : confirmation (fichier écrit dans le code de JARVIS, paquets installés)
+    paquets = [str(r).strip() for r in pip_reqs if r and str(r).strip()]
+    question = f"Je vais créer le plugin « {plugin_name} »"
+    if paquets:
+        question += f" et installer {', '.join(paquets[:5])}"
+    if not await demander_confirmation(None, question + ". Je continue ?"):
+        return f"Création du plugin annulée{nom_virgule()}."
+
+    # Étape 4 : dépendances PyPI
+    for req in paquets:
+        succes = await installer_package_pip(req)
+        if not succes:
+            print(f"[PLUGIN CREATOR WARNING] Échec d'installation de {req}, poursuite...")
+
+    # Étape 5 : validation syntaxique (le code corrigé par l'IA est ré-analysé)
+    try:
+        compile(code, file_name, "exec")
+    except SyntaxError as e_syn:
+        print(f"[PLUGIN CREATOR] Erreur de syntaxe : {e_syn}")
         fix_prompt = f"""Le code du plugin "{plugin_name}" contient une erreur syntaxique :
-{resultat_sandbox['stderr']}
+{e_syn}
 
 Code actuel :
 {code}
@@ -118,39 +155,19 @@ Code actuel :
 Corrige le code et réponds uniquement avec le code Python corrigé sans bloc markdown."""
         code_fixed = await interroger_model(fix_prompt)
         code = re.sub(r'^```[a-zA-Z]*\s*|```\s*$', '', code_fixed.strip(), flags=re.MULTILINE)
+        _ok_sec, _raison_sec = scanner_appels_dangereux(code, autoriser_builtins=True)
+        if not _ok_sec:
+            return f"J'ai refusé le code corrigé : il n'a pas passé le contrôle de sûreté ({_raison_sec})."
 
-    # Étape 2 bis : contrôle de sûreté du code généré (imports/appels destructeurs).
-    # Ce code va être importé dans le processus JARVIS avec tous nos droits :
-    # sans ce filtre, un plugin détourné pouvait effacer des fichiers dès l'import.
-    try:
-        from module.competences import scanner_appels_dangereux
-        _ok_sec, _raison_sec = scanner_appels_dangereux(code)
-    except Exception:
-        _ok_sec, _raison_sec = True, ""   # scan indisponible : on ne bloque pas
-    if not _ok_sec:
-        print(f"[PLUGIN CREATOR] ⛔ Plugin refusé par le contrôle de sûreté : {_raison_sec}")
-        return (f"J'ai refusé d'installer ce plugin, monsieur : son code n'a pas passé "
-                f"le contrôle de sûreté ({_raison_sec}).")
-
-    # Étape 3 : Écriture du fichier plugin dans backend/plugins/
-    # plugin_name sert à construire un chemin : on le restreint pour empêcher
-    # toute traversée de répertoire (« ../../main » écraserait des fichiers).
-    import re as _re_nom
-    if not _re_nom.fullmatch(r"[a-z][a-z0-9_]{0,40}", plugin_name or ""):
-        return (f"Nom de plugin invalide ({plugin_name!r}) : lettres minuscules, "
-                f"chiffres et underscores uniquement.")
-
-    file_name = f"{plugin_name}_resolver.py"
-    file_path = os.path.join(PLUGINS_DIR, file_name)
-
+    # Étape 6 : écriture du fichier plugin dans backend/plugins/
     try:
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(code)
+            f.write(f"{_MARQUEUR_PLUGIN_GENERE}\n{code}")
         print(f"[PLUGIN CREATOR] Fichier plugin enregistré : {file_path}")
     except Exception as e:
         return f"Erreur lors de l'écriture du fichier plugin : {e}"
 
-    # Étape 4 : Chargement & Activation dynamique à chaud (Hot Reload)
+    # Étape 7 : Chargement & Activation dynamique à chaud (Hot Reload)
     try:
         # Si déjà importé, recharger, sinon importer
         module_name = f"plugins.{plugin_name}_resolver"
@@ -163,14 +180,14 @@ Corrige le code et réponds uniquement avec le code Python corrigé sans bloc ma
         func_name = f"resoudre_{plugin_name}"
         if hasattr(builtins, func_name):
             print(f"[PLUGIN CREATOR SUCCESS] Résolveur {func_name} rattaché avec succès à builtins !")
-            return f"Très bien monsieur, le nouveau plugin **{plugin_name}** a été généré, vérifié dans la sandbox et activé instantanément. Vous pouvez l'utiliser dès maintenant !"
+            return f"Le nouveau plugin {plugin_name} a été généré, vérifié et activé{nom_virgule()}. Vous pouvez l'utiliser dès maintenant."
         else:
             # Fallback : exécution explicite du code pour attacher à builtins
             loc = {}
             exec(code, globals(), loc)
             if func_name in loc:
                 setattr(builtins, func_name, loc[func_name])
-                return f"Très bien monsieur, le plugin **{plugin_name}** est maintenant actif sur votre système."
+                return f"Le plugin {plugin_name} est maintenant actif{nom_virgule()}."
 
     except Exception as e:
         print(f"[PLUGIN CREATOR LOAD ERROR] {e}")
@@ -186,17 +203,26 @@ async def resoudre_creation_plugin(cmd: str) -> str | None:
     t = re.sub(r'^(jarvis|jervis|jarvys|jervys|gervis)(,)?\s*', '', t)
 
     mots_cles = [
-        "cree un plugin", "creer un plugin", "cree moi un plugin",
-        "ajoute un plugin", "ajoute le plugin", "connecte toi a",
-        "connecte-toi a", "integre le service", "integre l'api",
+        "cree un plugin", "creer un plugin", "cree moi un plugin", "cree-moi un plugin",
+        "ajoute un plugin", "ajoute le plugin", "integre le service", "integre l'api",
         "cree une integration", "nouveau plugin"
     ]
 
     if not any(k in t for k in mots_cles):
         return None
 
+    # Écrire et charger du code dans JARVIS : réservé au créateur reconnu
+    from core.interlocuteur import CREATEUR
+    if (getattr(builtins, "ACTIVE_SPEAKER", "guest") or "guest").lower() != CREATEUR:
+        return f"Seul mon créateur peut ajouter un plugin{nom_virgule()}."
+
     # Lancer le processus en tâche de fond et répondre immédiatement
-    asyncio.create_task(creer_et_habiliter_plugin(cmd))
-    return "Très bien monsieur. Je commence le développement du nouveau plugin, l'installation des dépendances et son activation à chaud."
+    async def _creer():
+        resultat = await creer_et_habiliter_plugin(cmd)
+        if resultat:
+            builtins.parler(resultat)
+    from core.web_bridge import lancer_tache_arriere_plan
+    lancer_tache_arriere_plan(_creer())
+    return f"Très bien{nom_espace()}. Je prépare le nouveau plugin ; je vous demanderai confirmation avant de l'installer."
 
 builtins.resoudre_creation_plugin = resoudre_creation_plugin

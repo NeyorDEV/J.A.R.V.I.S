@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 
 import core.shared as shared
 from core.speech import parler
@@ -14,6 +15,11 @@ from module.competences import (
 )
 from module.image_generator import generer_affiche_ia, generer_image_ia
 from core.interlocuteur import nom_espace, nom_virgule
+
+
+def _est_invite():
+    """True si la voix qui parle n'a pas été reconnue (mode invité)."""
+    return getattr(shared, "ACTIVE_SPEAKER", "guest") == "guest"
 
 
 def _parser_demande_affiche(t):
@@ -84,17 +90,26 @@ async def resoudre_commandes_locales(texte):
             return f"Quelle application voulez-vous lancer{nom_virgule()} ?"
 
         # --- FERMETURE DU NAVIGATEUR EXTERNE (musique/vidéo en fond) ---
-        mots_fermer_nav = ["navigateur", "internet", "la page", "le web", "la fenêtre", "la fenetre", "chrome", "edge", "firefox", "opera", "brave", "youtube", "la musique", "le navigateur"]
-        if any(k in t for k in ["ferme", "quitte", "arrête", "arrete", "fermer", "quitter", "arrêter", "arreter"]) and any(w in t for w in mots_fermer_nav):
-            # Fermer Chrome / Edge / etc. pour couper YouTube ou la musique externe
-            for proc in ["chrome.exe", "msedge.exe", "firefox.exe", "opera.exe", "brave.exe"]:
-                try:
-                    import subprocess
-                    subprocess.run(["taskkill", "/IM", proc], capture_output=True)
-                except Exception as e:
-                    print(f"[BROWSER] Erreur de fermeture douce de {proc} : {e}")
-
-            return f"Je ferme le navigateur et j'arrête la musique{nom_virgule()}."
+        # Fermeture du navigateur. Avant, « arrête la musique », « ferme la page des
+        # paramètres » ou « quitte la fenêtre du globe » fermaient TOUS les navigateurs
+        # (et Deezer continuait de jouer) : il faut maintenant nommer un navigateur.
+        navigateurs = {
+            "chrome": ["chrome.exe"], "edge": ["msedge.exe"], "firefox": ["firefox.exe"],
+            "opera": ["opera.exe"], "brave": ["brave.exe"],
+        }
+        mots_generiques = ["navigateur", "internet", "le web", "youtube"]
+        if re.search(r"\b(ferme|fermer|quitte|quitter)\b", t) and not _est_invite():
+            cibles = [proc for nom, procs in navigateurs.items() if re.search(rf"\b{nom}\b", t) for proc in procs]
+            if not cibles and any(w in t for w in mots_generiques):
+                cibles = [proc for procs in navigateurs.values() for proc in procs]
+            if cibles:
+                import subprocess
+                for proc in cibles:
+                    try:
+                        subprocess.run(["taskkill", "/IM", proc], capture_output=True)
+                    except Exception as e:
+                        print(f"[BROWSER] Erreur de fermeture douce de {proc} : {e}")
+                return f"Je ferme le navigateur{nom_virgule()}."
 
 
     _res = await _commandes_identite_hud(t)
@@ -107,6 +122,10 @@ async def resoudre_commandes_locales(texte):
 async def _commandes_competences_systeme(t):
     """Compétences autonomes, Winget, antivirus, génération d'images, garde-fou des commandes complexes."""
     import re
+    # Mode invité : compétences (code exécuté), mises à jour et antivirus sont réservés
+    # aux voix reconnues (avant, seules les actions JSON du LLM étaient filtrées).
+    if _est_invite() and re.search(r"competence|compétence|winget|mise.? a jour|mises? à jour|logiciels|antivirus|virus|scanne|analyse mon (pc|ordinateur)", t):
+        return f"Désolé, cette commande est réservée aux utilisateurs reconnus{nom_virgule()}."
     # ── SYSTEME DE PLUGINS DE COMPETENCES AUTONOMES ────────────────────────────
     # 1. Création / Apprentissage de compétence
     if "crée la compétence" in t or "cree la competence" in t or "apprends la compétence" in t or "apprends la competence" in t:
@@ -140,7 +159,9 @@ async def _commandes_competences_systeme(t):
     # 4. Liste des compétences personnalisées
     if any(k in t for k in ["liste les compétences", "liste mes compétences", "liste tes compétences", "quelles sont mes compétences", "affiche mes compétences", "liste toutes mes compétences", "liste toutes tes compétences"]):
         import os
-        dossier_plugins = os.path.join(shared.RACINE_PROJET, "plugins")
+        # Les compétences sont écrites dans backend/plugins/ (module/competences.py) :
+        # la racine du projet n'a pas de dossier plugins/.
+        dossier_plugins = os.path.join(shared.RACINE_PROJET, "backend", "plugins")
         if not os.path.exists(dossier_plugins):
             return "Vous n'avez actuellement aucune compétence personnalisée installée."
         files = [f for f in os.listdir(dossier_plugins) if f.startswith("competence_") and f.endswith(".py")]
@@ -223,15 +244,18 @@ async def _commandes_carte_voix(t):
         return f"Carte de test affichée sur le HUD{nom_virgule()}."
 
     # --- CHANGEMENT DE VOIX ---
+    # speech.py lit core.config.VOIX_ACTUELLE : modifier seulement shared.VOIX_ACTUELLE
+    # annonçait le changement sans l'appliquer.
+    import core.config as config
     if any(kw in t for kw in ["prends la voix d'homme", "prends la voix de l'homme", "voix d'homme", "voix masculine"]):
-        if shared.VOIX_ACTUELLE == "homme":
+        if config.VOIX_ACTUELLE == "homme":
             return f"Ma voix est déjà configurée sur le mode masculin{nom_virgule()}."
-        shared.VOIX_ACTUELLE = "homme"
-        return "Très bien Monsieur, je reprends ma voix habituelle."
+        config.VOIX_ACTUELLE = shared.VOIX_ACTUELLE = "homme"
+        return f"Très bien{nom_espace()}, je reprends ma voix habituelle."
 
     if any(kw in t for kw in ["prends la voix de femme", "prends la voix d'une femme", "voix de femme", "voix féminine"]):
-        if shared.VOIX_ACTUELLE == "femme":
+        if config.VOIX_ACTUELLE == "femme":
             return f"Ma voix est déjà configurée sur le mode féminin{nom_virgule()}."
-        shared.VOIX_ACTUELLE = "femme"
+        config.VOIX_ACTUELLE = shared.VOIX_ACTUELLE = "femme"
         return f"C'est entendu{nom_espace()}, je passe sur une fréquence vocale féminine."
     return _PAS_TROUVE

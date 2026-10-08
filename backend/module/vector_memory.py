@@ -63,6 +63,10 @@ def _get_collection():
 
 def ajouter_souvenir(user_text, model_text):
     """Ajoute un échange à la base de données vectorielle pour un rappel futur."""
+    # Les échanges d'une voix invitée ne sont pas mémorisés
+    import core.shared as _shared
+    if getattr(_shared, "ACTIVE_SPEAKER", "guest") == "guest":
+        return
     # Exclure les échanges qui sont des commandes système, des actions ou du contenu dynamique transitoire
     u_lower = user_text.lower()
     m_lower = model_text.lower()
@@ -170,7 +174,17 @@ def rechercher_souvenir_semantique(query_text, threshold=0.4):
         "heure", "date", "météo", "meteo", "température", "temperature",
         "agenda", "calendrier", "calendar",
         "oublie", "oublier", "supprime", "supprimer", "efface", "effacer", "vide", "vider", "annule", "annuler", "retire", "retirer",
-        "retiens", "retienne", "enregistre", "enregistrer", "mémorise", "memorise", "mémoriser", "memoriser", "note", "noter", "rappelle", "rappeler"
+        "retiens", "retienne", "enregistre", "enregistrer", "mémorise", "memorise", "mémoriser", "memoriser", "note", "noter", "rappelle", "rappeler",
+        # Sujets dont la réponse change dans le temps : un ancien échange donnerait
+        # une réponse périmée (score, actualité, cours de bourse…)
+        "score", "résultat", "resultat", "match", "gagné", "gagne", "actualité", "actualite", "actu",
+        "news", "prix", "coûte", "coute", "cours", "bourse", "bitcoin", "aujourd'hui", "demain",
+        "hier", "maintenant", "ce soir", "ce matin", "cette semaine", "en ce moment", "dernier",
+        "dernière", "récent", "recent", "combien", "quel jour", "élection", "election",
+        # Demandes créatives : on en attend une nouvelle à chaque fois (« raconte-moi une
+        # histoire » redonnait mot pour mot l'histoire précédente)
+        "raconte", "histoire", "blague", "poème", "poeme", "invente", "imagine", "idée", "idee",
+        "propose", "suggère", "suggere", "devinette", "anecdote", "chante", "au hasard", "une autre", "encore"
     ]
     if any(w in q_lower for w in mots_exclus):
         return None
@@ -211,8 +225,11 @@ def rechercher_souvenir_semantique(query_text, threshold=0.4):
         print(f"[VECTOR DB] Erreur recherche sémantique : {e}")
     return None
 
-def supprimer_souvenir_semantique(query_text, seuil=0.5):
-    """Recherche et supprime les souvenirs dans ChromaDB qui sont sémantiquement trop proches de la requête."""
+def supprimer_souvenir_semantique(query_text, seuil=0.35):
+    """Recherche et supprime les souvenirs dans ChromaDB qui sont sémantiquement trop proches de la requête.
+
+    Seuil de distance cosinus resserré (0,5 → 0,35) : à 0,5, « oublie mon chat »
+    pouvait effacer des souvenirs qui ne parlaient que vaguement d'animaux."""
     coll = _get_collection()
     if coll is None or coll.count() == 0:
         return False

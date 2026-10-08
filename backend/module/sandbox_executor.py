@@ -10,6 +10,37 @@ SANDBOX_BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 os.makedirs(SANDBOX_BASE_DIR, exist_ok=True)
 
 
+_VERSION_NODE = None
+
+
+def _option_permission_node():
+    """« --permission » (Node ≥ 22.13), « --experimental-permission » (Node 20 à 22.12), ou
+    None si Node est trop ancien pour limiter les accès."""
+    global _VERSION_NODE
+    if _VERSION_NODE is None:
+        try:
+            sortie = subprocess.run(["node", "--version"], capture_output=True, text=True, timeout=5).stdout
+            _VERSION_NODE = tuple(int(x) for x in sortie.strip().lstrip("v").split(".")[:2])
+        except Exception:
+            _VERSION_NODE = (0, 0)
+    if _VERSION_NODE >= (22, 13):
+        return "--permission"
+    if _VERSION_NODE >= (20, 0):
+        return "--experimental-permission"
+    return None
+
+
+def _permissions_node(dossier: str) -> list:
+    """Options du modèle de permissions de Node : lecture/écriture limitées au dossier du
+    projet, pas de processus enfants ni de modules natifs. Sans modèle de permissions
+    (Node < 20), le script n'est pas exécuté (option invalide → échec immédiat)."""
+    racine = os.path.abspath(dossier)
+    option = _option_permission_node()
+    if option is None:
+        return ["--node-trop-ancien-pour-la-sandbox"]
+    return [option, f"--allow-fs-read={racine}{os.sep}*", f"--allow-fs-write={racine}{os.sep}*"]
+
+
 def _dans_sandbox(chemin: str):
     """Résout `chemin` et vérifie qu'il reste DANS SANDBOX_BASE_DIR.
 
@@ -55,13 +86,14 @@ async def executer_code_sandbox(
     # Déterminer la commande d'exécution
     if language.lower() in ["python", "py"]:
         file_ext = ".py"
-        python_exe = os.path.join(os.path.dirname(__file__), "..", "venv", "Scripts", "python.exe")
+        # venv à la racine du projet (le chemin visait backend/venv, inexistant)
+        python_exe = os.path.join(os.path.dirname(__file__), "..", "..", "venv", "Scripts", "python.exe")
         if not os.path.exists(python_exe):
             python_exe = sys.executable
         cmd_args = [python_exe]
     elif language.lower() in ["javascript", "js", "node"]:
         file_ext = ".js"
-        cmd_args = ["node"]
+        cmd_args = ["node", *_permissions_node(target_dir)]
     else:
         return {
             "success": False,
@@ -164,12 +196,30 @@ async def executer_fichier_sandbox(
     working_dir = os.path.dirname(file_path)
 
     if ext == ".py":
-        python_exe = os.path.join(os.path.dirname(__file__), "..", "venv", "Scripts", "python.exe")
+        # venv à la racine du projet (le chemin visait backend/venv, inexistant)
+        python_exe = os.path.join(os.path.dirname(__file__), "..", "..", "venv", "Scripts", "python.exe")
         if not os.path.exists(python_exe):
             python_exe = sys.executable
+        # La « sandbox » ne fait que fixer le dossier de travail : le code a tous les droits
+        # de l'utilisateur. Le code Python généré passe donc d'abord le contrôle de sûreté
+        # des compétences (imports et appels destructeurs, écriture de fichiers…).
+        from module.competences import scanner_appels_dangereux
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                ok_sur, raison = scanner_appels_dangereux(f.read())
+        except Exception as e:
+            ok_sur, raison = False, f"lecture impossible ({e})"
+        if not ok_sur:
+            return {
+                "success": False,
+                "return_code": -1,
+                "stdout": "",
+                "stderr": f"Non exécuté : contrôle de sûreté refusé ({raison}).",
+                "execution_time": 0
+            }
         cmd = [python_exe, file_path]
     elif ext == ".js":
-        cmd = ["node", file_path]
+        cmd = ["node", *_permissions_node(working_dir), file_path]
     else:
         return {
             "success": False,

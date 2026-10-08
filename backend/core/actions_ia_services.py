@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import time
 
 import core.shared as shared
 from controller.actions_pc import action_whatsapp_appel
@@ -13,6 +12,7 @@ from controller.deezer_controller import (
 from core.llm_chat import demander_ia
 from core.llm_providers import demander_grok
 from core.micro import _charger_config
+from core.confirmation import demander_confirmation
 from core.speech import parler
 from module.alarm_manager import ajouter_alarme, annuler_alarme, lister_alarmes
 from module.google_services import (
@@ -38,13 +38,19 @@ from module.visual_web_agent import run_visual_agent, stop_visual_agent
 from core.interlocuteur import nom_espace, nom_ou_utilisateur, nom_virgule
 
 
+async def _google(fonction, *args, **kwargs):
+    """Appel Google (bloquant : réseau, voire connexion OAuth) dans un thread, pour ne pas
+    figer la boucle WebSocket et le HUD pendant l'appel."""
+    return await asyncio.to_thread(fonction, *args, **kwargs)
+
+
 async def executer_actions_services(action, data, block, texte_utilisateur, reponse_propre):
     """Actions JSON « services » : Google, météo, web, sport, vision, dictée, alarmes, antivirus, Deezer.
 
     Retourne True si l'action a été prise en charge par ce groupe.
     """
     if action == "open_drive":
-        result = ouvrir_google_drive()
+        result = await _google(ouvrir_google_drive)
         parler(result)
     elif action == "search_drive":
         query = data.get("query") or None
@@ -52,117 +58,135 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
             parler(f"Je recherche les fichiers contenant '{query}' sur votre Google Drive...")
         else:
             parler("Je recherche vos fichiers récents sur votre Google Drive...")
-        result = rechercher_google_drive(nom_fichier=query)
+        result = await _google(rechercher_google_drive, nom_fichier=query)
         parler(result)
     elif action == "create_doc":
         titre   = data.get("title",   "Document JARVIS")
         contenu = data.get("content", "")
-        result  = creer_google_doc(titre, contenu)
+        result  = await _google(creer_google_doc, titre, contenu)
         parler(result)
     elif action == "write_doc":
         contenu = data.get("content", "")
-        result  = modifier_google_doc(contenu)
+        result  = await _google(modifier_google_doc, contenu)
         parler(result)
     elif action == "create_sheet":
         titre  = data.get("title", "Feuille JARVIS")
-        result = creer_google_sheet(titre)
+        result = await _google(creer_google_sheet, titre)
         parler(result)
     elif action == "read_emails":
-        result = lire_emails()
+        result = await _google(lire_emails)
         if "Aucun nouvel email" in result:
             parler(f"Vous n'avez aucun nouvel email non lu dans votre boîte principale{nom_virgule()}.")
         else:
             parler(f"Voici vos derniers emails non lus{nom_virgule()}. {result}")
     elif action == "read_calendar":
-        result = lister_evenements_calendar()
+        result = await _google(lister_evenements_calendar)
         parler(f"Voici vos prochains evenements{nom_espace()}. {result}")
     elif action == "create_task":
         titre = data.get("title") or data.get("titre") or ""
         notes = data.get("notes") or ""
-        result = creer_google_task(titre, notes)
+        result = await _google(creer_google_task, titre, notes)
         parler(result)
     elif action == "list_tasks":
-        result = lister_google_tasks()
+        result = await _google(lister_google_tasks)
         parler(f"Voici vos tâches à faire dans Google Tasks{nom_virgule()}. {result}")
     elif action == "complete_task":
         titre = data.get("title") or data.get("titre") or ""
-        result = complete_google_task(titre)
+        result = await _google(complete_google_task, titre)
         parler(result)
     elif action == "delete_task":
         titre = data.get("title") or data.get("titre") or ""
-        result = delete_google_task(titre)
-        parler(result)
+        if not await demander_confirmation(None, f"Supprimer la tâche « {titre} » ?"):
+            parler(f"Suppression annulée{nom_virgule()}.")
+        else:
+            result = await _google(delete_google_task, titre)
+            parler(result)
     elif action == "send_email":
         destinataire = data.get("to") or data.get("destinataire") or ""
         sujet = data.get("subject") or data.get("sujet") or "Message de JARVIS"
         corps = data.get("body") or data.get("corps") or ""
-        result = envoyer_email(destinataire, sujet, corps)
-        parler(result)
+        if not await demander_confirmation(None, f"Envoyer un e-mail à {destinataire or 'un destinataire inconnu'}, sujet : {sujet} ?"):
+            parler(f"Envoi annulé{nom_virgule()}.")
+        else:
+            result = await _google(envoyer_email, destinataire, sujet, corps)
+            parler(result)
     elif action == "reply_email":
         corps = data.get("body") or data.get("corps") or ""
         msg_id = data.get("original_msg_id") or None
-        result = repondre_email(corps, msg_id)
-        parler(result)
+        if not await demander_confirmation(None, "Envoyer cette réponse par e-mail ?"):
+            parler(f"Réponse annulée{nom_virgule()}.")
+        else:
+            result = await _google(repondre_email, corps, msg_id)
+            parler(result)
     elif action == "read_full_email":
         msg_id = data.get("msg_id") or None
-        result = lire_detail_email(msg_id)
+        result = await _google(lire_detail_email, msg_id)
         parler(f"Voici le contenu de l'e-mail : {result}")
     elif action == "archive_email":
         msg_id = data.get("msg_id") or None
-        result = archiver_email(msg_id)
+        result = await _google(archiver_email, msg_id)
         parler(result)
     elif action == "delete_email":
         msg_id = data.get("msg_id") or None
-        result = supprimer_email(msg_id)
-        parler(result)
+        if not await demander_confirmation(None, "Mettre cet e-mail à la corbeille ?"):
+            parler(f"Suppression annulée{nom_virgule()}.")
+        else:
+            result = await _google(supprimer_email, msg_id)
+            parler(result)
     elif action == "create_event":
         summary = data.get("summary") or data.get("titre") or "Événement"
         start_time = data.get("start") or data.get("debut") or ""
         end_time = data.get("end") or data.get("fin") or ""
         description = data.get("description") or None
-        result = creer_evenement_calendar(summary, start_time, end_time, description)
+        result = await _google(creer_evenement_calendar, summary, start_time, end_time, description)
         parler(result)
     elif action == "update_event":
         old_title = data.get("old_title") or data.get("ancien_titre") or ""
         new_title = data.get("new_title") or data.get("nouveau_titre") or None
         new_start = data.get("new_start") or data.get("nouvelle_heure") or None
         new_end = data.get("new_end") or data.get("fin_heure") or None
-        result = modifier_evenement_calendar(old_title, new_title, new_start, new_end)
+        result = await _google(modifier_evenement_calendar, old_title, new_title, new_start, new_end)
         parler(result)
     elif action == "delete_event":
         title = data.get("title") or data.get("titre") or ""
-        result = supprimer_evenement_calendar(title)
-        parler(result)
+        if not await demander_confirmation(None, f"Supprimer l'événement « {title} » de votre agenda ?"):
+            parler(f"Suppression annulée{nom_virgule()}.")
+        else:
+            result = await _google(supprimer_evenement_calendar, title)
+            parler(result)
     elif action == "append_sheet":
         valeurs = data.get("values") or data.get("valeurs") or []
         sheet_id = data.get("spreadsheet_id") or None
         onglet = data.get("onglet") or "Feuille 1"
-        result = ajouter_ligne_sheet(valeurs, sheet_id, onglet)
+        result = await _google(ajouter_ligne_sheet, valeurs, sheet_id, onglet)
         parler(result)
     elif action == "read_sheet":
         cell_range = data.get("range") or data.get("plage") or "A1:Z10"
         sheet_id = data.get("spreadsheet_id") or None
-        result = lire_donnees_sheet(cell_range, sheet_id)
+        result = await _google(lire_donnees_sheet, cell_range, sheet_id)
         parler(f"Voici les données lues de la feuille : {result}")
     elif action == "read_doc":
         doc_id = data.get("doc_id") or None
-        result = lire_contenu_doc(doc_id)
+        result = await _google(lire_contenu_doc, doc_id)
         parler(f"Voici le contenu du document : {result}")
     elif action == "upload_file":
         local_path = data.get("local_path") or data.get("chemin") or ""
         folder_id = data.get("folder_id") or data.get("dossier_id") or None
-        result = charger_fichier_drive(local_path, folder_id)
+        result = await _google(charger_fichier_drive, local_path, folder_id)
         parler(result)
     elif action == "share_file":
         email = data.get("email") or data.get("destinataire") or ""
         role = data.get("role") or "reader"
         file_id = data.get("file_id") or None
-        result = partager_fichier_drive(email, role, file_id)
-        parler(result)
+        if not await demander_confirmation(None, f"Partager ce fichier avec {email or 'cette personne'} ?"):
+            parler(f"Partage annulé{nom_virgule()}.")
+        else:
+            result = await _google(partager_fichier_drive, email, role, file_id)
+            parler(result)
     elif action == "create_folder":
         folder_name = data.get("folder_name") or data.get("nom_dossier") or "Nouveau Dossier"
         parent_folder_id = data.get("parent_folder_id") or data.get("dossier_parent_id") or None
-        result = creer_dossier_drive(folder_name, parent_folder_id)
+        result = await _google(creer_dossier_drive, folder_name, parent_folder_id)
         parler(result)
     elif action == "meteo":
         ville = data.get("ville") or None
@@ -295,7 +319,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
             import pyautogui
             import pyperclip
             pyperclip.copy(texte)
-            time.sleep(0.1)
+            await asyncio.sleep(0.1)
             pyautogui.hotkey('ctrl', 'v')
             parler(f"C'est tapé{nom_virgule()}.")
 

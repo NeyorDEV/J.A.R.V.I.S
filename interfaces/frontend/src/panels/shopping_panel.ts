@@ -13,6 +13,7 @@ const shoppingAddInput = document.getElementById("shopping-add-input") as HTMLIn
 const shoppingAddBtn = document.getElementById("shopping-add-btn") as HTMLButtonElement;
 const shoppingClearBtn = document.getElementById("shopping-clear-btn") as HTMLButtonElement;
 const shoppingHeader = document.getElementById("shopping-panel-header") as HTMLDivElement;
+const shoppingCount = document.getElementById("shopping-count") as HTMLDivElement;
 
 
 // ── LOGIQUE DU PANNEAU DE COURSES (SHOPPING PANEL) ───────────────────────────
@@ -33,10 +34,18 @@ shoppingClearBtn?.addEventListener("click", () => {
 function renderShoppingList() {
   if (!shoppingListContainer) return;
   shoppingListContainer.innerHTML = "";
+  const restants = currentShoppingList.filter(i => !i.startsWith("[x] ")).length;
+  if (shoppingCount) {
+    const total = currentShoppingList.length;
+    shoppingCount.textContent = total === 0
+      ? "LISTE VIDE"
+      : `${total} ARTICLE${total > 1 ? "S" : ""}` + (restants < total ? ` · ${restants} À PRENDRE` : "");
+  }
+  if (shoppingClearBtn) shoppingClearBtn.disabled = currentShoppingList.length === 0;
   if (currentShoppingList.length === 0) {
     const empty = document.createElement("div");
-    empty.style.cssText = "padding:20px;font-size:11px;color:rgba(0,229,255,0.3);text-align:center;";
-    empty.textContent = "Aucun article dans la liste";
+    empty.className = "shopping-empty";
+    empty.textContent = "AUCUN ARTICLE DANS LA LISTE";
     shoppingListContainer.appendChild(empty);
     return;
   }

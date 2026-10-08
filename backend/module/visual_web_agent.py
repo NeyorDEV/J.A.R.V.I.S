@@ -27,7 +27,8 @@ except ImportError:
 load_dotenv()
 
 # --- Chemin vers Opera GX ---
-OPERA_GX_PATH = r"C:\Users\mylan\AppData\Local\Programs\Opera GX\opera.exe"
+# (chemin construit pour le compte courant : il était écrit en dur pour un seul compte Windows)
+OPERA_GX_PATH = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Opera GX", "opera.exe")
 OPERA_GX_PROFILE_PATH = os.path.expandvars(r"%APPDATA%\Opera Software\Opera GX Stable")
 
 # --- Constantes ---
@@ -139,7 +140,8 @@ class VisualWebAgent:
         profile_exists = os.path.exists(OPERA_GX_PROFILE_PATH)
         
         # Chemin absolu vers l'extension Chrome de JARVIS
-        extension_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "chrome_extension"))
+        # L'extension est dans interfaces/chrome_extension (le chemin visait backend/chrome_extension, inexistant)
+        extension_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "interfaces", "chrome_extension"))
 
         launch_kwargs = dict(
             headless=False,

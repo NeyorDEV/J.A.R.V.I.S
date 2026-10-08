@@ -64,10 +64,11 @@ async def tv_allumer():
     if await adb_command("input keyevent 224"):
         await adb_command("input keyevent 3")
         return f"J'ai allumé votre télé{nom_virgule()}."
-    return "J'ai envoyé le signal de réveil à la télé, Monsieur."
+    return f"J'ai envoyé le signal de réveil à la télé{nom_virgule()}."
 
 async def tv_eteindre():
-    if await adb_command("input keyevent 26"): return f"J'ai éteint la télé{nom_virgule()}."
+    # KEYCODE_SLEEP (223) met en veille ; POWER (26) bascule, et rallumait une télé déjà éteinte
+    if await adb_command("input keyevent 223"): return f"J'ai éteint la télé{nom_virgule()}."
     return "Échec de l'extinction."
 
 async def tv_quitter_app():
@@ -97,7 +98,7 @@ async def tv_volume(direction, steps=5):
             device.shell(f"input keyevent {touches}")
             remaining -= batch
             if remaining > 0: await asyncio.sleep(0.1)
-        return f"Volume de la télé ajusté de {steps} points, Monsieur."
+        return f"Volume de la télé ajusté de {steps} points{nom_virgule()}."
     except Exception as e:
         # On ne prétend plus que l'opération a réussi : l'ancien message
         # « Le volume de la télé a été modifié » était affiché même en cas
@@ -155,21 +156,35 @@ async def resoudre_tv_localement(texte):
     # sans accents. Les mots-clés ci-dessous sont donc écrits sans accent.
     t = _sans_accent(texte)
 
-    if any(k in t for k in ["tele", "tv", "philips", "television"]):
+    # Mots entiers : « tele » était trouvé dans téléphone, téléchargement, téléverser…
+    # (« arrête le téléchargement » éteignait la télé).
+    if re.search(r"\b(tele|teles|tv|television|televiseur|philips)\b", t):
         # Volume précis
-        if any(k in t for k in ["son", "volume"]):
-            direction = "monter" if any(k in t for k in ["monte", "augmente", "plus", "hausse"]) else "baisser"
+        if re.search(r"\b(son|volume)\b", t):
+            if any(k in t for k in ["monte", "augmente", "plus fort", "hausse"]):
+                direction = "monter"
+            elif any(k in t for k in ["baisse", "diminue", "moins fort"]):
+                direction = "baisser"
+            else:
+                # « règle le son de la télé à 20 » baissait de 20 crans : la télé ne se
+                # pilote ici qu'en montant ou en baissant.
+                return (f"Je peux monter ou baisser le son de la télé{nom_virgule()} : "
+                        "dites par exemple « monte le son de la télé de 5 ».")
             steps = 10
             if "un peu" in t: steps = 3
             if any(k in t for k in ["beaucoup", "fortement", "bien"]): steps = 25
-            chiffres = re.findall(r'\d+', t)
-            if chiffres: steps = int(chiffres[0])
+            m = re.search(r"\bde (\d+)\b", t) or re.search(r"(\d+)\s*(?:crans?|points?|fois)", t)
+            if m: steps = int(m.group(1))
             return await tv_volume(direction, steps)
 
         # Allumage / Extinction
-        if any(k in t for k in ["allume", "demarre", "lance"]):
-            if len(t.split()) < 5: return await tv_allumer()
-        if any(k in t for k in ["eteins", "veille", "arrete"]):
+        # (sans limite de longueur : « allume la télé du salon » n'était pas compris ;
+        #  « lance netflix sur la télé » reste un lancement d'application)
+        apps_tv = ["netflix", "disney", "prime", "deezer", "crunchyroll", "apple tv", "youtube", "twitch"]
+        if any(k in t for k in ["allume", "demarre", "lance"]) and not any(a in t for a in apps_tv):
+            return await tv_allumer()
+        # « arrête » seul visait aussi « arrête la vidéo » : il faut « arrête la télé »
+        if any(k in t for k in ["eteins", "veille"]) or re.search(r"\barrete (la |ma )?(tele|tv|television)\b", t):
             return await tv_eteindre()
 
         # Quitter / Accueil

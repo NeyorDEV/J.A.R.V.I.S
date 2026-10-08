@@ -18,54 +18,56 @@ except ImportError:
 
 
 def afficher_statut_services():
-    """Affiche le tableau « STATUT DES SERVICES » (port WebSocket, commande vocale)."""
+    """Annonce les services démarrés (l'état détaillé est dans le bandeau de la console)."""
+    print("[SERVICES] Backend actif · WebSocket ws://localhost:8765 · mot-clé « Jarvis »")
+
+
+def _est_instance_jarvis(proc):
+    """True si le processus appartient à ce projet (ancien JARVIS, ou son serveur Vite)."""
+    racine = os.path.normcase(os.path.abspath(shared.RACINE_PROJET))
     try:
-        from rich.console import Console
-        from rich.table import Table
-        from rich.panel import Panel
-        console = Console()
-
-        table = Table(show_header=False, box=None, padding=(0, 2))
-        table.add_row("[cyan]⚙  Backend[/cyan]", "[green]Actif (Terminal)[/green]")
-        table.add_row("[cyan]🌐  WebSocket (Local)[/cyan]", "[green]ws://localhost:8765[/green]")
-        table.add_row("[cyan]🎙  Commande Vocale[/cyan]", "[yellow]Active (Mot-clé: 'Jarvis')[/yellow]")
-
-        print()
-        console.print(Panel(
-            table,
-            title="[bold green]✔  STATUT DES SERVICES[/bold green]",
-            border_style="green",
-            expand=False
-        ))
-        print()
+        if os.path.normcase(proc.cwd()).startswith(racine):
+            return True
     except Exception:
-        print("  Backend   : actif (terminal)")
-        print("  WebSocket : ws://localhost:8765")
-        print()
-        print("  Commandes vocales actives.")
-        print("  Dites 'Jarvis' pour activer la session.")
-        print("=" * 60)
-        print()
+        pass
+    try:
+        return any(racine in os.path.normcase(arg) for arg in proc.cmdline())
+    except Exception:
+        return False
 
 
 def liberer_ports_occupes():
-    """Termine une éventuelle instance précédente qui occuperait les ports 8765 ou 5173."""
-    # Liberer les ports si une instance precedente tourne encore
-    # Un seul appel netstat pour les 2 ports (évite 2x ~1.5s de latence)
-    _ports_a_liberer = [8765, 5173]
-    try:
-        _result = subprocess.run(["netstat", "-ano"], capture_output=True)
-        _stdout = _result.stdout.decode(errors='ignore')
-        for _line in _stdout.splitlines():
-            for _port in _ports_a_liberer:
-                if f":{_port}" in _line and ("LISTENING" in _line or "ÉCOUTE" in _line):
-                    _parts = _line.strip().split()
-                    _pid = _parts[-1]
-                    if _pid.isdigit() and int(_pid) != os.getpid():
-                        subprocess.run(["taskkill", "/F", "/PID", _pid], capture_output=True)
-                        print(f"[DÉMARRAGE] Port {_port} libéré (PID {_pid} terminé).")
-    except Exception as _e:
-        print(f"[DÉMARRAGE] Impossible de libérer les ports : {_e}")
+    """Termine une éventuelle instance précédente de JARVIS qui occuperait les ports 8765 ou 5173.
+
+    Avant : `netstat` analysé comme du texte, avec « :5173 » cherché en sous-chaîne (ce qui
+    visait aussi les ports 51730 à 51739), et tout programme trouvé était tué d'office,
+    même un autre projet Vite en cours de développement (5173 est le port par défaut de
+    Vite). Sur un Windows en français, « ÉCOUTE » était en outre mal décodé, si bien
+    qu'aucune ancienne instance n'était jamais arrêtée. On interroge maintenant psutil,
+    et seul un processus appartenant à ce projet est arrêté.
+    """
+    import psutil
+    for port in (8765, 5173):
+        try:
+            pids = {c.pid for c in psutil.net_connections(kind="inet")
+                    if c.laddr and c.laddr.port == port and c.status == psutil.CONN_LISTEN and c.pid}
+        except Exception as e:
+            print(f"[DÉMARRAGE] Impossible de vérifier le port {port} : {e}")
+            continue
+        for pid in pids:
+            if pid == os.getpid():
+                continue
+            try:
+                proc = psutil.Process(pid)
+                nom = proc.name()
+                if _est_instance_jarvis(proc):
+                    proc.kill()
+                    print(f"[DÉMARRAGE] Port {port} libéré (ancienne instance {nom}, PID {pid}).")
+                else:
+                    print(f"[DÉMARRAGE] ⚠ Le port {port} est utilisé par un autre programme ({nom}, PID {pid}) : "
+                          f"il n'est pas arrêté, JARVIS risque de ne pas pouvoir démarrer.")
+            except Exception as e:
+                print(f"[DÉMARRAGE] Port {port} : {e}")
 
 
 def lancer_frontend():
@@ -325,10 +327,10 @@ def _attendre_interface(frontend_process):
         while True:
             time.sleep(1)
             # On ne ferme que si l'interface a été connectée au moins une fois
-            if shared.interface_deja_connectee and len(shared.CONNECTED_CLIENTS) == 0:
+            if shared.interface_deja_connectee and not (shared.CONNECTED_CLIENTS - shared.CLIENTS_EXTENSION):
                 print("\n[JARVIS] Interface deconnectee. Attente de reconnexion (60s)...")
                 time.sleep(60)
-                if len(shared.CONNECTED_CLIENTS) == 0:
+                if not (shared.CONNECTED_CLIENTS - shared.CLIENTS_EXTENSION):
                     print("[JARVIS] Aucune reconnexion. Extinction automatique...")
                     break
                 else:

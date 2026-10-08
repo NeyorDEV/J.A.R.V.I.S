@@ -13,6 +13,14 @@ export function showConfirmDialog(id: string, message: string) {
   confirmDialogOverlay?.classList.remove("hidden");
 }
 
+// Confirmation résolue ailleurs (réponse vocale, autre fenêtre, délai écoulé) : le popup
+// restait affiché.
+export function closeConfirmDialog(id: string) {
+  if (confirmDialogPendingId !== id) return;
+  confirmDialogPendingId = null;
+  confirmDialogOverlay?.classList.add("hidden");
+}
+
 function answerConfirmDialog(confirmed: boolean) {
   if (!confirmDialogPendingId) return;
   wsRef.current?.send(JSON.stringify({ type: "confirm_response", id: confirmDialogPendingId, confirmed }));

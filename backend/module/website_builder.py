@@ -10,6 +10,7 @@ import webbrowser
 import builtins
 import google.genai as genai
 from core.config import GEMINI_API_KEY, CHOSEN_MODEL
+from core.interlocuteur import nom_espace
 
 # Initialisation de la Sandbox dans le dossier backend/sandbox
 _dir_courant = os.path.dirname(os.path.abspath(__file__))
@@ -342,6 +343,6 @@ CONSIGNES STRICTES POUR JAVASCRIPT :
             pass
 
     if hasattr(builtins, "parler"):
-        builtins.parler(f"Très bien Monsieur, votre application web d'élite avec visuels HD, Chart.js et gestionnaire interactif a été générée avec succès et ouverte dans votre navigateur.")
+        builtins.parler(f"Très bien{nom_espace()}, votre application web d'élite avec visuels HD, Chart.js et gestionnaire interactif a été générée avec succès et ouverte dans votre navigateur.")
 
     return site_url

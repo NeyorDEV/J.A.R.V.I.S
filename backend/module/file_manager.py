@@ -50,45 +50,12 @@ def resoudre_chemin(chemin):
     if not chemin:
         return None
     chemin = chemin.strip().strip('"').strip("'")
-    raccourcis = {
-        "bureau": os.path.join(os.environ.get("USERPROFILE", ""), "Desktop"),
-        "desktop": os.path.join(os.environ.get("USERPROFILE", ""), "Desktop"),
-        "document": os.path.join(os.environ.get("USERPROFILE", ""), "Documents"),
-        "documents": os.path.join(os.environ.get("USERPROFILE", ""), "Documents"),
-        "téléchargement": os.path.join(os.environ.get("USERPROFILE", ""), "Downloads"),
-        "téléchargements": os.path.join(os.environ.get("USERPROFILE", ""), "Downloads"),
-        "telechargement": os.path.join(os.environ.get("USERPROFILE", ""), "Downloads"),
-        "telechargements": os.path.join(os.environ.get("USERPROFILE", ""), "Downloads"),
-        "downloads": os.path.join(os.environ.get("USERPROFILE", ""), "Downloads"),
-        "image": os.path.join(os.environ.get("USERPROFILE", ""), "Pictures"),
-        "images": os.path.join(os.environ.get("USERPROFILE", ""), "Pictures"),
-        "photo": os.path.join(os.environ.get("USERPROFILE", ""), "Pictures"),
-        "photos": os.path.join(os.environ.get("USERPROFILE", ""), "Pictures"),
-        "vidéo": os.path.join(os.environ.get("USERPROFILE", ""), "Videos"),
-        "vidéos": os.path.join(os.environ.get("USERPROFILE", ""), "Videos"),
-        "video": os.path.join(os.environ.get("USERPROFILE", ""), "Videos"),
-        "videos": os.path.join(os.environ.get("USERPROFILE", ""), "Videos"),
-        "musique": os.path.join(os.environ.get("USERPROFILE", ""), "Music"),
-        "music": os.path.join(os.environ.get("USERPROFILE", ""), "Music"),
-        "corbeille": "shell:RecycleBinFolder"
-    }
-    
-    chemin_resolu = raccourcis.get(chemin.lower(), chemin)
-    
-    # Test des variantes françaises si le dossier anglais n'existe pas
-    if not os.path.exists(chemin_resolu):
-        variantes = {
-            "Desktop": "Bureau",
-            "Downloads": "Téléchargements",
-            "Pictures": "Images",
-            "Music": "Musique"
-        }
-        for eng, fra in variantes.items():
-            if eng in chemin_resolu:
-                test_fra = chemin_resolu.replace(eng, fra)
-                if os.path.exists(test_fra):
-                    chemin_resolu = test_fra
-                    break
+    # Dossiers personnels : emplacement réel donné par Windows (souvent sous OneDrive) ;
+    # avant, USERPROFILE\Desktop, \Documents… écrits en dur visaient d'autres dossiers.
+    from core.dossiers import dossier_connu
+    if chemin.lower() == "corbeille":
+        return "shell:RecycleBinFolder"
+    chemin_resolu = dossier_connu(chemin) or chemin
     return chemin_resolu
 
 def trouver_extension(ext):
@@ -264,14 +231,10 @@ def chercher_fichier(nom, scan_global=True, type_cible=None):
     
     if scan_global:
         userprofile = os.environ.get("USERPROFILE", "")
+        from core.dossiers import dossiers_personnels
         # Dossiers prioritaires (plus rapide)
         dossiers_prioritaires = [
-            os.path.join(userprofile, "Desktop"),
-            os.path.join(userprofile, "Documents"),
-            os.path.join(userprofile, "Downloads"),
-            os.path.join(userprofile, "Pictures"),
-            os.path.join(userprofile, "Videos"),
-            os.path.join(userprofile, "Music"),
+            *dossiers_personnels(),
             os.path.join(userprofile, "Saved Games"),
             "C:\\"
         ]
@@ -359,16 +322,8 @@ def lire_fichier(nom_fichier, chemin=None):
         cible = resoudre_chemin(chemin)
         dossiers_a_scanner = [cible] if cible else []
     else:
-        dossiers_a_scanner = [d for d in [
-            dossier_courant,
-            os.path.join(userprofile, "Bureau"),
-            os.path.join(userprofile, "Desktop"),
-            os.path.join(userprofile, "Documents"),
-            os.path.join(userprofile, "Downloads"),
-            os.path.join(userprofile, "Pictures"),
-            os.path.join(userprofile, "Videos"),
-            os.path.join(userprofile, "Music"),
-        ] if d and os.path.isdir(d)]
+        from core.dossiers import dossiers_personnels
+        dossiers_a_scanner = [d for d in [dossier_courant, *dossiers_personnels()] if d and os.path.isdir(d)]
 
     chemin_complet = None
 

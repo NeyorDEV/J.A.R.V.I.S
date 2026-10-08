@@ -11,7 +11,7 @@ historique vers demander_ia : le dispatch est un raccourci, jamais un mur.
 """
 
 from google.genai import types
-from core.brain import client
+from core.ai_clients import client_gemini as client
 
 # Modèle rapide et peu coûteux : le routage est une tâche simple
 INTENT_MODEL = "gemini-3.1-flash-lite"
@@ -44,10 +44,13 @@ _FUNCTION_DECLARATIONS = [
     },
     {
         "name": "lancer_application",
-        "description": "Ouvrir/lancer une application ou un logiciel sur le PC.",
+        # (l'exemple « spotify » faisait ouvrir Spotify pour « j'aimerais écouter de la musique »,
+        #  au lieu de la musique par défaut — Deezer : c'est le rôle de controle_musique)
+        "description": "Ouvrir/lancer une application ou un logiciel sur le PC nommé explicitement. "
+                       "Pas pour une envie d'écouter de la musique : utiliser controle_musique ou jouer_musique_recherche.",
         "parameters": {
             "type": "object",
-            "properties": {"nom": {"type": "string", "description": "Nom de l'application, ex: chrome, spotify"}},
+            "properties": {"nom": {"type": "string", "description": "Nom de l'application, ex: chrome, discord"}},
             "required": ["nom"],
         },
     },
@@ -62,7 +65,8 @@ _FUNCTION_DECLARATIONS = [
     },
     {
         "name": "controle_musique",
-        "description": "Contrôler la lecture de musique en cours (lecture, pause, changement de piste).",
+        "description": "Mettre de la musique (« jouer » : playlist par défaut) ou contrôler la lecture en cours "
+                       "(pause, reprise, changement de piste ; « passe / change la musique » = suivant).",
         "parameters": {
             "type": "object",
             "properties": {

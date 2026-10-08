@@ -15,6 +15,7 @@ import builtins
 
 import requests
 
+import core.shared as shared
 from controller.deezer_controller import deezer_obtenir_titre_encours
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # racine projet
@@ -133,9 +134,37 @@ async def get_raw_weather(lat, lon, city_name):
         print(f"[METEO] ⚠ Météo indisponible pour {city_name} (Open-Meteo + wttr.in KO).")
     return None
 
+async def actualiser_position_reelle():
+    """Met CLIENT_LOCATION à la position actuelle donnée par Windows (celle du globe pour
+    « ma position »). Le widget météo affichait la ville de la configuration (domicile),
+    pas l'endroit où l'on se trouve. Sans localisation Windows, la position existante
+    (configuration ou navigateur) est conservée."""
+    try:
+        from module.globe_local import _position_actuelle
+        from core.web_bridge import nom_lieu_inverse
+        pos = await _position_actuelle()
+        if not pos:
+            return False
+        lat, lon = float(pos[0]), float(pos[1])
+        ancienne = (CLIENT_LOCATION.get("lat"), CLIENT_LOCATION.get("lon"))
+        CLIENT_LOCATION["lat"], CLIENT_LOCATION["lon"] = lat, lon
+        # Nom de la commune recalculé seulement si l'on a bougé d'environ 1 km
+        if (not CLIENT_LOCATION.get("_ville_reelle") or None in ancienne
+                or abs(ancienne[0] - lat) > 0.01 or abs(ancienne[1] - lon) > 0.01):
+            ville = await nom_lieu_inverse(lat, lon)
+            if ville:
+                CLIENT_LOCATION["city"] = ville
+                CLIENT_LOCATION["_ville_reelle"] = True
+        return True
+    except Exception as e:
+        print(f"[METEO] Position réelle indisponible : {e}")
+        return False
+
+
 async def broadcast_weather_stats_once():
     """Diffuse la météo immédiatement sans attendre la boucle de 10 min."""
     if _clients():
+        await actualiser_position_reelle()
         try:
             local_weather = await get_raw_weather(CLIENT_LOCATION["lat"], CLIENT_LOCATION["lon"], CLIENT_LOCATION["city"])
             if local_weather:
@@ -232,7 +261,29 @@ async def get_media_info_deezer_api():
     return None
 
 async def get_media_info():
-    """Récupère les infos média (Priorité UIA local, Fallback API Deezer, Fallback Windows)."""
+    """Récupère les infos média (page Deezer pilotée, puis UIA local, API Deezer, fenêtres)."""
+    # 0. Page Deezer pilotée (controller/deezer_cdp) : titre, artiste, lecture/pause et position
+    #    exacts. Les sources suivantes retardent : l'historique d'écoute de l'API n'a le morceau
+    #    qu'une fois passé (le HUD et la console affichaient le morceau précédent).
+    try:
+        from controller import deezer_cdp
+        lecture = await deezer_cdp.lecture_en_cours()
+        if lecture and lecture.get("titre"):
+            def mm_ss(s):
+                m, s = divmod(int(s or 0), 60)
+                return f"{m:02d}:{s:02d}"
+            pos, duree = lecture.get("position") or 0, lecture.get("duree") or 0
+            return {
+                "title": lecture["titre"].upper(),
+                "artist": (lecture.get("artiste") or "DEEZER").upper(),
+                "status": "Playing" if lecture.get("joue") else "Paused",
+                "position": mm_ss(pos),
+                "duration": mm_ss(duree),
+                "percent": (pos / duree * 100) if duree else 0,
+            }
+    except Exception:
+        pass
+
     # 1. Tenter par UIA local (instantané et n'a pas besoin de réseau)
     try:
         info_local = await asyncio.to_thread(deezer_obtenir_titre_encours)
@@ -285,6 +336,7 @@ async def broadcast_music_stats():
         try:
             if _clients():
                 info = await get_media_info()
+                shared.MUSIQUE_EN_COURS = info  # repris par le bandeau de la console
                 if info:
                     msg = json.dumps({"action": "music_update", "data": info})
                     await asyncio.gather(*[ws.send(msg) for ws in _clients()], return_exceptions=True)

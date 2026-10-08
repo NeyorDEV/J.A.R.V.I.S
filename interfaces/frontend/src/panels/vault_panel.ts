@@ -80,10 +80,10 @@ export function initVaultPanel(): void {
 
   (window as any).deleteVaultFile = (filename: string) => {
     const wsInst = (window as any)._jarvisWs || (window as any).ws;
-    if (confirm(`Voulez-vous vraiment supprimer "${filename}" du coffre-fort ?`)) {
-      if (wsInst && wsInst.readyState === 1) {
-        wsInst.send(JSON.stringify({ type: "vault_delete_file", filename }));
-      }
+    // La confirmation est demandée par JARVIS (popup + voix) : le confirm() du navigateur
+    // faisait demander deux fois la même chose.
+    if (wsInst && wsInst.readyState === 1) {
+      wsInst.send(JSON.stringify({ type: "vault_delete_file", filename }));
     }
   };
 

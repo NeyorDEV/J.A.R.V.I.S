@@ -23,7 +23,8 @@ if SERPAPI_API_KEY == "VOTRE_CLE_ICI":
 
 def recherche_web_serpapi_raw(query):
     """Effectue une recherche sur Google via SerpAPI et retourne les données brutes."""
-    if not _cle_valide(SERPAPI_API_KEY):
+    from core.ai_clients import api_activee
+    if not _cle_valide(SERPAPI_API_KEY) or not api_activee("serpapi"):   # interrupteur des Paramètres
         return None
     try:
         params = {

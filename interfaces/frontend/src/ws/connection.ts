@@ -1,4 +1,3 @@
-import { LiveAudioEngine } from "../live_audio";
 import { captureFrame } from "../screen_capture";
 import { wsRef } from "../ws_link";
 import { createDomActionQueue } from "../hud/dom_automation";
@@ -29,17 +28,6 @@ export function connect(): void {
   ws = new WebSocket(WS_URL);
   wsRef.current = ws;
   (window as any)._jarvisWs = ws;
-
-  const previousLiveEngine = (window as any).liveAudioEngine as LiveAudioEngine | undefined;
-  if (previousLiveEngine) {
-    previousLiveEngine.stopLiveSession();
-  }
-  const liveEngine = new LiveAudioEngine((data) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
-  });
-  (window as any).liveAudioEngine = liveEngine;
 
   ws.addEventListener("open", () => {
     setConnected(true);

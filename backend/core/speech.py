@@ -27,6 +27,7 @@ if _USE_HOMEPOD:
 is_speaking = False
 speak_volume = 0.0
 STOP_PARLER = False
+stop_depuis = 0.0   # instant du dernier « stop » (cf. parler)
 parole_queue = queue.Queue()
 parole_stop_event = threading.Event()
 dernier_parle_time = 0
@@ -247,20 +248,25 @@ def vider_files():
 def parler(texte, print_console=True):
     global STOP_PARLER
     if STOP_PARLER:
-        return
+        # « Stop » coupe la réponse en cours ; mais le drapeau restait levé jusqu'à la
+        # commande suivante, si bien que toute parole spontanée (alarme, alerte) était
+        # muette. Passé quelques secondes, une nouvelle phrase est de nouveau dite.
+        if time.time() - stop_depuis < 5:
+            return
+        STOP_PARLER = False
     if not texte or not texte.strip(): return
     if print_console:
         try:
-            print(f"[JARVIS] {texte}")
+            print(f"[DIT] {texte}")  # « [DIT] » : phrase prononcée (core/console_ui)
         except UnicodeEncodeError:
             try:
                 import sys
                 enc = sys.stdout.encoding or 'utf-8'
                 safe_text = texte.encode(enc, errors='replace').decode(enc)
-                print(f"[JARVIS] {safe_text}")
+                print(f"[DIT] {safe_text}")
             except Exception:
                 safe_text = "".join(c for c in texte if ord(c) < 128)
-                print(f"[JARVIS] {safe_text}")
+                print(f"[DIT] {safe_text}")
     parole_queue.put(texte)
 
 builtins.parler = parler

@@ -7,6 +7,7 @@ import os
 import threading
 
 import core.shared as shared
+from core.interlocuteur import nom_virgule
 from core.micro import _charger_config, _sauvegarder_config
 from core.webview_cache import vider_cache_webview_complet
 
@@ -26,20 +27,34 @@ async def ws_block_ip(websocket, data):
     if _re.match(r'^\d{1,3}(\.\d{1,3}){3}$', _ip):
         _rule = f"JARVIS_BLOCK_{_ip.replace('.', '_')}"
         try:
+            echecs = []
             for _dir in ("out", "in"):
-                _sp.run([
+                _res = _sp.run([
                     "netsh", "advfirewall", "firewall", "add", "rule",
                     f"name={_rule}_{_dir.upper()}", f"dir={_dir}",
                     "action=block", f"remoteip={_ip}", "enable=yes"
                 ], capture_output=True, timeout=5)
+                if _res.returncode != 0:
+                    echecs.append(_dir)
+            if echecs:
+                # Sans droits administrateur, netsh refuse d'ajouter la règle : on ne
+                # l'annonce plus comme bloquée (avant : carte « IP bloquée » quand même).
+                print(f"[RADAR] Blocage de {_ip} refusé par netsh (droits administrateur requis ?)")
+                await websocket.send(json.dumps({
+                    "action": "ctx_card", "type": "alert", "icon": "⚠",
+                    "title": "Blocage impossible",
+                    "text": f"Windows a refusé d'ajouter la règle pour {_ip} : lancez JARVIS en administrateur."
+                }))
+                if hasattr(builtins, 'parler'):
+                    builtins.parler(f"Je n'ai pas pu bloquer {_ip} : il faut lancer JARVIS en administrateur.")
+                return
             await websocket.send(json.dumps({
                 "action": "ctx_card", "type": "alert", "icon": "⊘",
                 "title": "IP Bloquée",
                 "text": f"Règles pare-feu ajoutées pour {_ip} (entrant + sortant)."
             }))
             if hasattr(builtins, 'parler'):
-                _r = builtins.parler(f"IP {_ip} bloquée via le pare-feu Windows, Monsieur.")
-                if asyncio.iscoroutine(_r): await _r
+                builtins.parler(f"IP {_ip} bloquée via le pare-feu Windows{nom_virgule()}.")
             print(f"[RADAR] IP bloquée : {_ip}")
         except Exception as _e:
             print(f"[RADAR] Erreur blocage IP : {_e}")
@@ -142,6 +157,17 @@ async def ws_av_threat_action(websocket, data):
     target = threat.get("target")
     success = False
     msg = ""
+    # Suppression / vidage d'un fichier ou arrêt d'un processus : confirmation d'abord
+    # (ces boutons agissaient immédiatement, contrairement aux autres actions destructrices)
+    if action in ("delete", "clean"):
+        from core.confirmation import demander_confirmation
+        verbe = "Supprimer" if action == "delete" else "Neutraliser"
+        if not await demander_confirmation(websocket, f"{verbe} {threat.get('name') or target} ?"):
+            await websocket.send(json.dumps({
+                "type": "av_action_result", "success": False, "action": action,
+                "threat_target": target, "message": "Action annulée."
+            }))
+            return
     try:
         if action == "allow":
             if target:

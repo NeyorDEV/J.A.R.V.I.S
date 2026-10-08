@@ -55,7 +55,7 @@ async def spotify_ouvrir():
         else:
             # Version Microsoft Store
             subprocess.Popen(["explorer", "spotify:"], shell=False)
-        time.sleep(4)
+        await asyncio.sleep(4)
         _focus_spotify()
         return f"Spotify lancé{nom_virgule()}."
     except Exception as e:
@@ -79,7 +79,7 @@ async def spotify_precedent():
 async def spotify_stop():
     """Met en pause (Spotify n'a pas de vrai stop)."""
     _focus_spotify()
-    time.sleep(0.2)
+    await asyncio.sleep(0.2)
     pyautogui.press('playpause')
     return f"Musique mise en pause{nom_virgule()}."
 
@@ -125,13 +125,13 @@ async def spotify_volume(direction, paliers=4):
     """Monte ou baisse le volume Spotify via Ctrl+Haut/Bas."""
     if not _focus_spotify():
         return f"Spotify ne semble pas ouvert{nom_virgule()}."
-    time.sleep(0.2)
+    await asyncio.sleep(0.2)
     for _ in range(int(paliers)):
         if direction in ("monter", "up", "augmenter", "plus"):
             pyautogui.hotkey('ctrl', 'up')
         else:
             pyautogui.hotkey('ctrl', 'down')
-        time.sleep(0.05)
+        await asyncio.sleep(0.05)
     msg = "Volume monté" if direction in ("monter", "up", "augmenter", "plus") else "Volume baissé"
     return f"{msg} sur Spotify{nom_virgule()}."
 
@@ -141,35 +141,35 @@ async def spotify_rechercher(recherche):
     # Spotify doit être ouvert
     if not _focus_spotify():
         await spotify_ouvrir()
-        time.sleep(3)
+        await asyncio.sleep(3)
         _focus_spotify()
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
 
     # Raccourci Ctrl+L pour aller dans la barre de recherche (toutes versions)
     pyautogui.hotkey('ctrl', 'l')
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
     # Fallback Ctrl+K (nouvelle interface Spotify)
     pyautogui.hotkey('ctrl', 'k')
-    time.sleep(0.4)
+    await asyncio.sleep(0.4)
 
     pyautogui.hotkey('ctrl', 'a')
-    time.sleep(0.1)
+    await asyncio.sleep(0.1)
     pyperclip.copy(recherche)
     pyautogui.hotkey('ctrl', 'v')
-    time.sleep(0.2)
+    await asyncio.sleep(0.2)
     pyautogui.press('enter')
     
     # On attend un peu plus pour être sûr que les résultats sont chargés
-    time.sleep(2.0)
+    await asyncio.sleep(2.0)
     
     # On appuie sur Entrée pour valider la recherche (ouvre l'album/artiste si c'est le cas)
     pyautogui.press('enter')
-    time.sleep(1.0)
+    await asyncio.sleep(1.0)
     
     # On appuie une deuxième fois sur Entrée pour lancer la lecture du premier élément
     # C'est plus fiable que Tab+Entrée qui peut dériver sur d'autres boutons
     pyautogui.press('enter')
-    time.sleep(0.5)
+    await asyncio.sleep(0.5)
     
     # Sécurité supplémentaire : si c'était déjà sélectionné mais en pause
     # (Note: l'appui sur 'space' peut être risqué si on n'est pas focus, mais Entrée est safe)

@@ -3,7 +3,7 @@ import { handleHAMessage } from "../ha_dashboard";
 import { updateMusicUI, updateWeatherUI } from "../widgets";
 import { fermerVues3D, ouvrirVue3D, vue3DOuverte } from "../hud/vues_3d";
 import { orb } from "../hud/orb_state";
-import { showConfirmDialog } from "../panels/confirm_dialog";
+import { closeConfirmDialog, showConfirmDialog } from "../panels/confirm_dialog";
 import { showImageHUD } from "../panels/image_panels";
 import { openShoppingPanel, setShoppingList } from "../panels/shopping_panel";
 import { type JarvisMessage } from "./message_types";
@@ -181,6 +181,10 @@ export function handleVues3DMessage(data: JarvisMessage): boolean {
   }
   if (data.type === "confirm_request" && (data as any).id) {
     showConfirmDialog((data as any).id, (data as any).message || "Confirmer cette action ?");
+    return true;
+  }
+  if (data.type === "confirm_closed" && (data as any).id) {
+    closeConfirmDialog((data as any).id);
     return true;
   }
   if (data.action === "ctx_card") {

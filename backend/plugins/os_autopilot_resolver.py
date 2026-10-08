@@ -24,7 +24,9 @@ async def resoudre_os_autopilot(cmd):
     match = False
     declencheur = ""
     for kw in mots_cles_autopilote:
-        if kw in t:
+        # Mot entier : « rpa » était trouvé dans « carpaccio » (« recette du carpaccio »
+        # lançait l'autopilote, qui prend la main sur la souris et le clavier).
+        if re.search(rf"(?<![\w']){re.escape(kw)}(?![\w])", t):
             match = True
             declencheur = kw
             break

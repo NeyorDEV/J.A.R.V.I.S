@@ -19,6 +19,4 @@ export type JarvisMessage = {
   weather_type?: string;
   status_text?: string;
   data?: Record<string, any>;
-  pcm_base64?: string;
-  sample_rate?: number;
 };

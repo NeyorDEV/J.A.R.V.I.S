@@ -7,6 +7,7 @@ d'évaluer le plateau et de calculer les coups de JARVIS (Minimax Alpha-Beta).
 import re
 import random
 import chess
+from core.interlocuteur import nom_espace, nom_virgule
 
 # Valeurs des pièces
 PAWN_VAL = 100
@@ -181,7 +182,7 @@ class ChessGame:
         ]
         self.jarvis_remarks_lose = [
             "Échec et mat. Félicitations, vous avez réussi à contourner mes calculs. C'était sûrement un coup de chance.",
-            "Échec et mat ! Bien joué, monsieur. Je dois admettre que cette manœuvre était astucieuse.",
+            f"Échec et mat ! Bien joué{nom_virgule()}. Je dois admettre que cette manœuvre était astucieuse.",
             "Vous avez gagné. Mes félicitations. Je vais devoir recalibrer mes algorithmes."
         ]
         self.jarvis_remarks_capture = [
@@ -195,7 +196,7 @@ class ChessGame:
             "Échec. Je vous conseille de bien réfléchir à votre prochain déplacement."
         ]
         self.jarvis_remarks_normal = [
-            "À vous de jouer, monsieur.",
+            f"À vous de jouer{nom_virgule()}.",
             "J'attends votre coup avec impatience.",
             "Voyons comment vous allez réagir à cela.",
             "Une réponse classique. À mon tour.",
@@ -345,14 +346,14 @@ class ChessGame:
         except ValueError:
             pass
 
-        raise ValueError(f"Désolé monsieur, je n'ai pas compris le coup '{text}'. Spécifiez par exemple 'pion e4' ou 'e2 en e4'.")
+        raise ValueError(f"Désolé{nom_espace()}, je n'ai pas compris le coup '{text}'. Spécifiez par exemple 'pion e4' ou 'e2 en e4'.")
 
     def play_player_move(self, text: str) -> tuple[chess.Move, dict]:
         """
         Applique le coup du joueur.
         """
         if self.board.turn != self.player_color:
-            raise ValueError("Ce n'est pas votre tour de jouer, monsieur.")
+            raise ValueError(f"Ce n'est pas votre tour de jouer{nom_virgule()}.")
 
         move = self.parse_vocal_move(text)
         self.board.push(move)
@@ -409,7 +410,7 @@ class ChessGame:
         """
         jarvis_color = chess.BLACK if self.player_color == chess.WHITE else chess.WHITE
         if self.board.turn != jarvis_color:
-            raise ValueError("C'est à vous de jouer, monsieur.")
+            raise ValueError(f"C'est à vous de jouer{nom_virgule()}.")
 
         # Mapping Elo -> (Depth, Random Move Chance)
         elo_settings = {

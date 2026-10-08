@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+import re
+import unicodedata
 
 import chess
 
@@ -9,7 +11,7 @@ import core.shared as shared
 import core.speech as speech
 from controller.actions_pc import lister_applications_installees
 from core.confirmation import resoudre_confirmation
-from core.etat_parole import set_stop_parler
+from core.etat_parole import get_is_speaking, set_stop_parler
 from core.speech import parler
 from core.traitement import traiter_reponse_ia
 from core.web_bridge import diffuser_echecs, lancer_tache_arriere_plan, send_web_state
@@ -19,7 +21,7 @@ from core.ws_securite import (
 )
 from core.ws_systeme import (
     ws_clean_leftovers, ws_fichier, ws_get_winget_upgrades, ws_run_winget_upgrade,
-    ws_set_location, ws_uninstall_program, ws_update_shopping_list, ws_vault,
+    ws_select_folder, ws_set_location, ws_uninstall_program, ws_update_shopping_list, ws_vault,
 )
 from module.chess_manager import ChessGame
 from module.cortex_service import handle_cortex_ws
@@ -51,9 +53,21 @@ def _origine_autorisee(websocket) -> bool:
     o = origine.lower().strip()
     if o == "null" or o.startswith("file://"):
         return True
+    # Extension JARVIS (Chrome / Opera) : son origine « chrome-extension://<id> » était
+    # refusée, si bien qu'elle ne se connectait jamais.
+    if o.startswith("chrome-extension://"):
+        return True
     # Hôtes locaux uniquement (le WebSocket n'écoute plus que sur localhost)
     import re as _re_o
     return bool(_re_o.match(r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$", o))
+
+
+def _origine_extension(websocket) -> bool:
+    try:
+        entetes = getattr(getattr(websocket, "request", None), "headers", None) or getattr(websocket, "request_headers", None)
+        return bool(entetes) and (entetes.get("Origin") or "").lower().startswith("chrome-extension://")
+    except Exception:
+        return False
 
 
 def _en_tache_de_fond(coro):
@@ -82,8 +96,14 @@ async def ws_handler(websocket):
         return
 
     shared.CONNECTED_CLIENTS.add(websocket)
-    shared.interface_deja_connectee = True
-    print(f"[WEB] Interface connectee (Clients actifs: {len(shared.CONNECTED_CLIENTS)})")
+    if _origine_extension(websocket):
+        # L'extension n'est pas un HUD : elle ne doit pas empêcher l'arrêt automatique
+        # quand l'interface est fermée (core/lancement._attendre_interface).
+        shared.CLIENTS_EXTENSION.add(websocket)
+        print("[WEB] Extension navigateur connectée.")
+    else:
+        shared.interface_deja_connectee = True
+        print(f"[WEB] Interface connectee (Clients actifs: {len(shared.CONNECTED_CLIENTS)})")
     
     # Force le broadcast immédiat de tous les widgets
     asyncio.create_task(broadcast_weather_stats_once())
@@ -131,8 +151,9 @@ async def ws_handler(websocket):
                 # handler n'existe ici : ils ne faisaient donc rien.
                 elif data.get("type") == "vault_delete_file":
                     _en_tache_de_fond(ws_vault(websocket, data))  # attend une confirmation
-                elif data.get("type") in ("vault_unlock", "vault_lock", "vault_add_file",
-                                          "vault_export_file"):
+                elif data.get("type") == "vault_add_file":
+                    _en_tache_de_fond(ws_vault(websocket, data))  # propose ensuite de jeter l'original
+                elif data.get("type") in ("vault_unlock", "vault_lock", "vault_export_file"):
                     await ws_vault(websocket, data)
 
                 # ── Shopping List ──────────────────────────────────────────
@@ -168,10 +189,16 @@ async def ws_handler(websocket):
                     texte = data.get("text", "").strip()
                     if texte:
                         print(f"[HUD] Commande clavier : {texte}")
-                        if shared.is_speaking and any(word in texte.lower() for word in ["arrete", "arrête", "stop", "tais", "chut"]):
+                        # (shared.is_speaking n'était jamais mis à jour : l'état réel est dans speech)
+                        # Ordre d'arrêt court seulement : « arrête le minuteur » est une commande
+                        if get_is_speaking() and len(texte.split()) <= 3 and any(word in texte.lower() for word in ["arrete", "arrête", "stop", "tais", "chut", "silence"]):
                             shared.STOP_PARLER = True
                             set_stop_parler(True)
                             speech.vider_files()
+                        elif re.search(r"\b(re-?enregistre|enregistre|mets? a jour)\s+ma voix\b",
+                                       unicodedata.normalize("NFD", texte.lower()).encode("ascii", "ignore").decode()):
+                            # Enrôlement vocal du créateur lancé par la boucle d'écoute (core/ecoute.py)
+                            shared.ENROLEMENT_CLAVIER = True
                         else:
                             # Clavier du HUD local (utilisateur physiquement présent) → de confiance
                             asyncio.ensure_future(traiter_reponse_ia(texte, de_confiance=True))
@@ -184,8 +211,10 @@ async def ws_handler(websocket):
                         else:
                             fut.set_result(data["data"])
                     print(f"[VISION] Frame recue pour ID: {req_id}")
+                elif data.get("type") == "select_folder":
+                    _en_tache_de_fond(ws_select_folder(websocket, data))  # boîte de dialogue : ne bloque pas
                 elif data.get("type") == "set_location":
-                    await ws_set_location(websocket, data)
+                    _en_tache_de_fond(ws_set_location(websocket, data))  # localisation Windows : quelques secondes
                 elif data.get("type") == "spatial_action":
                     action = data.get("action", "")
                     if action.startswith("domotic_"):
@@ -298,15 +327,16 @@ async def ws_handler(websocket):
                 elif data.get("type") == "clear_cache":
                     await ws_clear_cache(websocket, data)
                 elif data.get("type") == "av_threat_action":
-                    await ws_av_threat_action(websocket, data)
+                    _en_tache_de_fond(ws_av_threat_action(websocket, data))  # attend une confirmation
                 elif data.get("type") == "av_speak":
                     text = data.get("text")
                     if text:
-                        lancer_tache_arriere_plan(parler(text))
+                        parler(text)   # synchrone (create_task(None) levait une erreur)
             except Exception as e:
                 print(f"[WEB] Erreur traitement message : {e}")
     except Exception:
         pass
     finally:
         shared.CONNECTED_CLIENTS.discard(websocket)
+        shared.CLIENTS_EXTENSION.discard(websocket)
         print(f"[WEB] Interface deconnectee (Clients actifs: {len(shared.CONNECTED_CLIENTS)})")

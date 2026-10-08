@@ -1,5 +1,71 @@
 # Changelog
 
+## 9.5.0 — 2026-10-08 — Corrections de l'audit complet
+
+**Console refaite**
+- **Tableau de bord en direct** : bandeau épinglé en bas du terminal (micro, voix reconnue et similarité, temps de session, HUD connectés, moteur IA, moteurs en pause, CPU/RAM, morceau en cours, modèle Ollama chargé), rafraîchi deux fois par seconde ; le fil défile au-dessus et reste consultable.
+- **Fil des échanges** : ce que dit la personne (prénom, ou CLAVIER / INVITÉ) et ce que répond JARVIS, avec qui a répondu (résolution locale, Gemini, Ollama…), le délai et la similarité de la voix. Seuls l'essentiel, les avertissements et les erreurs s'affichent ; le détail technique complet, horodaté, va dans data/jarvis_run.log (« "console_detail": true » dans jarvis_config.json pour tout afficher). Couleurs : l'utilisateur en doré, JARVIS en cyan, modules en gris-bleu.
+- **Morceau en cours** (bandeau et widget musique du HUD) : lu directement sur la page Deezer pilotée — titre, artiste, lecture/pause et position exacts. Avant, l'historique d'écoute affichait toujours le morceau précédent.
+- **Deezer impossible à afficher** depuis la barre des tâches (même JARVIS fermé) : pour agir en arrière-plan, JARVIS rendait la fenêtre transparente et non activable ; une fenêtre déjà « calque » (Electron) gardait l'opacité 0 à la remise en état. Opacité rétablie, et réparation automatique des fenêtres de Deezer au démarrage, à « ouvre Deezer » (désormais au premier plan) et après chaque opération invisible.
+- **Musique plus rapide** : Deezer est rendu pilotable (relancé si besoin, ~13 s à froid) pendant la recherche et la correction du nom, et non plus après (« joue Werenoi » : 20 s).
+- **« Passe la musique »**, « change de chanson », « zappe ce morceau » passent au morceau suivant (la playlist était relancée).
+- **Artistes mal transcrits** : « joue Werenoi » entendu « au renoir » ou « ou est renoi » lançait un autre titre. Quand le titre trouvé ne correspond pas à la demande, JARVIS cherche l'artiste réellement prononcé (classement des artistes Deezer, puis Gemini avec recherche Google), seulement si la proposition ressemble à ce qui a été entendu.
+
+**Commandes mal comprises**
+- **Ordre de priorité réel** : les resolvers passaient dans l'ordre alphabétique, avant la chaîne prévue. Une seule liste ordonnée, du plus précis au plus général (`_ORDRE_RESOLVEURS`, `core/traitement.py`) ; un resolver en erreur ne bloque plus la suite. Le pré-filtre vocal `executer_action_pc`, qui doublait la chaîne avec des règles grossières, est supprimé.
+- **Alarmes, minuteurs, rappels** traités localement (`module/alarmes_local.py`) : « mets une alarme à 7 h » ou « mets un minuteur de 5 minutes » partaient dans Deezer. Compte à rebours sur le HUD, « arrête le minuteur », « rappelle-moi de… dans 20 minutes ».
+- **Heures comprises** : « dans 2h30 », « dans une heure », « 7h du soir », « 8h et demie », « dans 90 secondes », « demain à 6h30 » ; une heure invalide n'est plus une erreur.
+- **Mots entiers** au lieu de sous-chaînes : « lance le radar réseau » ne lance plus EA App, « arrête le téléchargement » n'éteint plus la télé, « recette du carpaccio » ne lance plus l'autopilote, « fais une visite guidée » ne lance plus l'essaim, « lance le jeu Minecraft » n'ouvre plus les échecs, « il fait froid ? » n'est plus un coup d'échecs.
+- **Deezer** n'est cherché que pour une vraie demande de musique ; « arrête la musique » ne ferme plus tous les navigateurs ; le volume sans cible règle le PC.
+- **Calcul** sans `eval()` et seulement sur une vraie demande (« le PSG a gagné 3-0 » n'est plus une soustraction) ; puissances et racines gérées.
+- **Listes** : « vide / efface ma liste de courses » et « supprime le lait de ma liste » agissent enfin.
+- **Mémoire** : l'oubli exige une demande explicite ; le cache sémantique ne répond plus pour les actualités, scores, prix.
+- Corrigés aussi : « mémoire » (RAM), batterie d'un téléphone, capitales accentuées, heure dans une autre ville, sous-titres, compétences listées, changement de voix, recette qui avalait la commande suivante, ouverture « ouvre la calculatrice », dossiers avec article.
+
+**Sécurité**
+- **Enrôlement vocal** : une voix inconnue ne peut plus s'ajouter au profil du créateur ; seul le créateur enregistre la voix d'autrui.
+- **Mode invité** appliqué aux resolvers (autopilote, essaim, plugins, désinstalleur, mémoire, coffre, compétences…), plus seulement aux actions de l'IA.
+- **Confirmations** : envoi et suppression d'e-mails, suppression d'événements et de tâches, partage Drive, autopilote, création de plugin, auto-évolution du code, suppression d'une menace. Les réponses vocales ponctuées (« Oui. », « oui, vas-y ») sont comprises ; la question ouvre la session vocale et s'affiche sur tous les HUD.
+- **Contrôle de sûreté** du code généré renforcé (contournements par `getattr`, `importlib`, `open(…, "w")`, `__subclasses__` bloqués) ; les scripts de l'essaim sont contrôlés avant exécution et Node tourne avec ses permissions limitées au dossier du projet.
+- **Désinstalleur** : l'échec ou l'annulation n'est plus annoncé « terminé » ; les résidus doivent porter exactement le nom du programme, et un nom partagé (Python 3.12 / 3.14) ou un dossier en cours d'utilisation est écarté.
+- **Antivirus temps réel** : n'arrête plus les programmes lancés depuis %TEMP% (installeurs, mises à jour) — simple alerte ; alertes affichées et annoncées.
+- **Coffre-fort** : reverrouillage après 10 min, l'original peut être mis à la corbeille, plus d'écrasement de fichiers du même nom.
+- Auto-évolution du code et création de plugins rebranchées, réservées au créateur, avec confirmation et consignes à jour.
+
+**Fonctions qui ne marchaient pas**
+- **Vision** (« clique sur… », caméra, vision du navigateur) : client lu avant sa création.
+- **Sans clé Gemini**, la moitié des plugins ne se chargeait pas ; clés changées dans les Paramètres prises en compte sans redémarrer (client Gemini différé).
+- **Écoute non bloquante** pendant le traitement d'une commande ; les commandes clavier attendent leur tour au lieu d'être jetées ; « stop » au clavier fonctionne ; une alarme sonne même après un « stop ».
+- **Moteurs IA** : les questions d'actualité vont d'abord à Gemini (recherche Google) ; une réponse interrompue n'est plus répétée par le moteur suivant ; interrupteurs des API des Paramètres appliqués.
+- **Extension Chrome** acceptée par le WebSocket et passée en Manifest V3 ; agent web : bons chemins (extension, Opera GX).
+- **Dossiers réels de Windows** (Bureau, Documents, Images sous OneDrive) pour l'ouverture, le tri, les documents générés.
+- **« Stop » à la voix** : un « stop » bref dit pendant que JARVIS parle était jeté sans être transcrit (seule la transcription intermédiaire, après 1,2 s de parole continue, pouvait le voir) : il est maintenant transcrit et coupe la parole (« stop », « arrête », « tais-toi », « silence », « chut », « ça suffit »).
+- **Capture du micro faussée** : le flux 48 kHz était ramené à 16 kHz en gardant un échantillon sur trois sans filtre passe-bas : sifflantes, souffle et bruit au-dessus de 8 kHz se repliaient dans la bande de la voix, d'où une empreinte vocale instable (0,57 à 0,66 en usage contre 0,77 à 0,89 entre échantillons d'enrôlement) et une transcription moins nette. Filtre anti-repliement ajouté (-68 dB sur le repliement, voix intacte) ; le gain logiciel n'écrête plus avant filtrage. Les profils vocaux sont à réenregistrer ; « enregistre ma voix » tapé au clavier du HUD lance l'enrôlement même si la voix n'est plus reconnue. L'audio des phrases d'enrôlement est désormais conservé (sample_N.wav) : un changement de modèle de reconnaissance recalcule les empreintes sans réenregistrer. (WeSpeaker ResNet293, meilleur sur le papier, testé puis écarté : il séparait moins bien les voix réelles que CAM++.)
+- **« Stop » mal transcrit** : un mot isolé entendu par-dessus la voix de JARVIS devenait « top », « step » ou « c'est toi » (pour « tais-toi ») : Whisper reçoit une amorce avec le vocabulaire d'arrêt, et ces variantes sont acceptées dans un énoncé bref.
+- **Intention reformulée** : « mets une alarme à 10h » proposée par l'aiguillage IA repartait à l'IA (alarmes, minuteurs et échecs n'étaient pas consultés pour la phrase reformulée).
+- **Session vocale** : elle ne se ferme plus pendant une commande longue (lancement de Deezer) ; les 20 s comptent depuis la dernière parole de JARVIS.
+- **« Ferme Deezer »** : Whisper entend « ferme 10 heures » (« Deezer » ≈ « dizeur ») — après un verbe d'application, « 10 heures » est compris comme Deezer ; et Deezer, absent du catalogue, ne pouvait pas être fermé.
+- **Fermeture d'applications** : demande de fermeture d'abord (Word, Excel… peuvent proposer d'enregistrer ; avant, ils étaient tués d'office), arrêt forcé au bout de 3 s seulement pour musique, messageries et lanceurs ; « Update.exe » (installeur partagé par de nombreuses applis) n'est plus tué avec Discord ; refusé en mode invité.
+- **« J'ai envie d'écouter de la musique »** lance directement la playlist (la formule était prise pour un titre à chercher).
+- **Reconnaissance de la voix** : une voix reconnue le reste une minute pour les phrases courtes (seuil 0,50 au lieu de 0,60 ; une autre voix obtient ~0,40) — plus de bascule en mode invité au milieu d'une conversation.
+- **Mémoire sémantique** : « raconte-moi une histoire », une blague, une idée… ne resservent plus mot pour mot la réponse précédente.
+- **Moteurs IA** : Gemini 3.5 Flash-Lite répond en premier (1re phrase en ~1,2 s) ; Groq gratuit (8 000 jetons/min pour un prompt de ~6 000) ne passait qu'une question par minute et faisait attendre jusqu'à 20 s — il sert désormais de secours. Gemini 3.8 Flash remplace 3.7 en 2e choix. Mistral passe à Ministral 8B (Medium, Small et 14B refusés sur le compte gratuit) avec lecture phrase par phrase. Une limite atteinte met le moteur en pause aussitôt, sans attente silencieuse de la bibliothèque. « J'ai envie de musique » lance la musique par défaut au lieu d'ouvrir Spotify.
+- **Ollama (local)** : gemma4:12b (meilleur français sur 12 Go de VRAM, 1re phrase ~2 s) puis gemma4 e4b (~1 s) ; llama3.1:8b et mistral-nemo retirés. Réponse lue phrase par phrase, modèle préchargé dès « active le mode local », mémoire vidéo libérée après 10 min sans usage (1 h en mode local) au lieu d'être gardée jusqu'au redémarrage.
+- **Heure et date sans IA** : « il est quelle heure ? », « on est quel jour ? », mois, année répondent instantanément (elles partaient aux moteurs en ligne : jusqu'à 20 s quand Groq ne répondait pas). Groq bloqué abandonné après 8 s au lieu de 15, et son erreur enfin affichée.
+- **HUD figé** pendant certaines commandes (recherche Spotify, appel WhatsApp, musique YouTube, modes boulot/gaming, vision, volume Deezer/Spotify) : des pauses bloquaient tout le serveur jusqu'à 14 s, bouton stop et confirmations compris. Elles laissent désormais la main.
+- **Météo** : le widget et « quel temps fait-il » suivent la position réelle de l'appareil (celle du globe), plus la ville de la configuration.
+- **Liste de courses** : panneau refait (champ, bouton « Ajouter », croix de fermeture n'avaient plus de style), compteur d'articles et état vide.
+- HUD : bouton « Parcourir » de l'atelier, résultat d'export du coffre, vidage du cache, alertes antivirus, popup de confirmation fermé partout, état de Home Assistant exact, une seule confirmation pour le coffre.
+- Google : titre vide ne supprime plus le premier élément, mails non marqués comme lus, dates lues en clair, appels hors de la boucle du HUD.
+- Blocage d'IP : échec signalé quand les droits administrateur manquent.
+- « Monsieur » remplacé par le prénom de la personne qui parle dans toutes les réponses.
+
+**Installation et démarrage**
+- `requirements.txt` : `chess`, `pytz`, `reportlab`, `send2trash`, `uiautomation` (JARVIS ne démarrait pas sur un PC neuf).
+- `install.bat` et `tools/_setup/dependances.bat` imposent Python 3.12 ; l'installateur installe enfin `requirements.txt` et retrouve la racine du projet ; Node 22.
+- Au démarrage, seule une ancienne instance de JARVIS est arrêtée (un autre projet Vite sur le port 5173 n'est plus tué).
+- Code mort retiré : `core/brain.py`, Gemini Live (`core/gemini_live_bridge.py`, `src/live_audio.ts`).
+
 ## 2026-10-07 — Suppression de l'interface mobile
 
 - **Dossier `interfaces/mobile/` supprimé** (page web pour smartphone), ainsi que son serveur HTTP sur le port 8080, le bouton MOBILE du carrousel et sa fenêtre d'adresse.

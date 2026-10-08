@@ -18,8 +18,9 @@ from core.config import GEMINI_API_KEY, CHOSEN_MODEL
 from controller.app_launcher import _APPS_CATALOGUE, _boulot_lancer
 from core.interlocuteur import nom_espace, nom_virgule
 
-# Initialisation du client de génération
-client = genai.Client(api_key=GEMINI_API_KEY)
+# Client Gemini différé (core/ai_clients.py) : pas de plantage à l'import sans clé,
+# et une clé changée dans les Paramètres est prise en compte sans redémarrer.
+from core.ai_clients import client_gemini as client
 
 # Activer le FailSafe de PyAutoGUI
 pyautogui.FAILSAFE = True
@@ -239,7 +240,8 @@ def resoudre_chemin_dossier(nom_dossier):
     }
     
     if n in standard_maps:
-        resolved = os.path.join(user_profile, standard_maps[n])
+        from core.dossiers import dossier_connu
+        resolved = dossier_connu(n) or os.path.join(user_profile, standard_maps[n])
         print(f"[OS AGENT] Dossier standard résolu : {nom_dossier} -> {resolved}")
         return resolved
         
@@ -264,9 +266,9 @@ def resoudre_chemin_dossier(nom_dossier):
         pass
         
     # Niveau 2 (dans les répertoires principaux)
-    subdirs = ["Documents", "Desktop", "Downloads", "Pictures", "Music", "Videos"]
-    for subdir in subdirs:
-        parent = os.path.join(user_profile, subdir)
+    from core.dossiers import dossiers_personnels, dossier_connu
+    for parent in dossiers_personnels():
+        subdir = os.path.basename(parent)
         if os.path.exists(parent) and os.path.isdir(parent):
             try:
                 for item in os.listdir(parent):
@@ -278,7 +280,7 @@ def resoudre_chemin_dossier(nom_dossier):
                 continue
                 
     # 4. Fallback si introuvable : utiliser le bureau
-    fallback = os.path.join(user_profile, "Desktop")
+    fallback = dossier_connu("bureau")
     print(f"[OS AGENT] Dossier '{nom_dossier}' introuvable. Fallback sur le Bureau : {fallback}")
     return fallback
 
@@ -341,7 +343,7 @@ async def executer_sequence_actions(sequence):
                         await dessiner_curseur_sur_hud(cx, cy, duree=0.6)
                     except Exception:
                         pass
-                    time.sleep(0.4)
+                    await asyncio.sleep(0.4)
             elif last_hwnd and action in ["type_text", "shortcut"]:
                 activer_fenetre(last_hwnd)
                 # Déplacer le curseur virtuel sur la fenêtre réactivée
@@ -352,7 +354,7 @@ async def executer_sequence_actions(sequence):
                     await dessiner_curseur_sur_hud(cx, cy, duree=0.4)
                 except Exception:
                     pass
-                time.sleep(0.2)
+                await asyncio.sleep(0.2)
                 
             # 1. LANCEMENT D'APPLICATION
             if action == "open_app":
@@ -376,7 +378,7 @@ async def executer_sequence_actions(sequence):
                             subprocess.Popen(f"start {app_to_launch}", shell=True)
                         except Exception:
                             pyautogui.hotkey('win', 'r')
-                            time.sleep(0.3)
+                            await asyncio.sleep(0.3)
                             pyautogui.write(app_to_launch)
                             pyautogui.press('enter')
                 elif app_to_launch in _APPS_CATALOGUE:
@@ -393,14 +395,14 @@ async def executer_sequence_actions(sequence):
                     _nom_app = str(app_to_launch).strip()
                     if _re_app.fullmatch(r"[A-Za-z0-9 ._\-]{1,60}", _nom_app):
                         pyautogui.hotkey('win', 'r')
-                        time.sleep(0.3)
+                        await asyncio.sleep(0.3)
                         pyautogui.write(_nom_app)
                         pyautogui.press('enter')
                     else:
                         print(f"[AUTOPILOT] ⛔ Nom d'application refusé (caractères suspects) : {app_to_launch!r}")
                 
                 # Attente et déplacement du curseur virtuel sur la nouvelle fenêtre
-                time.sleep(1.0)
+                await asyncio.sleep(1.0)
                 hwnd = trouver_fenetre_par_titre(app)
                 if hwnd:
                     last_hwnd = hwnd
@@ -440,7 +442,7 @@ async def executer_sequence_actions(sequence):
             elif action == "shortcut":
                 keys = step.get("keys", [])
                 await envoyer_log_hud(f"Raccourci clavier : {' + '.join(keys)}")
-                time.sleep(0.2)
+                await asyncio.sleep(0.2)
                 
                 if len(keys) == 1:
                     pyautogui.press(keys[0])
@@ -481,7 +483,7 @@ async def executer_sequence_actions(sequence):
     except Exception as e:
         print(f"[OS AGENT ERROR] Exception durant l'exécution : {e}")
         await envoyer_log_hud(f"Erreur Autopilote : {e}")
-        time.sleep(2.0)
+        await asyncio.sleep(2.0)
         execution_error = e
     else:
         execution_error = None
@@ -499,6 +501,30 @@ async def executer_sequence_actions(sequence):
         
         # Réinitialiser le timeout de session pour que JARVIS reste actif après l'exécution
         builtins.dernier_message = time.time()
+
+def _resumer_plan(sequence, maximum=4):
+    """« ouvrir notepad, taper « Bonjour… », raccourci ctrl+s » : résumé lisible du plan."""
+    morceaux = []
+    for step in sequence[:maximum]:
+        action = step.get("action", "")
+        if action == "open_app":
+            morceaux.append(f"ouvrir {step.get('app', '?')}")
+        elif action == "type_text":
+            texte = str(step.get("text", ""))
+            morceaux.append(f"taper « {texte[:40]}{'…' if len(texte) > 40 else ''} »")
+        elif action == "shortcut":
+            morceaux.append(f"raccourci {'+'.join(step.get('keys', [])) if isinstance(step.get('keys'), list) else step.get('keys', '?')}")
+        elif action == "click":
+            morceaux.append("clic")
+        elif action == "wait":
+            continue
+        else:
+            morceaux.append(action)
+    reste = len([s for s in sequence if s.get("action") != "wait"]) - len(morceaux)
+    if reste > 0:
+        morceaux.append(f"et {reste} autre{'s' if reste > 1 else ''} étape{'s' if reste > 1 else ''}")
+    return ", ".join(morceaux) or "aucune étape"
+
 
 async def lancer_autopilote(instruction):
     """Point d'entrée principal pour décoder l'instruction et lancer la séquence."""
@@ -527,7 +553,13 @@ async def lancer_autopilote(instruction):
             return f"Je n'ai pas pu dresser un plan d'actions valide pour cette tâche{nom_virgule()}."
             
         print(f"[OS AGENT] Séquence planifiée avec succès ({len(sequence)} étapes)")
-        asyncio.create_task(executer_sequence_actions(sequence))
+        # Le plan vient de l'IA et prend la main sur la souris et le clavier (y compris pour
+        # taper dans une invite de commandes) : il est annoncé et confirmé avant exécution.
+        from core.confirmation import demander_confirmation
+        if not await demander_confirmation(None, f"Autopilote : {_resumer_plan(sequence)}. Je lance ?"):
+            return f"Autopilote annulé{nom_virgule()}."
+        from core.web_bridge import lancer_tache_arriere_plan
+        lancer_tache_arriere_plan(executer_sequence_actions(sequence))
         
         return f"C'est parti{nom_espace()}, j'active l'autopilote OS. Regardez mon curseur virtuel à l'écran."
         

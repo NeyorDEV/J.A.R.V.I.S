@@ -11,8 +11,9 @@ from google.genai import types
 from core.config import GEMINI_API_KEY, CHOSEN_MODEL
 from core.interlocuteur import nom_ou_utilisateur, nom_virgule
 
-# Initialisation du client de vision/génération Gemini
-client = genai.Client(api_key=GEMINI_API_KEY)
+# Client Gemini différé (core/ai_clients.py) : pas de plantage à l'import sans clé,
+# et une clé changée dans les Paramètres est prise en compte sans redémarrer.
+from core.ai_clients import client_gemini as client
 
 # Détermination du dossier racine de JARVIS de manière dynamique (compatible toutes installations)
 _dir_courant = os.path.dirname(os.path.abspath(__file__))
@@ -30,70 +31,51 @@ SYSTEM_INSTRUCTION = """
 Tu es l'intelligence artificielle de JARVIS. Ton but est de modifier ou d'ajouter de nouvelles fonctionnalités à ta propre codebase à la demande de l'utilisateur.
 Tu as un accès complet de lecture/écriture sur ton code source.
 
-Voici la structure de ton projet pour t'orienter :
-- main.py : Orchestrateur principal Python (gestion des resolvers de commandes et exécution)
-- core/
-  - brain.py : Client de génération Gemini/Groq
-  - speech.py : Moteur de synthèse vocale (TTS)
-- plugins/
-  - dom_controller_resolver.py : Commandes vocales -> actions DOM/HUD
-  - app_launcher_resolver.py : Lancement d'applications PC
-  - system_resolver.py : Commandes volume, screenshot, processeur, batterie
-  - time_resolver.py : Commandes heure et date
-- frontend/
-  - index.html : Structure HTML du HUD, widgets, orbe 3D
-  - src/
-    - main.ts : Orchestration du HUD, WebSocket, queue d'actions DOM
-    - widgets.ts : Logique des widgets (Musique, Météo, Calendrier)
-    - widgets.css : Style CSS des widgets (.hud-widget, .hud-revealed)
-    - style.css : Styles néon Iron Man globaux du HUD
+Voici la structure de ton projet pour t'orienter (chemins relatifs à la racine) :
+- main.py : point d'entrée (ordre de démarrage). Ne le modifie pas pour ajouter une commande.
+- backend/core/traitement.py : aiguillage des commandes (_ORDRE_RESOLVEURS).
+- backend/core/chargement_plugins.py : liste _PLUGINS des plugins importés au démarrage.
+- backend/core/speech.py : synthèse vocale (parler()).
+- backend/core/interlocuteur.py : nom_espace(), nom_virgule(), nom_ou_utilisateur() pour s'adresser à la personne qui parle.
+- backend/plugins/ : un resolver de commandes vocales par fichier (ex : recipe_resolver.py, tv_resolver.py, system_resolver.py, time_resolver.py).
+- backend/module/ : services (alarmes, fichiers, mémoire, météo...).
+- interfaces/frontend/index.html : structure HTML du HUD (widgets, panneaux).
+- interfaces/frontend/src/ : TypeScript du HUD. main.ts n'orchestre que le démarrage ; les messages WebSocket sont traités dans src/ws/messages_*.ts, les panneaux dans src/panels/, l'état partagé dans src/hud/state.ts.
+- interfaces/frontend/src/css/ : feuilles 01 à 12 (ordre de cascade important), widgets.css pour les widgets.
 
 Tu dois renvoyer obligatoirement un OBJET JSON ayant ce schéma précis :
 {
   "edits": [
     {
-      "file_path": "chemin/relatif/depuis/racine.ts",
+      "file_path": "chemin/relatif/depuis/la/racine.ts",
       "target_code": "code exact à remplacer, y compris l'indentation et les espaces",
       "replacement_code": "nouveau code complet à insérer"
     }
   ],
-  "test_instructions": "Une phrase courte et naturelle en français expliquant comment l'utilisateur peut tester la fonctionnalité ajoutée ou modifiée. Exemple : 'Pour tester cette fonctionnalité, demandez-moi : \"donne-moi la recette des crêpes\".'"
+  "test_instructions": "Une phrase courte et naturelle en français expliquant comment l'utilisateur peut tester la fonctionnalité ajoutée ou modifiée. Exemple : 'Pour tester cette fonctionnalité, demandez-moi : \\"donne-moi la recette des crêpes\\".'"
 }
 
-Pour CRÉER un nouveau fichier (ex: plugins/nouveau_resolver.py), mets "target_code" à "" (chaîne vide) et fournis le code complet dans "replacement_code".
+Pour CRÉER un nouveau fichier (ex: backend/plugins/nouveau_resolver.py), mets "target_code" à "" (chaîne vide) et fournis le code complet dans "replacement_code".
 Pour MODIFIER un fichier existant, fournis une portion de code existant extrêmement précise dans "target_code" afin qu'elle puisse être localisée de façon infaillible par un simple string.replace(). Évite de remplacer de trop grands blocs de code d'un coup.
 
 Ne renvoie aucun texte explicatif en dehors du JSON. Sois extrêmement rigoureux sur la syntaxe TypeScript, CSS et Python.
 
 ---------------------------------------------------------
-CONSIGNES D'ÉDITIONS CRITIQUES POUR MAIN.PY :
-Si tu dois importer et enregistrer un nouveau resolver (ex : plugins.recipe_resolver) dans main.py, voici les blocs EXACTS du fichier sur lesquels faire tes remplacements :
+AJOUTER UNE COMMANDE VOCALE (nouveau resolver) :
+1. Crée backend/plugins/<nom>_resolver.py sur le modèle ci-dessous : la fonction s'enregistre
+   elle-même dans builtins. Elle est chargée à chaud dès que tes modifications sont validées
+   et intégrée automatiquement à l'aiguillage (aucune modification de traitement.py n'est
+   nécessaire).
+2. Ajoute "plugins.<nom>_resolver" à la liste _PLUGINS de backend/core/chargement_plugins.py
+   pour qu'il soit aussi chargé aux démarrages suivants.
+3. Retourne None si la phrase ne concerne pas ton resolver ; compare des mots entiers
+   (re.search(r"\\bmot\\b", t)) et non des sous-chaînes, pour ne pas intercepter d'autres commandes.
 
-1. Bloc d'importation des resolvers dans main.py :
----------------------------------------------
-import plugins.dom_controller_resolver
-import plugins.developer_resolver
----------------------------------------------
-Remplacement type pour ajouter ton import :
-target_code: "import plugins.dom_controller_resolver\nimport plugins.developer_resolver"
-replacement_code: "import plugins.dom_controller_resolver\nimport plugins.developer_resolver\nimport plugins.recipe_resolver"
-
-2. Bloc de la chaîne de résolution locale dans traiter_reponse_ia (main.py) :
----------------------------------------------
-        # TENTATIVE DE RÉSOLUTION LOCALE (Commandes, Math, Français, etc.)
-        print(f"[DEBUG] Tentative de résolution locale pour : {texte_utilisateur}")
-        reponse = await builtins.resoudre_developpement(texte_utilisateur)
-        if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)
----------------------------------------------
-Remplacement type pour ajouter l'appel à ton nouveau resolver :
-target_code: "        reponse = await builtins.resoudre_developpement(texte_utilisateur)\n        if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)"
-replacement_code: "        reponse = await builtins.resoudre_developpement(texte_utilisateur)\n        if not reponse: reponse = await builtins.resoudre_recipe(texte_utilisateur)\n        if not reponse: reponse = await builtins.resoudre_dom_hud(texte_utilisateur)"
-
----------------------------------------------------------
-EXEMPLE DE STRUCTURE POUR UN NOUVEAU RESOLVER (plugins/mon_resolver.py) :
+EXEMPLE DE STRUCTURE POUR UN NOUVEAU RESOLVER (backend/plugins/mon_resolver.py) :
 ---------------------------------------------
 import builtins
-import json
+import re
+from core.interlocuteur import nom_virgule
 
 def nettoyer_accent(texte):
     import unicodedata
@@ -101,8 +83,9 @@ def nettoyer_accent(texte):
 
 async def resoudre_mon_resolver(cmd):
     t = nettoyer_accent(cmd.lower().strip())
-    # Logique de commande ...
-    return None
+    if not re.search(r"\\bmon mot cle\\b", t):
+        return None
+    return f"Voici la réponse{nom_virgule()}."
 
 builtins.resoudre_mon_resolver = resoudre_mon_resolver
 ---------------------------------------------
@@ -221,12 +204,17 @@ def compiler_et_valider():
         
     # 2. Validation Backend (Python)
     print("[MUTATOR] Lancement de la validation des modules Python...")
-    plugins_dir = os.path.join(ROOT_DIR, "backend", "plugins")  # ex-« plugins/ » avant réorg
-    for file in os.listdir(plugins_dir):
-        if file.endswith(".py"):
-            res_py = subprocess.run([sys.executable, "-m", "py_compile", os.path.join(plugins_dir, file)], capture_output=True, text=True)
-            if res_py.returncode != 0:
-                return False, f"Erreur de syntaxe Python dans {file} :\n{res_py.stderr}"
+    # Tout backend/ (pas seulement plugins/ : l'IA peut aussi modifier core/ ou module/)
+    import py_compile
+    backend_dir = os.path.join(ROOT_DIR, "backend")
+    for dossier, sous_dossiers, fichiers in os.walk(backend_dir):
+        sous_dossiers[:] = [d for d in sous_dossiers if d not in ("sandbox", "__pycache__", "voiceprints")]
+        for file in fichiers:
+            if file.endswith(".py"):
+                try:
+                    py_compile.compile(os.path.join(dossier, file), doraise=True)
+                except py_compile.PyCompileError as e:
+                    return False, f"Erreur de syntaxe Python dans {os.path.relpath(os.path.join(dossier, file), ROOT_DIR)} :\n{e.msg}"
                 
     return True, "Validation réussie !"
 
@@ -299,7 +287,6 @@ async def resoudre_developpement(cmd):
         "ajoute une commande", "cree un resolver", "cree un nouveau resolver",
         "developpe une fonctionnalite", "developpe un nouveau widget",
         "ajoute un commentaire de test", "modifie l'orbe", "ajoute un effet",
-        "ajoute-moi", "cree-moi", "crée-moi", "developpe-moi"
     ]
     # Les préfixes nus « ajoute … » / « cree … » ont été retirés : ils faisaient
     # entrer dans l'auto-modification du code des phrases du quotidien comme
@@ -319,6 +306,11 @@ async def resoudre_developpement(cmd):
                        or (_prefixe_dev and any(x in t for x in _termes_techniques)))
     
     if is_mutation_req:
+        # Modifier le code de JARVIS : réservé au créateur reconnu à la voix (ou au clavier
+        # du HUD local), jamais à une voix invitée ni à un autre profil.
+        from core.interlocuteur import CREATEUR
+        if (getattr(builtins, "ACTIVE_SPEAKER", "guest") or "guest").lower() != CREATEUR:
+            return f"Seul mon créateur peut modifier mon code{nom_virgule()}."
         description = cmd
         print(f"[MUTATOR] Requête d'auto-évolution reçue : {description}")
         
@@ -334,10 +326,10 @@ async def resoudre_developpement(cmd):
         # Fournir des informations de contexte supplémentaires sur la codebase
         contexte_codebase = (
             "\n\nNOTE DE CONTEXTE D'ARCHITECTURE :\n"
-            "- Le HUD possède déjà la structure HTML '#recipe-modal' dans frontend/index.html.\n"
-            "- Le HUD possède déjà le style CSS pour le widget recette dans frontend/src/style.css.\n"
-            "- Le HUD possède déjà le gestionnaire de messages 'show_recipe' dans frontend/src/main.ts qui attend un message WebSocket de type 'show_recipe' avec les champs 'recipe_title' (string), 'ingredients' (array of strings) et 'instructions' (array of strings).\n"
-            "- Ainsi, pour la demande de widget de recette, TU NE DOIS PAS MODIFIER les fichiers frontend (index.html, main.ts, etc.). Il te suffit de créer le plugin Python backend 'plugins/recipe_resolver.py' qui va capter la demande vocale, utiliser un appel LLM interne si nécessaire pour générer la recette demandée de manière structurée, puis renvoyer l'action WebSocket 'show_recipe' correspondante via le courtier d'actions génériques de main.py, et enfin importer et enregistrer ce resolver dans main.py."
+            "- Le HUD possède déjà la structure HTML '#recipe-modal' dans interfaces/frontend/index.html.\n"
+            "- Le HUD possède déjà le style CSS pour le widget recette dans interfaces/frontend/src/css/01_base_hud.css.\n"
+            "- Le HUD possède déjà le gestionnaire de messages 'show_recipe' dans interfaces/frontend/src/ws/messages_hud.ts qui attend un message WebSocket de type 'show_recipe' avec les champs 'recipe_title' (string), 'ingredients' (array of strings) et 'instructions' (array of strings).\n"
+            "- Ainsi, pour la demande de widget de recette, TU NE DOIS PAS MODIFIER les fichiers frontend (index.html, main.ts, etc.). Il te suffit de créer le plugin Python backend 'backend/plugins/recipe_resolver.py' qui va capter la demande vocale, utiliser un appel LLM interne si nécessaire pour générer la recette demandée de manière structurée, puis renvoyer l'action WebSocket 'show_recipe' correspondante via le courtier d'actions génériques de main.py, et enfin importer et enregistrer ce resolver dans main.py."
         )
         prompt = f"{nom_ou_utilisateur()} demande la modification suivante :\n\"{description}\"\n{contexte_codebase}\n\nGénère le tableau JSON des modifications de code nécessaires."
         
@@ -361,7 +353,8 @@ async def resoudre_developpement(cmd):
                 else:
                     prompt_actuel = prompt
                 
-                response = client.models.generate_content(
+                response = await asyncio.to_thread(
+                    client.models.generate_content,
                     model=CHOSEN_MODEL,
                     contents=prompt_actuel,
                     config=types.GenerateContentConfig(
@@ -377,13 +370,20 @@ async def resoudre_developpement(cmd):
                     edits = response_data.get("edits", [])
                     test_instructions = response_data.get("test_instructions", "")
                 
+                if attempt == 0:
+                    from core.confirmation import demander_confirmation
+                    fichiers = sorted({str(e.get("file_path", "?")) for e in edits})
+                    if not edits or not await demander_confirmation(
+                            None, f"Je vais modifier {len(fichiers)} fichier{'s' if len(fichiers) > 1 else ''} : "
+                                  f"{', '.join(fichiers[:4])}{'…' if len(fichiers) > 4 else ''}. J'applique ?"):
+                        return f"Modifications annulées, aucun fichier n'a été touché{nom_virgule()}."
                 print(f"[MUTATOR] Application des modifications (tentative {attempt+1})...")
                 # On mémorise les fichiers touchés pour pouvoir les restaurer
                 # individuellement en cas d'échec (annulation ciblée).
                 _fichiers_touches = appliquer_edits(edits)
                 
                 # Validation par compilation
-                valid, msg = compiler_et_valider()
+                valid, msg = await asyncio.to_thread(compiler_et_valider)
                 if valid:
                     success = True
                     break

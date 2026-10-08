@@ -20,6 +20,34 @@ CONFIG_FILE = os.path.join(VAULT_DIR, "vault_config.json")
 
 _unlocked_fernet = None
 _is_unlocked = False
+# Le coffre restait ouvert jusqu'au redémarrage : il se reverrouille seul après
+# DELAI_VERROUILLAGE secondes sans utilisation.
+DELAI_VERROUILLAGE = 600
+_derniere_activite = 0.0
+
+
+def _activite():
+    global _derniere_activite
+    import time
+    _derniere_activite = time.time()
+
+
+def _verifier_expiration():
+    """Reverrouille le coffre s'il n'a pas servi depuis DELAI_VERROUILLAGE secondes."""
+    import time
+    if _is_unlocked and time.time() - _derniere_activite > DELAI_VERROUILLAGE:
+        print("[VOICE VAULT] Verrouillage automatique (inactivité).")
+        lock_vault()
+
+
+def _nom_libre(dossier, nom, suffixe=""):
+    """« rapport.pdf » → « rapport (2).pdf » si le nom est déjà pris (pas d'écrasement)."""
+    base, ext = os.path.splitext(nom)
+    candidat, n = nom, 2
+    while os.path.exists(os.path.join(dossier, candidat + suffixe)):
+        candidat = f"{base} ({n}){ext}"
+        n += 1
+    return candidat
 
 def _ensure_dirs():
     os.makedirs(VAULT_DIR, exist_ok=True)
@@ -57,6 +85,7 @@ def setup_vault(password: str) -> bool:
         
     _unlocked_fernet = Fernet(key)
     _is_unlocked = True
+    _activite()
     print("[VOICE VAULT] Coffre-fort créé et déverrouillé avec succès.")
     return True
 
@@ -79,6 +108,7 @@ def unlock_vault(password: str) -> bool:
         if test_hash == val_hash:
             _unlocked_fernet = Fernet(key)
             _is_unlocked = True
+            _activite()
             print("[VOICE VAULT] Coffre-fort déverrouillé avec succès.")
             return True
         else:
@@ -97,10 +127,14 @@ def lock_vault():
     return True
 
 def is_vault_unlocked() -> bool:
+    _verifier_expiration()
     return _is_unlocked
 
 def list_vault_files() -> list:
     """Liste tous les fichiers chiffrés contenus dans le coffre."""
+    _verifier_expiration()
+    if _is_unlocked:
+        _activite()
     _ensure_dirs()
     if not _is_unlocked:
         return []
@@ -120,6 +154,9 @@ def list_vault_files() -> list:
 
 def add_file_to_vault(file_path: str) -> bool:
     """Chiffre un fichier et l'ajoute au coffre-fort."""
+    _verifier_expiration()
+    if _is_unlocked:
+        _activite()
     if not _is_unlocked or not _unlocked_fernet:
         print("[VOICE VAULT] Impossible d'ajouter : le coffre est verrouillé.")
         return False
@@ -133,7 +170,7 @@ def add_file_to_vault(file_path: str) -> bool:
             data = f.read()
             
         encrypted_data = _unlocked_fernet.encrypt(data)
-        original_name = os.path.basename(file_path)
+        original_name = _nom_libre(ENCRYPTED_FILES_DIR, os.path.basename(file_path), ".jvault")
         dest_path = os.path.join(ENCRYPTED_FILES_DIR, f"{original_name}.jvault")
         
         with open(dest_path, "wb") as f:
@@ -147,6 +184,9 @@ def add_file_to_vault(file_path: str) -> bool:
 
 def export_file_from_vault(filename: str, dest_dir: str) -> str:
     """Déchiffre un fichier du coffre vers un dossier de destination."""
+    _verifier_expiration()
+    if _is_unlocked:
+        _activite()
     if not _is_unlocked or not _unlocked_fernet:
         return ""
         
@@ -160,7 +200,7 @@ def export_file_from_vault(filename: str, dest_dir: str) -> str:
             
         decrypted_data = _unlocked_fernet.decrypt(enc_data)
         os.makedirs(dest_dir, exist_ok=True)
-        dest_path = os.path.join(dest_dir, filename)
+        dest_path = os.path.join(dest_dir, _nom_libre(dest_dir, os.path.basename(filename)))
         
         with open(dest_path, "wb") as f:
             f.write(decrypted_data)
@@ -173,6 +213,9 @@ def export_file_from_vault(filename: str, dest_dir: str) -> str:
 
 def delete_file_from_vault(filename: str) -> bool:
     """Supprime définitivement un fichier du coffre."""
+    _verifier_expiration()
+    if _is_unlocked:
+        _activite()
     if not _is_unlocked:
         return False
         

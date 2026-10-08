@@ -35,7 +35,7 @@ import asyncio
 import warnings
 
 import core.shared as shared
-from core.console_ui import installer_console, TeeLogger
+from core.console_ui import installer_console
 
 # ── Banner affiché immédiatement avant les imports lourds ──────
 installer_console()
@@ -226,6 +226,16 @@ def start_ia():
     nb_conv = len(shared.historique) // 2 if hasattr(shared, "historique") else 0
     print(f"[CONV] {nb_conv} conversations chargées en mémoire")
 
+    # Fenêtre de Deezer laissée non activable / transparente par une opération interrompue :
+    # de nouveau affichable depuis la barre des tâches
+    def _reparer_deezer():
+        try:
+            from controller.deezer_controller import reparer_fenetres_deezer
+            reparer_fenetres_deezer()
+        except Exception as e:
+            print(f"[DEEZER] Réparation au démarrage impossible : {e}")
+    threading.Thread(target=_reparer_deezer, daemon=True).start()
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -299,6 +309,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.stdout = TeeLogger()
-    sys.stderr = sys.stdout
     main()

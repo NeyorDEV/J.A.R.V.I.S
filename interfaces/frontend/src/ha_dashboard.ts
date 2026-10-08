@@ -152,7 +152,7 @@ export function handleHAMessage(data: any): void {
       renderPinnedWidgets();
     } else {
       showError("ERREUR DE LECTURE DES ÉTATS");
-      if (panelStatus) panelStatus.textContent = "SYS_STATUS // DESACTIVER // HOME ASSISTANT NON DISPONIBLE";
+      if (panelStatus) panelStatus.textContent = "SYS_STATUS // HOME ASSISTANT NON CONFIGURÉ OU INJOIGNABLE";
     }
   } else if (data.type === "ha_state_changed") {
     if (data.entity_id && data.state) {

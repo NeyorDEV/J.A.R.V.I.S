@@ -1,7 +1,9 @@
 import os
+import re
 import json
 import builtins
 import asyncio
+from core.interlocuteur import nom_virgule
 
 _LISTES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "jarvis_listes.json")  # backend/plugins/ -> racine projet
 
@@ -65,6 +67,8 @@ async def resoudre_listes_locales(texte):
             
             # Nettoyage des liaisons
             item = item.strip().strip('"').strip("'").strip()
+            # « mets une note pour appeler le garage » → « appeler le garage »
+            item = re.sub(r"^(?:une |la |ma )?(?:note|notes|t[âa]che|todo)\s*(?:pour |de |d'|:)?\s*", "", item).strip()
             for prep in ["de la ", "du ", "des ", "de ", "d'"]:
                 if item.lower().startswith(prep):
                     item = item[len(prep):].strip()
@@ -74,31 +78,46 @@ async def resoudre_listes_locales(texte):
                 _sauvegarder_listes(data)
                 if cible == "courses":
                     await _notifier_web()
-                return f"C'est fait, j'ai ajouté {item} à votre liste de {cible}, Monsieur."
+                return f"C'est fait, j'ai ajouté {item} à votre liste de {cible}{nom_virgule()}."
 
     # 2. LECTURE
     is_course = "course" in t or t in ["courses", "mes courses"]
-    is_note = "note" in t
-    is_read = any(k in t for k in ["qu'est-ce qu'il y a", "affiche", "montre", "lire", "ouvre", "y'a quoi", "y a quoi", "qu'est-ce que j'ai", "quoi dans", "contenu", "liste"])
-    
+    # « note » en mot entier (« ouvre le bloc-notes » n'est pas une demande de notes)
+    is_note = bool(re.search(r"(?<![\w-])notes?\b", t))
+
+    # Suppression AVANT la lecture : le mot « liste » déclenchait la lecture, si bien
+    # que « vide / efface ma liste de courses » ou « supprime le lait de ma liste »
+    # relisaient la liste au lieu d'agir.
+    if is_course and re.search(r"\b(vide|vider|efface|effacer|supprime|supprimer|retire|retirer|enleve|enlever|enlève|enlèves?)\b", t):
+        m_article = re.search(r"\b(?:supprime|supprimer|retire|retirer|enleve|enlever|enlève|efface|effacer)\s+(.+?)\s+(?:de|du|des|dans)\s+(?:ma |la |mes |les )?(?:liste|courses)", t)
+        article = m_article.group(1).strip() if m_article else ""
+        article = re.sub(r"^(?:le |la |les |l'|du |de la |des |un |une |ma |mes |toute la |toute ma )", "", article).strip()
+        if article and not article.startswith("liste") and article not in ("tout", "tous"):
+            items = data.get("courses", [])
+            restants = [i for i in items if i.lower().replace("[x] ", "") != article.lower()]
+            if len(restants) == len(items):
+                return f"Je n'ai pas trouvé « {article} » dans votre liste de courses{nom_virgule()}."
+            data["courses"] = restants
+            _sauvegarder_listes(data)
+            await _notifier_web()
+            return f"J'ai retiré {article} de votre liste de courses{nom_virgule()}."
+        data["courses"] = []
+        _sauvegarder_listes(data)
+        await _notifier_web()
+        return f"La liste de courses a été vidée{nom_virgule()}."
+
+    is_read = any(k in t for k in ["qu'est-ce qu'il y a", "affiche", "montre", "lire", "lis ", "ouvre", "y'a quoi", "y a quoi", "qu'est-ce que j'ai", "quoi dans", "contenu", "liste"])
+
     if is_course and (is_read or t in ["courses", "mes courses"]):
         await _notifier_web()
         items = data.get("courses", [])
-        if not items: return "Votre liste de courses est vide, Monsieur."
+        if not items: return f"Votre liste de courses est vide{nom_virgule()}."
         items_propres = [i.replace("[x] ", "✓ ") if i.startswith("[x] ") else f"• {i}" for i in items]
         return f"Voici votre liste de courses : " + ", ".join(items_propres)
     elif is_note and is_read:
         items = data.get("notes", [])
-        if not items: return "Vous n'avez aucune note enregistrée, Monsieur."
+        if not items: return f"Vous n'avez aucune note enregistrée{nom_virgule()}."
         return f"Voici vos notes : {', '.join(items)}."
-
-    # 3. VIDAGE
-    if "vide" in t or "supprime" in t or "efface" in t:
-        if "course" in t:
-            data["courses"] = []
-            _sauvegarder_listes(data)
-            await _notifier_web()
-            return "La liste de courses a été vidée, Monsieur."
 
     return None
 

@@ -170,23 +170,27 @@ export function showUninstallComplete(data: any) {
   uninstallerLeftoversContainer?.classList.remove("hidden");
   
   currentLeftovers = data.leftovers || [];
-  
+
   // Reset Select All checkbox
   if (uninstallerSelectAll) {
     uninstallerSelectAll.checked = true;
   }
-  
-  renderLeftovers();
+
+  // Désinstallation annulée ou ratée : on le dit, au lieu de « aucune trace résiduelle »
+  const echec = data.success === false
+    ? (data.cancelled ? "Désinstallation annulée." : (data.message || "La désinstallation n'a pas abouti."))
+    : null;
+  renderLeftovers(echec);
 }
 
-function renderLeftovers() {
+function renderLeftovers(messageVide: string | null = null) {
   if (!uninstallerLeftoversList) return;
   uninstallerLeftoversList.innerHTML = "";
-  
+
   if (currentLeftovers.length === 0) {
     const empty = document.createElement("div");
     empty.className = "uninstaller-leftover-empty";
-    empty.textContent = "Aucune trace résiduelle détectée sur le système.";
+    empty.textContent = messageVide || "Aucune trace résiduelle détectée sur le système.";
     uninstallerLeftoversList.appendChild(empty);
     if (uninstallerCleanBtn) uninstallerCleanBtn.disabled = true;
     return;

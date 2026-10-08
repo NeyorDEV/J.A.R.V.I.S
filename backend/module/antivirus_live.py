@@ -7,9 +7,23 @@ from core.micro import _charger_config
 from core.speech import parler
 
 
+def _alerter(menace, phrase, quarantaine=None):
+    """Alerte HUD (carte + liste de l'antivirus) et annonce vocale d'une détection."""
+    import json
+    message = {"type": "av_live_threat_intercepted", "threat": menace}
+    if quarantaine:
+        message["quarantine_file"] = quarantaine
+    if shared.CONNECTED_CLIENTS:
+        asyncio.ensure_future(asyncio.gather(*[ws.send(json.dumps(message)) for ws in shared.CONNECTED_CLIENTS],
+                                             return_exceptions=True))
+    try:
+        parler(phrase)
+    except Exception:
+        pass
+
+
 async def boucle_antivirus_live():
     """Surveille les dossiers sensibles et processus actifs toutes les 3 secondes."""
-    import json
     import os
     import time
     import stat
@@ -31,12 +45,14 @@ async def boucle_antivirus_live():
     while True:
         try:
             if shared.AV_LIVE_PROTECTION_ENABLED:
+                from core.dossiers import dossier_connu
+                # (le dossier de JARVIS n'est plus surveillé, et le Bureau / les Téléchargements
+                #  sont les vrais dossiers de Windows, souvent sous OneDrive)
                 folders = [
-                    os.path.expanduser("~/Desktop"),
-                    os.path.expanduser("~/Downloads"),
+                    dossier_connu("bureau"),
+                    dossier_connu("telechargements"),
                     os.environ.get("TEMP"),
                     os.environ.get("TMP"),
-                    shared.RACINE_PROJET
                 ]
                 folders = list(set([os.path.abspath(f) for f in folders if f and os.path.exists(f)]))
                 exclusions = get_exclusions()
@@ -56,6 +72,13 @@ async def boucle_antivirus_live():
                                             continue
 
                                         t_class, t_desc = is_file_suspicious(filepath)
+                                        if t_class == "Suspicious.TempExecutable":
+                                            if not is_excluded(filepath, exclusions):
+                                                shared.AV_LIVE_REPORTED_THREATS.add(normalized_filepath)
+                                                _alerter({"type": "file", "name": file, "target": filepath,
+                                                          "class": t_class, "desc": f"À VÉRIFIER (aucune action automatique). {t_desc}"},
+                                                         f"Je signale un exécutable récent dans le dossier temporaire : {file}. Je n'y ai pas touché.")
+                                            continue
                                         if t_class:
                                             if is_excluded(filepath, exclusions):
                                                 continue
@@ -103,14 +126,8 @@ async def boucle_antivirus_live():
                                                 },
                                                 "quarantine_file": safe_name
                                             }
-                                            if shared.CONNECTED_CLIENTS:
-                                                asyncio.ensure_future(asyncio.gather(*[ws.send(json.dumps(msg)) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True))
-
-                                            # Notification vocale
-                                            try:
-                                                u_name = cfg.get("user_name", "neyor")
-                                                asyncio.create_task(parler(f"Alerte sécurité, {u_name}. J'ai détecté et neutralisé une menace en temps réel : {file}. Le fichier suspect a été placé en quarantaine."))
-                                            except: pass
+                                            _alerter(msg["threat"], f"Alerte sécurité. J'ai détecté et mis en quarantaine une menace : {file}.",
+                                                     quarantaine=safe_name)
                                 except OSError:
                                     pass
                     except Exception as e:
@@ -144,10 +161,17 @@ async def boucle_antivirus_live():
                         if detected:
                             if is_excluded(target_key, exclusions) or (exe and is_excluded(exe, exclusions)):
                                 continue
-                                
+
                             shared.AV_LIVE_REPORTED_THREATS.add(target_key)
+                            if desc != "Processus suspect (menace connue)":
+                                # Installeurs et mises à jour tournent depuis %TEMP% : les tuer sur
+                                # ce seul critère cassait des installations légitimes.
+                                _alerter({"type": "process", "name": name, "target": target_key,
+                                          "class": "Suspicious.ActiveProcess", "desc": f"À VÉRIFIER (aucune action automatique). {desc}"},
+                                         f"Je signale un programme lancé depuis le dossier temporaire : {name}. Je ne l'ai pas arrêté.")
+                                continue
                             print(f"[AV LIVE] Processus suspect neutralisé : {name} (PID {pid})")
-                            
+
                             # Arrêter le processus
                             p = psutil.Process(pid)
                             p.terminate()
@@ -167,13 +191,7 @@ async def boucle_antivirus_live():
                                     "desc": f"PROCESSUS ARRÊTÉ & NEUTRALISÉ. {desc}"
                                 }
                             }
-                            if shared.CONNECTED_CLIENTS:
-                                asyncio.ensure_future(asyncio.gather(*[ws.send(json.dumps(msg)) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True))
-                                
-                            try:
-                                u_name = cfg.get("user_name", "neyor")
-                                asyncio.create_task(parler(f"Sécurité système, {u_name}. J'ai intercepté et arrêté un processus suspect actif : {name}."))
-                            except: pass
+                            _alerter(msg["threat"], f"Sécurité système. J'ai arrêté un processus suspect : {name}.")
                     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                         pass
                 

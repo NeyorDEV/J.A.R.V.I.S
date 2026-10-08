@@ -18,7 +18,10 @@ from datetime import datetime
 from google.genai import types
 from core.interlocuteur import nom_espace
 
-DOSSIER_SORTIE = os.path.join(os.environ.get("USERPROFILE", ""), "Desktop", "JARVIS_Documents")
+from core.dossiers import dossier_connu
+# Sur le vrai Bureau (souvent sous OneDrive) : USERPROFILE\Desktop en dur créait un
+# dossier « Desktop » invisible.
+DOSSIER_SORTIE = os.path.join(dossier_connu("bureau"), "JARVIS_Documents")
 
 
 def nettoyer_accent(texte: str) -> str:
@@ -148,7 +151,7 @@ def _fusionner_pdfs_dossier(nom_dossier_utilisateur: str) -> tuple[str | None, i
     dossier_reel = _DOSSIERS_CONNUS.get(nettoyer_accent(nom_dossier_utilisateur), None)
     if not dossier_reel:
         return None, 0
-    chemin_dossier = os.path.join(os.environ.get("USERPROFILE", ""), dossier_reel)
+    chemin_dossier = dossier_connu(nettoyer_accent(nom_dossier_utilisateur)) or os.path.join(os.environ.get("USERPROFILE", ""), dossier_reel)
     if not os.path.isdir(chemin_dossier):
         return None, 0
 

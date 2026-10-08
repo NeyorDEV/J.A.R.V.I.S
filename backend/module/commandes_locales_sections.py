@@ -3,8 +3,8 @@
 import asyncio
 import json
 import os
+import re
 import subprocess
-import time
 import webbrowser
 
 import pyautogui
@@ -21,8 +21,53 @@ from core.web_bridge import _safe_ws_send
 from module.file_manager import arranger_fenetres_dossiers, ouvrir_dossier
 from core.interlocuteur import nom_espace, nom_virgule
 
+# Fermeture forcée permise si la demande de fermeture est ignorée au bout de 3 s : musique,
+# messageries, lanceurs (ils se cachent dans la zone de notification au lieu de quitter).
+# Les autres (Word, Excel, éditeurs…) ne sont jamais forcés : ils peuvent demander d'enregistrer.
+_FERMETURE_FORCEE = {"deezer", "spotify", "discord", "steam", "epic", "epic games", "epic game", "origin",
+                     "ea", "ea app", "ubisoft", "ubisoft connect", "uplay", "gog", "gog galaxy", "whatsapp",
+                     "telegram", "teams", "microsoft teams", "zoom", "skype", "vlc", "obs", "obs studio",
+                     "minecraft"}
+
 
 _PAS_TROUVE = object()  # sentinelle : section sans résultat, on passe à la suivante
+
+_MOTS_MUSIQUE = ("musique", "chanson", "piste", "morceau", "titre", "playlist", "album",
+                 "artiste", "deezer", "son de", "le son", "single", "tube", "rap", "rock")
+# Jamais une recherche Deezer : ces phrases relèvent d'autres commandes ou de l'IA.
+_MOTS_NON_MUSICAUX = ("alarme", "minuteur", "réveil", "reveil", "rappel", "timer", "info",
+                      "actualité", "actualite", "météo", "meteo", "heure", "lumière", "lumiere",
+                      "chauffage", "volet", "télé", "tele", " tv", "vidéo", "video", "film",
+                      "série", "serie", "youtube", "netflix", "site", "page", "mail", "message",
+                      "application", "logiciel", "programme", "jeu ", "partie", "dossier",
+                      "fichier", "document", "ordinateur", " pc", "recette", "photo", "image",
+                      "recherche sur", "une recherche", "scan", "mise à jour", "mises à jour")
+
+
+def _contexte_musical(t: str) -> bool:
+    return any(m in t for m in _MOTS_MUSIQUE)
+
+
+def _recherche_musicale(t: str):
+    """Texte à chercher sur Deezer si la phrase est une demande de musique, sinon None."""
+    if any(m in f" {t} " for m in _MOTS_NON_MUSICAUX):
+        return None
+    musical = _contexte_musical(t)
+    for prefix in ("joue du ", "joue de la ", "joue des ", "joue ", "écoute ", "ecoute ",
+                   "mets du ", "mets de la ", "mets des ", "mets ", "lance ", "recherche "):
+        if not t.startswith(prefix):
+            continue
+        verbe_musical = prefix.startswith(("joue", "écoute", "ecoute")) \
+            or prefix in ("mets du ", "mets de la ", "mets des ")
+        if not (verbe_musical or musical):
+            return None
+        recherche = t[len(prefix):].replace(" sur deezer", "").strip()
+        # « la chanson hello d'adele » → « hello d'adele » (« album » / « playlist » sont
+        # gardés : deezer_rechercher s'en sert pour choisir le type de recherche)
+        recherche = re.sub(r"^(?:(?:la |le |l'|une |un |ma |mon )?(?:chanson|titre|morceau|musique|son)\s+(?:de |d')?)",
+                           "", recherche).strip()
+        return recherche if len(recherche) > 1 else None
+    return None
 
 
 async def _commandes_identite_hud(t):
@@ -136,14 +181,15 @@ async def _commandes_identite_hud(t):
     if word:
         word = word.rstrip(".?! ")
         _safe_ws_send(json.dumps({"action": "orb_write_word", "word": word}))
-        return f"Très bien monsieur, je reconfigure l'orbe pour dessiner le mot : {word}."
+        return f"Très bien{nom_espace()}, je reconfigure l'orbe pour dessiner le mot : {word}."
 
     # --- DECLENCHEMENT PROTOCOLE DEMONSTRATION ORBE ---
     if any(k in t for k in ["démonstration", "demonstration", "démo", "demo", "lance la démo", "lance une démo", "lance une démonstration", "lance la démonstration", "protocole de démo", "fais une démo", "fais une demo"]):
         _safe_ws_send(json.dumps({"action": "demo"}))
         return f"Initialisation du protocole de démonstration visuelle{nom_virgule()}."
 
-    prefixes_dossiers = ["ouvre le dossier ", "ouvre mon dossier ", "ouvre le répertoire ", "ouvre le repertoire ", "ouvre dossier ", "ouvre ", "mets "]
+    # (« mets » n'ouvre pas de dossier : « mets en pause le téléchargement » y passait)
+    prefixes_dossiers = ["ouvre le dossier ", "ouvre mon dossier ", "ouvre le répertoire ", "ouvre le repertoire ", "ouvre dossier ", "ouvre "]
     # On vérifie d'abord si c'est un dossier connu
     mots_cles_dossiers = ["bureau", "document", "téléchargement", "image", "photo", "vidéo", "musique", "corbeille"]
     # --- LOGIQUE MULTIMÉDIA (TV/YouTube) MIGRÉE VERS plugins/system_resolver.py ---
@@ -151,10 +197,13 @@ async def _commandes_identite_hud(t):
     # --- DOSSIERS (Priorité 1) ---
     for prefix in prefixes_dossiers:
         if t.startswith(prefix):
-            potentiel_dossier = t.replace(prefix, "").strip()
-            if any(k in potentiel_dossier for k in mots_cles_dossiers):
-                ok, msg = ouvrir_dossier(potentiel_dossier)
-                if ok: return f"J'ouvre le dossier {potentiel_dossier}{nom_virgule()}."
+            potentiel_dossier = t[len(prefix):].strip()
+            # « ouvre la musique », « ouvre mes documents » : l'article empêchait de
+            # reconnaître le dossier (« la musique » n'est pas un raccourci connu).
+            nom_dossier = re.sub(r"^(?:le |la |les |l'|mon |ma |mes |du |des )", "", potentiel_dossier).strip()
+            if any(k in nom_dossier for k in mots_cles_dossiers):
+                ok, msg = ouvrir_dossier(nom_dossier)
+                if ok: return f"J'ouvre le dossier {nom_dossier}{nom_virgule()}."
     return _PAS_TROUVE
 
 
@@ -209,25 +258,37 @@ async def _commandes_apps_musique(t):
         "info système":            "msinfo32",
         "info systeme":            "msinfo32",
     }
+    # « ouvre la calculatrice », « ouvre le bloc-notes » : l'article était refusé
+    # (seul « ouvre calculatrice » marchait).
+    verbes_ouvrir = "|".join(re.escape(m) for m in mots_ouvrir)
     for nom, cmd in apps_standard.items():
-        if any(f"{m} {nom}" in t for m in mots_ouvrir):
+        if re.search(rf"\b(?:{verbes_ouvrir})\s+(?:le |la |les |l'|un |une |mon |ma |mes )?{re.escape(nom)}\b", t):
             try:
                 subprocess.Popen(cmd)
                 return f"J'ouvre {nom}{nom_virgule()}."
             except Exception:
                 return f"Désolé{nom_espace()}, je n'ai pas réussi à lancer {nom}."
 
-    import re
-    for cle, info in _APPS_CATALOGUE.items():
+    # Deezer (piloté par controller/deezer_controller, hors catalogue) peut aussi être fermé
+    catalogue = dict(_APPS_CATALOGUE)
+    catalogue["deezer"] = {"label": "Deezer", "noms": ["Deezer.exe"], "fermeture_seule": True}
+    for cle in sorted(catalogue, key=len, reverse=True):  # « ea app » avant « ea »
+        info = catalogue[cle]
         # On vérifie que la clé est un mot entier pour éviter "ea" dans "Billie Jean"
         if not re.search(rf"\b{re.escape(cle)}\b", t):
             continue
 
-        if any(m in t for m in mots_fermer):
-            ok = _fermer_app(info["noms"])
+        if any(re.search(rf"\b{re.escape(m)}\b", t) for m in mots_fermer):
+            if getattr(shared, "ACTIVE_SPEAKER", "guest") == "guest":
+                return "Je ne ferme pas d'application pour une voix que je ne reconnais pas."
+            ok = await asyncio.to_thread(_fermer_app, info["noms"], cle in _FERMETURE_FORCEE)
             if ok:
                 return f"J'ai fermé {info['label']}{nom_virgule()}."
-            return f"Je n'ai pas trouvé {info['label']} en cours d'exécution."
+            if ok is None:
+                return f"{info['label']} n'est pas ouvert{nom_virgule()}."
+            return f"{info['label']} n'a pas voulu se fermer : il attend peut-être une réponse de votre part{nom_virgule()}."
+        if info.get("fermeture_seule"):
+            continue
         if any(m in t for m in mots_ouvrir):
             _boulot_lancer(info["label"], info["noms"], chemins_hints=info["hints"])
             return f"Je lance {info['label']}{nom_virgule()}."
@@ -239,7 +300,7 @@ async def _commandes_apps_musique(t):
     if any(k in t for k in ["musique sur youtube", "met de la musique sur youtube", "mets de la musique sur youtube"]):
         url = shared.YOUTUBE_MUSIQUE_URL or "https://www.youtube.com/watch?v=Cr8K88UcO0s"
         webbrowser.open(url, new=2)
-        time.sleep(5)
+        await asyncio.sleep(5)
         pyautogui.press('f')
         return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
 
@@ -275,7 +336,7 @@ async def _commandes_apps_musique(t):
                 musique_lien_lower = musique_lien.lower()
                 if "youtube.com" in musique_lien_lower or "youtu.be" in musique_lien_lower:
                     webbrowser.open(musique_lien, new=2)
-                    time.sleep(5)
+                    await asyncio.sleep(5)
                     pyautogui.press('f')
                     return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
                 elif "spotify" in musique_lien_lower or musique_lien_lower.startswith("spotify:"):
@@ -305,29 +366,45 @@ async def _commandes_apps_musique(t):
     if any(k in t for k in ["ouvre deezer", "lance deezer"]):
         return await deezer_ouvrir()
 
-    if any(k in t for k in ["suivante", "suivant", "chanson suivante", "piste suivante", "morceau suivant", "musique suivante", "musique d'après", "musique d'apres"]):
+    # Ces mots (« suivant », « précédent », « pause », « lecture ») ne valent commande
+    # musicale que dans une phrase courte ou qui parle de musique : « le jour précédent »
+    # ou « fais-moi la lecture de ce mail » changeaient de morceau / relançaient Deezer.
+    musical = _contexte_musical(t)
+    courte = len(t.split()) <= 4
+    # « passe la musique », « change de chanson », « zappe ce morceau » : morceau suivant
+    # (« passe la musique » relançait la playlist, via l'aiguillage IA)
+    passer = re.search(r"\b(passe|passer|zappe|zapper|change|changer)\b.*\b(musique|chanson|morceau|titre|son)\b", t)
+    if passer or ((musical or courte) and any(k in t for k in ["suivante", "suivant", "musique d'après", "musique d'apres"])):
         return await deezer_suivant()
-    if any(k in t for k in ["précédente", "précédent", "precedente", "precedent", "chanson précédente", "morceau précédent", "reviens en arrière", "retour en arrière", "musique d'avant"]):
+    if (musical or courte) and any(k in t for k in ["précédente", "précédent", "precedente", "precedent", "reviens en arrière", "retour en arrière", "musique d'avant"]):
         return await deezer_precedent()
-    if any(k in t for k in ["mets en pause", "stop la musique", "arrête la musique", "arrete la musique", "arrête la playlist", "arrete la playlist", "mets sur pause", "met en pause", "met sur pause", "met pause", "mets pause", "pause"]):
+    if any(k in t for k in ["stop la musique", "arrête la musique", "arrete la musique", "arrête la playlist", "arrete la playlist"]) \
+            or ((musical or courte) and "pause" in t):
         return await deezer_stop()
-    if any(k in t for k in ["lecture", "remets la musique", "remet la musique", "reprends la musique", "reprend la musique", "relance la musique", "relance la playlist", "lance la musique", "joue la musique", "remets la playlist", "remet la playlist"]):
+    if any(k in t for k in ["remets la musique", "remet la musique", "reprends la musique", "reprend la musique", "relance la musique", "relance la playlist", "lance la musique", "joue la musique", "remets la playlist", "remet la playlist"]) \
+            or ((musical or courte) and "lecture" in t):
         return await deezer_lecture_pause()
-    if any(k in t for k in ["monte le volume", "augmente le son", "plus fort"]):
-        return await deezer_volume("monter")
-    if any(k in t for k in ["baisse le son", "baisse le volume", "moins fort"]):
-        return await deezer_volume("baisser")
+    # Volume de Deezer seulement s'il est question de musique ; sinon le volume du PC
+    # (system_resolver) : « baisse le volume » tout court réglait l'un ou l'autre selon
+    # le verbe employé, et « le volume du HomePod » finissait dans Deezer.
+    if musical and not any(k in t for k in ["homepod", "enceinte", "télé", "tele", " tv"]):
+        if any(k in t for k in ["monte le volume", "monte le son", "augmente le son", "augmente le volume", "plus fort"]):
+            return await deezer_volume("monter")
+        if any(k in t for k in ["baisse le son", "baisse le volume", "moins fort"]):
+            return await deezer_volume("baisser")
 
-    # Recherche Deezer générique — en dernier pour ne pas avaler les commandes apps
-    prefixes_recherche = ["joue du ", "joue de la ", "mets du ", "mets de la ", "joue ", "recherche ", "mets ", "lance ", "écoute ", "ecoute "]
-    for prefix in prefixes_recherche:
-        # On évite de chercher sur Deezer si c'est manifestement une recherche de fichier local
-        if t.startswith(prefix) and not any(k in t for k in ["dossier", "fichier", "document", "ordinateur", "pc"]):
-            recherche = t.replace(prefix, "").replace(" sur deezer", "").strip()
-            if len(recherche) > 1:
-                return await deezer_rechercher(recherche)
+    # Recherche Deezer générique — en dernier pour ne pas avaler les commandes apps.
+    # « joue / écoute » sont des verbes musicaux ; « mets / lance / recherche » ne le sont
+    # que s'il est question de musique : sinon « mets une alarme à 7 h », « lance une
+    # recherche sur Napoléon »… partaient dans Deezer au lieu d'atteindre l'IA.
+    recherche_deezer = _recherche_musicale(t)
+    if recherche_deezer:
+        return await deezer_rechercher(recherche_deezer)
 
     # --- COFFRE-FORT CRYPTÉ (VOICE VAULT) ---
+    if any(k in t for k in ["coffre fort", "coffre-fort", "coffre"]) and getattr(shared, "ACTIVE_SPEAKER", "guest") == "guest":
+        # Mode invité : une voix inconnue voyait la liste des fichiers d'un coffre déverrouillé
+        return f"Le coffre-fort est réservé aux utilisateurs reconnus{nom_virgule()}."
     if any(k in t for k in ["coffre fort", "coffre-fort", "coffre"]):
         # Import sans le préfixe « backend. » — cohérent avec le handler WebSocket
         # des boutons du panneau (ws_handler) et avec le reste du fichier. Les deux

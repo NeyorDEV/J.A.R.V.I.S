@@ -10,10 +10,11 @@ import difflib
 import google.genai as genai
 from core.config import GEMINI_API_KEY, CHOSEN_MODEL
 from module.sandbox_executor import executer_fichier_sandbox
-from core.interlocuteur import nom_virgule
+from core.interlocuteur import nom_espace, nom_virgule
 
-# Initialisation du client de génération Gemini
-client = genai.Client(api_key=GEMINI_API_KEY)
+# Client Gemini différé (core/ai_clients.py) : pas de plantage à l'import sans clé,
+# et une clé changée dans les Paramètres est prise en compte sans redémarrer.
+from core.ai_clients import client_gemini as client
 
 # Garde une référence forte sur les tâches de diffusion fire-and-forget pour éviter
 # qu'asyncio ne les garbage-collect avant leur exécution (cf. doc asyncio.create_task)
@@ -1026,7 +1027,7 @@ Renvoye le code corrigé complet sans aucun bloc markdown."""
                     "status": "failure"
                 })
                 if hasattr(builtins, "parler"):
-                    builtins.parler(f"Désolé monsieur, l'essaim d'agents n'a pas pu valider le fichier {file_path} du projet.")
+                    builtins.parler(f"Désolé{nom_espace()}, l'essaim d'agents n'a pas pu valider le fichier {file_path} du projet.")
                 return
         else:
             files_state[file_path] = "completed"
@@ -1081,7 +1082,7 @@ Renvoye le code corrigé complet sans aucun bloc markdown."""
             print(f"[DEV SWARM BROWSER ERROR] {e}")
 
     if hasattr(builtins, "parler"):
-        builtins.parler(f"Monsieur, l'essaim de 6 agents autonomes a validé et déployé le projet {project_name} dans la sandbox.")
+        builtins.parler(f"L'essaim de 6 agents autonomes a validé et déployé le projet {project_name} dans la sandbox.")
         
     try:
         os.startfile(project_dir)
@@ -1129,13 +1130,16 @@ async def resoudre_lance_sandbox(cmd):
     # « lance le » (nu) a été retiré : il capturait « lance le mode hologramme »,
     # « lance le radar reseau », « lance le scan antivirus »… et bloquait les
     # resolvers légitimes. On exige désormais une cible explicite.
+    # « lance l'application » / « jeu » seuls ont été retirés aussi : « lance l'application
+    # Spotify » ou « lance le jeu Minecraft » ouvraient le dernier projet de l'essaim.
     mots_lancer_direct = [
-        "lance le projet", "lance l'application", "lance le site", "lance-le",
-        "execute le projet", "execute-le", "demarre le projet", "demarre l'application"
+        "lance le projet", "lance le site que tu", "lance le jeu que tu", "lance-le",
+        "execute le projet", "execute-le", "demarre le projet", "lance ton projet",
+        "lance ton jeu", "lance le dernier projet"
     ]
 
     is_comment = any(re.search(r'\b' + re.escape(k) + r'\b', t) for k in mots_comment_lancer) or (("comment" in t or "comment faire" in t) and ("lance" in t or "execute" in t))
-    is_direct = any(re.search(r'\b' + re.escape(k) + r'\b', t) for k in mots_lancer_direct) or (("lance" in t or "execute" in t or "demarre" in t) and ("projet" in t or "jeu" in t or "script" in t or "application" in t))
+    is_direct = any(re.search(r'\b' + re.escape(k) + r'\b', t) for k in mots_lancer_direct) or (("lance" in t or "execute" in t or "demarre" in t) and re.search(r"\b(projet|script)\b", t))
 
     if not is_comment and not is_direct:
         return None
@@ -1207,22 +1211,22 @@ async def resoudre_lance_sandbox(cmd):
 
                 # Lancer dans une nouvelle console cmd sous Windows
                 subprocess.Popen(f'start cmd /k ""{python_exe}" "{file_full_path}""', shell=True)
-                return f"Très bien monsieur, je lance le script `{entry_point}` du projet `{project_name}` dans un nouveau terminal."
+                return f"Très bien{nom_espace()}, je lance le script `{entry_point}` du projet `{project_name}` dans un nouveau terminal."
             except Exception as e:
-                return f"Désolé monsieur, je n'ai pas pu exécuter le script. Erreur : {e}"
+                return f"Désolé{nom_espace()}, je n'ai pas pu exécuter le script. Erreur : {e}"
         elif entry_point.endswith(".html"):
             try:
                 import webbrowser
                 webbrowser.open(file_full_path)
-                return f"Très bien monsieur, j'ouvre `{entry_point}` du projet `{project_name}` dans votre navigateur."
+                return f"Très bien{nom_espace()}, j'ouvre `{entry_point}` du projet `{project_name}` dans votre navigateur."
             except Exception as e:
-                return f"Désolé monsieur, je n'ai pas pu ouvrir le fichier HTML. Erreur : {e}"
+                return f"Désolé{nom_espace()}, je n'ai pas pu ouvrir le fichier HTML. Erreur : {e}"
         else:
             try:
                 os.startfile(file_full_path)
-                return f"Très bien monsieur, j'ouvre le fichier `{entry_point}`."
+                return f"Très bien{nom_espace()}, j'ouvre le fichier `{entry_point}`."
             except Exception as e:
-                return f"Désolé monsieur, je n'ai pas pu ouvrir le fichier. Erreur : {e}"
+                return f"Désolé{nom_espace()}, je n'ai pas pu ouvrir le fichier. Erreur : {e}"
 
     return None
 

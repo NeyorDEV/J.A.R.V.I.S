@@ -39,9 +39,10 @@ async def resoudre_images_locales(texte):
                 print(f"[IMAGE RESOLVER] Demande de recherche d'images pour : {query}")
                 
                 async def _send_images(q=query):
-                    cfg = {}
-                    if hasattr(builtins, "_charger_config"):
-                        cfg = builtins._charger_config()
+                    # (builtins._charger_config n'existe pas : le moteur réglé dans les
+                    #  Paramètres était ignoré, toujours serpapi)
+                    from core.micro import _charger_config
+                    cfg = _charger_config()
                     engine = cfg.get("image_search_engine", "serpapi")
                     
                     urls = recherche_images_web(q, nb_images=6, engine=engine)

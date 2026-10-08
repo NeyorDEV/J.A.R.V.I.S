@@ -16,6 +16,7 @@ from core.mcp_client import executer_action_mcp
 from core.speech import parler
 from core.web_bridge import diffuser_echecs, envoyer_image_web, _safe_ws_send
 from module.chess_manager import ChessGame
+from module.echecs_local import _annonce_fin
 from module.domotique_sim import domotic_route_audio
 from module.file_manager import (
     chercher_fichier, creer_sous_dossier, deplacer_fichier, lire_fichier, lister_dossier,
@@ -51,17 +52,17 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
             "action": "chess_start",
             "state": state
         })
-        parler("Très bien monsieur. J'ai disposé le plateau 3D sur le HUD. Veuillez configurer la partie et la démarrer.")
+        parler(f"Très bien{nom_espace()}. J'ai disposé le plateau 3D sur le HUD. Veuillez configurer la partie et la démarrer.")
     elif action == "chess_stop":
         shared.CHESS_GAME = None
         shared.CHESS_GAME_ACTIVE = False
         await diffuser_echecs({
             "action": "chess_stop"
         })
-        parler("Partie d'échecs interrompue, monsieur. Retour au HUD standard.")
+        parler(f"Partie d'échecs interrompue{nom_virgule()}. Retour au HUD standard.")
     elif action == "chess_play":
         if not shared.CHESS_GAME:
-            parler("Aucune partie d'échecs n'est en cours, monsieur.")
+            parler(f"Aucune partie d'échecs n'est en cours{nom_virgule()}.")
         else:
             move_str = data.get("move", "")
             try:
@@ -77,14 +78,9 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                     }
                 })
                 if state["is_game_over"]:
-                    result = state["result"]
+                    couleur = shared.CHESS_GAME.player_color
                     shared.CHESS_GAME = None
-                    if result == "1-0":
-                        parler("Félicitations, vous avez gagné ! Je m'incline.")
-                    elif result == "1/2-1/2":
-                        parler("Match nul. Bien joué de part et d'autre.")
-                    else:
-                        parler("Fin de partie.")
+                    parler(_annonce_fin(state["result"], couleur))
                 else:
                     # Faire réfléchir JARVIS et jouer
                     await diffuser_echecs({
@@ -105,12 +101,9 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                         }
                     })
                     if j_state["is_game_over"]:
-                        result = j_state["result"]
+                        couleur = shared.CHESS_GAME.player_color
                         shared.CHESS_GAME = None
-                        if result == "0-1":
-                            parler(f"{remark} Échec et mat. J'ai gagné la partie.")
-                        elif result == "1/2-1/2":
-                            parler(f"{remark} Match nul.")
+                        parler(_annonce_fin(j_state["result"], couleur, remark))
                     else:
                         parler(remark)
             except ValueError as e:
@@ -120,7 +113,7 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
         # avalé par le catch-all → le mode ne s'activait jamais.
         etat = data.get("etat", "on")
         shared.MODE_IRON_MAN = (etat == "on")
-        msg = "Mode Iron Man activé, Monsieur. Je reste à l'écoute de vos signaux." if shared.MODE_IRON_MAN else "Mode Iron Man désactivé. Je repasse en veille domotique."
+        msg = f"Mode Iron Man activé{nom_virgule()}. Je reste à l'écoute de vos signaux." if shared.MODE_IRON_MAN else "Mode Iron Man désactivé. Je repasse en veille domotique."
         parler(msg)
     elif action == "auto_memoriser":
         cle    = data.get("cle",    "info")
@@ -162,8 +155,10 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
             parler(" ".join(lignes))
     elif action in ["creer_site_web", "creer_site", "generer_site"]:
         desc = data.get("description") or data.get("sujet") or data.get("prompt") or "un site web"
-        from backend.plugins.dev_swarm_resolver import run_dev_swarm_process
-        asyncio.create_task(run_dev_swarm_process(desc))
+        # (« backend.plugins… » chargeait le module une seconde fois, sous un autre nom)
+        from plugins.dev_swarm_resolver import run_dev_swarm_process
+        from core.web_bridge import lancer_tache_arriere_plan
+        lancer_tache_arriere_plan(run_dev_swarm_process(desc))
         parler(f"Très bien{nom_espace()}, je mobilise l'essaim d'agents d'élite pour coder votre projet. Suivi actif sur le HUD.")
     elif action == "generer_image":
         prompt = data.get("prompt", "")

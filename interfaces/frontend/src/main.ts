@@ -34,7 +34,6 @@ import "./panels/antivirus_panel";
 import "./panels/shopping_panel";
 import "./panels/uninstaller_panel";
 import "./panels/winget_panel";
-import "./live_audio";
 import "./swarm_lounge";
 
 import "./css/index.css";

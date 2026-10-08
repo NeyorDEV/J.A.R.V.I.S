@@ -96,6 +96,9 @@ HISTORIQUE_CONV_FILE = os.path.join(_ROOT_DIR, "data", "jarvis_conversations.jso
 MAX_ECHANGES_FICHIER = 200   # max échanges stockés sur disque
 MAX_ECHANGES_CHARGE  = 30    # échanges rechargés au démarrage (contexte IA)
 
+_NB_ECHANGES_CONSOLIDES = 0   # nombre d'échanges déjà vus par la dernière consolidation
+
+
 def _sauvegarder_echange_conv(user_text: str, model_text: str):
     """Ajoute un échange user/model au fichier JSON persistant."""
     # Verrou + écriture atomique : deux requêtes qui se chevauchent partaient
@@ -112,11 +115,13 @@ def _sauvegarder_echange_conv(user_text: str, model_text: str):
                     echanges = []
             if not isinstance(echanges, list):
                 echanges = []
+            import core.shared as _shared
             echanges.append({
                 "date":  time.strftime("%d/%m/%Y"),
                 "heure": time.strftime("%H:%M"),
                 "user":  user_text[:2000],
                 "model": model_text[:3000],
+                "locuteur": getattr(_shared, "ACTIVE_SPEAKER", "guest"),
             })
             if len(echanges) > MAX_ECHANGES_FICHIER:
                 echanges = echanges[-MAX_ECHANGES_FICHIER:]
@@ -161,6 +166,15 @@ async def consolider_memoire_ia():
         return False
         
     # Prendre les 30 derniers échanges pour la consolidation
+    # Les propos d'une voix invitée ne deviennent pas des faits durables sur l'utilisateur
+    echanges = [e for e in echanges if e.get("locuteur") != "guest"]
+    # Relancée à chaque fin de session vocale, la consolidation renvoyait les 30 mêmes
+    # échanges à Gemini à chaque fois : on attend au moins 5 nouveaux échanges.
+    global _NB_ECHANGES_CONSOLIDES
+    if len(echanges) - _NB_ECHANGES_CONSOLIDES < 5:
+        return False
+    _NB_ECHANGES_CONSOLIDES = len(echanges)
+
     recents = echanges[-30:]
     
     # Formater les échanges
@@ -233,8 +247,10 @@ Ne renvoie rien d'autre que le JSON brut. Si aucune nouvelle information n'est d
                     v = str(v)
                 mem[k] = {"valeur": v, "timestamp": timestamp}
                 print(f"[MEMORY MANAGER] Fait mémorisé : {k} -> {v}")
-            for k in deletes:
+            from core.audit_log import consigner
+            for k in [d for d in deletes if isinstance(d, str)][:3]:   # au plus 3 par passage
                 if k in mem:
+                    consigner("memoire_fait_supprime_par_ia", cle=k, valeur=str(mem[k])[:200])
                     del mem[k]
                     print(f"[MEMORY MANAGER] Fait supprimé : {k}")
             sauvegarder_memoire(mem)

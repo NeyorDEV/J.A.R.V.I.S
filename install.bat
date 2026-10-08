@@ -45,7 +45,8 @@ if "!CHROME_STATUS!"=="NON" (
 
 
 :: Détection versions
-python --version >nul 2>&1 && set "PY_STATUS=deja present"
+py -3.12 --version >nul 2>&1 && set "PY_STATUS=deja present"
+python -c "import sys; sys.exit(0 if sys.version_info[:2]==(3,12) else 1)" >nul 2>&1 && set "PY_STATUS=deja present"
 where npm >nul 2>&1 && set "NODE_STATUS=deja present"
 if exist "venv" set "VENV_STATUS=deja present"
 if exist "interfaces\frontend\node_modules" set "WEB_STATUS=deja present"
@@ -84,10 +85,13 @@ echo.
 
 :: 2. Détection / Installation de Python
 echo [1/7] Python
+:: JARVIS demande Python 3.12 : avec 3.13 et plus, audioop (claquements de mains) n'existe
+:: plus et certains paquets epingles ne s'installent pas. Le Python du PATH n'est donc
+:: utilise que s'il est bien en 3.12.
 set "PYTHON_CMD="
-python --version >nul 2>&1 && set "PYTHON_CMD=python"
+py -3.12 --version >nul 2>&1 && set "PYTHON_CMD=py -3.12"
 if not defined PYTHON_CMD (
-    py --version >nul 2>&1 && set "PYTHON_CMD=py"
+    python -c "import sys; sys.exit(0 if sys.version_info[:2]==(3,12) else 1)" >nul 2>&1 && set "PYTHON_CMD=python"
 )
 
 if not defined PYTHON_CMD (
@@ -107,7 +111,7 @@ echo [2/7] Node.js
 where npm >nul 2>&1
 if %errorlevel% neq 0 (
     echo   telechargement...
-    powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v20.12.2/node-v20.12.2-x64.msi' -OutFile 'node_installer.msi'"
+    powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v22.12.0/node-v22.12.0-x64.msi' -OutFile 'node_installer.msi'"
     echo   installation en cours...
     start /wait node_installer.msi
     del node_installer.msi
@@ -119,7 +123,7 @@ if %errorlevel% neq 0 (
 :: 4. Création de l'environnement virtuel
 echo [3/7] Environnement virtuel Python
 if not exist "venv" (
-    "%PYTHON_CMD%" -m venv venv
+    %PYTHON_CMD% -m venv venv
     if %errorlevel% neq 0 (
         echo   echec de la creation. Verifiez vos droits d'ecriture ici.
         pause && exit /b

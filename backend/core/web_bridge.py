@@ -48,6 +48,7 @@ async def envoyer_image_web(url, prompt):
 
 
 async def send_web_state(state):
+    shared.ETAT_HUD = state  # repris par le bandeau de la console (core/console_ui)
     _safe_ws_send(json.dumps({"action": "set_state", "state": state}))
 
 

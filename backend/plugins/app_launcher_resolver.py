@@ -4,7 +4,7 @@ import time
 import os
 import re
 import asyncio
-from core.interlocuteur import nom_virgule
+from core.interlocuteur import nom_espace, nom_virgule
 
 # On importe les fonctions du fichier existant si possible
 try:
@@ -45,7 +45,9 @@ async def resoudre_apps_localement(texte):
     # 2. OUVERTURE D'APPLICATIONS (Via Catalogue)
     if any(k in t for k in ["ouvre", "lance", "demarre"]):
         for app_key, data in _APPS_CATALOGUE.items():
-            if app_key in t:
+            # Mot entier : « ea » (EA App) était trouvé dans réseau, tableau, bureau,
+            # beatles… (« lance le radar réseau » lançait EA App).
+            if re.search(rf"(?<![\w-]){re.escape(app_key)}(?![\w-])", t):
                 success = _boulot_lancer(data["label"], data["noms"], data.get("hints"))
                 if success: return f"J'ai lancé {data['label']} pour vous{nom_virgule()}."
                 return f"Je n'ai pas pu localiser {data['label']} sur votre système."
@@ -64,7 +66,12 @@ async def resoudre_apps_localement(texte):
             query_normalized = re.sub(rf"\b{article}\b", "", query_normalized)
         for noun in ["musique", "playlist", "chanson", "piste", "titre", "album", "artiste", "son"]:
             query_normalized = re.sub(rf"\b{noun}\b", "", query_normalized)
-        
+        # Formules d'envie et ponctuation : « j'ai envie d'écouter de la musique » donnait la
+        # « requête » « j'ai envie d' . », partait en recherche puis à l'IA au lieu de la playlist
+        query_normalized = re.sub(r"\b(j'ai envie|envie|je veux|j'aimerais|je voudrais|j'ai besoin|"
+                                  r"bien|un peu|peu|s'il te pla[iî]t|stp|svp|jarvis|moi|nous)\b", "", query_normalized)
+        query_normalized = re.sub(r"\b(d|de|l)'|[^\w\s'-]", " ", query_normalized)
+
         specific_query = query_normalized.strip()
         if specific_query:
             # Il y a un nom de playlist ou d'artiste spécifique, on délègue à la recherche Deezer
@@ -85,33 +92,32 @@ async def resoudre_apps_localement(texte):
                 lien_perso = _j.load(_f).get("musique_lien", "").strip()
         except: pass
         
-        user_n = getattr(builtins, 'USER_NAME', 'neyor')
         
         if "youtube" in t or (lien_perso and "youtube.com" in lien_perso):
             url = lien_perso if lien_perso else "https://www.youtube.com/watch?v=Cr8K88UcO0s"
             webbrowser.open(url, new=2)
             if pyautogui:
                 asyncio.create_task(asyncio.sleep(5)).add_done_callback(lambda _: pyautogui.press('f'))
-            return f"C'est parti {user_n}, je lance votre musique sur YouTube."
+            return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
         elif lien_perso:
             webbrowser.open(lien_perso, new=2)
-            return f"C'est parti {user_n}, je lance votre musique personnalisée."
+            return f"C'est parti{nom_espace()}, je lance votre musique personnalisée."
         elif "spotify" in t:
             try:
                 subprocess.Popen(["explorer", "spotify:"], shell=False)
-                return f"C'est parti {user_n}, je lance votre playlist sur Spotify."
+                return f"C'est parti{nom_espace()}, je lance votre playlist sur Spotify."
             except: pass
         else:
             # Par défaut, on lance la playlist sur Deezer
             try:
                 from controller.deezer_controller import deezer_lancer_playlist
                 asyncio.create_task(deezer_lancer_playlist())
-                return f"C'est parti {user_n}, je lance votre playlist sur Deezer."
+                return f"C'est parti{nom_espace()}, je lance votre playlist sur Deezer."
             except Exception as e:
                 print(f"[RESOLVER] Échec import/lancement Deezer : {e}")
                 try:
                     subprocess.Popen(["explorer", "deezer:"], shell=False)
-                    return f"C'est parti {user_n}, j'ouvre votre musique sur Deezer."
+                    return f"C'est parti{nom_espace()}, j'ouvre votre musique sur Deezer."
                 except:
                     pass
 
@@ -120,10 +126,10 @@ async def resoudre_apps_localement(texte):
     #  fermeture : ces phrases sont laissées aux commandes locales.)
     if any(k in t for k in ["explorateur", "mes dossiers", "mes fichiers"])             and not any(k in t for k in ["spatial", "3d", "ferme", "quitte"]):
         subprocess.Popen(["explorer.exe"])
-        return "Explorateur de fichiers ouvert, Monsieur."
+        return f"Explorateur de fichiers ouvert{nom_virgule()}."
     if any(k in t for k in ["notepad", "bloc-notes", "note rapide"]):
         subprocess.Popen(["notepad.exe"])
-        return "Bloc-notes ouvert pour vos notes, Monsieur."
+        return f"Bloc-notes ouvert pour vos notes{nom_virgule()}."
 
     return None
 

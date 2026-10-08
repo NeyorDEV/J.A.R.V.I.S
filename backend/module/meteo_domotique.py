@@ -139,7 +139,16 @@ def get_meteo_fallback_wttr_sync(city_name):
 def get_meteo_actuelle(ville=None):
     try:
         nom_ville = ville or VILLE_PAR_DEFAUT
-        lat, lon, nom_affiche, pays = geocoder_ville(nom_ville)
+        # Sans ville précisée : la position actuelle (celle du widget météo, donnée par
+        # Windows) plutôt que la ville par défaut de la configuration
+        position = None
+        if not ville:
+            import core.shared as _shared
+            loc = getattr(_shared, "CLIENT_LOCATION", None) or {}
+            if loc.get("_ville_reelle") and loc.get("lat") is not None:
+                position = (loc["lat"], loc["lon"], loc.get("city") or "votre position", "")
+                nom_ville = position[2]
+        lat, lon, nom_affiche, pays = position or geocoder_ville(nom_ville)
         if lat is None:
             lat, lon = LAT_PAR_DEFAUT, LON_PAR_DEFAUT
             nom_affiche = VILLE_PAR_DEFAUT
@@ -294,7 +303,9 @@ async def handle_ha_ws_message(data: dict, websocket, connected_clients: set) ->
         states = await asyncio.to_thread(ha_get_all_states)
         await websocket.send(json.dumps({
             "type": "ha_states",
-            "success": len(states) > 0 or HA_URL != "",
+            # (« HA_URL != "" » était vrai avec l'URL d'exemple : le panneau affichait
+            #  « CONNECTED » sans Home Assistant configuré)
+            "success": ha_active() and len(states) > 0,
             "states": states
         }))
         return True

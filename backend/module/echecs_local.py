@@ -9,6 +9,26 @@ import core.shared as shared
 from core.speech import parler
 from core.web_bridge import diffuser_echecs
 from module.chess_manager import ChessGame
+from core.interlocuteur import nom_espace, nom_virgule
+
+
+def _ressemble_a_un_coup(t):
+    """Mot de pièce ou case d'échiquier en mot entier : « roi » était trouvé dans
+    « froid », « tour » dans « Tours », « droite »… (« il fait froid ? » devenait un coup)."""
+    return bool(re.search(r"\b(pion|cavalier|fou|tour|dame|reine|roi|roque)\b", t)
+                or re.search(r"\b[a-h][1-8]\b", t))
+
+
+def _annonce_fin(resultat, couleur_joueur, remarque=""):
+    """Phrase de fin de partie selon la couleur jouée (avant, avec les noirs, la victoire
+    du joueur donnait « Fin de partie » et celle de JARVIS n'était pas annoncée)."""
+    prefixe = f"{remarque} " if remarque else ""
+    if resultat == "1/2-1/2":
+        return f"{prefixe}Match nul. Bien joué de part et d'autre."
+    joueur_gagne = (resultat == "1-0") == (couleur_joueur == chess.WHITE)
+    if joueur_gagne:
+        return f"{prefixe}Félicitations, vous avez gagné ! Je m'incline."
+    return f"{prefixe}Échec et mat. J'ai gagné la partie."
 
 
 async def resoudre_echecs_localement(texte):
@@ -37,10 +57,14 @@ async def resoudre_echecs_localement(texte):
                 "action": "chess_start",
                 "state": state
             })
-            return "Très bien monsieur. J'ai disposé le plateau 3D sur le HUD. Veuillez configurer la partie et la démarrer."
+            return f"Très bien{nom_espace()}. J'ai disposé le plateau 3D sur le HUD. Veuillez configurer la partie et la démarrer."
 
     # 1.5 Lancer / Démarrer la partie avec options
-    if any(k in t for k in ["lance la partie", "démarre la partie", "commence la partie", "lance le jeu", "démarre le jeu"]):
+    # « lance le jeu Minecraft » démarrait une partie d'échecs : il faut parler d'échecs,
+    # ou que le plateau soit déjà affiché (en attente de configuration).
+    plateau_affiche = shared.CHESS_GAME is not None and not shared.CHESS_GAME_ACTIVE
+    if any(k in t for k in ["lance la partie", "démarre la partie", "commence la partie", "lance le jeu", "démarre le jeu"]) \
+            and ("echec" in t or "échec" in t or plateau_affiche):
         # Déterminer la couleur
         player_color = "white"
         if "noir" in t or "noire" in t or "noirs" in t:
@@ -122,7 +146,7 @@ async def resoudre_echecs_localement(texte):
         await diffuser_echecs({
             "action": "chess_reset"
         })
-        return "Plateau d'échecs réinitialisé, monsieur. Les réglages sont de retour à l'écran de configuration."
+        return f"Plateau df'échecs réinitialisé{nom_virgule()}. Les réglages sont de retour à l'écran de configuration."
 
     # 2.5 Arrêter une partie / Quitter le jeu
     if any(k in t for k in ["arrete les echecs", "stop echecs", "quitte les echecs", "ferme les echecs", "quitte la partie", "arrête la partie", "quitte le jeu", "arrête le jeu"]):
@@ -131,14 +155,13 @@ async def resoudre_echecs_localement(texte):
         await diffuser_echecs({
             "action": "chess_stop"
         })
-        return "Jeu d'échecs fermé, monsieur. Retour au HUD standard."
+        return f"Jeu d'échecs fermé{nom_virgule()}. Retour au HUD standard."
 
     # 3. Jouer un coup (si une partie est active et démarrée)
     if shared.CHESS_GAME:
         if not shared.CHESS_GAME_ACTIVE:
-            chess_keywords = ["pion", "cavalier", "fou", "tour", "dame", "reine", "roi", "roque", "e2", "e4", "d4", "f3", "c3"]
-            if any(k in t for k in chess_keywords) or re.search(r'[a-h][1-8]', t):
-                return "La partie n'est pas encore démarrée, monsieur. Veuillez cliquer sur 'DÉMARRER LA PARTIE' sur le HUD."
+            if _ressemble_a_un_coup(t):
+                return f"La partie nf'est pas encore démarrée{nom_virgule()}. Veuillez cliquer sur 'DÉMARRER LA PARTIE' sur le HUD."
             return None
 
         try:
@@ -158,15 +181,10 @@ async def resoudre_echecs_localement(texte):
             
             # Si le jeu est fini après le coup du joueur
             if state["is_game_over"]:
-                result = state["result"]
+                couleur = shared.CHESS_GAME.player_color
                 shared.CHESS_GAME = None
                 shared.CHESS_GAME_ACTIVE = False
-                if result == "1-0":
-                    return "Félicitations, vous avez gagné ! Je m'incline."
-                elif result == "1/2-1/2":
-                    return "Match nul. Bien joué de part et d'autre."
-                else:
-                    return "Fin de partie."
+                return _annonce_fin(state["result"], couleur)
             
             # Notification que JARVIS réfléchit (effet visuel sur le HUD)
             await diffuser_echecs({
@@ -193,20 +211,16 @@ async def resoudre_echecs_localement(texte):
             })
             
             if j_state["is_game_over"]:
-                result = j_state["result"]
+                couleur = shared.CHESS_GAME.player_color
                 shared.CHESS_GAME = None
                 shared.CHESS_GAME_ACTIVE = False
-                if result == "0-1":
-                    return f"{remark} Échec et mat. J'ai gagné la partie."
-                elif result == "1/2-1/2":
-                    return f"{remark} Match nul."
+                return _annonce_fin(j_state["result"], couleur, remark)
                     
             return remark
             
         except ValueError as e:
             # Si le texte ressemble à un coup d'échecs
-            chess_keywords = ["pion", "cavalier", "fou", "tour", "dame", "reine", "roi", "roque", "e2", "e4", "d4", "f3", "c3"]
-            if any(k in t for k in chess_keywords) or re.search(r'[a-h][1-8]', t):
+            if _ressemble_a_un_coup(t):
                 return str(e)
             
             # Sinon, on retourne None pour passer aux autres resolvers

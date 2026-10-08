@@ -31,40 +31,83 @@ def send_web_broadcast_sync(payload):
 _MODULES_INTERDITS = {
     "subprocess", "ctypes", "shutil", "winreg", "_winreg",
     "multiprocessing", "pty", "pickle", "marshal",
+    # Contournements de l'analyse : import dynamique, accès aux builtins, exécution de code
+    "importlib", "builtins", "runpy", "code", "codeop", "imp", "pydoc", "gc", "inspect",
+    "win32api", "win32con", "win32file", "win32process", "winshell", "send2trash",
 }
 
 _APPELS_INTERDITS = {
     "eval", "exec", "compile", "__import__", "breakpoint",
     "system", "popen", "spawn", "spawnl", "spawnv", "execv", "execve",
-    "rmtree", "remove", "unlink", "rmdir", "removedirs", "chmod", "chown",
+    "rmtree", "unlink", "rmdir", "removedirs", "chmod", "chown",
     "kill", "killpg", "startfile",
+    # Écriture / déplacement de fichiers (pathlib, os) et accès indirects aux fonctions
+    "write_text", "write_bytes", "rename", "renames", "truncate",
+    "getattr", "setattr", "delattr", "globals", "locals", "vars", "import_module",
 }
 
+# Noms qu'il est interdit de seulement mentionner (même sans appel) : ils donnent accès
+# à tout le reste (« getattr(__builtins__, "__imp"+"ort__")("os") » passait l'ancien scan).
+# Noms courants aussi pour les chaînes et les listes (« texte.replace », « liste.remove ») :
+# interdits seulement appelés sur os (os.remove, os.replace) ou importés seuls depuis os.
+_APPELS_AMBIGUS = {"remove", "replace"}
 
-def scanner_appels_dangereux(code: str):
+_NOMS_INTERDITS = {"__builtins__", "__import__", "getattr", "setattr", "delattr", "globals",
+                   "locals", "vars", "eval", "exec", "compile"}
+
+
+def scanner_appels_dangereux(code: str, autoriser_builtins: bool = False):
     """Scan générique : imports et appels destructeurs. (True, "") si propre.
 
     Réutilisable pour tout code Python généré par un LLM (compétences, plugins).
+    `autoriser_builtins` : un plugin a besoin d'« import builtins » pour s'enregistrer
+    (builtins.resoudre_x = …) ; ses attributs dangereux restent interdits.
     """
     try:
         arbre = ast.parse(code)
     except SyntaxError as e:
         return False, f"code Python invalide (ligne {e.lineno} : {e.msg})"
 
+    interdits = _MODULES_INTERDITS - ({"builtins"} if autoriser_builtins else set())
     for noeud in ast.walk(arbre):
         if isinstance(noeud, ast.Import):
             for alias in noeud.names:
-                if alias.name.split(".")[0] in _MODULES_INTERDITS:
+                if alias.name.split(".")[0] in interdits:
                     return False, f"import interdit : {alias.name}"
         elif isinstance(noeud, ast.ImportFrom):
             if (noeud.module or "").split(".")[0] in _MODULES_INTERDITS:
                 return False, f"import interdit : {noeud.module}"
+        elif isinstance(noeud, ast.Name) and noeud.id in _NOMS_INTERDITS:
+            return False, f"nom interdit : {noeud.id} (ligne {getattr(noeud, 'lineno', '?')})"
+        elif isinstance(noeud, ast.Attribute) and (noeud.attr.startswith("__") or noeud.attr in _NOMS_INTERDITS):
+            # __class__, __subclasses__, __globals__…, builtins.getattr / builtins.eval :
+            # remontée vers les fonctions interdites
+            return False, f"attribut interdit : {noeud.attr} (ligne {getattr(noeud, 'lineno', '?')})"
         elif isinstance(noeud, ast.Call):
             f = noeud.func
             nom = f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else None)
             if nom in _APPELS_INTERDITS:
                 return False, f"appel interdit : {nom}() (ligne {getattr(noeud, 'lineno', '?')})"
+            if nom in _APPELS_AMBIGUS and (isinstance(f, ast.Name) or (
+                    isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) and f.value.id == "os")):
+                return False, f"appel interdit : {nom}() (ligne {getattr(noeud, 'lineno', '?')})"
+            if nom == "open" and not _ouverture_en_lecture(noeud):
+                return False, f"ouverture de fichier en écriture interdite (ligne {getattr(noeud, 'lineno', '?')})"
     return True, ""
+
+
+def _ouverture_en_lecture(appel):
+    """True si open(...) est en lecture seule (mode littéral sans w / a / x / +)."""
+    mode = None
+    if len(appel.args) >= 2:
+        mode = appel.args[1]
+    for kw in appel.keywords:
+        if kw.arg == "mode":
+            mode = kw.value
+    if mode is None:
+        return True
+    return isinstance(mode, ast.Constant) and isinstance(mode.value, str) \
+        and not any(c in mode.value for c in "wax+")
 
 
 def valider_code_competence(code: str):
@@ -94,22 +137,12 @@ def valider_code_competence(code: str):
             return False, (f"instruction exécutée à l'import "
                            f"({type(noeud).__name__}, ligne {getattr(noeud, 'lineno', '?')})")
 
-    # 2. Interdictions globales (y compris à l'intérieur des fonctions)
-    for noeud in ast.walk(arbre):
-        if isinstance(noeud, ast.Import):
-            for alias in noeud.names:
-                racine = alias.name.split(".")[0]
-                if racine in _MODULES_INTERDITS:
-                    return False, f"import interdit : {alias.name}"
-        elif isinstance(noeud, ast.ImportFrom):
-            racine = (noeud.module or "").split(".")[0]
-            if racine in _MODULES_INTERDITS:
-                return False, f"import interdit : {noeud.module}"
-        elif isinstance(noeud, ast.Call):
-            f = noeud.func
-            nom = f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else None)
-            if nom in _APPELS_INTERDITS:
-                return False, f"appel interdit : {nom}() (ligne {getattr(noeud, 'lineno', '?')})"
+    # 2. Interdictions globales (y compris à l'intérieur des fonctions) : même analyse que
+    #    pour les plugins (une copie plus faible, ici, laissait passer open(..., "w") et
+    #    les remontées par __class__ / __subclasses__)
+    ok, raison = scanner_appels_dangereux(code)
+    if not ok:
+        return False, raison
 
     if not any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "executer"
                for n in arbre.body):

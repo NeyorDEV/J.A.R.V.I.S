@@ -1,7 +1,10 @@
 """Appels aux fournisseurs LLM secondaires (Grok, Ollama, Groq, Claude, Mistral) et leur registre."""
 
 import asyncio
+import builtins
+import json
 import re
+import threading
 
 import requests
 from google.genai import types
@@ -57,154 +60,189 @@ async def demander_grok(texte, update_hist=True):
         return None
 
 
-async def demander_ollama(texte, update_hist=True):
-    """Appelle un modèle local via Ollama (100% offline)."""
-    try:
-        # SYNC : On utilise le même prompt système que Gemini (incluant la mémoire)
-        souvenirs = rechercher_souvenirs(texte)
-        system_prompt = construire_system_prompt(souvenirs=souvenirs) + "\n\nIMPORTANT: Réponds uniquement avec le texte de la réponse, n'utilise JAMAIS de format JSON."
-        messages = [{"role": "system", "content": system_prompt}]
-        
-        # Optimisation : On limite à 16 entrées (8 échanges complets) pour Ollama afin de rester fluide et rapide
-        for h in shared.historique[-16:]:
-            role = "user" if h.role == "user" else "assistant"
-            messages.append({"role": role, "content": h.parts[0].text})
-        messages.append({"role": "user", "content": texte})
-        
-        last_err = None
-        for model_name in shared.OLLAMA_MODELS:
-            try:
-                print(f"[OLLAMA] Essai modele local : {model_name}")
-                resp = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        requests.post,
-                        f"{shared.OLLAMA_URL}/api/chat",
-                        json={
-                            "model": model_name,
-                            "messages": messages,
-                            "stream": False,
-                            "keep_alive": -1
-                        },
-                        timeout=30
-                    ),
-                    timeout=35.0
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    rep = data.get("message", {}).get("content", "")
-                    if rep:
-                        shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
-                        shared.historique.append(types.Content(role="model", parts=[types.Part(text=rep)]))
-                        _sauvegarder_echange_conv(texte, rep)
-                        ajouter_souvenir(texte, rep)
-                        print(f"[OLLAMA] Reponse recue de {model_name}")
-                        return rep
-                else:
-                    print(f"[OLLAMA] Erreur HTTP {resp.status_code} pour {model_name}")
-                    last_err = Exception(f"HTTP {resp.status_code}")
-            except Exception as e:
-                print(f"[OLLAMA] Echec {model_name} : {e}")
-                last_err = e
-                continue
-        
-        print(f"[OLLAMA] Tous les modeles locaux ont echoue")
-        return None
-    except Exception as e:
-        print(f"[ERREUR OLLAMA] {e}")
-        return None
+# Ollama (local, sur la carte graphique) : le 1er appel charge le modèle en mémoire vidéo (~8 Go) ;
+# 26 à 45 s mesurés à froid, d'où le délai large. Le modèle est libéré après 10 min sans usage
+# (1 h en mode local forcé) : avant (keep_alive=-1) un seul secours gardait 8 Go de VRAM occupés
+# jusqu'au redémarrage.
+DELAI_OLLAMA = 120.0
 
 
-async def demander_groq(texte, update_hist=True, skip_local=False):
-    """Appelle Groq (Llama 3.3) avec streaming de parole à la volée (vitesse extrême)."""
-    if not shared.groq_client:
-        return None
+def _garder_ollama():
+    return "60m" if getattr(builtins, "FORCE_LOCAL_MODE", False) else "10m"
 
-    def safe_next(iterator):
+
+def prechauffer_ollama():
+    """Charge le 1er modèle local en mémoire vidéo sans attendre une question (mode local activé) :
+    la première réponse n'attend plus le chargement."""
+    def _charger():
         try:
-            return next(iterator)
+            requests.post(f"{shared.OLLAMA_URL}/api/generate",
+                          json={"model": shared.OLLAMA_MODELS[0], "keep_alive": _garder_ollama()},
+                          timeout=DELAI_OLLAMA)
+            print(f"[OLLAMA] {shared.OLLAMA_MODELS[0]} chargé en mémoire vidéo.")
+        except Exception as e:
+            print(f"[OLLAMA] Préchargement impossible : {str(e) or type(e).__name__}")
+    threading.Thread(target=_charger, daemon=True).start()
+
+
+async def demander_ollama(texte, update_hist=True, skip_local=False):
+    """Appelle un modèle local via Ollama (100% offline), phrases lues au fil du flux."""
+    try:
+        # Même prompt système que les autres moteurs (mémoire comprise) ; 16 entrées
+        # d'historique (8 échanges) pour rester rapide en local
+        messages = _messages_openai(texte, nb_historique=16)
+        messages[0]["content"] += "\n\nIMPORTANT: Réponds uniquement avec le texte de la réponse, n'utilise JAMAIS de format JSON."
+    except Exception as e:
+        print(f"[ERREUR OLLAMA] {str(e) or type(e).__name__}")
+        return None
+
+    for model_name in shared.OLLAMA_MODELS:
+        try:
+            print(f"[OLLAMA] Essai modele local : {model_name}")
+            resp = await asyncio.wait_for(
+                asyncio.to_thread(
+                    requests.post,
+                    f"{shared.OLLAMA_URL}/api/chat",
+                    json={
+                        "model": model_name,
+                        "messages": messages,
+                        "stream": True,
+                        "think": False,  # pas de « réflexion » préalable : la voix doit démarrer vite
+                        "keep_alive": _garder_ollama(),
+                    },
+                    stream=True,
+                    timeout=DELAI_OLLAMA
+                ),
+                timeout=DELAI_OLLAMA + 5
+            )
+            if resp.status_code != 200:
+                print(f"[OLLAMA] Erreur HTTP {resp.status_code} pour {model_name} : {resp.text[:150]}")
+                continue
+            rep = await _lire_flux_en_parlant(
+                (ligne for ligne in resp.iter_lines() if ligne),
+                lambda ligne: json.loads(ligne).get("message", {}).get("content", ""),
+                f"Ollama {model_name}", skip_local, delai=DELAI_OLLAMA)
+            if rep:
+                if update_hist:
+                    _memoriser_echange(texte, rep)
+                print(f"[OLLAMA] Reponse recue de {model_name}")
+                return rep
+        except Exception as e:
+            print(f"[OLLAMA] Echec {model_name} : {str(e) or type(e).__name__}")
+            # Réponse déjà en partie prononcée : ne pas la reprendre avec le modèle suivant
+            if shared._derniere_reponse_streamed:
+                return " ".join(shared.phrases_streamed)
+
+    print("[OLLAMA] Tous les modeles locaux ont echoue")
+    return None
+
+
+# Groq et Ministral répondent d'ordinaire en 1 à 2 s : au-delà de 8 s sans donnée le flux est
+# bloqué, on passe au moteur suivant (15 s faisaient attendre jusqu'à 20 s une réponse aussi
+# simple que l'heure)
+DELAI_FLUX = 8.0
+# Ministral 8B : sur le compte gratuit, Mistral Medium / Small / Ministral 14B sont refusés
+# (« Rate limit exceeded », « Not enough capacity ») ; le 8B répond en ~0,6 s
+MODELE_MISTRAL = "ministral-8b-latest"
+
+
+def _messages_openai(texte, nb_historique=30):
+    """Prompt système + derniers échanges + question, au format chat (Groq, Mistral, Ollama)."""
+    souvenirs = rechercher_souvenirs(texte)
+    messages = [{"role": "system", "content": construire_system_prompt(souvenirs=souvenirs)}]
+    for h in shared.historique[-nb_historique:]:
+        role = "user" if h.role == "user" else "assistant"
+        messages.append({"role": role, "content": h.parts[0].text})
+    messages.append({"role": "user", "content": texte})
+    return messages
+
+
+async def _lire_flux_en_parlant(flux, extraire_texte, nom, skip_local=False, delai=DELAI_FLUX):
+    """Lit un flux de réponse et prononce chaque phrase dès qu'elle est complète.
+
+    Chaque lecture est bornée (delai, DELAI_FLUX par défaut) : sans ce délai, un aléa réseau pendant le flux
+    bloquait next() indéfiniment, sans erreur ni moteur de secours. Renvoie le texte complet."""
+    def suivant(iterateur):
+        try:
+            return next(iterateur)
         except StopIteration:
             return None
 
-    try:
-        # Recherche de souvenirs
-        souvenirs = rechercher_souvenirs(texte)
-        system_prompt = construire_system_prompt(souvenirs=souvenirs)
-        messages = [{"role": "system", "content": system_prompt}]
-        
-        for h in shared.historique[-30:]:
-            role = "user" if h.role == "user" else "assistant"
-            messages.append({"role": role, "content": h.parts[0].text})
-            
-        messages.append({"role": "user", "content": texte})
+    iterateur = iter(flux)
+    full_text = ""
+    sentence_buffer = ""
+    while True:
+        if get_stop_parler():
+            print(f"[CERVEAU] Interruption de la génération {nom} car stop_parler=True")
+            break
+        try:
+            chunk = await asyncio.wait_for(asyncio.to_thread(suivant, iterateur), timeout=delai)
+        except asyncio.TimeoutError:
+            print(f"[CERVEAU] {nom} : flux bloqué (> {delai:g} s sans donnée). Abandon.")
+            raise
+        if chunk is None:
+            break
 
-        # Démarrage de la complétion en mode streaming (borné dans le temps :
-        # une création de stream qui ne répond jamais bloquait sinon toute la
-        # conversation, sans qu'aucun fournisseur de secours ne prenne le relais).
+        chunk_text = extraire_texte(chunk)
+        if not isinstance(chunk_text, str):
+            chunk_text = ""
+        full_text += chunk_text
+        sentence_buffer += chunk_text
+
+        if not skip_local and '{' not in full_text:
+            # 1. Découpage sur ponctuation forte (suivie d'un espace ou saut de ligne) ou double saut de ligne
+            if any(re.search(p, sentence_buffer) for p in [r'\. ', r'\.\n', r'\! ', r'\!\n', r'\? ', r'\?\n', r'\; ', r'\;\n', r'\: ', r'\:\n', r'\n\n']):
+                shared._derniere_reponse_streamed = True
+                parts = re.split(r'(\.(?: |\n)|\!(?: |\n)|\?(?: |\n)|\;(?: |\n)|\:(?: |\n)|\n\n)', sentence_buffer)
+                for i in range(0, len(parts)-1, 2):
+                    phrase = parts[i] + parts[i+1]
+                    if phrase.strip():
+                        parler(phrase.strip())
+                        shared.phrases_streamed.append(phrase.strip())
+                sentence_buffer = parts[-1]
+            # 2. Sécurité de longueur : si la phrase est longue, on coupe à 60 caractères pour lancer la synthèse
+            elif len(sentence_buffer) > 60 and sentence_buffer.endswith(' '):
+                shared._derniere_reponse_streamed = True
+                parler(sentence_buffer.strip())
+                shared.phrases_streamed.append(sentence_buffer.strip())
+                sentence_buffer = ""
+
+    # Lire la phrase finale restante
+    if not skip_local and '{' not in full_text and sentence_buffer.strip() and not get_stop_parler():
+        shared._derniere_reponse_streamed = True
+        parler(sentence_buffer.strip())
+        shared.phrases_streamed.append(sentence_buffer.strip())
+    return full_text
+
+
+def _memoriser_echange(texte, reponse):
+    shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
+    shared.historique.append(types.Content(role="model", parts=[types.Part(text=reponse)]))
+    _sauvegarder_echange_conv(texte, reponse)
+    ajouter_souvenir(texte, reponse)
+
+
+async def demander_groq(texte, update_hist=True, skip_local=False):
+    """Appelle Groq (GPT-OSS 120B) avec lecture des phrases au fil du flux."""
+    if not shared.groq_client:
+        return None
+    try:
+        # Création du flux bornée dans le temps : une création qui ne répond jamais bloquait
+        # sinon toute la conversation, sans qu'aucun fournisseur de secours ne prenne le relais.
         stream = await asyncio.wait_for(
             asyncio.to_thread(
                 shared.groq_client.chat.completions.create,
                 model="openai/gpt-oss-120b",  # llama-3.3-70b-versatile retiré du catalogue Groq
-                messages=messages,
+                messages=_messages_openai(texte),
                 temperature=0.7,
                 stream=True
             ),
-            timeout=15.0
+            timeout=DELAI_FLUX
         )
-
-        full_text = ""
-        sentence_buffer = ""
-        iterator = iter(stream)
-
-        while True:
-            if get_stop_parler():
-                print("[CERVEAU] Interruption de la génération Groq car stop_parler=True")
-                break
-            # Chaque lecture de chunk est bornée : sans ce timeout, un simple
-            # aléa réseau pendant le streaming bloquait next() indéfiniment —
-            # aucune exception, aucun fallback, JARVIS restait planté sur
-            # « Réflexion (Cloud)... » jusqu'au redémarrage.
-            try:
-                chunk = await asyncio.wait_for(asyncio.to_thread(safe_next, iterator), timeout=15.0)
-            except asyncio.TimeoutError:
-                print("[CERVEAU] Groq : flux de streaming bloqué (> 15s sans donnée). Abandon.")
-                raise
-            if chunk is None:
-                break
-
-            chunk_text = chunk.choices[0].delta.content or ""
-            full_text += chunk_text
-            sentence_buffer += chunk_text
-
-            if not skip_local and '{' not in full_text:
-                # 1. Découpage sur ponctuation forte (suivie d'un espace ou saut de ligne) ou double saut de ligne
-                if any(re.search(p, sentence_buffer) for p in [r'\. ', r'\.\n', r'\! ', r'\!\n', r'\? ', r'\?\n', r'\; ', r'\;\n', r'\: ', r'\:\n', r'\n\n']):
-                    shared._derniere_reponse_streamed = True
-                    parts = re.split(r'(\.(?: |\n)|\!(?: |\n)|\?(?: |\n)|\;(?: |\n)|\:(?: |\n)|\n\n)', sentence_buffer)
-                    for i in range(0, len(parts)-1, 2):
-                        phrase = parts[i] + parts[i+1]
-                        if phrase.strip():
-                            parler(phrase.strip())
-                            shared.phrases_streamed.append(phrase.strip())
-                    sentence_buffer = parts[-1]
-                # 2. Sécurité de longueur : si la phrase est longue, on coupe à 60 caractères pour lancer la synthèse
-                elif len(sentence_buffer) > 60 and sentence_buffer.endswith(' '):
-                    shared._derniere_reponse_streamed = True
-                    parler(sentence_buffer.strip())
-                    shared.phrases_streamed.append(sentence_buffer.strip())
-                    sentence_buffer = ""
-
+        full_text = await _lire_flux_en_parlant(
+            stream, lambda c: c.choices[0].delta.content if c.choices else "", "Groq", skip_local)
         if update_hist:
-            shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
-            shared.historique.append(types.Content(role="model", parts=[types.Part(text=full_text)]))
-            _sauvegarder_echange_conv(texte, full_text)
-            ajouter_souvenir(texte, full_text)
-
-        # Lire la phrase finale restante
-        if not skip_local and '{' not in full_text and sentence_buffer.strip() and not get_stop_parler():
-            shared._derniere_reponse_streamed = True
-            parler(sentence_buffer.strip())
-            shared.phrases_streamed.append(sentence_buffer.strip())
-
+            _memoriser_echange(texte, full_text)
         return full_text
     except Exception as e:
         if _quota_mgr.is_quota_error(e):
@@ -212,7 +250,7 @@ async def demander_groq(texte, update_hist=True, skip_local=False):
             raise _QuotaExceededError(f"Groq quota: {e}")
         # str(e) peut être vide pour certaines exceptions (ex: asyncio.TimeoutError) —
         # sans le nom du type en secours, le log "[ERREUR GROQ]" ne dit rien d'exploitable.
-        print(f"[ERREUR GROQ] {e or type(e).__name__}")
+        print(f"[ERREUR GROQ] {str(e) or type(e).__name__}")
         return None
 
 
@@ -260,42 +298,30 @@ async def demander_claude(texte, update_hist=True):
         return None
 
 
-async def demander_mistral(texte, update_hist=True):
-    """Appelle Mistral AI (Large) — agent IA priorité 3, après Groq et Claude."""
+async def demander_mistral(texte, update_hist=True, skip_local=False):
+    """Appelle Mistral (Ministral 8B) avec lecture des phrases au fil du flux (avant : réponse
+    complète attendue avant de dire un mot)."""
     if not shared.mistral_client:
         return None
     try:
-        souvenirs = rechercher_souvenirs(texte)
-        system_prompt = construire_system_prompt(souvenirs=souvenirs)
-
-        messages = [{"role": "system", "content": system_prompt}]
-        for h in shared.historique[-30:]:
-            role = "user" if h.role == "user" else "assistant"
-            messages.append({"role": role, "content": h.parts[0].text})
-        messages.append({"role": "user", "content": texte})
-
-        response = await asyncio.wait_for(
+        stream = await asyncio.wait_for(
             asyncio.to_thread(
-                shared.mistral_client.chat.complete,
-                model="mistral-medium-latest",
-                messages=messages,
+                shared.mistral_client.chat.stream,
+                model=MODELE_MISTRAL,
+                messages=_messages_openai(texte),
             ),
-            timeout=15.0
+            timeout=DELAI_FLUX
         )
-        rep = str(response.choices[0].message.content)
-
+        full_text = await _lire_flux_en_parlant(
+            stream, lambda ev: ev.data.choices[0].delta.content if ev.data.choices else "", "Mistral", skip_local)
         if update_hist:
-            shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
-            shared.historique.append(types.Content(role="model", parts=[types.Part(text=rep)]))
-            _sauvegarder_echange_conv(texte, rep)
-            ajouter_souvenir(texte, rep)
-
-        return rep
+            _memoriser_echange(texte, full_text)
+        return full_text
     except Exception as e:
         if _quota_mgr.is_quota_error(e):
             _quota_mgr.mark_quota_exceeded("mistral")
             raise _QuotaExceededError(f"Mistral quota: {e}")
-        print(f"[ERREUR MISTRAL] {e}")
+        print(f"[ERREUR MISTRAL] {str(e) or type(e).__name__}")
         return None
 
 
@@ -311,9 +337,9 @@ async def _call_claude_engine(texte, update_hist=True, skip_local=False):
 
 
 async def _call_mistral_engine(texte, update_hist=True, skip_local=False):
-    return await demander_mistral(texte, update_hist=update_hist)
+    return await demander_mistral(texte, update_hist=update_hist, skip_local=skip_local)
 
 
 llm_registry.register("groq", "Groq (GPT-OSS 120B)", 1, lambda: bool(shared.groq_client), _call_groq_engine)
 llm_registry.register("claude", "Claude (Anthropic)", 2, lambda: bool(shared.anthropic_client), _call_claude_engine)
-llm_registry.register("mistral", "Mistral (Large)", 3, lambda: bool(shared.mistral_client), _call_mistral_engine)
+llm_registry.register("mistral", "Mistral (Ministral 8B)", 3, lambda: bool(shared.mistral_client), _call_mistral_engine)

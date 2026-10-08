@@ -67,7 +67,7 @@ programmée dans le système J.A.R.V.I.S.
 * Bannière de statut : Bandeau affiché sur le navigateur résumant l'action en cours.
 
 ================================================================================
-9. ROUTAGE HYBRIDE MULTI-CERVEAU & SÉCURITÉ (main.py, core/brain.py)
+9. ROUTAGE HYBRIDE MULTI-CERVEAU & SÉCURITÉ (core/llm_chat.py, core/traitement.py)
 ================================================================================
 * IA hybride : Résolution locale (Ollama) si hors-ligne, sinon routeur Cloud intelligent (Groq / Claude / Gemini).
 * Auto-évolution : Pipeline de modification de son propre code avec tests unitaires automatiques et rollback.

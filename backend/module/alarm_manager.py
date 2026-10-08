@@ -4,6 +4,7 @@ Permet de définir des alarmes à une heure précise, de les annuler et de les l
 Les alarmes sont persistées dans un fichier JSON et survivent aux redémarrages.
 """
 
+import asyncio
 import json
 import os
 import threading
@@ -68,39 +69,109 @@ def _sauvegarder_alarmes(alarmes: list):
 
 # ── Parsing de l'heure ───────────────────────────────────────────────────────
 
+_NOMBRES_EN_LETTRES = {
+    "zero": 0, "un": 1, "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5,
+    "six": 6, "sept": 7, "huit": 8, "neuf": 9, "dix": 10, "onze": 11, "douze": 12,
+    "treize": 13, "quatorze": 14, "quinze": 15, "seize": 16, "vingt": 20,
+    "vingt-cinq": 25, "trente": 30, "quarante": 40, "quarante-cinq": 45,
+    "cinquante": 50, "soixante": 60, "quatre-vingt-dix": 90,
+}
+
+
+def _normaliser_texte_heure(texte: str) -> str:
+    """Minuscules, sans accents, nombres écrits en lettres convertis en chiffres."""
+    import unicodedata
+    t = "".join(c for c in unicodedata.normalize("NFD", texte.lower().strip())
+                if unicodedata.category(c) != "Mn")
+    t = t.replace("’", "'")
+    t = re.sub(r"\bune? demi[- ]heure\b", "30 minutes", t)
+    t = re.sub(r"\bun quart d['\s]?heure\b", "15 minutes", t)
+    t = re.sub(r"\btrois quarts d['\s]?heure\b", "45 minutes", t)
+    # Les composés (« vingt-cinq ») avant leurs parties (« vingt »)
+    for mot in sorted(_NOMBRES_EN_LETTRES, key=len, reverse=True):
+        t = re.sub(rf"(?<![\w-]){re.escape(mot)}(?![\w-])", str(_NOMBRES_EN_LETTRES[mot]), t)
+    return t
+
+
+def parser_duree(texte: str) -> int | None:
+    """Durée en secondes d'un texte (« 5 minutes », « 2h30 », « 1 heure 30 »,
+    « une demi-heure », « 90 secondes »…), ou None si aucune durée n'y figure."""
+    t = _normaliser_texte_heure(texte)
+    heures = minutes = secondes = 0
+    trouve = False
+    # « 2h30 » / « 2 h 30 » / « 1 heure 30 » : des minutes sans unité après les heures
+    m = re.search(r"(\d+)\s*(?:h(?![a-z])|heures?\b)(?:\s*(?:et\s*)?(\d{1,2})(?!\d|\s*(?:s\b|sec|min|mn)))?", t)
+    if m:
+        heures = int(m.group(1))
+        if m.group(2):
+            minutes = int(m.group(2))
+        trouve = True
+    # « 1 minute 30 » : des secondes sans unité après les minutes
+    m = re.search(r"(\d+)\s*(?:min(?:ute)?s?\b|mn\b)(?:\s*(?:et\s*)?(\d{1,2})(?!\d|\s*(?:h|min|mn)))?", t)
+    if m:
+        minutes = int(m.group(1))
+        if m.group(2):
+            secondes = int(m.group(2))
+        trouve = True
+    m = re.search(r"(\d+)\s*(?:s\b|sec\b|secondes?\b)", t)
+    if m:
+        secondes = int(m.group(1))
+        trouve = True
+    if not trouve:
+        return None
+    total = heures * 3600 + minutes * 60 + secondes
+    return total if total > 0 else None
+
+
 def parser_heure(texte: str) -> datetime | None:
     """
     Convertit une chaîne en objet datetime pour aujourd'hui (ou demain si déjà passé).
-    Exemples : "midi", "minuit", "14h30", "14:30", "9h", "dans 2 heures", "dans 30 minutes"
+    Exemples : "midi", "minuit", "14h30", "14:30", "9h", "7h du soir", "8h et demie",
+    "dans 2 heures", "dans 2h30", "dans 1 heure 30", "dans une heure", "dans 30 minutes",
+    "dans 90 secondes". Retourne None si l'heure n'est pas comprise ou invalide.
     """
     maintenant = datetime.now()
-    texte = texte.lower().strip()
+    t = _normaliser_texte_heure(texte)
 
-    # Mots spéciaux
-    if texte in ("midi", "12h", "12:00"):
-        cible = maintenant.replace(hour=12, minute=0, second=0, microsecond=0)
-    elif texte in ("minuit", "0h", "00h", "0:00", "00:00"):
-        cible = maintenant.replace(hour=0, minute=0, second=0, microsecond=0)
-    # "dans X heures / X minutes"
-    elif m := re.search(r'dans\s+(\d+)\s*heure', texte):
-        cible = maintenant + timedelta(hours=int(m.group(1)))
-        cible = cible.replace(second=0, microsecond=0)
-    elif m := re.search(r'dans\s+(\d+)\s*min', texte):
-        cible = maintenant + timedelta(minutes=int(m.group(1)))
-        cible = cible.replace(second=0, microsecond=0)
-    # Format "14h30" ou "14:30" ou "9h" ou "9:00"
-    elif m := re.search(r'(\d{1,2})[h:](\d{2})', texte):
-        heure, minute = int(m.group(1)), int(m.group(2))
-        cible = maintenant.replace(hour=heure, minute=minute, second=0, microsecond=0)
-    elif m := re.search(r'(\d{1,2})h', texte):
-        cible = maintenant.replace(hour=int(m.group(1)), minute=0, second=0, microsecond=0)
+    # ── Durée relative : « dans … » ──
+    m_dans = re.search(r"\bdans\b(.*)", t)
+    if m_dans:
+        secondes = parser_duree(m_dans.group(1))
+        if not secondes:
+            return None
+        cible = maintenant + timedelta(seconds=secondes)
+        return cible.replace(microsecond=0) if secondes % 60 else cible.replace(second=0, microsecond=0)
+
+    # ── Heure absolue ──
+    if re.search(r"\bmidi\b", t) and not re.search(r"\d", t):
+        heure, minute = 12, 0
+    elif re.search(r"\bminuit\b", t) and not re.search(r"\d", t):
+        heure, minute = 0, 0
     else:
-        return None
+        m = re.search(r"(\d{1,2})\s*(?:h|heures?|:)\s*(\d{2})?", t)
+        if not m:
+            return None
+        heure = int(m.group(1))
+        minute = int(m.group(2)) if m.group(2) else 0
+        if not m.group(2):
+            if re.search(r"\bet quart\b", t):
+                minute = 15
+            elif re.search(r"\bet demie?\b", t):
+                minute = 30
+            elif re.search(r"\bmoins le quart\b", t):
+                heure, minute = heure - 1, 45
+        # « du soir », « de l'après-midi » : 7h du soir = 19h
+        if heure < 12 and re.search(r"\b(du soir|de l'apres[- ]midi|de l apres[- ]midi|cet apres[- ]midi|ce soir)\b", t):
+            heure += 12
+        if not (0 <= heure <= 23 and 0 <= minute <= 59):
+            return None
 
-    # Si l'heure est déjà passée aujourd'hui → demain
-    if cible <= maintenant:
+    cible = maintenant.replace(hour=heure, minute=minute, second=0, microsecond=0)
+    # Si l'heure est déjà passée aujourd'hui (ou si « demain » est précisé) → demain.
+    # Avant 4 h du matin, « demain à 6h30 » désigne le matin qui vient, pas le surlendemain.
+    demain = re.search(r"\bdemain\b", t) and maintenant.hour >= 4
+    if cible <= maintenant or (demain and cible.date() == maintenant.date()):
         cible += timedelta(days=1)
-
     return cible
 
 
@@ -135,14 +206,24 @@ def ajouter_alarme(heure_texte: str, label: str = "Alarme") -> tuple[bool, str]:
     # Formatage du message
     maintenant = datetime.now()
     delta = cible - maintenant
-    total_minutes = int(delta.total_seconds() // 60)
+    total_secondes = max(0, int(round(delta.total_seconds())))
+    total_minutes = total_secondes // 60
     if total_minutes >= 60:
         delta_str = f"dans {total_minutes // 60}h{total_minutes % 60:02d}"
+    elif total_minutes >= 1:
+        delta_str = f"dans {total_minutes} minute{'s' if total_minutes > 1 else ''}"
     else:
-        delta_str = f"dans {total_minutes} minutes"
+        delta_str = f"dans {total_secondes} seconde{'s' if total_secondes > 1 else ''}"
 
     jour = "demain" if cible.date() != maintenant.date() else "aujourd'hui"
-    return True, f"Alarme '{label}' programmée pour {jour} à {cible.strftime('%H:%M')} ({delta_str})."
+    quand = f"{jour} à {cible.strftime('%H:%M')} ({delta_str})"
+    if label.startswith("Rappel"):
+        return True, f"C'est noté{nom_virgule()}. Je vous le rappellerai {quand}."
+    if label == "Réveil":
+        return True, f"Réveil programmé pour {quand}."
+    if label == "Alarme":
+        return True, f"Alarme programmée pour {quand}."
+    return True, f"Alarme « {label} » programmée pour {quand}."
 
 
 def annuler_alarme(heure_texte: str = "", label: str = "") -> tuple[bool, str]:
@@ -203,6 +284,30 @@ def lister_alarmes() -> str:
 
 # ── Thread de surveillance ────────────────────────────────────────────────────
 
+def _message_sonnerie(label_alarme: str) -> str:
+    """Phrase prononcée quand une alarme, un minuteur ou un rappel arrive à échéance."""
+    if label_alarme.startswith("Minuteur"):
+        return f"Le {label_alarme[0].lower()}{label_alarme[1:]} est terminé{nom_virgule()}."
+    if label_alarme.startswith("Rappel"):
+        return f"{label_alarme}{nom_virgule()}."
+    if label_alarme in ("Alarme", "Réveil"):
+        return f"{label_alarme} ! Il est {datetime.now().strftime('%H:%M')}{nom_virgule()}."
+    return f"Alarme ! {label_alarme}{nom_virgule()}."
+
+
+def _notifier_hud_alarme(label_alarme: str):
+    """Carte d'alerte sur le HUD quand une alarme ou un minuteur sonne."""
+    try:
+        import builtins as _b
+        envoyer = getattr(_b, "send_web_broadcast_sync", None)
+        if envoyer is None:
+            from core.web_bridge import send_web_broadcast_sync as envoyer
+        envoyer({"action": "ctx_card", "title": "ALARME", "text": label_alarme,
+                 "type": "alert", "icon": "⏰", "duration": 15000})
+    except Exception as e:
+        print(f"[ALARME] Notification HUD impossible : {e}")
+
+
 def _surveiller_alarmes():
     """
     Thread qui vérifie toutes les 30 secondes si une alarme doit sonner.
@@ -244,15 +349,29 @@ def _surveiller_alarmes():
                     _sauvegarder_alarmes(alarmes)
 
             for label_alarme in a_sonner:
-                if _alarme_sonner_callback:
-                    _alarme_sonner_callback(label_alarme)
-                elif _parler_callback:
-                    import asyncio
-                    loop = asyncio.new_event_loop()
-                    try:
-                        loop.run_until_complete(_parler_callback(f"🔔 Alarme ! {label_alarme}{nom_virgule()}."))
-                    finally:
-                        loop.close()
+                try:
+                    if _alarme_sonner_callback:
+                        _alarme_sonner_callback(label_alarme)
+                    elif _parler_callback:
+                        # Un « stop » prononcé plus tôt laisse STOP_PARLER à vrai jusqu'à la
+                        # commande suivante : sans ce réarmement, l'alarme restait muette.
+                        try:
+                            from core.etat_parole import set_stop_parler
+                            import core.shared as _shared
+                            _shared.STOP_PARLER = False
+                            set_stop_parler(False)
+                        except Exception:
+                            pass
+                        resultat = _parler_callback(_message_sonnerie(label_alarme))
+                        if asyncio.iscoroutine(resultat):
+                            _boucle = asyncio.new_event_loop()
+                            try:
+                                _boucle.run_until_complete(resultat)
+                            finally:
+                                _boucle.close()
+                    _notifier_hud_alarme(label_alarme)
+                except Exception as e_alarme:
+                    print(f"[ALARME] Erreur annonce de « {label_alarme} » : {e_alarme}")
 
         except Exception as e:
             print(f"[ALARME] Erreur surveillance : {e}")

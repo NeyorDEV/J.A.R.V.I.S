@@ -1,17 +1,19 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "JARVIS Web Controller",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Contrôle vocal et curseur virtuel par le DOM pour JARVIS.",
   "permissions": [
     "activeTab",
     "tabs",
     "storage",
+    "alarms"
+  ],
+  "host_permissions": [
     "<all_urls>"
   ],
   "background": {
-    "scripts": ["background.js"],
-    "persistent": true
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {

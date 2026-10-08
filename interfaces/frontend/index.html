@@ -359,7 +359,7 @@
 
     <!-- Bottom status bar -->
     <div id="boot-statusbar">
-      <span id="boot-statusbar-left">CORE v9.0 &nbsp;·&nbsp; <span id="boot-build-year"></span></span>
+      <span id="boot-statusbar-left">CORE v9.5 &nbsp;·&nbsp; <span id="boot-build-year"></span></span>
       <span id="boot-statusbar-right">NeyorDEV</span>
     </div>
   </div>
@@ -433,7 +433,7 @@
     <div class="carousel-indicators"></div>
   </div>
 
-  <button id="keyboard-toggle" aria-pressed="false">CLAVIER</button>
+  <button id="keyboard-toggle" aria-pressed="false" title="Écrire une commande à JARVIS"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg><span class="keyboard-toggle-label">Écrire à JARVIS…</span></button>
   <button id="gestures-mirror" class="active" title="Inverser la caméra en mode AR">AR MIROIR</button>
 
   <div id="update-banner"></div>
@@ -1055,22 +1055,22 @@
         </div>
         <nav class="settings-nav" id="settings-nav">
           <button type="button" class="settings-nav-item active" data-panel="profil">
-            <span class="settings-nav-icon">👤</span><span class="settings-nav-label">Profil</span>
+            <span class="settings-nav-icon"></span><span class="settings-nav-label">Profil</span>
           </button>
           <button type="button" class="settings-nav-item" data-panel="apps">
-            <span class="settings-nav-icon">🚀</span><span class="settings-nav-label">Applications</span>
+            <span class="settings-nav-icon"></span><span class="settings-nav-label">Applications</span>
           </button>
           <button type="button" class="settings-nav-item" data-panel="apparence">
-            <span class="settings-nav-icon">🎨</span><span class="settings-nav-label">Apparence</span>
+            <span class="settings-nav-icon"></span><span class="settings-nav-label">Apparence</span>
           </button>
           <button type="button" class="settings-nav-item" data-panel="musique">
-            <span class="settings-nav-icon">🎵</span><span class="settings-nav-label">Musique</span>
+            <span class="settings-nav-icon"></span><span class="settings-nav-label">Musique</span>
           </button>
           <button type="button" class="settings-nav-item" data-panel="securite">
-            <span class="settings-nav-icon">🛡️</span><span class="settings-nav-label">Sécurité</span>
+            <span class="settings-nav-icon"></span><span class="settings-nav-label">Sécurité</span>
           </button>
           <button type="button" class="settings-nav-item" data-panel="api">
-            <span class="settings-nav-icon">🔑</span><span class="settings-nav-label">Clés API</span>
+            <span class="settings-nav-icon"></span><span class="settings-nav-label">Clés API</span>
           </button>
         </nav>
       </aside>
@@ -1513,7 +1513,7 @@
       </div>
     </div>
     <div class="ha-panel-footer">
-      <span class="ha-status-label">SYS_STATUS // CONNECTED TO HOME ASSISTANT</span>
+      <span class="ha-status-label">SYS_STATUS // CONNEXION À HOME ASSISTANT…</span>
     </div>
   </div>
 
@@ -1530,16 +1530,19 @@
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
         </svg>
       </div>
-      <div class="shopping-panel-title">JARVIS // SHOPPING_LIST</div>
-      <button class="shopping-panel-close" id="shopping-panel-close-btn">&times;</button>
+      <div class="shopping-panel-titles">
+        <div class="shopping-panel-title">LISTE DE COURSES</div>
+        <div class="shopping-panel-subtitle" id="shopping-count">0 ARTICLE</div>
+      </div>
+      <button class="shopping-panel-close-btn" id="shopping-panel-close-btn" title="Fermer">&times;</button>
     </div>
     <div class="shopping-panel-body">
       <div class="shopping-list-container" id="shopping-list-container">
         <!-- Dynamique -->
       </div>
-      <div class="shopping-add-form">
-        <input type="text" id="shopping-add-input" placeholder="Ajouter un article...">
-        <button id="shopping-add-btn">+</button>
+      <div class="shopping-add-container">
+        <input type="text" class="shopping-add-input" id="shopping-add-input" placeholder="Ajouter un article…" autocomplete="off">
+        <button class="shopping-add-btn" id="shopping-add-btn" title="Ajouter">AJOUTER</button>
       </div>
     </div>
     <div class="shopping-panel-footer">

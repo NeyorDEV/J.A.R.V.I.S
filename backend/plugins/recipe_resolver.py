@@ -48,6 +48,12 @@ async def resoudre_recipe(cmd):
         ctx = builtins.recipe_context
         if ctx.get("awaiting_people_count"):
             recipe_name = ctx.get("recipe_name")
+            # Seule une réponse qui ressemble à un nombre de personnes est prise comme
+            # telle : n'importe quelle commande contenant un nombre (« baisse le son de
+            # la télé de 5 ») était consommée comme réponse.
+            if len(t.split()) > 6 and not re.search(r"\b(personnes?|pers|couverts?|convives?|gens)\b", t):
+                builtins.recipe_context = None
+                return None
             nb_personnes = extraire_nombre(t)
 
             # Le contexte expire au bout de 2 minutes : sans cela il restait actif

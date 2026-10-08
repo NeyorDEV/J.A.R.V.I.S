@@ -51,7 +51,7 @@ Ce document propose un inventaire complet et détaillé de chaque fichier et dos
 Fichiers gérant les entrées/sorties physiques, la biométrie et les liaisons API de base.
 
 *   **[config.py](file:///n:/JARVIS/backend/core/config.py)** : Configuration globale (clés API, modèle actif, index audio, redirection automatique des liens web vers Opera GX).
-*   **[brain.py](file:///n:/JARVIS/backend/core/brain.py)** : Client d'appel principal vers Gemini avec mécanisme de secours (fallback) vers Groq en cas d'erreur réseau ou de limite de quota.
+*   **[dossiers.py](file:///n:/JARVIS/backend/core/dossiers.py)** : Emplacements réels des dossiers personnels Windows (Bureau, Documents, Téléchargements, Images, Musique, Vidéos), y compris sous OneDrive.
 *   **[ha_mcp_client.py](file:///n:/JARVIS/backend/core/ha_mcp_client.py)** : Client MCP pour Home Assistant. Découvre dynamiquement les outils exposés par le serveur MCP natif de HA et route les instructions domotiques en langage naturel via function-calling Gemini — remplace l'ancien système d'actions codées en dur par appareil.
 *   **[prompt_builder.py](file:///n:/JARVIS/backend/core/prompt_builder.py)** : Assembleur du *System Prompt* de JARVIS. Injecte de manière optimisée la date/heure actuelle, les faits en mémoire, et les schémas d'actions JSON.
 *   **[audio_stream.py](file:///n:/JARVIS/backend/core/audio_stream.py)** : Gestionnaire de flux audio d'entrée (PyAudio). capture les blocs audio du micro physique ou virtuel.
@@ -87,6 +87,7 @@ Fichiers implémentant les fonctionnalités métier autonomes de JARVIS.
 *   **[memory_manager.py](file:///n:/JARVIS/backend/module/memory_manager.py)** : Gère le dictionnaire de faits locaux clé-valeur (`jarvis_memoire.json` dans `data/`), sa sérialisation et sa mise à jour à chaud.
 *   **[vector_memory.py](file:///n:/JARVIS/backend/module/vector_memory.py)** : Implémente la mémoire épisodique vectorielle avec ChromaDB et des embeddings locaux (`all-MiniLM-L6-v2`) pour stocker et rechercher les conversations passées.
 *   **[alarm_manager.py](file:///n:/JARVIS/backend/module/alarm_manager.py)** : Gestionnaire d'alarmes, réveils et minuteurs persistants (`alarmes.json` dans `data/`) avec alertes vocales actives.
+*   **[alarmes_local.py](file:///n:/JARVIS/backend/module/alarmes_local.py)** : Commandes vocales d'alarmes, de minuteurs (compte à rebours sur le HUD) et de rappels, traitées sans IA.
 *   **[file_manager.py](file:///n:/JARVIS/backend/module/file_manager.py)** : Opérations locales sur le système de fichiers (lister, créer des répertoires, renommer, trier intelligemment le dossier Downloads, etc.).
 *   **[browser_service.py](file:///n:/JARVIS/backend/module/browser_service.py)** : Agent de navigation autonome sous Selenium/Playwright permettant de naviguer et d'extraire des informations.
 *   **[visual_web_agent.py](file:///n:/JARVIS/backend/module/visual_web_agent.py)** : Version avancée d'autopilote de navigation. Utilise Gemini Vision pour analyser des captures d'écran du navigateur Opera GX et cliquer de manière ciblée (coordonnées x, y).
@@ -122,7 +123,7 @@ Pilotes légers pour manipuler les applications installées sur le PC de l'utili
 *   **[deezer_controller.py](file:///n:/JARVIS/backend/controller/deezer_controller.py)** : Contrôleur complexe de Deezer Windows par automatisation d'API ou de fenêtres locales.
 *   **[homepod_controller.py](file:///n:/JARVIS/backend/controller/homepod_controller.py)** : Contrôle des commandes multimédias des enceintes HomePod.
 *   **[tv_worker.py](file:///n:/JARVIS/backend/controller/tv_worker.py)** : Script s'exécutant en arrière-plan pour surveiller et piloter la TV connectée ou le Chromecast via des commandes ADB.
-*   **[actions_pc.py](file:///n:/JARVIS/backend/controller/actions_pc.py)** : Actions PC immédiates (musique, ouverture d'apps, volume, capture d'écran), détection des apps installées, appel WhatsApp.
+*   **[actions_pc.py](file:///n:/JARVIS/backend/controller/actions_pc.py)** : Détection des applications installées et appel WhatsApp.
 
 ---
 

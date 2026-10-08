@@ -16,7 +16,7 @@ from core.speech import parler
 from core.web_bridge import send_web_state
 
 
-def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
+def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, prompt=None):
     """
     Transcrit un segment audio brut (PCM 16-bit mono) via Groq Whisper.
     Fallback automatique sur Google STT si Groq échoue.
@@ -25,7 +25,8 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
         raw_audio_bytes: bytes PCM bruts (int16, mono)
         sample_rate: fréquence d'échantillonnage (défaut 16000)
         recognizer: instance sr.Recognizer pour le fallback Google
-    
+        prompt: texte d'amorce pour Whisper (vocabulaire attendu, ex. ordres d'arrêt)
+
     Returns:
         str: texte transcrit en minuscules, ou None si échec total
     """
@@ -48,8 +49,9 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
                 model="whisper-large-v3-turbo",
                 language="fr",
                 response_format="text",
+                **({"prompt": prompt} if prompt else {}),
             )
-            
+
             elapsed = time.time() - t0
             texte = transcription.strip().lower() if isinstance(transcription, str) else str(transcription).strip().lower()
             
@@ -102,15 +104,40 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None):
 def _protocole_enrolement_vocal(commande, queue_ecoute, RATE, CHUNK, SILENCE_LIMIT, ENERGY_THRESHOLD):
     """Protocole d'enrôlement biométrique : 5 phrases répétées, une empreinte vocale par phrase."""
     import queue
-    prenom = "neyor"
+    import unicodedata
+    from core.interlocuteur import CREATEUR
+
+    locuteur = (getattr(shared, "ACTIVE_SPEAKER", "guest") or "guest").lower()
+    profils = shared.VOICE_BIOMETRICS.load_voiceprints() if shared.VOICE_BIOMETRICS else {}
+
+    prenom = ""
     if "enregistre la voix de" in commande:
         prenom = commande.split("enregistre la voix de")[-1].strip()
     elif "apprends la voix de" in commande:
         prenom = commande.split("apprends la voix de")[-1].strip()
-
+    # Accents translittérés (« Éloïse » → « eloise ») au lieu d'être supprimés (« loise »)
+    prenom = "".join(c for c in unicodedata.normalize("NFD", prenom) if unicodedata.category(c) != "Mn")
     prenom = re.sub(r'[^a-zA-Z0-9_-]', '', prenom).lower()
     if not prenom:
-        prenom = "neyor"
+        # « Enregistre ma voix » : le profil de la personne qui parle (le créateur au tout
+        # premier enrôlement). Avant, c'était toujours le profil du créateur.
+        prenom = locuteur if locuteur != "guest" else (CREATEUR if not profils else "")
+
+    # Autorisation. Sans elle, une voix inconnue pouvait dire « enregistre ma voix »
+    # (ou « enregistre la voix de neyor »), s'ajouter au profil du créateur et en
+    # obtenir aussitôt tous les droits.
+    premier_enrolement = not profils
+    if not premier_enrolement and locuteur != CREATEUR and prenom != locuteur:
+        print(f"🔒 [BIOMETRICS] Enrôlement de « {prenom or '?'} » refusé au locuteur « {locuteur} ».")
+        if locuteur == "guest":
+            parler("Je ne reconnais pas votre voix : seul mon créateur peut enregistrer une nouvelle voix.")
+        else:
+            parler("Vous pouvez réenregistrer votre propre voix, mais seul mon créateur peut enregistrer celle de quelqu'un d'autre.")
+        return
+
+    if not prenom:
+        parler("Je n'ai pas compris de quelle personne je dois enregistrer la voix.")
+        return
 
     # Liste des phrases à répéter proposées et validées par l'utilisateur
     phrases = [
@@ -244,7 +271,7 @@ def _protocole_enrolement_vocal(commande, queue_ecoute, RATE, CHUNK, SILENCE_LIM
             try:
                 emb = shared.VOICE_BIOMETRICS.get_embedding(raw_enroll_audio, RATE)
                 if emb is not None:
-                    shared.VOICE_BIOMETRICS.save_voiceprint(prenom, emb)
+                    shared.VOICE_BIOMETRICS.save_voiceprint(prenom, emb, raw_enroll_audio, RATE)
                     print(f"✔  [BIOMETRICS] Échantillon {idx_phrase + 1} enregistré pour : {prenom}")
                     parler(f"Très bien, échantillon {idx_phrase + 1} validé.")
                     idx_phrase += 1
@@ -261,6 +288,9 @@ def _protocole_enrolement_vocal(commande, queue_ecoute, RATE, CHUNK, SILENCE_LIM
     if enrolement_annule:
         print(f"🛑 [BIOMETRICS] Enrôlement de {prenom} interrompu par l'utilisateur ({idx_phrase}/{len(phrases)} échantillons capturés avant l'annulation).")
     elif idx_phrase == len(phrases):
-        shared.ACTIVE_SPEAKER = prenom
-        builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
+        # Le locuteur ne change que s'il vient d'enregistrer sa propre voix : quand le
+        # créateur enregistre celle de Clara, c'est toujours lui qui parle.
+        if premier_enrolement or prenom == locuteur:
+            shared.ACTIVE_SPEAKER = prenom
+            builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
         parler(f"C'est parfait {prenom.capitalize()}, le protocole d'enregistrement est terminé. Votre profil vocal multi-empreintes est maintenant actif et sécurisé.")
