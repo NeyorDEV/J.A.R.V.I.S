@@ -61,3 +61,6 @@ unins*.dat
 # Config Claude Code (locale)
 .claude/
 CLAUDE.md
+
+# Marqueur de version du cache WebView2 (réécrit par JARVIS au démarrage)
+backend/.jarvis_cache_version
