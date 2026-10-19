@@ -71,7 +71,7 @@ class HandTracker {
         this._camera = new Camera(this.video, {
           onFrame: async () => {
             if (!this.app._running) return;
-            try { await this.hands.send({ image: this.video }); } catch (e) {}
+            try { await this.hands.send({ image: this.video }); } catch {}
           },
           width: 1280,
           height: 720,
@@ -81,7 +81,7 @@ class HandTracker {
         // Fallback sans throttle si Camera utility absent
         const processFrame = async () => {
           if (!this.app._running || this.video.paused || this.video.ended) return;
-          try { await this.hands.send({ image: this.video }); } catch (e) {}
+          try { await this.hands.send({ image: this.video }); } catch {}
           requestAnimationFrame(processFrame);
         };
         processFrame();
@@ -97,7 +97,7 @@ class HandTracker {
   }
 
   stop() {
-    if (this._camera) { try { this._camera.stop(); } catch(e) {} this._camera = null; }
+    if (this._camera) { try { this._camera.stop(); } catch {} this._camera = null; }
     if (this.video && this.video.srcObject) {
       this.video.srcObject.getTracks().forEach(t => t.stop());
       this.video.srcObject = null;

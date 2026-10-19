@@ -36,7 +36,6 @@ export function toggleArMirror(): boolean {
 // Variables pour le lissage des positions (support multi-curseur pour deux mains)
 const cursorX = [0, 0];
 const cursorY = [0, 0];
-const SMOOTHING = 0.25; // Facteur d'amortissement (lerp) pour un curseur ultra-stable
 
 // Réticule de visée holographique
 let targetScale = 1.0;
@@ -60,10 +59,6 @@ let widgetOffsetX = 0;
 let widgetOffsetY = 0;
 let widgetInitialX = 0;
 let widgetInitialY = 0;
-let widgetInitialWidth = 0;
-let widgetInitialHeight = 0;
-let handStartX = 0;
-let handStartY = 0;
 
 export function initHandTracking() {
   videoEl = document.getElementById("hand-video") as HTMLVideoElement;
@@ -523,14 +518,9 @@ function triggerPinchEvent(type: "start" | "end", x: number, y: number, handIdx:
       
       widgetInitialX = rect.left;
       widgetInitialY = rect.top;
-      widgetInitialWidth = rect.width;
-      widgetInitialHeight = rect.height;
       
       widgetOffsetX = x - rect.left;
       widgetOffsetY = y - rect.top;
-      
-      handStartX = x;
-      handStartY = y;
       
       // Désactiver temporairement les transitions CSS et les transforms d'alignement pour un déplacement à 60 FPS
       activeManipulatedWidget.style.transition = "none";

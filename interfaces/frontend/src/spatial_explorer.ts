@@ -28,14 +28,6 @@ interface SpatialListResult {
   error?: string;
 }
 
-interface SpatialActionResult {
-  type: 'spatial_result';
-  action: 'open' | 'move' | 'delete';
-  success: boolean;
-  message?: string;
-  error?: string;
-}
-
 // ── Constantes couleurs ───────────────────────────────────────
 
 const COLORS = {
@@ -359,7 +351,7 @@ class BackNode {
     this.group.add(this.label);
   }
 
-  update(dt: number, time: number) {
+  update(dt: number, _time: number) {
     this.mesh.rotation.y += dt * 0.8;
     const targetScale = this.hovered ? 1.3 : 1.0;
     const s = this.mesh.scale.x + (targetScale - this.mesh.scale.x) * dt * 8;
@@ -431,7 +423,7 @@ class TrashZone {
     this.group.add(this.label);
   }
 
-  update(dt: number, time: number) {
+  update(dt: number, _time: number) {
     this.mesh.rotation.z += dt * 0.5;
     const targetScale = this.hovered ? 1.5 : 1.0;
     const s = this.mesh.scale.x + (targetScale - this.mesh.scale.x) * dt * 8;
@@ -1399,7 +1391,7 @@ export class SpatialFileExplorer {
     }
   }
 
-  private _handleDrop(dropPos: THREE.Vector3) {
+  private _handleDrop(_dropPos: THREE.Vector3) {
     if (!this.dragNode) return;
     const draggedItem = this.dragNode.item;
 

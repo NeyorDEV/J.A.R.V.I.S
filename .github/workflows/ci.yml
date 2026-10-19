@@ -71,10 +71,9 @@ jobs:
       - name: Vérification des types (tsc)
         run: npx tsc --noEmit
 
-      # Bloquant sur les erreurs ; les avertissements (variables inutilisées)
-      # s'affichent sans faire échouer la CI.
+      # Bloquant sur les erreurs ET les avertissements (le code est propre).
       - name: Lint (eslint)
-        run: npm run lint
+        run: npm run lint -- --max-warnings 0
 
       - name: Construction de l'interface (vite build)
         run: npm run build

@@ -16,7 +16,8 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
       // Variables déclarées mais pas encore branchées (travail itératif) —
       // avertissement plutôt que blocage.
-      "@typescript-eslint/no-unused-vars": "warn",
+      // Les noms qui commencent par « _ » sont des paramètres volontairement inutilisés.
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
       "@typescript-eslint/no-empty-object-type": "off",
     },
   }

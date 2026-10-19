@@ -213,7 +213,7 @@ class SynapticSpark {
     this.mesh.add(this.glow);
   }
 
-  update(dt: number, parentGroup: THREE.Group) {
+  update(dt: number, _parentGroup: THREE.Group) {
     this.progress += dt * this.speed;
     if (this.progress > 1.0) {
       this.progress = 1.0;
@@ -465,7 +465,7 @@ export class CortexMap {
     this.nodes = [];
 
     // 2. Instancier les nœuds
-    nodeList.forEach((nData, index) => {
+    nodeList.forEach((nData) => {
       // Déterminer la position en lobes du cerveau
       // Lobe gauche (Vectoriel - Bleu/Cyan) : X < 0
       // Lobe droit (Factuel - Magenta/Rose) : X > 0
