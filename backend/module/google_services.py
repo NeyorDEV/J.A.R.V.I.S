@@ -7,7 +7,7 @@ from googleapiclient.discovery import build
 from core.interlocuteur import nom_virgule
 
 try:
-    import google.oauth2.credentials
+    import google.oauth2.credentials  # noqa: F401  (test de disponibilité)
     _google_apis_ok = True
 except ImportError:
     _google_apis_ok = False
@@ -259,7 +259,7 @@ def creer_google_task(titre, notes=None):
         body = {'title': titre}
         if notes:
             body['notes'] = notes
-        task = service.tasks().insert(tasklist='@default', body=body).execute()
+        service.tasks().insert(tasklist='@default', body=body).execute()
         return f"Tâche '{titre}' ajoutée dans Google Tasks{nom_virgule()}."
     except Exception as e:
         return f"Erreur Google Tasks : {e}"

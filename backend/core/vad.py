@@ -89,7 +89,6 @@ def init_models():
 
 class SileroVAD:
     def __init__(self, model_path):
-        import onnxruntime as ort
         providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
         so = ort.SessionOptions()
         so.inter_op_num_threads = 1

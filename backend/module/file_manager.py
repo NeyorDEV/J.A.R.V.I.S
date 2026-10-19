@@ -302,7 +302,7 @@ def ouvrir_fichier_ou_dossier(chemin):
     try:
         os.startfile(chemin)
         return True, f"Ouverture de : {os.path.basename(chemin)}"
-    except Exception as e:
+    except Exception:
         # Fallback subprocess
         try:
             subprocess.Popen(['explorer', chemin] if os.path.isdir(chemin) else [chemin], shell=True)
@@ -315,8 +315,6 @@ def lire_fichier(nom_fichier, chemin=None):
     Lit le contenu d'un fichier (txt, md, pdf, docx, csv, py, etc.).
     Si aucun chemin n'est fourni, scanne automatiquement les dossiers communs.
     """
-    userprofile = os.environ.get("USERPROFILE", "")
-
     if chemin:
         cible = interpreter_chemin(chemin)
         dossiers_a_scanner = [cible] if cible else []

@@ -15,13 +15,13 @@ let handsDetector: any = null;
 let cameraInstance: any = null;
 
 let isTrackingActive = false;
-let isPinched = [false, false];
-let pinchStartTime = [0, 0];
+const isPinched = [false, false];
+const pinchStartTime = [0, 0];
 let isArMirror = true;
 
 // Historique de l'index pour le geste circulaire (Circular Wake)
 type GesturePoint = { x: number; y: number; t: number };
-let indexHistory: GesturePoint[][] = [[], []];
+const indexHistory: GesturePoint[][] = [[], []];
 let lastMicToggleTime = 0;
 
 
@@ -34,8 +34,8 @@ export function toggleArMirror(): boolean {
 }
 
 // Variables pour le lissage des positions (support multi-curseur pour deux mains)
-let cursorX = [0, 0];
-let cursorY = [0, 0];
+const cursorX = [0, 0];
+const cursorY = [0, 0];
 const SMOOTHING = 0.25; // Facteur d'amortissement (lerp) pour un curseur ultra-stable
 
 // Réticule de visée holographique
@@ -356,7 +356,7 @@ function showHudToast(text: string) {
   
   toast.textContent = text;
   toast.style.display = "block";
-  (toast as any).offsetHeight; // force reflow
+  toast.getBoundingClientRect(); // force le reflow
   toast.style.opacity = "1";
   toast.style.transform = "translateX(-50%) translateY(0)";
 
@@ -566,7 +566,7 @@ function getWidgetUnderPointer(x: number, y: number): { element: HTMLElement, mo
   // Désactiver momentanément le pointeur sur le canvas pour le hit-testing sous-jacent
   const oldPointerEvents = canvasEl.style.pointerEvents;
   canvasEl.style.pointerEvents = "none";
-  let target = document.elementFromPoint(x, y) as HTMLElement | null;
+  const target = document.elementFromPoint(x, y) as HTMLElement | null;
   canvasEl.style.pointerEvents = oldPointerEvents;
   
   if (!target) return null;

@@ -3,7 +3,6 @@ try:
 except ImportError:
     pyautogui = None
 import time
-import asyncio
 try:
     import psutil
 except ImportError:
@@ -15,7 +14,6 @@ except ImportError:
 import os
 import re
 import subprocess
-from core.interlocuteur import nom_virgule
 
 # SPOTIFY
 # ==========================================

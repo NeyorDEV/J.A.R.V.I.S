@@ -426,7 +426,7 @@ def _clic_control(btn):
                     if active_now != hwnd_before and hwnd_before != 0:
                         _restore_focus(hwnd_before)
                     return True
-            except Exception as e:
+            except Exception:
                 pass
 
             # 2. InvokePattern
@@ -435,7 +435,7 @@ def _clic_control(btn):
                 if pattern and pattern.Invoke():
                     _restore_focus(hwnd_before)
                     return True
-            except Exception as e:
+            except Exception:
                 pass
 
             # Pas de clic souris réel en secours : il faudrait afficher Deezer, ce qui

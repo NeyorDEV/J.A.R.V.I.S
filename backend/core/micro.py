@@ -116,7 +116,7 @@ def choisir_microphone() -> int | None:
 
             if not inputs:
                 print("[MIC] ⚠ PyAudio ne voit aucune entrée audio.")
-        except Exception as e:
+        except Exception:
             # print(f"[MIC] Impossible de lister les périphériques : {e}")
             pass
     else:
@@ -138,7 +138,7 @@ def choisir_microphone() -> int | None:
             with mic_test as src:
                 r_test.adjust_for_ambient_noise(src, duration=0.3)
             return True
-        except Exception as e:
+        except Exception:
             # label = "défaut" if idx is None else str(idx)
             # print(f"[MIC]   Index {label} → KO ({e})")
             return False
@@ -280,7 +280,7 @@ def surveiller_claps():
                             else:
                                 # Premier clap enregistré
                                 last_clap_time = current_time
-                except Exception as e:
+                except Exception:
                     time.sleep(0.1)
                     continue
         finally:

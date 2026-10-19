@@ -77,7 +77,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   // Variables pour le morphing de texte 3D (écrit le mot)
   let textMorphActive = false;
   let textMorphStartTime = 0;
-  let textMorphDuration = 7.0; // Durée par défaut de 7 secondes
+  const textMorphDuration = 7.0; // Durée par défaut de 7 secondes
   let textTargetPositions: THREE.Vector3[] = [];
 
   function onPointerMove(e: PointerEvent) {

@@ -1486,7 +1486,7 @@ class VisualWebAgent:
 
         # 4. Vérification visuelle finale
         await asyncio.sleep(1.5)
-        done = await self._vision_is_task_done(task)
+        await self._vision_is_task_done(task)
 
         # 5. Résumé verbal de la page actuelle
         summary = await self._vision_analyze_page(

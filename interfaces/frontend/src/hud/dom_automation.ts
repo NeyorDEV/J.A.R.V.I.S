@@ -47,7 +47,7 @@ function animateVirtualCursorTo(element: HTMLElement): Promise<void> {
       cursor.style.top = `${window.innerHeight / 2}px`;
       cursor.style.display = "block";
       // FORCE UN REFLOW pour garantir que la position de départ (milieu) soit peinte et prise en compte
-      cursor.offsetHeight;
+      cursor.getBoundingClientRect();
     }
 
     const coords = await getElementCoordinates(element);

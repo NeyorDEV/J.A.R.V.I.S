@@ -622,8 +622,8 @@ export class DomoticMap {
     const srcId = roomMap[sourceRoom.toLowerCase()] || sourceRoom;
     const destId = roomMap[destRoom.toLowerCase()] || destRoom;
 
-    let startPos = new THREE.Vector3();
-    let endPos = new THREE.Vector3();
+    const startPos = new THREE.Vector3();
+    const endPos = new THREE.Vector3();
 
     const srcGroup = this.roomGroups.get(srcId);
     const destGroup = this.roomGroups.get(destId);

@@ -296,7 +296,7 @@ async def get_media_info():
                 "duration": "00:00",
                 "percent": 0
             }
-    except Exception as uia_err:
+    except Exception:
         pass
 
     # 2. Fallback sur l'API Deezer en ligne
@@ -343,7 +343,7 @@ async def broadcast_music_stats():
                 else:
                     msg = json.dumps({"action": "music_update", "data": {"status": "Stopped", "title": "DEEZER_OFFLINE", "artist": "APPLICATION_NON_DETECTEE"}})
                     await asyncio.gather(*[ws.send(msg) for ws in _clients()], return_exceptions=True)
-        except Exception as e:
+        except Exception:
             pass
         await asyncio.sleep(2)
 

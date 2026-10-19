@@ -217,7 +217,7 @@ def boucle_ecoute():
                     # nettement au-dessus du seuil d'enrôlement (0.45) pour limiter
                     # le risque de faux positifs sur bruit ambiant/TV.
                     is_speech = speech_prob > 0.55
-                except Exception as ev:
+                except Exception:
                     energy = np.sqrt(np.mean(audio_chunk_int16.astype(np.float64)**2))
                     is_speech = energy > ENERGY_THRESHOLD
             else:
@@ -509,5 +509,5 @@ def _envoyer_interim(audio_chunks, rate):
             if is_speaking_active and _contient_stop(texte):
                 _interrompre_parole("barge-in interim")
                 boucle_ecoute._recorded_during_speech = True
-    except Exception as e:
+    except Exception:
         pass  # Silencieux — l'interim est cosmétique, pas critique

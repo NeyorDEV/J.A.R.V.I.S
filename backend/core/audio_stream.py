@@ -77,7 +77,7 @@ class AudioStreamManager:
                     cfg = json.load(f)
                     self.software_gain = float(cfg.get("mic_software_gain", 1.0))
                 # print(f"[AudioStreamManager] Gain logiciel chargé : {self.software_gain}x")
-        except Exception as e:
+        except Exception:
             # print(f"[AudioStreamManager] Erreur lecture gain : {e}")
             pass
 
@@ -126,7 +126,7 @@ class AudioStreamManager:
                 self.thread = threading.Thread(target=self._boucle_capture, daemon=True)
                 self.thread.start()
                 # print(f"[AudioStreamManager] Flux d'acquisition démarré à 48000 Hz (avec décimation par 3) sur Micro Index: {self.mic_index}")
-            except Exception as e:
+            except Exception:
                 # Mode repli à 16000 Hz si 48000 Hz échoue
                 try:
                     self.stream = self.p.open(
@@ -143,7 +143,7 @@ class AudioStreamManager:
                     self.thread = threading.Thread(target=self._boucle_capture, daemon=True)
                     self.thread.start()
                     # print(f"[AudioStreamManager] Flux d'acquisition démarré à 16000 Hz de repli sur Micro Index: {self.mic_index}")
-                except Exception as e_fallback:
+                except Exception:
                     # print(f"[AudioStreamManager] Erreur d'ouverture du flux (48k et 16k) : {e_fallback}")
                     pass
                     self.running = False
@@ -207,7 +207,7 @@ class AudioStreamManager:
                 self.thread = threading.Thread(target=self._boucle_capture, daemon=True)
                 self.thread.start()
                 print(f"[AudioStreamManager] Flux d'acquisition redémarré à 48000 Hz (avec décimation par 3) sur Micro Index: {self.mic_index}")
-            except Exception as e:
+            except Exception:
                 # Repli à 16000 Hz
                 try:
                     self.stream = self.p.open(

@@ -434,7 +434,7 @@ async def process_generated_images(code_text: str, project_dir: str) -> str:
                     f.write(img_resp.content)
                 success = True
                 print(f"[DEV SWARM IMAGE IA] OpenAI DALL-E -> {rel_path}")
-            except Exception as e:
+            except Exception:
                 print(f"[DEV SWARM IMAGE IA] OpenAI DALL-E non activé ou non supporté par votre clé (Passage au modèle suivant)")
                 disable_openai = True
 
@@ -456,7 +456,7 @@ async def process_generated_images(code_text: str, project_dir: str) -> str:
                     f.write(img_resp.content)
                 success = True
                 print(f"[DEV SWARM IMAGE IA] Grok Imagine -> {rel_path}")
-            except Exception as e:
+            except Exception:
                 print(f"[DEV SWARM IMAGE IA] Grok Imagine non disponible (Passage au modèle suivant)")
 
         # 3. API GEMINI IMAGEN 3.0 NATIVE
@@ -502,7 +502,7 @@ async def process_generated_images(code_text: str, project_dir: str) -> str:
                     success = True
                     print(f"[DEV SWARM IMAGE IA] Pollinations FLUX (essai {attempt+1}) -> {rel_path}")
                     break
-                except Exception as e:
+                except Exception:
                     print(f"[DEV SWARM IMAGE IA] Échec Pollinations FLUX essai {attempt+1}: connexion ou délai dépassé. Nouvelle tentative...")
                     await asyncio.sleep(2)
 
@@ -517,7 +517,6 @@ async def process_generated_images(code_text: str, project_dir: str) -> str:
                 # Créer une image de couleur unie ou dégradée en Python pur
                 # Pour éviter d'importer Pillow (qui n'est pas forcément installé), on écrit un SVG simple et élégant !
                 # Et oui, les balises <img> de HTML supportent parfaitement les SVG !
-                svg_filename = filename.replace(".jpg", ".svg")
                 svg_filepath = filepath.replace(".jpg", ".svg")
                 svg_rel_path = rel_path.replace(".jpg", ".svg")
 

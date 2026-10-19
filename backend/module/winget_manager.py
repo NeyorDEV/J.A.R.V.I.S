@@ -46,7 +46,7 @@ def inventorier_mises_a_jour():
     except subprocess.TimeoutExpired:
         print("[WINGET] winget upgrade n'a pas répondu à temps.")
         return []
-    except Exception as e:
+    except Exception:
         try:
             res = subprocess.run(["winget", "upgrade", "--include-unknown"], capture_output=True, text=True, encoding="cp1252", errors="ignore", timeout=20)
             stdout = res.stdout

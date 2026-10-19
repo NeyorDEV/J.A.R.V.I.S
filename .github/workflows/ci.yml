@@ -5,17 +5,28 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+# Droits minimaux : la CI ne fait que lire le dépôt.
+permissions:
+  contents: read
+
+# Un nouveau push annule l'exécution en cours de la même branche.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   python:
     name: Python (syntaxe + lint)
     # ubuntu suffit : py_compile/ruff sont de simples vérifications statiques,
     # rien ici n'a besoin des API Windows utilisées par l'app elle-même.
-    runs-on: ubuntu-latest
+    # Version épinglée pour ne pas subir le changement de « ubuntu-latest ».
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -32,22 +43,23 @@ jobs:
             | grep -v '^tools/sandbox/' | grep -v '^tools/tests/' | grep -v '^tools/training/' \
             | xargs python -m py_compile
 
+      # Bloquant : le code passe aujourd'hui toutes les règles de pyproject.toml
+      # (noms inconnus, imports et variables inutilisés, redéfinitions).
       - name: Lint (ruff)
         run: |
           python -m pip install --quiet ruff
           ruff check .
-        continue-on-error: true
 
   frontend:
-    name: Frontend (types + lint)
-    runs-on: ubuntu-latest
+    name: Frontend (types + lint + build)
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: interfaces/frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "npm"
@@ -59,6 +71,52 @@ jobs:
       - name: Vérification des types (tsc)
         run: npx tsc --noEmit
 
+      # Bloquant sur les erreurs ; les avertissements (variables inutilisées)
+      # s'affichent sans faire échouer la CI.
       - name: Lint (eslint)
         run: npm run lint
+
+      - name: Construction de l'interface (vite build)
+        run: npm run build
+
+      # Informatif : les alertes de sécurité npm ne bloquent pas un push.
+      - name: Audit des dépendances (npm audit)
+        run: npm audit --audit-level=high
         continue-on-error: true
+
+  depot:
+    name: Dépôt (fichiers interdits)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # Échoue si un fichier privé, une clé ou un gros binaire entre dans Git.
+      - name: Fichiers qui ne doivent jamais être suivis
+        shell: bash
+        run: |
+          interdits=$(git ls-files | grep -E '(^|/)\.env$|(^|/)credentials\.json$|(^|/)token[_.].*\.json$|\.pickle$|\.pem$|\.key$|(^|/)adb_key|(^|/)jarvis_audit\.log$|^docs/AUDIT_BUGS\.md$|(^|/)\.jarvis_cache_version$|(^|/)voiceprints/|(^|/)chroma_db/|(^|/)memory\.json$|(^|/)jarvis_(memoire|conversations|synapses|listes|config)\.json$' || true)
+          if [ -n "$interdits" ]; then
+            echo "Fichiers privés suivis par Git :"; echo "$interdits"; exit 1
+          fi
+
+      - name: Fichiers trop lourds (> 20 Mo)
+        shell: bash
+        run: |
+          lourds=$(git ls-files -z | xargs -0 ls -l | awk '$5 > 20000000 {print $5, $9}')
+          if [ -n "$lourds" ]; then
+            echo "Fichiers de plus de 20 Mo :"; echo "$lourds"; exit 1
+          fi
+
+  secrets:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-24.04
+    # Informatif pour l'instant : à rendre bloquant une fois l'historique vérifié.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

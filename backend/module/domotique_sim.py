@@ -23,7 +23,7 @@ async def update_homepods_metadata_loop():
             if state_jeux != "paused":
                 track = await homepod_controller.get_playing_metadata("Salle de jeux")
                 shared.SIMULATED_DOMOTIC_STATES["media_player.homepod_chambre"] = track or "Musique en cours (Salle de jeux)"
-        except Exception as e:
+        except Exception:
             pass
         await asyncio.sleep(8)
 
