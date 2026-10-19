@@ -2,7 +2,6 @@ import os
 import sys
 import subprocess
 import asyncio
-import tempfile
 import time
 
 # Répertoire sandbox par défaut
@@ -64,104 +63,6 @@ def _dans_sandbox(chemin: str):
     except Exception:
         return None
 
-
-async def executer_code_sandbox(
-    code_content: str,
-    language: str = "python",
-    working_dir: str = None,
-    timeout: int = 15
-) -> dict:
-    """
-    Exécute de manière isolée un extrait ou un fichier de code dans un processus enfant.
-    Renoie un dictionnaire contenant stdout, stderr, code de retour, et temps d'exécution.
-    """
-    # working_dir doit rester sous SANDBOX_BASE_DIR ; sinon on retombe sur la racine
-    target_dir = _dans_sandbox(working_dir) if working_dir else None
-    if working_dir and target_dir is None:
-        print(f"[SANDBOX] ⛔ working_dir hors sandbox refusé : {working_dir!r}")
-    if target_dir is None:
-        target_dir = SANDBOX_BASE_DIR
-    os.makedirs(target_dir, exist_ok=True)
-
-    # Déterminer la commande d'exécution
-    if language.lower() in ["python", "py"]:
-        file_ext = ".py"
-        # venv à la racine du projet (le chemin visait backend/venv, inexistant)
-        python_exe = os.path.join(os.path.dirname(__file__), "..", "..", "venv", "Scripts", "python.exe")
-        if not os.path.exists(python_exe):
-            python_exe = sys.executable
-        cmd_args = [python_exe]
-    elif language.lower() in ["javascript", "js", "node"]:
-        file_ext = ".js"
-        cmd_args = ["node", *_permissions_node(target_dir)]
-    else:
-        return {
-            "success": False,
-            "return_code": -1,
-            "stdout": "",
-            "stderr": f"Langage '{language}' non supporté dans la sandbox.",
-            "execution_time": 0
-        }
-
-    # Création d'un fichier temporaire de code s'il s'agit d'un snippet
-    temp_file = None
-    try:
-        with tempfile.NamedTemporaryFile("w", suffix=file_ext, dir=target_dir, delete=False, encoding="utf-8") as f:
-            f.write(code_content)
-            temp_file = f.name
-
-        cmd = cmd_args + [temp_file]
-        start_time = time.time()
-
-        # Lancement asynchrone du sous-processus
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=target_dir
-        )
-
-        try:
-            stdout_data, stderr_data = await asyncio.wait_for(process.communicate(), timeout=timeout)
-            execution_time = round(time.time() - start_time, 3)
-            
-            stdout_str = stdout_data.decode("utf-8", errors="replace").strip()
-            stderr_str = stderr_data.decode("utf-8", errors="replace").strip()
-
-            return {
-                "success": process.returncode == 0,
-                "return_code": process.returncode,
-                "stdout": stdout_str,
-                "stderr": stderr_str,
-                "execution_time": execution_time
-            }
-        except asyncio.TimeoutError:
-            try:
-                process.kill()
-            except Exception:
-                pass
-            return {
-                "success": False,
-                "return_code": -1,
-                "stdout": "",
-                "stderr": f"Dépassement du temps d'exécution limite ({timeout}s). Processus interrompu.",
-                "execution_time": timeout
-            }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "return_code": -1,
-            "stdout": "",
-            "stderr": f"Erreur lors de l'exécution dans la sandbox : {str(e)}",
-            "execution_time": 0
-        }
-    finally:
-        if temp_file and os.path.exists(temp_file):
-            try:
-                os.remove(temp_file)
-            except Exception:
-                pass
 
 async def executer_fichier_sandbox(
     file_path: str,

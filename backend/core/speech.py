@@ -32,7 +32,7 @@ parole_queue = queue.Queue()
 parole_stop_event = threading.Event()
 dernier_parle_time = 0
 
-def init_mixer():
+def preparer_mixer():
     if pygame and not pygame.mixer.get_init():
         pygame.mixer.init()
 
@@ -105,25 +105,25 @@ async def _jouer_tts_fichier(texte, tmp_path):
         except: pass
         return
 
-    send_web_state = getattr(builtins, "send_web_state", None)
-    send_web_text = getattr(builtins, "send_web_text", None)
-    send_web_volume = getattr(builtins, "send_web_volume", None)
+    envoyer_etat_hud = getattr(builtins, "envoyer_etat_hud", None)
+    envoyer_texte_hud = getattr(builtins, "envoyer_texte_hud", None)
+    envoyer_volume_hud = getattr(builtins, "envoyer_volume_hud", None)
 
     is_speaking = True
-    if send_web_state: await send_web_state("speaking")
-    if send_web_text: await send_web_text(texte)
+    if envoyer_etat_hud: await envoyer_etat_hud("speaking")
+    if envoyer_texte_hud: await envoyer_texte_hud(texte)
 
     try:
         if _USE_HOMEPOD:
             # Lecture sur le HomePod via AirPlay — PC reste silencieux
             speak_volume = 0.8
-            if send_web_volume: await send_web_volume(speak_volume)
+            if envoyer_volume_hud: await envoyer_volume_hud(speak_volume)
             ok = await jouer_sur_homepod(tmp_path, stop_checker=lambda: STOP_PARLER)
             if not ok:
                 # Fallback pygame si le HomePod n'est pas joignable
                 print("[SPEECH] HomePod indisponible — fallback casque.")
                 if pygame:
-                    init_mixer()
+                    preparer_mixer()
                     pygame.mixer.music.load(tmp_path)
                     pygame.mixer.music.play()
                     while pygame.mixer.music.get_busy():
@@ -132,9 +132,9 @@ async def _jouer_tts_fichier(texte, tmp_path):
                             break
                         await asyncio.sleep(0.05)
             speak_volume = 0.0
-            if send_web_volume: await send_web_volume(speak_volume)
+            if envoyer_volume_hud: await envoyer_volume_hud(speak_volume)
         elif pygame:
-            init_mixer()
+            preparer_mixer()
             pygame.mixer.music.load(tmp_path)
             pygame.mixer.music.play()
             while pygame.mixer.music.get_busy():
@@ -146,14 +146,14 @@ async def _jouer_tts_fichier(texte, tmp_path):
                 base_vol = 0.4 + 0.3 * math.sin(t_audio) + 0.2 * math.sin(t_audio * 0.5)
                 speak_volume = max(0.1, min(1.0, base_vol + random.uniform(-0.1, 0.1)))
 
-                if send_web_volume: await send_web_volume(speak_volume)
+                if envoyer_volume_hud: await envoyer_volume_hud(speak_volume)
                 await asyncio.sleep(0.05)
     except Exception as e:
         print(f"[SPEECH PLAYBACK ERROR] {e}")
     finally:
         speak_volume = 0.0
         is_speaking = False
-        if send_web_state: await send_web_state("idle")
+        if envoyer_etat_hud: await envoyer_etat_hud("idle")
         dernier_parle_time = time.time()
         try:
             if pygame and pygame.mixer.get_init():

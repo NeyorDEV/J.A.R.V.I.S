@@ -11,7 +11,7 @@ from module.commandes_locales_sections import (
     _commandes_apps_musique, _commandes_identite_hud, _PAS_TROUVE,
 )
 from module.competences import (
-    executer_competence_vocale, jarvis_creer_competence, jarvis_supprimer_competence,
+    lancer_competence_vocale, fabriquer_competence, retirer_competence,
 )
 from module.image_generator import generer_affiche_ia, generer_image_ia
 from core.interlocuteur import nom_espace, nom_virgule
@@ -60,8 +60,8 @@ def _parser_demande_affiche(t):
     return visuel, lignes_bas
 
 
-async def resoudre_commandes_locales(texte):
-    """Détecte et exécute les commandes locales (Spotify, dossiers, apps) sans IA."""
+async def traiter_commandes_locales(texte):
+    """Repère et exécute les commandes locales (Spotify, dossiers, applications) sans passer par l'IA."""
     t = texte.lower().strip()
 
     _res = await _commandes_competences_systeme(t)
@@ -108,7 +108,7 @@ async def resoudre_commandes_locales(texte):
                     try:
                         subprocess.run(["taskkill", "/IM", proc], capture_output=True)
                     except Exception as e:
-                        print(f"[BROWSER] Erreur de fermeture douce de {proc} : {e}")
+                        print(f"[BROWSER] Fermeture en douceur impossible pour {proc} : {e}")
                 return f"Je ferme le navigateur{nom_virgule()}."
 
 
@@ -134,7 +134,7 @@ async def _commandes_competences_systeme(t):
         if match:
             nom = match.group(1).strip()
             desc = match.group(2).strip()
-            res = await asyncio.to_thread(jarvis_creer_competence, nom, desc)
+            res = await asyncio.to_thread(fabriquer_competence, nom, desc)
             return res
         else:
             return f"Désolé{nom_espace()}, le format pour créer une compétence est : 'Crée la compétence [nom] pour [description]'."
@@ -144,7 +144,7 @@ async def _commandes_competences_systeme(t):
         match = re.search(r'(?:supprime|désinstalle|desinstalle)\s+la\s+compétence\s+(.+)', t)
         if match:
             nom = match.group(1).strip()
-            res = jarvis_supprimer_competence(nom)
+            res = retirer_competence(nom)
             return res
 
     # 3. Exécution explicite de compétence
@@ -153,7 +153,7 @@ async def _commandes_competences_systeme(t):
         if match:
             nom = match.group(1).strip()
             param = match.group(2).strip() if match.group(2) else None
-            res = await asyncio.to_thread(executer_competence_vocale, nom, param)
+            res = await asyncio.to_thread(lancer_competence_vocale, nom, param)
             return res
 
     # 4. Liste des compétences personnalisées

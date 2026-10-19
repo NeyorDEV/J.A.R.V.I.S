@@ -21,7 +21,7 @@ def _clean(t: str) -> str:
     ).lower().strip()
 
 
-async def _broadcast(data: dict) -> None:
+async def _diffuser_clients(data: dict) -> None:
     if builtins.CONNECTED_CLIENTS:
         msg = json.dumps(data)
         await asyncio.gather(
@@ -76,7 +76,7 @@ async def _radar_loop() -> None:
                     ))
             _prev_scan_ips = current_scan
 
-            await _broadcast({"action": "network_radar_update", "connections": data})
+            await _diffuser_clients({"action": "network_radar_update", "connections": data})
 
         except asyncio.CancelledError:
             break
@@ -107,7 +107,7 @@ async def resoudre_connexions_reseau(cmd: str):
         _radar_active = False
         if _radar_task and not _radar_task.done():
             _radar_task.cancel()
-        await _broadcast({"action": "network_radar_hide"})
+        await _diffuser_clients({"action": "network_radar_hide"})
         return "Radar réseau désactivé."
 
     mots_show = ["montre", "affiche", "active", "lance", "ouvre", "voir", "demarre", "radar reseau", "connexions"]
@@ -118,7 +118,7 @@ async def resoudre_connexions_reseau(cmd: str):
         _prev_scan_ips = None
         loop = asyncio.get_event_loop()
         data = await loop.run_in_executor(None, get_radar_data)
-        await _broadcast({"action": "network_radar_show", "connections": data})
+        await _diffuser_clients({"action": "network_radar_show", "connections": data})
         _radar_active = True
         if _radar_task and not _radar_task.done():
             _radar_task.cancel()

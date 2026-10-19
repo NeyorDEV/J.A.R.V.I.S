@@ -16,8 +16,8 @@ try:
     import pyaudio
 except ImportError:
     pyaudio = None
-    print("[AVERTISSEMENT] pyaudio non installe — le micro sera desactive.")
-    print("  -> Pour l'installer : pip install pipwin && pipwin install pyaudio")
+    print("[ATTENTION] pyaudio est absent : le micro est désactivé.")
+    print("  -> Installation : pip install pipwin && pipwin install pyaudio")
 
 def _filtre_anticrenelage():
     """Passe-bas (FIR, coupure 7 kHz) appliqué AVANT de ramener le flux de 48 kHz à 16 kHz.
@@ -123,7 +123,7 @@ class AudioStreamManager:
                 self.active_rate = 48000
                 self.downsample_factor = 3
                 self.running = True
-                self.thread = threading.Thread(target=self._run, daemon=True)
+                self.thread = threading.Thread(target=self._boucle_capture, daemon=True)
                 self.thread.start()
                 # print(f"[AudioStreamManager] Flux d'acquisition démarré à 48000 Hz (avec décimation par 3) sur Micro Index: {self.mic_index}")
             except Exception as e:
@@ -140,7 +140,7 @@ class AudioStreamManager:
                     self.active_rate = 16000
                     self.downsample_factor = 1
                     self.running = True
-                    self.thread = threading.Thread(target=self._run, daemon=True)
+                    self.thread = threading.Thread(target=self._boucle_capture, daemon=True)
                     self.thread.start()
                     # print(f"[AudioStreamManager] Flux d'acquisition démarré à 16000 Hz de repli sur Micro Index: {self.mic_index}")
                 except Exception as e_fallback:
@@ -159,7 +159,7 @@ class AudioStreamManager:
         # bloqué dans stream.read(), reprenait la main après qu'un nouveau flux
         # ait été démarré (running déjà repassé à True) et l'on se retrouvait avec
         # DEUX threads lisant le même périphérique — chunks entrelacés, donc VAD
-        # et wakeword alimentés avec de l'audio corrompu jusqu'au redémarrage.
+        # alimentés avec de l'audio corrompu jusqu'au redémarrage.
         ancien = self.thread
         self.thread = None
         if ancien is not None and ancien.is_alive() and ancien is not threading.current_thread():
@@ -204,7 +204,7 @@ class AudioStreamManager:
                 self.active_rate = 48000
                 self.downsample_factor = 3
                 self.running = True
-                self.thread = threading.Thread(target=self._run, daemon=True)
+                self.thread = threading.Thread(target=self._boucle_capture, daemon=True)
                 self.thread.start()
                 print(f"[AudioStreamManager] Flux d'acquisition redémarré à 48000 Hz (avec décimation par 3) sur Micro Index: {self.mic_index}")
             except Exception as e:
@@ -221,14 +221,14 @@ class AudioStreamManager:
                     self.active_rate = 16000
                     self.downsample_factor = 1
                     self.running = True
-                    self.thread = threading.Thread(target=self._run, daemon=True)
+                    self.thread = threading.Thread(target=self._boucle_capture, daemon=True)
                     self.thread.start()
                     print(f"[AudioStreamManager] Flux d'acquisition redémarré à 16000 Hz de repli sur Micro Index: {self.mic_index}")
                 except Exception as e_fallback:
                     print(f"[AudioStreamManager] Erreur de réouverture du flux (48k et 16k) : {e_fallback}")
                     self.running = False
 
-    def _run(self):
+    def _boucle_capture(self):
         # Filtre et son état propres à ce flux (réinitialisés à chaque (re)démarrage du thread)
         fir = _filtre_anticrenelage() if self.downsample_factor == 3 else None
         etat_fir = np.zeros(len(fir) - 1) if fir is not None else None

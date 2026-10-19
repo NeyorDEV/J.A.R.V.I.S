@@ -4,7 +4,7 @@ import json
 import os
 
 import core.shared as shared
-from core.ai_clients import _cle_valide, recharger_clients_ia, _sauvegarder_env
+from core.ai_clients import cle_utilisable, relire_clients_ia, _ecrire_env
 
 
 # Sentinelle renvoyée à la place des vraies clés API : l'interface affiche que la
@@ -39,15 +39,15 @@ async def ws_get_settings(websocket, data):
                     "ANTHROPIC_API_KEY", "MISTRAL_API_KEY")
     }
     # État d'activation des API
-    config_data["api_gemini_enabled"] = config_data.get("api_gemini_enabled", _cle_valide(os.getenv("GEMINI_API_KEY")))
-    config_data["api_groq_enabled"] = config_data.get("api_groq_enabled", _cle_valide(os.getenv("GROQ_API_KEY")))
-    config_data["api_youtube_enabled"] = config_data.get("api_youtube_enabled", _cle_valide(os.getenv("YOUTUBE_API_KEY")))
-    config_data["api_grok_enabled"] = config_data.get("api_grok_enabled", _cle_valide(os.getenv("XAI_API_KEY")))
-    config_data["api_serpapi_enabled"] = config_data.get("api_serpapi_enabled", _cle_valide(os.getenv("SERPAPI_API_KEY")))
-    config_data["api_anthropic_enabled"] = config_data.get("api_anthropic_enabled", _cle_valide(os.getenv("ANTHROPIC_API_KEY")))
-    config_data["api_mistral_enabled"] = config_data.get("api_mistral_enabled", _cle_valide(os.getenv("MISTRAL_API_KEY")))
+    config_data["api_gemini_enabled"] = config_data.get("api_gemini_enabled", cle_utilisable(os.getenv("GEMINI_API_KEY")))
+    config_data["api_groq_enabled"] = config_data.get("api_groq_enabled", cle_utilisable(os.getenv("GROQ_API_KEY")))
+    config_data["api_youtube_enabled"] = config_data.get("api_youtube_enabled", cle_utilisable(os.getenv("YOUTUBE_API_KEY")))
+    config_data["api_grok_enabled"] = config_data.get("api_grok_enabled", cle_utilisable(os.getenv("XAI_API_KEY")))
+    config_data["api_serpapi_enabled"] = config_data.get("api_serpapi_enabled", cle_utilisable(os.getenv("SERPAPI_API_KEY")))
+    config_data["api_anthropic_enabled"] = config_data.get("api_anthropic_enabled", cle_utilisable(os.getenv("ANTHROPIC_API_KEY")))
+    config_data["api_mistral_enabled"] = config_data.get("api_mistral_enabled", cle_utilisable(os.getenv("MISTRAL_API_KEY")))
 
-    # Charger la liste des micros réels via pyaudio — même logique que detecter_microphone()
+    # Charger la liste des micros réels via pyaudio — même logique que choisir_microphone()
     mic_list = []
     try:
         import pyaudio as _py, re as _re
@@ -113,9 +113,9 @@ async def ws_update_settings(websocket, data):
         }
         if api_keys:
             # Mettre à jour le fichier .env
-            _sauvegarder_env(api_keys)
+            _ecrire_env(api_keys)
             # Recharger les variables et réinitialiser les clients d'IA à chaud
-            recharger_clients_ia()
+            relire_clients_ia()
 
     interrupteurs_changes = any(
         k.startswith("api_") and k.endswith("_enabled") and config_data.get(k, True) != v
@@ -125,7 +125,7 @@ async def ws_update_settings(websocket, data):
     with open(_p, "w", encoding="utf-8") as _f:
         _j.dump(config_data, _f, ensure_ascii=False, indent=4)
     if interrupteurs_changes:
-        recharger_clients_ia()   # appliquer l'activation / la désactivation des API
+        relire_clients_ia()   # appliquer l'activation / la désactivation des API
     if "mic_device_index" in settings and settings["mic_device_index"] != old_mic_index:
         shared.MIC_NEED_RELOAD = True
     if "av_live_protection" in settings:
@@ -140,4 +140,4 @@ async def ws_update_settings(websocket, data):
         from controller.app_launcher import _charger_custom_apps
         _charger_custom_apps()
     except: pass
-    print("[WEB] Parametres mis a jour avec succes.")
+    print("[WEB] Paramètres enregistrés.")

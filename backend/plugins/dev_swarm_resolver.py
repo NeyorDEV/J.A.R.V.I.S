@@ -1,13 +1,10 @@
 import os
-import sys
 import builtins
 import json
 import re
 import asyncio
-import py_compile
 import time
 import difflib
-import google.genai as genai
 from core.config import GEMINI_API_KEY, CHOSEN_MODEL
 from module.sandbox_executor import executer_fichier_sandbox
 from core.interlocuteur import nom_espace, nom_virgule
@@ -392,7 +389,6 @@ async def process_generated_images(code_text: str, project_dir: str) -> str:
     import uuid
     import urllib.parse
     import requests
-    import time
 
     global images_generated_count, images_total_count
     pattern = r"\[GENERATE_IMAGE:\s*(.*?)\]"
@@ -737,7 +733,7 @@ Réponds uniquement avec un objet JSON valide :
 
     logs = [f"[{time.strftime('%H:%M:%S')}] [PM] Architecture '{project_name}' validée ({len(files_list)} fichiers) dans {project_dir}"]
 
-    async def notify(payload):
+    async def signaler(payload):
         payload["project"] = project_name
         agent = payload.get("agent", "SYSTEM")
         message = payload.get("message", "")
@@ -766,7 +762,7 @@ Réponds uniquement avec un objet JSON valide :
             "project_name": project_name
         })
 
-    await notify({
+    await signaler({
         "action": "dev_swarm_update",
         "agent": "PM",
         "message": f"Architecture validée pour '{project_name}'",
@@ -777,7 +773,7 @@ Réponds uniquement avec un objet JSON valide :
     await asyncio.sleep(0.8)
 
     # ── ÉTAPE 2 : UI Designer (UI) ──
-    await notify({
+    await signaler({
         "action": "dev_swarm_update",
         "agent": "UI",
         "message": "Création du Design System Glassmorphic & Palettes...",
@@ -804,7 +800,7 @@ CONSIGNES STRICTES DE DIRECTION ARTISTIQUE, DE MOTION DESIGN ET D'ÉLÉGANCE PRO
 
 Définis en 5-6 lignes le Design System complet : palette Hex sur-mesure épurée, polices Google Fonts et concept de motion design contextuel."""
     ui_guidelines = await interroger_model(ui_prompt)
-    await notify({
+    await signaler({
         "action": "dev_swarm_update",
         "agent": "UI",
         "message": "Directives de Design System & Motion Design Sur-Mesure établies",
@@ -828,7 +824,7 @@ Définis en 5-6 lignes le Design System complet : palette Hex sur-mesure épuré
 
         files_state[file_path] = "writing"
         
-        await notify({
+        await signaler({
             "action": "dev_swarm_update",
             "agent": "DEV",
             "message": f"Écriture de {file_path}...",
@@ -934,7 +930,7 @@ Renvoye le code HTML complet du fichier sans bloc markdown.
             file_out.write(code_clean)
         written_files[file_path] = code_clean
 
-        await notify({
+        await signaler({
             "action": "dev_swarm_update",
             "agent": "DEV",
             "message": f"Code rédigé pour {file_path}",
@@ -952,7 +948,7 @@ Renvoye le code HTML complet du fichier sans bloc markdown.
                 file_out.write(code_clean)
             written_files[file_path] = code_clean
 
-        await notify({
+        await signaler({
             "action": "dev_swarm_update",
             "agent": "SEC",
             "message": f"Audit sécurité & intégrité des routes sur {file_path}...",
@@ -964,7 +960,7 @@ Renvoye le code HTML complet du fichier sans bloc markdown.
 
         # ── Test d'Exécution Réelle en Sandbox (QA) ──
         files_state[file_path] = "testing"
-        await notify({
+        await signaler({
             "action": "dev_swarm_update",
             "agent": "QA",
             "message": f"Exécution sandbox de {file_path}...",
@@ -983,7 +979,7 @@ Renvoye le code HTML complet du fichier sans bloc markdown.
                 else:
                     err_msg = res_exec["stderr"] or f"Exit code {res_exec['return_code']}"
                     print(f"[DEV SWARM QA SANDBOX] Erreur dans {file_path} (itér {iteration+1}): {err_msg}")
-                    await notify({
+                    await signaler({
                         "action": "dev_swarm_update",
                         "agent": "QA",
                         "message": f"Erreur dans {file_path}. Correction par DEV...",
@@ -1008,7 +1004,7 @@ Renvoye le code corrigé complet sans aucun bloc markdown."""
 
             if success:
                 files_state[file_path] = "completed"
-                await notify({
+                await signaler({
                     "action": "dev_swarm_update",
                     "agent": "QA",
                     "message": f"Sandbox OK pour {file_path}",
@@ -1018,7 +1014,7 @@ Renvoye le code corrigé complet sans aucun bloc markdown."""
                 })
             else:
                 files_state[file_path] = "failed"
-                await notify({
+                await signaler({
                     "action": "dev_swarm_update",
                     "agent": "QA",
                     "message": f"Échec sandbox {file_path}",
@@ -1031,7 +1027,7 @@ Renvoye le code corrigé complet sans aucun bloc markdown."""
                 return
         else:
             files_state[file_path] = "completed"
-            await notify({
+            await signaler({
                 "action": "dev_swarm_update",
                 "agent": "QA",
                 "message": f"Validation de {file_path}",
@@ -1042,7 +1038,7 @@ Renvoye le code corrigé complet sans aucun bloc markdown."""
         await asyncio.sleep(0.5)
 
     # ── ÉTAPE 6 : QA & DevOps Auto-Audit, Captures Visuelles & Test 100% Fonctionnel ──
-    await notify({
+    await signaler({
         "action": "dev_swarm_update",
         "agent": "QA",
         "message": "Audit Visuel (Captures d'écran multi-scroll) & Test 100% Fonctionnel...",
@@ -1063,7 +1059,7 @@ Renvoye le code corrigé complet sans aucun bloc markdown."""
     await asyncio.sleep(0.8)
 
     # ── FINALISATION ──
-    await notify({
+    await signaler({
         "action": "dev_swarm_update",
         "agent": "OPS",
         "message": f"Projet {project_name} prêt et déployé !",

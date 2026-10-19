@@ -28,7 +28,7 @@ def _sans_accent(texte):
     return "".join(c for c in unicodedata.normalize("NFD", texte) if unicodedata.category(c) != "Mn")
 
 
-async def resoudre_extras_locaux(texte):
+async def traiter_extras_locaux(texte):
     """Culture générale locale (capitales, monnaies).
 
     Salutations, « comment tu vas », blagues, citations et questions d'identité ne
@@ -48,4 +48,4 @@ async def resoudre_extras_locaux(texte):
     return None
 
 # Injection builtins
-builtins.resoudre_extras_locaux = resoudre_extras_locaux
+builtins.traiter_extras_locaux = traiter_extras_locaux

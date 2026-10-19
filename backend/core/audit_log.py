@@ -33,24 +33,3 @@ def consigner(evenement: str, **details) -> None:
     except Exception:
         pass
 
-
-def lire_dernieres_entrees(limite: int = 50) -> list:
-    """Retourne les `limite` dernières entrées du journal (plus récente en dernier)."""
-    if not os.path.exists(_LOG_PATH):
-        return []
-    try:
-        with open(_LOG_PATH, "r", encoding="utf-8") as f:
-            lignes = f.readlines()
-    except Exception:
-        return []
-
-    entrees = []
-    for ligne in lignes[-limite:]:
-        ligne = ligne.strip()
-        if not ligne:
-            continue
-        try:
-            entrees.append(json.loads(ligne))
-        except Exception:
-            continue
-    return entrees

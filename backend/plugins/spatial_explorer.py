@@ -7,18 +7,14 @@ Réutilise les fonctions existantes de module/file_manager.py.
 import os
 import json
 import shutil
-import builtins
 from pathlib import Path
 
 from core.dossiers import dossier_connu
 
 # Réutilisation des fonctions existantes du file_manager
 from module.file_manager import (
-    lister_dossier,
     ouvrir_fichier_ou_dossier,
-    deplacer_fichier,
-    resoudre_chemin,
-    EXTENSIONS,
+    interpreter_chemin,
 )
 
 # ── Catégorisation des fichiers pour le rendu 3D ──────────────────────
@@ -146,7 +142,7 @@ async def _handle_list(data: dict, websocket) -> None:
         print(f"[SPATIAL] Liste de la corbeille envoyée ({len(items)} éléments)")
         return
 
-    chemin_resolu = resoudre_chemin(chemin) if chemin else None
+    chemin_resolu = interpreter_chemin(chemin) if chemin else None
 
     # Fallback : Téléchargements par défaut
     if not chemin_resolu or not os.path.exists(chemin_resolu):
@@ -228,8 +224,8 @@ async def _handle_open(data: dict, websocket) -> None:
         return
 
     if chemin == "corbeille":
-        from module.file_manager import ouvrir_dossier
-        ok, msg = ouvrir_dossier("corbeille")
+        from module.file_manager import afficher_dossier
+        ok, msg = afficher_dossier("corbeille")
     else:
         if not os.path.exists(chemin):
             await websocket.send(json.dumps({

@@ -1,8 +1,11 @@
-// ── Panneau mises à jour winget — extrait de main.ts ──
+// ── Panneau mises à jour winget (style commun css/13_panneaux_modules.css) ──
+// Compteur dans l'en-tête, versions lisibles, état de chaque mise à jour sur sa ligne
+// (le serveur indique l'identifiant du paquet dans chaque message), journal repliable.
 
 import { wsRef } from "../ws_link";
 import { makePanelDraggable } from "../ui/draggable";
 import { closeUninstallerPanel } from "./uninstaller_panel";
+import { esc, icone, initiales } from "./pm_utils";
 
 // ── Winget Upgrade DOM Refs ────────────────────────────────────────────────
 const wingetPanel = document.getElementById("winget-panel") as HTMLDivElement;
@@ -15,10 +18,11 @@ const wingetSelectAll = document.getElementById("winget-select-all") as HTMLInpu
 const wingetRefreshBtn = document.getElementById("winget-refresh-btn") as HTMLButtonElement;
 const wingetUpgradeSelectedBtn = document.getElementById("winget-upgrade-selected-btn") as HTMLButtonElement;
 const wingetUpgradeAllBtn = document.getElementById("winget-upgrade-all-btn") as HTMLButtonElement;
-const wingetLogsContainer = document.getElementById("winget-logs-container") as HTMLDivElement;
+const wingetJournal = document.getElementById("winget-logs-container") as HTMLDetailsElement;
 const wingetConsole = document.getElementById("winget-console") as HTMLPreElement;
-const wingetCloseLogsBtn = document.getElementById("winget-close-logs-btn") as HTMLButtonElement;
 const wingetCountBadge = document.getElementById("winget-count-badge") as HTMLSpanElement;
+const wingetResume = document.getElementById("winget-resume") as HTMLDivElement;
+const wingetSelectionCompte = document.getElementById("winget-selection-compte") as HTMLSpanElement;
 
 interface WingetUpgradeItem {
   name: string;
@@ -28,230 +32,254 @@ interface WingetUpgradeItem {
   source: string;
 }
 
+type EtatMaj = { etat: "attente" | "cours" | "ok" | "echec"; pct?: number };
+
 let allWingetUpgrades: WingetUpgradeItem[] = [];
+const etats = new Map<string, EtatMaj>();   // identifiant winget → état de sa mise à jour
 
 
-// ── Winget Upgrade Panel Toggle and Draggable ──
+// ── Ouverture / fermeture ───────────────────────────────────────────────────
 if (wingetPanel && wingetHeader) {
   makePanelDraggable(wingetPanel, wingetHeader);
 }
 
-wingetCloseBtn?.addEventListener("click", () => {
-  closeWingetPanel();
-});
+wingetCloseBtn?.addEventListener("click", () => closeWingetPanel());
 
 wingetToggleBtn?.addEventListener("click", () => {
-  const isHidden = wingetPanel.classList.contains("hidden");
-  if (isHidden) {
-    openWingetPanel();
-  } else {
-    closeWingetPanel();
-  }
+  if (wingetPanel.classList.contains("hidden")) openWingetPanel();
+  else closeWingetPanel();
 });
 
-// ── Winget Upgrade Panel Core Functions ──
-export function openWingetPanel() {
-  if (wingetPanel) {
-    wingetPanel.classList.remove("hidden");
-    wingetPanel.classList.add("visible");
-    wingetToggleBtn?.setAttribute("aria-pressed", "true");
-    
-    // Synchroniser avec le bouton du menu dropdown unifié
-    const menuBtn = document.getElementById("winget-toggle-btn");
-    if (menuBtn) {
-      menuBtn.setAttribute("aria-pressed", "true");
-      menuBtn.classList.add("active");
-    }
-    
-    // Close other panels if needed
-    closeUninstallerPanel(); // vérifie l'existence du panneau en interne
-    
-    wingetLogsContainer?.classList.add("hidden");
-    
-    if (wingetList) {
-      wingetList.innerHTML = '<div class="uninstaller-loading" style="color: #00e5ff;">RECHERCHE DES MISES À JOUR...</div>';
-    }
-    
-    // Request winget upgrades
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "get_winget_upgrades" }));
-    }
+function synchroniserBoutonMenu(ouvert: boolean) {
+  wingetToggleBtn?.setAttribute("aria-pressed", String(ouvert));
+  wingetToggleBtn?.classList.toggle("active", ouvert);
+}
+
+function demanderListe() {
+  if (wingetList) wingetList.innerHTML = '<div class="pm-vide">RECHERCHE DES MISES À JOUR…</div>';
+  if (wingetResume) wingetResume.textContent = "Recherche des mises à jour…";
+  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    wsRef.current.send(JSON.stringify({ type: "get_winget_upgrades" }));
   }
+}
+
+export function openWingetPanel() {
+  if (!wingetPanel) return;
+  wingetPanel.classList.remove("hidden");
+  wingetPanel.classList.add("visible");
+  synchroniserBoutonMenu(true);
+  closeUninstallerPanel(); // vérifie l'existence du panneau en interne
+  // Pas de nouvelle recherche pendant des mises à jour en cours : on garde leur état
+  if (!miseAJourEnCours()) demanderListe();
 }
 
 export function closeWingetPanel() {
-  if (wingetPanel) {
-    wingetPanel.classList.add("hidden");
-    wingetPanel.classList.remove("visible");
-    wingetToggleBtn?.setAttribute("aria-pressed", "false");
-    
-    // Synchroniser avec le bouton du menu dropdown unifié
-    const menuBtn = document.getElementById("winget-toggle-btn");
-    if (menuBtn) {
-      menuBtn.setAttribute("aria-pressed", "false");
-      menuBtn.classList.remove("active");
-    }
-  }
+  if (!wingetPanel) return;
+  wingetPanel.classList.add("hidden");
+  wingetPanel.classList.remove("visible");
+  synchroniserBoutonMenu(false);
 }
 
-function renderWingetUpgrades(upgrades: WingetUpgradeItem[]) {
+
+// ── Liste ───────────────────────────────────────────────────────────────────
+function miseAJourEnCours(): boolean {
+  return [...etats.values()].some(e => e.etat === "attente" || e.etat === "cours");
+}
+
+function droiteLigne(item: WingetUpgradeItem): string {
+  const e = etats.get(item.id);
+  if (!e) {
+    return `<span class="pm-version">${esc(item.version)}</span>
+            <span style="color:var(--pm-gris);display:flex">${icone("fleche")}</span>
+            <span class="pm-version nouvelle">${esc(item.available)}</span>`;
+  }
+  if (e.etat === "attente") return `<span class="pm-detail">En attente</span>`;
+  if (e.etat === "cours") {
+    const pct = e.pct;
+    return `<div class="pm-barre ${pct === undefined ? "indeterminee" : ""}"><i style="width:${pct ?? 0}%"></i></div>`;
+  }
+  if (e.etat === "ok") return `<span class="pm-ok" style="display:flex">${icone("ok")}</span>`;
+  return `<span class="pm-erreur" style="display:flex">${icone("erreur")}</span>`;
+}
+
+function detailLigne(item: WingetUpgradeItem): string {
+  const e = etats.get(item.id);
+  if (!e) return esc(item.id);
+  if (e.etat === "attente") return "Mise à jour en attente";
+  if (e.etat === "cours") return e.pct === undefined ? "Installation…" : `Installation… ${e.pct} %`;
+  if (e.etat === "ok") return `<span class="pm-ok">À jour en ${esc(item.available)}</span>`;
+  return `<span class="pm-erreur">Échec de la mise à jour (voir le journal)</span>`;
+}
+
+function renderWingetUpgrades() {
   if (!wingetList) return;
-  wingetList.innerHTML = "";
-  
-  if (upgrades.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "uninstaller-loading";
-    empty.style.color = "#00e5ff";
-    empty.textContent = "VOTRE SYSTÈME EST À JOUR";
-    wingetList.appendChild(empty);
-    
-    if (wingetCountBadge) {
-      wingetCountBadge.textContent = "0";
-      wingetCountBadge.classList.add("hidden");
-    }
+  const n = allWingetUpgrades.length;
+  if (wingetCountBadge) {
+    wingetCountBadge.textContent = String(n);
+    wingetCountBadge.classList.toggle("hidden", n === 0);
+  }
+  if (wingetResume) {
+    const heure = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    wingetResume.textContent = n
+      ? `${n} mise${n > 1 ? "s" : ""} à jour disponible${n > 1 ? "s" : ""} · vérifié à ${heure}`
+      : `Tout est à jour · vérifié à ${heure}`;
+  }
+  if (n === 0) {
+    wingetList.innerHTML = '<div class="pm-vide">VOTRE SYSTÈME EST À JOUR</div>';
+    mettreAJourSelection();
     return;
   }
-  
-  if (wingetCountBadge) {
-    wingetCountBadge.textContent = upgrades.length.toString();
-    wingetCountBadge.classList.remove("hidden");
-  }
-  
-  upgrades.forEach((item, idx) => {
-    const el = document.createElement("div");
-    el.className = "uninstaller-app-item";
-    el.innerHTML = `
-      <div class="uninstaller-app-info" style="display:flex; flex-direction:row; align-items:center; gap:10px; width:65%;">
-        <input type="checkbox" class="winget-select-checkbox" data-idx="${idx}" checked style="accent-color: #00e5ff;">
-        <div style="flex:1;">
-          <div class="uninstaller-app-name" style="color:#00e5ff;">${item.name}</div>
-          <div class="uninstaller-app-publisher" style="font-size:9px; opacity:0.7;">
-            ID: ${item.id} | v${item.version} → <span style="color:#00ff88;">v${item.available}</span>
-          </div>
-        </div>
+  wingetList.innerHTML = allWingetUpgrades.map((item, idx) => `
+    <div class="pm-ligne" data-id="${esc(item.id)}">
+      <input type="checkbox" class="pm-case winget-select-checkbox" data-idx="${idx}" checked>
+      <div class="pm-avatar">${esc(initiales(item.name))}</div>
+      <div class="pm-texte">
+        <div class="pm-nom" title="${esc(item.name)}">${esc(item.name)}</div>
+        <div class="pm-detail">${detailLigne(item)}</div>
       </div>
-      <button class="uninstaller-app-btn winget-upgrade-item-btn" data-id="${item.id}" style="border-color:#00e5ff; color:#00e5ff; background:rgba(0,229,255,0.05);">METTRE À JOUR</button>
-    `;
-    
-    const btn = el.querySelector(".winget-upgrade-item-btn") as HTMLButtonElement;
-    btn.addEventListener("click", () => {
-      runWingetUpgrade([item.id]);
-    });
-    
-    wingetList.appendChild(el);
+      <div class="pm-droite" style="display:flex;align-items:center;gap:6px">${droiteLigne(item)}</div>
+    </div>`).join("");
+  wingetList.querySelectorAll<HTMLInputElement>(".winget-select-checkbox")
+    .forEach(cb => cb.addEventListener("change", mettreAJourSelection));
+  filtrer();
+  mettreAJourSelection();
+}
+
+/** Met à jour une seule ligne (sans reconstruire la liste ni perdre les cases cochées). */
+function rafraichirLigne(id: string) {
+  const item = allWingetUpgrades.find(i => i.id === id);
+  const ligne = wingetList?.querySelector<HTMLElement>(`.pm-ligne[data-id="${CSS.escape(id)}"]`);
+  if (!item || !ligne) return;
+  const detail = ligne.querySelector(".pm-detail");
+  const droite = ligne.querySelector(".pm-droite");
+  if (detail) detail.innerHTML = detailLigne(item);
+  if (droite) droite.innerHTML = droiteLigne(item);
+}
+
+function idsSelectionnes(): string[] {
+  const ids: string[] = [];
+  wingetList?.querySelectorAll<HTMLInputElement>(".winget-select-checkbox").forEach(cb => {
+    // Une ligne masquée par la recherche n'est pas mise à jour, même cochée
+    const ligne = cb.closest(".pm-ligne") as HTMLElement | null;
+    if (ligne && ligne.style.display === "none") return;
+    const item = allWingetUpgrades[parseInt(cb.dataset.idx || "0")];
+    if (cb.checked && item) ids.push(item.id);
+  });
+  return ids;
+}
+
+function mettreAJourSelection() {
+  const n = idsSelectionnes().length;
+  const occupe = miseAJourEnCours();
+  if (wingetSelectionCompte) wingetSelectionCompte.textContent = n ? `${n} sélectionnée${n > 1 ? "s" : ""}` : "";
+  if (wingetUpgradeSelectedBtn) {
+    wingetUpgradeSelectedBtn.textContent = occupe ? "Mise à jour en cours…" : `Mettre à jour${n ? ` (${n})` : ""}`;
+    wingetUpgradeSelectedBtn.disabled = occupe || n === 0;
+  }
+  if (wingetUpgradeAllBtn) wingetUpgradeAllBtn.disabled = occupe || allWingetUpgrades.length === 0;
+}
+
+function filtrer() {
+  const q = (wingetSearchInput?.value || "").trim().toLowerCase();
+  wingetList?.querySelectorAll<HTMLElement>(".pm-ligne").forEach(ligne => {
+    ligne.style.display = (ligne.textContent || "").toLowerCase().includes(q) ? "" : "none";
   });
 }
 
 function runWingetUpgrade(ids: string[]) {
   if (ids.length === 0) return;
-  if (wingetLogsContainer && wingetConsole) {
-    wingetLogsContainer.classList.remove("hidden");
-    wingetConsole.textContent = `[JARVIS] Lancement de la mise à jour pour:\n- ${ids.join("\n- ")}\n\n`;
-    wingetConsole.scrollTop = wingetConsole.scrollHeight;
+  ids.forEach((id, i) => etats.set(id, { etat: i === 0 ? "cours" : "attente" }));
+  ids.forEach(rafraichirLigne);
+  mettreAJourSelection();
+  if (wingetConsole) {
+    wingetConsole.textContent = `[JARVIS] Mise à jour de :\n- ${ids.join("\n- ")}\n\n`;
   }
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-    wsRef.current.send(JSON.stringify({
-      type: "run_winget_upgrade",
-      ids: ids
-    }));
+    // Par identifiants : le serveur les traite un par un et indique lequel est en cours,
+    // d'où l'état affiché sur chaque ligne.
+    wsRef.current.send(JSON.stringify({ type: "run_winget_upgrade", ids }));
   }
 }
 
-// Event Listeners for Winget controls
-wingetSearchInput?.addEventListener("input", () => {
-  const query = wingetSearchInput.value.trim().toLowerCase();
-  const items = document.querySelectorAll("#winget-upgrades-list .uninstaller-app-item");
-  items.forEach(item => {
-    const text = item.textContent?.toLowerCase() || "";
-    if (text.includes(query)) {
-      (item as HTMLElement).style.display = "";
-    } else {
-      (item as HTMLElement).style.display = "none";
-    }
-  });
-});
+wingetSearchInput?.addEventListener("input", () => { filtrer(); mettreAJourSelection(); });
 
 wingetSelectAll?.addEventListener("change", () => {
-  const checked = wingetSelectAll.checked;
-  const checkboxes = document.querySelectorAll(".winget-select-checkbox") as NodeListOf<HTMLInputElement>;
-  checkboxes.forEach(cb => {
-    cb.checked = checked;
-  });
+  wingetList?.querySelectorAll<HTMLInputElement>(".winget-select-checkbox")
+    .forEach(cb => { cb.checked = wingetSelectAll.checked; });
+  mettreAJourSelection();
 });
 
 wingetRefreshBtn?.addEventListener("click", () => {
-  if (wingetList) {
-    wingetList.innerHTML = '<div class="uninstaller-loading" style="color: #00e5ff;">RECHERCHE DES MISES À JOUR...</div>';
-  }
-  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-    wsRef.current.send(JSON.stringify({ type: "get_winget_upgrades" }));
-  }
+  if (miseAJourEnCours()) return;
+  etats.clear();
+  demanderListe();
 });
 
-wingetUpgradeSelectedBtn?.addEventListener("click", () => {
-  const ids: string[] = [];
-  const checkboxes = document.querySelectorAll(".winget-select-checkbox") as NodeListOf<HTMLInputElement>;
-  checkboxes.forEach(cb => {
-    // La recherche masque les lignes non correspondantes SANS décocher leur case.
-    // Sans ce test, filtrer sur une application puis cliquer « mettre à jour la
-    // sélection » mettait à jour TOUS les logiciels, y compris les invisibles.
-    const ligne = cb.closest(".uninstaller-app-item") as HTMLElement | null;
-    if (ligne && ligne.style.display === "none") return;
+wingetUpgradeSelectedBtn?.addEventListener("click", () => runWingetUpgrade(idsSelectionnes()));
 
-    if (cb.checked) {
-      const idx = parseInt(cb.getAttribute("data-idx") || "0");
-      const item = allWingetUpgrades[idx];
-      if (item) ids.push(item.id);   // garde-fou : index hors bornes possible
-    }
-  });
-  if (ids.length === 0) {
-    alert("Veuillez sélectionner au moins un logiciel visible à mettre à jour.");
-    return;
-  }
-  runWingetUpgrade(ids);
-});
-
+// « Tout » : une seule commande winget --all, donc une seule demande d'autorisation Windows
+// (UAC) sans droits administrateur ; paquet par paquet, il en fallait une par logiciel.
+// Le serveur n'indique alors pas le paquet en cours : toutes les lignes sont « en cours »
+// puis passent ensemble à réussi / échec.
 wingetUpgradeAllBtn?.addEventListener("click", () => {
-  if (allWingetUpgrades.length === 0) {
-    alert("Aucune mise à jour disponible à installer.");
-    return;
-  }
-  if (wingetLogsContainer && wingetConsole) {
-    wingetLogsContainer.classList.remove("hidden");
-    wingetConsole.textContent = "[JARVIS] Lancement de la mise à jour globale du système...\n\n";
-    wingetConsole.scrollTop = wingetConsole.scrollHeight;
-  }
+  if (allWingetUpgrades.length === 0) return;
+  allWingetUpgrades.forEach(i => etats.set(i.id, { etat: "cours" }));
+  allWingetUpgrades.forEach(i => rafraichirLigne(i.id));
+  mettreAJourSelection();
+  if (wingetConsole) wingetConsole.textContent = "[JARVIS] Mise à jour de tous les logiciels (winget --all)…\n\n";
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-    wsRef.current.send(JSON.stringify({
-      type: "run_winget_upgrade",
-      all: true
-    }));
-  }
-});
-
-wingetCloseLogsBtn?.addEventListener("click", () => {
-  wingetLogsContainer?.classList.add("hidden");
-  // Refresh the list after upgrade closes
-  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-    wsRef.current.send(JSON.stringify({ type: "get_winget_upgrades" }));
+    wsRef.current.send(JSON.stringify({ type: "run_winget_upgrade", all: true }));
   }
 });
 
 
-// ── API pour le dispatch WebSocket de main.ts ──
+// ── API pour le dispatch WebSocket ──
 export function handleWingetUpgrades(upgrades: WingetUpgradeItem[]) {
-  allWingetUpgrades = upgrades;
-  renderWingetUpgrades(allWingetUpgrades);
+  allWingetUpgrades = upgrades || [];
+  // On ne garde l'état que des logiciels encore listés
+  [...etats.keys()].forEach(id => { if (!allWingetUpgrades.some(i => i.id === id)) etats.delete(id); });
+  renderWingetUpgrades();
 }
 
 export function appendWingetProgress(progressData: any) {
-  if (wingetConsole) {
-    if (progressData.status === "running") {
-      wingetConsole.textContent += progressData.log;
-      wingetConsole.scrollTop = wingetConsole.scrollHeight;
-    } else if (progressData.status === "complete") {
-      wingetConsole.textContent += `\n[JARVIS] Processus de mise à jour terminé (Code: ${progressData.returncode}).\n`;
+  const id: string | undefined = progressData.id || undefined;
+  if (progressData.status === "running") {
+    if (wingetConsole) {
+      wingetConsole.textContent += progressData.log || "";
       wingetConsole.scrollTop = wingetConsole.scrollHeight;
     }
+    if (id) {
+      // winget affiche parfois un pourcentage (droits administrateur) ; sinon barre animée
+      const m = /(\d{1,3})\s?%/.exec(progressData.log || "");
+      const precedent = etats.get(id);
+      etats.set(id, { etat: "cours", pct: m ? Math.min(100, parseInt(m[1])) : precedent?.pct });
+      rafraichirLigne(id);
+    }
+  } else if (progressData.status === "complete") {
+    const ok = progressData.returncode === 0;
+    if (wingetConsole) {
+      wingetConsole.textContent += `\n[JARVIS] ${id || "Mise à jour"} : ${ok ? "terminée" : `échec (code ${progressData.returncode})`}.\n`;
+      wingetConsole.scrollTop = wingetConsole.scrollHeight;
+    }
+    if (id) {
+      etats.set(id, { etat: ok ? "ok" : "echec" });
+      rafraichirLigne(id);
+    } else {
+      // Fin d'un « Tout » (winget --all) : même résultat pour toutes les lignes en cours
+      etats.forEach((e, cle) => {
+        if (e.etat === "cours" || e.etat === "attente") {
+          etats.set(cle, { etat: ok ? "ok" : "echec" });
+          rafraichirLigne(cle);
+        }
+      });
+    }
+    if (!ok && wingetJournal) wingetJournal.open = true;
+    // Ligne suivante de la file : « en cours » dès maintenant (le serveur les enchaîne)
+    const suivant = allWingetUpgrades.find(i => etats.get(i.id)?.etat === "attente");
+    if (suivant) {
+      etats.set(suivant.id, { etat: "cours" });
+      rafraichirLigne(suivant.id);
+    }
+    mettreAJourSelection();
   }
 }

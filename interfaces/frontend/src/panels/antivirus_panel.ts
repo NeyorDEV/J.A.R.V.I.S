@@ -1,384 +1,293 @@
-// ── Panneau antivirus JARVIS (scan, menaces, actions) — extrait de main.ts ──
+// ── Panneau sécurité / antivirus (style commun css/13_panneaux_modules.css) ──
+// État en un coup d'œil (anneau d'avancement, fichiers analysés, menaces, durée), couleur
+// selon l'état (ambre : analyse, vert : sain, rouge : menace), une carte par menace avec ses
+// actions, protection en temps réel réglable depuis l'en-tête, journal repliable.
 
 import { wsRef } from "../ws_link";
 import { makePanelDraggable } from "../ui/draggable";
+import { esc, formatNombre, icone } from "./pm_utils";
 
-// ── Antivirus HUD Logic ──────────────────────────────────────────────────────
-const avPanelEl       = document.getElementById("av-panel") as HTMLDivElement;
-const avHeaderEl      = document.getElementById("av-panel-header") as HTMLDivElement;
-const avCloseBtn      = document.getElementById("av-panel-close-btn") as HTMLButtonElement;
-const avCancelBtn     = document.getElementById("av-cancel-btn") as HTMLButtonElement;
-const avProgressFill  = document.getElementById("av-progress-bar-fill") as HTMLDivElement;
-const avProgressPct   = document.getElementById("av-progress-percent") as HTMLDivElement;
-const avStatusLabel   = document.getElementById("av-status-label") as HTMLSpanElement;
-const avThreatsCount  = document.getElementById("av-threats-count") as HTMLSpanElement;
-const avCurrentFile   = document.getElementById("av-current-file") as HTMLDivElement;
-const avConsole       = document.getElementById("av-console") as HTMLDivElement;
+const avPanelEl = document.getElementById("av-panel") as HTMLDivElement;
+const avHeaderEl = document.getElementById("av-panel-header") as HTMLDivElement;
+const avCloseBtn = document.getElementById("av-panel-close-btn") as HTMLButtonElement;
+const avCancelBtn = document.getElementById("av-cancel-btn") as HTMLButtonElement;
+const avProgressFill = document.getElementById("av-progress-bar-fill") as HTMLElement;
+const avProgressPct = document.getElementById("av-progress-percent") as unknown as SVGTextElement;
+const avAnneau = document.getElementById("av-anneau-valeur") as unknown as SVGCircleElement;
+const avStatusLabel = document.getElementById("av-status-label") as HTMLDivElement;
+const avThreatsCount = document.getElementById("av-threats-count") as HTMLElement;
+const avNbFichiers = document.getElementById("av-nb-fichiers") as HTMLElement;
+const avDuree = document.getElementById("av-duree") as HTMLElement;
+const avCurrentFile = document.getElementById("av-current-file") as HTMLDivElement;
+const avConsole = document.getElementById("av-console") as HTMLDivElement;
+const avThreatsListEl = document.getElementById("av-threats-list") as HTMLDivElement;
+const avLiveToggle = document.getElementById("av-live-toggle") as HTMLInputElement;
+
+const CIRCONFERENCE = 2 * Math.PI * 38;
+const ETAPES: Record<string, string> = {
+  registry: "Analyse du registre de démarrage",
+  processes: "Analyse des processus actifs",
+  files: "Analyse des fichiers",
+};
 
 let avScanInProgress = false;
 let avThreatsList: any[] = [];
 let avResolvedThreatsCount = 0;
+let debutAnalyse = 0;
+let minuterieDuree: number | null = null;
+let avTimerMasquage: number | null = null;   // masquage différé, annulable à la réouverture
 
-// Setup Drag & Drop
 if (avPanelEl && avHeaderEl) {
   makePanelDraggable(avPanelEl, avHeaderEl);
 }
 
+// ── Affichage ───────────────────────────────────────────────────────────────
+function etat(texte: string, classe: "" | "etat-sain" | "threat-detected" = "") {
+  if (avStatusLabel) avStatusLabel.textContent = texte;
+  avPanelEl?.classList.remove("etat-sain", "threat-detected");
+  if (classe) avPanelEl?.classList.add(classe);
+}
+
+function progression(pct: number) {
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  if (avProgressFill) avProgressFill.style.width = `${p}%`;
+  if (avProgressPct) avProgressPct.textContent = `${p}%`;
+  if (avAnneau) avAnneau.setAttribute("stroke-dashoffset", String(CIRCONFERENCE * (1 - p / 100)));
+}
+
+function compterMenaces(n: number) {
+  if (avThreatsCount) {
+    avThreatsCount.textContent = String(n);
+    avThreatsCount.style.color = n > 0 ? "#ff5a5f" : "";
+  }
+}
+
+function journal(texte: string, classe: "" | "menace" | "ok" = "") {
+  if (!avConsole) return;
+  const ligne = document.createElement("div");
+  if (classe) ligne.className = classe;
+  ligne.textContent = texte;
+  avConsole.appendChild(ligne);
+  avConsole.scrollTop = avConsole.scrollHeight;
+}
+
+function demarrerMinuterie() {
+  arreterMinuterie();
+  debutAnalyse = Date.now();
+  const tic = () => {
+    const s = Math.floor((Date.now() - debutAnalyse) / 1000);
+    if (avDuree) avDuree.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+  tic();
+  minuterieDuree = window.setInterval(tic, 1000);
+}
+
+function arreterMinuterie() {
+  if (minuterieDuree !== null) clearInterval(minuterieDuree);
+  minuterieDuree = null;
+}
+
+function finAnalyse() {
+  avScanInProgress = false;
+  arreterMinuterie();
+  if (avCancelBtn) avCancelBtn.textContent = "Fermer";
+}
+
+// ── Ouverture / fermeture ───────────────────────────────────────────────────
 export function openAntivirusPanel() {
   if (!avPanelEl) return;
-
-  // Annule un masquage différé encore en attente : rouvrir le panneau dans les
-  // 400 ms suivant sa fermeture laissait le timer précédent se déclencher et
-  // remettre « hidden » sur un panneau tout juste rouvert (scan lancé mais
-  // panneau invisible, et bouton du dock repassé à « éteint »).
+  // Annule un masquage différé encore en attente (réouverture dans les 400 ms)
   if (avTimerMasquage !== null) {
     clearTimeout(avTimerMasquage);
     avTimerMasquage = null;
   }
-
-  // Initial positioning
-  const left = Math.max(20, (window.innerWidth - 460) / 2);
-  const top = Math.max(20, (window.innerHeight - 420) / 2);
-  avPanelEl.style.left = `${left}px`;
-  avPanelEl.style.top = `${top}px`;
-  avPanelEl.style.right = "auto";
-  avPanelEl.style.bottom = "auto";
-  avPanelEl.style.transform = "none";
-
-  // Reset UI elements
-  avPanelEl.classList.remove("threat-detected");
   avPanelEl.classList.remove("hidden");
-  void avPanelEl.offsetWidth; // Reflow
+  void avPanelEl.offsetWidth; // reflow : relance l'animation d'ouverture
   avPanelEl.classList.add("visible");
 
-  if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: INITIALISATION";
-  if (avThreatsCount) avThreatsCount.textContent = "MENACES DÉTECTÉES: 0";
-  if (avProgressFill) avProgressFill.style.width = "0%";
-  if (avProgressPct) avProgressPct.textContent = "0%";
-  if (avCurrentFile) avCurrentFile.textContent = "CONNEXION AU NOYAU DE SÉCURITÉ...";
-  if (avConsole) avConsole.innerHTML = '<div class="av-console-line info">[INFO] Initialisation du système de sécurité JARVIS v2.6...</div>';
-  
-  // Clean active threats state
+  etat("Initialisation de l'analyse…");
+  progression(0);
+  compterMenaces(0);
+  if (avNbFichiers) avNbFichiers.textContent = "0";
+  if (avCurrentFile) { avCurrentFile.textContent = "Connexion au moteur de sécurité…"; avCurrentFile.style.display = ""; }
+  if (avConsole) avConsole.innerHTML = "";
+  journal("[INFO] Démarrage de l'analyse rapide.");
   avThreatsList = [];
   avResolvedThreatsCount = 0;
-  const listContainer = document.getElementById("av-threats-list");
-  if (listContainer) {
-    listContainer.innerHTML = "";
-    listContainer.classList.add("hidden");
-  }
-  
-  // Show radar and progress controls
-  const radarCont = avPanelEl.querySelector(".av-radar-container") as HTMLElement;
-  const progressCont = avPanelEl.querySelector(".av-progress-bar-container") as HTMLElement;
-  const currentFileCont = document.getElementById("av-current-file") as HTMLElement;
-  if (radarCont) radarCont.style.display = "";
-  if (progressCont) progressCont.style.display = "";
-  if (currentFileCont) currentFileCont.style.display = "";
+  if (avThreatsListEl) { avThreatsListEl.innerHTML = ""; avThreatsListEl.classList.add("hidden"); }
 
-  if (avCancelBtn) {
-    avCancelBtn.textContent = "ANNULER";
-    avCancelBtn.disabled = false;
-  }
+  // Interrupteur de protection temps réel : même état que dans les paramètres
+  const reglage = document.getElementById("settings-av-live") as HTMLInputElement | null;
+  if (avLiveToggle && reglage) avLiveToggle.checked = reglage.checked;
+
+  if (avCancelBtn) { avCancelBtn.textContent = "Annuler"; avCancelBtn.disabled = false; }
   avScanInProgress = true;
-
-  // Send start scan to backend
+  demarrerMinuterie();
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
     wsRef.current.send(JSON.stringify({ type: "av_scan_start" }));
   }
 }
 
-// Handle du masquage différé, pour pouvoir l'annuler à la réouverture.
-let avTimerMasquage: number | null = null;
-
 export function closeAntivirusPanel() {
   if (!avPanelEl) return;
-
-  if (avScanInProgress) {
-    cancelAvScan();
-  }
-
+  if (avScanInProgress) cancelAvScan();
   avPanelEl.classList.remove("visible");
   if (avTimerMasquage !== null) clearTimeout(avTimerMasquage);
   avTimerMasquage = window.setTimeout(() => {
     avPanelEl.classList.add("hidden");
     avTimerMasquage = null;
-  }, 400);
+  }, 150);
 }
 
 function cancelAvScan() {
-  avScanInProgress = false;
+  finAnalyse();
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
     wsRef.current.send(JSON.stringify({ type: "av_scan_cancel" }));
   }
-  if (avCancelBtn) {
-    avCancelBtn.textContent = "FERMER";
+}
+
+avCloseBtn?.addEventListener("click", closeAntivirusPanel);
+avCancelBtn?.addEventListener("click", () => {
+  if (avScanInProgress) cancelAvScan();
+  else closeAntivirusPanel();
+});
+
+// Protection en temps réel : enregistrée tout de suite (réglage partiel, cf. ws_reglages)
+avLiveToggle?.addEventListener("change", () => {
+  const actif = avLiveToggle.checked;
+  const reglage = document.getElementById("settings-av-live") as HTMLInputElement | null;
+  if (reglage) reglage.checked = actif;
+  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    wsRef.current.send(JSON.stringify({ type: "update_settings", settings: { av_live_protection: actif } }));
   }
-}
+  journal(`[INFO] Protection en temps réel ${actif ? "activée" : "désactivée"}.`, actif ? "ok" : "");
+});
 
-if (avCloseBtn) {
-  avCloseBtn.addEventListener("click", closeAntivirusPanel);
-}
-
-if (avCancelBtn) {
-  avCancelBtn.addEventListener("click", () => {
-    if (avScanInProgress) {
-      cancelAvScan();
-    } else {
-      closeAntivirusPanel();
-    }
-  });
-}
-
+// ── Messages du serveur ─────────────────────────────────────────────────────
 export function handleAntivirusWSMessage(data: any) {
-  if (!avConsole) return;
-
   if (data.type === "av_start") {
-    const line = document.createElement("div");
-    line.className = "av-console-line info";
-    line.textContent = `[NOYAU] ${data.message || 'Moteur antivirus démarré.'}`;
-    avConsole.appendChild(line);
-    avConsole.scrollTop = avConsole.scrollHeight;
+    journal(`[NOYAU] ${data.message || "Moteur antivirus démarré."}`);
   }
-  
+
   else if (data.type === "av_progress") {
-    // Update progress bar
-    if (data.percent !== undefined && avProgressFill && avProgressPct) {
-      avProgressFill.style.width = `${data.percent}%`;
-      avProgressPct.textContent = `${data.percent}%`;
+    if (data.percent !== undefined) progression(data.percent);
+    if (data.step) etat(ETAPES[data.step] || "Analyse en cours", avThreatsList.length ? "threat-detected" : "");
+    if (data.threats_found !== undefined) compterMenaces(data.threats_found);
+    if (data.step === "files" && data.scanned !== undefined && avNbFichiers) {
+      avNbFichiers.textContent = formatNombre(data.scanned);
     }
-    
-    if (data.step && avStatusLabel) {
-      avStatusLabel.textContent = `SYS_STATUS: ${data.step.toUpperCase()}_SCAN`;
-    }
-    
-    if (data.threats_found !== undefined && avThreatsCount) {
-      avThreatsCount.textContent = `MENACES DÉTECTÉES: ${data.threats_found}`;
-    }
-    
     if (data.message) {
       if (avCurrentFile) avCurrentFile.textContent = data.message;
-      
-      const line = document.createElement("div");
-      line.className = "av-console-line";
-      
-      if (data.step === "registry") {
-        line.textContent = `[REGISTRE] ${data.message}`;
-      } else if (data.step === "processes") {
-        line.textContent = `[PROCESSUS] ${data.message}`;
-      } else {
-        line.textContent = `[FICHIER] ${data.message}`;
-      }
-      
-      avConsole.appendChild(line);
-      avConsole.scrollTop = avConsole.scrollHeight;
+      const prefixe = data.step === "registry" ? "[REGISTRE]" : data.step === "processes" ? "[PROCESSUS]" : "[FICHIER]";
+      journal(`${prefixe} ${data.message}`);
     }
   }
-  
+
   else if (data.type === "av_threat_detected" && data.threat) {
     avThreatsList.push(data.threat);
-    if (avPanelEl) avPanelEl.classList.add("threat-detected");
-    
-    const line = document.createElement("div");
-    line.className = "av-console-line threat";
-    line.textContent = `[DANGER] Menace détectée : ${data.threat.class} -> ${data.threat.name} (${data.threat.desc})`;
-    avConsole.appendChild(line);
-    avConsole.scrollTop = avConsole.scrollHeight;
+    etat("Menace détectée — analyse en cours", "threat-detected");
+    journal(`[DANGER] ${data.threat.class} : ${data.threat.name} (${data.threat.desc || ""})`, "menace");
   }
-  
+
   else if (data.type === "av_complete") {
-    avScanInProgress = false;
-    if (avCancelBtn) avCancelBtn.textContent = "FERMER";
-    if (avProgressFill && avProgressPct) {
-      avProgressFill.style.width = "100%";
-      avProgressPct.textContent = "100%";
-    }
-    
-    const line = document.createElement("div");
+    finAnalyse();
+    progression(100);
+    if (avCurrentFile) avCurrentFile.style.display = "none";
     if (data.status === "infected") {
-      if (avPanelEl) {
-        avPanelEl.classList.add("threat-detected");
-        avStatusLabel.textContent = "SYS_STATUS: VULNÉRABLE";
-      }
-      line.className = "av-console-line threat";
-      line.textContent = `[TERMINE] Analyse terminée. Menaces détectées : ${data.threats ? data.threats.length : avThreatsList.length}. Système vulnérable.`;
-      
-      // Store threats list
       avThreatsList = data.threats || avThreatsList;
       avResolvedThreatsCount = 0;
-      
-      // Render the threat controls
+      const n = avThreatsList.length;
+      etat(`${n} menace${n > 1 ? "s" : ""} à traiter`, "threat-detected");
+      compterMenaces(n);
+      journal(`[TERMINÉ] Analyse terminée : ${n} menace${n > 1 ? "s" : ""} détectée${n > 1 ? "s" : ""}.`, "menace");
       renderThreatsList();
     } else if (data.status === "error") {
-      if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: ERREUR";
-      line.className = "av-console-line threat";
-      line.textContent = `[ERREUR] ${data.message || 'Une erreur système est survenue pendant le scan.'}`;
+      etat("Erreur pendant l'analyse", "threat-detected");
+      journal(`[ERREUR] ${data.message || "Une erreur est survenue pendant l'analyse."}`, "menace");
     } else {
-      if (avPanelEl) avPanelEl.classList.remove("threat-detected");
-      if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: SAIN";
-      line.className = "av-console-line success";
-      line.textContent = `[TERMINE] Analyse terminée. Aucune menace détectée. Système entièrement sécurisé.`;
+      etat("Système sain : aucune menace", "etat-sain");
+      journal("[TERMINÉ] Analyse terminée. Aucune menace détectée.", "ok");
     }
-    avConsole.appendChild(line);
-    avConsole.scrollTop = avConsole.scrollHeight;
   }
-  
+
   else if (data.type === "av_cancel") {
-    avScanInProgress = false;
-    if (avCancelBtn) avCancelBtn.textContent = "FERMER";
-    if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: INTERROMPU";
-    
-    const line = document.createElement("div");
-    line.className = "av-console-line info";
-    line.textContent = `[INTERROMPU] ${data.message || "L'analyse antivirus a été annulée."}`;
-    avConsole.appendChild(line);
-    avConsole.scrollTop = avConsole.scrollHeight;
+    finAnalyse();
+    etat("Analyse interrompue");
+    journal(`[INTERROMPU] ${data.message || "L'analyse a été annulée."}`);
   }
 
   else if (data.type === "av_action_result") {
     const idx = avThreatsList.findIndex(t => t.target === data.threat_target);
-    const line = document.createElement("div");
+    const ligne = idx !== -1 ? document.getElementById(`av-threat-${idx}`) : null;
     if (data.success) {
-      line.className = "av-console-line success";
-      line.textContent = `[RÉSOLU] Action '${data.action.toUpperCase()}' : ${data.message}`;
-      
-      if (idx !== -1) {
-        const itemEl = document.getElementById(`av-threat-${idx}`);
-        if (itemEl && !itemEl.classList.contains("resolved")) {
-          itemEl.classList.add("resolved");
-          const buttons = itemEl.querySelectorAll(".av-action-btn") as NodeListOf<HTMLButtonElement>;
-          buttons.forEach(btn => btn.disabled = true);
-          
-          const badge = document.createElement("div");
-          badge.className = "av-threat-status-badge";
-          let actStr = "RÉSOLU";
-          if (data.action === "delete") actStr = "SUPPRIMÉ";
-          else if (data.action === "clean") actStr = "NETTOYÉ";
-          else if (data.action === "quarantine") actStr = "MIS EN QUARANTAINE";
-          else if (data.action === "allow") actStr = "AUTORISÉ";
-          badge.textContent = `◈ STATUT: ${actStr}`;
-          itemEl.appendChild(badge);
-          
-          avResolvedThreatsCount++;
-          if (avThreatsCount) avThreatsCount.textContent = `MENACES DÉTECTÉES: ${avThreatsList.length - avResolvedThreatsCount}`;
-          
-          if (avResolvedThreatsCount === avThreatsList.length) {
-            if (avPanelEl) avPanelEl.classList.remove("threat-detected");
-            if (avStatusLabel) avStatusLabel.textContent = "SYS_STATUS: SAIN";
-            const sLine = document.createElement("div");
-            sLine.className = "av-console-line success";
-            sLine.textContent = "[SYSTEME] Résolution complète. Toutes les menaces ont été traitées.";
-            avConsole.appendChild(sLine);
-            
-            // Verbal feedback
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({
-                type: "av_speak",
-                text: "Toutes les menaces détectées ont été résolues, Mickael. Votre système est entièrement sécurisé."
-              }));
-            }
+      journal(`[RÉSOLU] ${String(data.action).toUpperCase()} : ${data.message}`, "ok");
+      if (ligne && !ligne.classList.contains("resolved")) {
+        ligne.classList.add("resolved");
+        const libelles: Record<string, string> = { delete: "Supprimée", clean: "Nettoyée", quarantine: "En quarantaine", allow: "Autorisée" };
+        const actions = ligne.querySelector(".pm-menace-actions");
+        if (actions) actions.innerHTML = `<span class="av-threat-status-badge">✓ ${libelles[data.action] || "Résolue"}</span>`;
+        avResolvedThreatsCount++;
+        const restantes = avThreatsList.length - avResolvedThreatsCount;
+        compterMenaces(restantes);
+        if (restantes === 0) {
+          etat("Système sain : toutes les menaces sont traitées", "etat-sain");
+          journal("[SYSTÈME] Toutes les menaces ont été traitées.", "ok");
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+              type: "av_speak",
+              text: "Toutes les menaces détectées ont été traitées. Votre système est sécurisé.",
+            }));
           }
+        } else {
+          etat(`${restantes} menace${restantes > 1 ? "s" : ""} à traiter`, "threat-detected");
         }
       }
     } else {
-      line.className = "av-console-line threat";
-      line.textContent = `[ÉCHEC] Action '${data.action.toUpperCase()}' sur la cible ${data.threat_target} : ${data.message}`;
-      
-      // Re-enable buttons
-      if (idx !== -1) {
-        const itemEl = document.getElementById(`av-threat-${idx}`);
-        if (itemEl) {
-          const buttons = itemEl.querySelectorAll(".av-action-btn") as NodeListOf<HTMLButtonElement>;
-          buttons.forEach(btn => btn.disabled = false);
-        }
-      }
+      journal(`[ÉCHEC] ${String(data.action).toUpperCase()} sur ${data.threat_target} : ${data.message}`, "menace");
+      ligne?.querySelectorAll<HTMLButtonElement>("button").forEach(b => { b.disabled = false; });
     }
-    avConsole.appendChild(line);
-    avConsole.scrollTop = avConsole.scrollHeight;
   }
 }
 
 function renderThreatsList() {
-  const listContainer = document.getElementById("av-threats-list");
-  if (!listContainer) return;
-  
-  listContainer.innerHTML = "";
-  listContainer.classList.remove("hidden");
-  
-  // Hide scanning visuals
-  const radarCont = avPanelEl?.querySelector(".av-radar-container") as HTMLElement;
-  const progressCont = avPanelEl?.querySelector(".av-progress-bar-container") as HTMLElement;
-  const currentFileCont = document.getElementById("av-current-file") as HTMLElement;
-  if (radarCont) radarCont.style.display = "none";
-  if (progressCont) progressCont.style.display = "none";
-  if (currentFileCont) currentFileCont.style.display = "none";
-  
+  if (!avThreatsListEl) return;
+  avThreatsListEl.classList.remove("hidden");
   if (avThreatsList.length === 0) {
-    listContainer.innerHTML = '<div style="text-align:center;font-size:10px;color:#22c55e;padding:10px;">AUCUNE MENACE ACTIVE</div>';
+    avThreatsListEl.innerHTML = '<div class="pm-vide pm-ok">AUCUNE MENACE ACTIVE</div>';
     return;
   }
-  
-  avThreatsList.forEach((threat, idx) => {
-    const item = document.createElement("div");
-    item.className = "av-threat-item";
-    item.id = `av-threat-${idx}`;
-    
-    item.innerHTML = `
-      <div class="av-threat-meta">
-        <span class="av-threat-class">${threat.class}</span>
-        <span class="av-threat-type">${threat.type.toUpperCase()}</span>
+  avThreatsListEl.innerHTML = avThreatsList.map((menace, idx) => `
+    <div class="pm-ligne pm-menace" id="av-threat-${idx}">
+      <div class="pm-icone">${icone("insecte")}</div>
+      <div class="pm-texte">
+        <div class="pm-nom" title="${esc(menace.target)}">${esc(menace.name)}</div>
+        <div class="pm-detail" title="${esc(menace.target)}">${esc(menace.class)} · ${esc(String(menace.type || "").toLowerCase())}${menace.desc ? ` · ${esc(menace.desc)}` : ""}</div>
+        <div class="pm-mono" style="padding:0;margin-top:2px">${esc(menace.target)}</div>
       </div>
-      <div class="av-threat-details">
-        <span class="av-threat-name">${threat.name}</span>
-        <span class="av-threat-target">${threat.target}</span>
-        <span class="av-threat-desc">${threat.desc || ''}</span>
+      <div class="pm-menace-actions">
+        <button class="pm-bouton discret petit" data-index="${idx}" data-action="allow">Autoriser</button>
+        <button class="pm-bouton petit" data-index="${idx}" data-action="clean">Nettoyer</button>
+        <button class="pm-bouton petit" data-index="${idx}" data-action="quarantine">Quarantaine</button>
+        <button class="pm-bouton plein petit" data-index="${idx}" data-action="delete">Supprimer</button>
       </div>
-      <div class="av-threat-actions">
-        <button class="av-action-btn delete" data-index="${idx}" data-action="delete">SUPPRIMER</button>
-        <button class="av-action-btn clean" data-index="${idx}" data-action="clean">NETTOYER</button>
-        <button class="av-action-btn quarantine" data-index="${idx}" data-action="quarantine">QUARANTAINE</button>
-        <button class="av-action-btn allow" data-index="${idx}" data-action="allow">AUTORISER</button>
-      </div>
-    `;
-    listContainer.appendChild(item);
-  });
-  
-  // Attach event listeners to buttons
-  listContainer.querySelectorAll(".av-action-btn").forEach(button => {
-    button.addEventListener("click", (e) => {
-      const targetBtn = e.target as HTMLButtonElement;
-      const idxStr = targetBtn.getAttribute("data-index");
-      const action = targetBtn.getAttribute("data-action");
-      if (idxStr !== null && action !== null) {
-        const idx = parseInt(idxStr);
-        triggerAvThreatAction(action, idx);
-      }
-    });
+    </div>`).join("");
+  avThreatsListEl.querySelectorAll<HTMLButtonElement>("button[data-action]").forEach(btn => {
+    btn.addEventListener("click", () => triggerAvThreatAction(btn.dataset.action || "", parseInt(btn.dataset.index || "0")));
   });
 }
 
 function triggerAvThreatAction(action: string, idx: number) {
-  const threat = avThreatsList[idx];
-  if (!threat) return;
-  
-  // Disable all buttons in this threat item
-  const itemEl = document.getElementById(`av-threat-${idx}`);
-  if (itemEl) {
-    const buttons = itemEl.querySelectorAll(".av-action-btn") as NodeListOf<HTMLButtonElement>;
-    buttons.forEach(btn => btn.disabled = true);
-  }
-  
-  // Send action to backend
+  const menace = avThreatsList[idx];
+  if (!menace) return;
+  document.getElementById(`av-threat-${idx}`)?.querySelectorAll<HTMLButtonElement>("button")
+    .forEach(b => { b.disabled = true; });
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-    wsRef.current.send(JSON.stringify({
-      type: "av_threat_action",
-      action: action,
-      threat: threat
-    }));
+    wsRef.current.send(JSON.stringify({ type: "av_threat_action", action, threat: menace }));
   }
 }
 
 
-// Plus d'info sur l'antivirus
+// Plus d'info sur l'antivirus (paramètres)
 const settingsAvInfoBtn = document.getElementById("settings-av-info-btn") as HTMLAnchorElement;
 const avInfoModal = document.getElementById("av-info-modal") as HTMLDivElement;
 const avInfoModalClose = document.getElementById("av-info-modal-close") as HTMLSpanElement;
@@ -390,17 +299,5 @@ if (settingsAvInfoBtn && avInfoModal) {
     avInfoModal.style.display = "flex";
   });
 }
-
-if (avInfoModalClose && avInfoModal) {
-  avInfoModalClose.addEventListener("click", () => {
-    avInfoModal.style.display = "none";
-  });
-}
-
-if (avInfoModalOk && avInfoModal) {
-  avInfoModalOk.addEventListener("click", () => {
-    avInfoModal.style.display = "none";
-  });
-}
-
-
+avInfoModalClose?.addEventListener("click", () => { if (avInfoModal) avInfoModal.style.display = "none"; });
+avInfoModalOk?.addEventListener("click", () => { if (avInfoModal) avInfoModal.style.display = "none"; });

@@ -11,22 +11,22 @@ from google.genai import types
 
 import core.llm_registry as llm_registry
 import core.shared as shared
-from core.api_quota import _quota_mgr, _QuotaExceededError
+from core.api_quota import _quota_mgr, _ErreurQuotaApi
 from core.etat_parole import get_stop_parler
-from core.prompt_builder import construire_system_prompt
+from core.prompt_builder import composer_prompt_systeme
 from core.speech import parler
-from module.memory_manager import _sauvegarder_echange_conv
+from module.memory_manager import _archiver_echange
 from module.vector_memory import ajouter_souvenir, rechercher_souvenirs
 
 
-async def demander_grok(texte, update_hist=True):
+async def interroger_grok(texte, update_hist=True):
     if not shared.grok_client:
         return None
     
     try:
         # SYNC : On utilise le même prompt système que Gemini (incluant la mémoire)
         souvenirs = rechercher_souvenirs(texte)
-        system_prompt = construire_system_prompt(souvenirs=souvenirs)
+        system_prompt = composer_prompt_systeme(souvenirs=souvenirs)
         messages = [{"role": "system", "content": system_prompt}]
         
         for h in shared.historique[-30:]: # Limiter aux 30 derniers messages
@@ -48,14 +48,14 @@ async def demander_grok(texte, update_hist=True):
         if update_hist:
             shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
             shared.historique.append(types.Content(role="model", parts=[types.Part(text=rep)]))
-            _sauvegarder_echange_conv(texte, rep)
+            _archiver_echange(texte, rep)
             ajouter_souvenir(texte, rep)
         
         return rep
     except Exception as e:
-        if _quota_mgr.is_quota_error(e):
-            _quota_mgr.mark_quota_exceeded("grok")
-            raise _QuotaExceededError(f"Grok quota: {e}")
+        if _quota_mgr.est_erreur_quota(e):
+            _quota_mgr.declarer_quota_atteint("grok")
+            raise _ErreurQuotaApi(f"Grok quota: {e}")
         print(f"[ERREUR GROK] {e}")
         return None
 
@@ -85,7 +85,7 @@ def prechauffer_ollama():
     threading.Thread(target=_charger, daemon=True).start()
 
 
-async def demander_ollama(texte, update_hist=True, skip_local=False):
+async def interroger_ollama(texte, update_hist=True, skip_local=False):
     """Appelle un modèle local via Ollama (100% offline), phrases lues au fil du flux."""
     try:
         # Même prompt système que les autres moteurs (mémoire comprise) ; 16 entrées
@@ -133,7 +133,7 @@ async def demander_ollama(texte, update_hist=True, skip_local=False):
             if shared._derniere_reponse_streamed:
                 return " ".join(shared.phrases_streamed)
 
-    print("[OLLAMA] Tous les modeles locaux ont echoue")
+    print("[OLLAMA] Aucun modèle local n'a répondu")
     return None
 
 
@@ -149,7 +149,7 @@ MODELE_MISTRAL = "ministral-8b-latest"
 def _messages_openai(texte, nb_historique=30):
     """Prompt système + derniers échanges + question, au format chat (Groq, Mistral, Ollama)."""
     souvenirs = rechercher_souvenirs(texte)
-    messages = [{"role": "system", "content": construire_system_prompt(souvenirs=souvenirs)}]
+    messages = [{"role": "system", "content": composer_prompt_systeme(souvenirs=souvenirs)}]
     for h in shared.historique[-nb_historique:]:
         role = "user" if h.role == "user" else "assistant"
         messages.append({"role": role, "content": h.parts[0].text})
@@ -218,11 +218,11 @@ async def _lire_flux_en_parlant(flux, extraire_texte, nom, skip_local=False, del
 def _memoriser_echange(texte, reponse):
     shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
     shared.historique.append(types.Content(role="model", parts=[types.Part(text=reponse)]))
-    _sauvegarder_echange_conv(texte, reponse)
+    _archiver_echange(texte, reponse)
     ajouter_souvenir(texte, reponse)
 
 
-async def demander_groq(texte, update_hist=True, skip_local=False):
+async def interroger_groq(texte, update_hist=True, skip_local=False):
     """Appelle Groq (GPT-OSS 120B) avec lecture des phrases au fil du flux."""
     if not shared.groq_client:
         return None
@@ -245,23 +245,23 @@ async def demander_groq(texte, update_hist=True, skip_local=False):
             _memoriser_echange(texte, full_text)
         return full_text
     except Exception as e:
-        if _quota_mgr.is_quota_error(e):
-            _quota_mgr.mark_quota_exceeded("groq")
-            raise _QuotaExceededError(f"Groq quota: {e}")
+        if _quota_mgr.est_erreur_quota(e):
+            _quota_mgr.declarer_quota_atteint("groq")
+            raise _ErreurQuotaApi(f"Groq quota: {e}")
         # str(e) peut être vide pour certaines exceptions (ex: asyncio.TimeoutError) —
         # sans le nom du type en secours, le log "[ERREUR GROQ]" ne dit rien d'exploitable.
         print(f"[ERREUR GROQ] {str(e) or type(e).__name__}")
         return None
 
 
-async def demander_claude(texte, update_hist=True):
-    """Appelle Claude (Anthropic) — agent IA principal (priorité 0)."""
+async def interroger_claude(texte, update_hist=True):
+    """Interroge Claude (Anthropic), moteur principal (priorité 0)."""
     if not shared.anthropic_client:
         return None
     try:
         # Recherche de souvenirs
         souvenirs = rechercher_souvenirs(texte)
-        system_prompt = construire_system_prompt(souvenirs=souvenirs)
+        system_prompt = composer_prompt_systeme(souvenirs=souvenirs)
         
         # Conversion historique Gemini → format Anthropic
         messages = []
@@ -286,19 +286,19 @@ async def demander_claude(texte, update_hist=True):
         if update_hist:
             shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
             shared.historique.append(types.Content(role="model", parts=[types.Part(text=rep)]))
-            _sauvegarder_echange_conv(texte, rep)
+            _archiver_echange(texte, rep)
             ajouter_souvenir(texte, rep)
 
         return rep
     except Exception as e:
-        if _quota_mgr.is_quota_error(e):
-            _quota_mgr.mark_quota_exceeded("claude")
-            raise _QuotaExceededError(f"Claude quota: {e}")
+        if _quota_mgr.est_erreur_quota(e):
+            _quota_mgr.declarer_quota_atteint("claude")
+            raise _ErreurQuotaApi(f"Claude quota: {e}")
         print(f"[ERREUR CLAUDE] {e}")
         return None
 
 
-async def demander_mistral(texte, update_hist=True, skip_local=False):
+async def interroger_mistral(texte, update_hist=True, skip_local=False):
     """Appelle Mistral (Ministral 8B) avec lecture des phrases au fil du flux (avant : réponse
     complète attendue avant de dire un mot)."""
     if not shared.mistral_client:
@@ -318,9 +318,9 @@ async def demander_mistral(texte, update_hist=True, skip_local=False):
             _memoriser_echange(texte, full_text)
         return full_text
     except Exception as e:
-        if _quota_mgr.is_quota_error(e):
-            _quota_mgr.mark_quota_exceeded("mistral")
-            raise _QuotaExceededError(f"Mistral quota: {e}")
+        if _quota_mgr.est_erreur_quota(e):
+            _quota_mgr.declarer_quota_atteint("mistral")
+            raise _ErreurQuotaApi(f"Mistral quota: {e}")
         print(f"[ERREUR MISTRAL] {str(e) or type(e).__name__}")
         return None
 
@@ -329,15 +329,15 @@ async def demander_mistral(texte, update_hist=True, skip_local=False):
 # Ajouter un nouveau provider à ce palier = un register() ici, plutôt que de
 # dupliquer le bloc de routage (cf. core/llm_registry.py pour le détail).
 async def _call_groq_engine(texte, update_hist=True, skip_local=False):
-    return await demander_groq(texte, update_hist=update_hist, skip_local=skip_local)
+    return await interroger_groq(texte, update_hist=update_hist, skip_local=skip_local)
 
 
 async def _call_claude_engine(texte, update_hist=True, skip_local=False):
-    return await demander_claude(texte, update_hist=update_hist)
+    return await interroger_claude(texte, update_hist=update_hist)
 
 
 async def _call_mistral_engine(texte, update_hist=True, skip_local=False):
-    return await demander_mistral(texte, update_hist=update_hist, skip_local=skip_local)
+    return await interroger_mistral(texte, update_hist=update_hist, skip_local=skip_local)
 
 
 llm_registry.register("groq", "Groq (GPT-OSS 120B)", 1, lambda: bool(shared.groq_client), _call_groq_engine)

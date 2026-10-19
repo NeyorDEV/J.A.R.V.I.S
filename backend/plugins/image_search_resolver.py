@@ -1,7 +1,7 @@
 import builtins
 import json
 import asyncio
-from module.image_search import recherche_images_web
+from module.image_search import images_par_moteur
 from core.interlocuteur import nom_virgule
 
 def nettoyer_accent(texte):
@@ -38,14 +38,14 @@ async def resoudre_images_locales(texte):
             if len(query) > 1:
                 print(f"[IMAGE RESOLVER] Demande de recherche d'images pour : {query}")
                 
-                async def _send_images(q=query):
-                    # (builtins._charger_config n'existe pas : le moteur réglé dans les
+                async def _pousser_images(q=query):
+                    # (builtins._lire_config n'existe pas : le moteur réglé dans les
                     #  Paramètres était ignoré, toujours serpapi)
-                    from core.micro import _charger_config
-                    cfg = _charger_config()
+                    from core.micro import _lire_config
+                    cfg = _lire_config()
                     engine = cfg.get("image_search_engine", "serpapi")
                     
-                    urls = recherche_images_web(q, nb_images=6, engine=engine)
+                    urls = images_par_moteur(q, nb_images=6, engine=engine)
                     if urls:
                         msg_json = json.dumps({
                             "type": "show_images",
@@ -59,12 +59,12 @@ async def resoudre_images_locales(texte):
                                 print(f"[ERREUR WS] Broadcast images: {e}")
                 
                 # Lancement asynchrone en tâche de fond pour ne pas bloquer la synthèse vocale
-                if hasattr(builtins, "lancer_tache_arriere_plan"):
-                    builtins.lancer_tache_arriere_plan(_send_images())
+                if hasattr(builtins, "demarrer_tache_fond"):
+                    builtins.demarrer_tache_fond(_pousser_images())
                 elif hasattr(builtins, "WS_LOOP") and builtins.WS_LOOP:
-                    asyncio.run_coroutine_threadsafe(_send_images(), builtins.WS_LOOP)
+                    asyncio.run_coroutine_threadsafe(_pousser_images(), builtins.WS_LOOP)
                 else:
-                    asyncio.create_task(_send_images())
+                    asyncio.create_task(_pousser_images())
                     
                 return f"Je recherche des images de {query} et je les affiche sur votre interface{nom_virgule()}."
                 

@@ -16,9 +16,9 @@ if TYPE_CHECKING:
 # MODE BOULOT
 # ==========================================
 
-def _boulot_trouver_exe(noms_exe: list, chemins_hints: list = None) -> str:
-    """Trouve un exécutable sur n'importe quel Windows.
-    Ordre : registre App Paths → PATH système → chemins connus."""
+def _localiser_exe(noms_exe: list, chemins_hints: list = None) -> str:
+    """Localise un exécutable.
+    Ordre de recherche : clé App Paths du registre, PATH, emplacements usuels."""
     # 1. Registre Windows (le plus fiable — tous les apps installées y sont)
     try:
         import winreg
@@ -55,9 +55,9 @@ def _boulot_trouver_exe(noms_exe: list, chemins_hints: list = None) -> str:
     return ""
 
 
-def _boulot_lancer(label: str, noms_exe: list,
+def _demarrer_appli_travail(label: str, noms_exe: list,
                    chemins_hints: list = None, env_key: str = None) -> bool:
-    """Lance une application — détection universelle, sans popup d'erreur Windows."""
+    """Démarre une application sans afficher de boîte d'erreur Windows."""
     # Override via .env (priorité absolue)
     if env_key:
         env_val = os.path.expandvars(os.getenv(env_key, ""))
@@ -69,7 +69,7 @@ def _boulot_lancer(label: str, noms_exe: list,
                 pass
 
     # Détection automatique (registre → PATH → hints)
-    exe_path = _boulot_trouver_exe(noms_exe, chemins_hints)
+    exe_path = _localiser_exe(noms_exe, chemins_hints)
     if exe_path:
         try:
             subprocess.Popen([exe_path])
@@ -78,7 +78,7 @@ def _boulot_lancer(label: str, noms_exe: list,
             pass
 
     # Pas trouvé — on log silencieusement, aucune popup Windows
-    print(f"[BOULOT] {label} introuvable sur ce PC (registre, PATH et hints épuisés)")
+    print(f"[BOULOT] {label} absent de ce PC (registre, PATH et emplacements usuels sans résultat)")
     return False
 
 
@@ -87,7 +87,7 @@ def _boulot_lancer(label: str, noms_exe: list,
 _JAMAIS_FERMER = {"update.exe"}
 
 
-def _fermer_app(noms_process: list, forcer: bool = False):
+def _arreter_appli(noms_process: list, forcer: bool = False):
     """Ferme les processus nommés : demande de fermeture d'abord (l'application peut proposer
     d'enregistrer), puis, si `forcer`, arrêt forcé de ceux qui résistent au bout de 3 s.
     Avant, tout était tué d'office (proc.terminate) : « ferme Word » perdait le document en cours.
@@ -455,7 +455,7 @@ _APPS_CATALOGUE["sept zip"]       = _APPS_CATALOGUE["7zip"]
 _APPS_CATALOGUE["7 zip"]          = _APPS_CATALOGUE["7zip"]
 
 
-async def mode_boulot():
+async def mode_travail():
     """Lance Deezer et Discord pour démarrer la session de travail."""
     parler("Bien, je prépare votre espace de travail.")
 
@@ -485,7 +485,7 @@ async def mode_gaming():
     await asyncio.sleep(0.5)
 
     # ── 3. Epic Games Launcher ────────────────────────────────
-    _boulot_lancer(
+    _demarrer_appli_travail(
         "Epic Games", ["EpicGamesLauncher.exe"],
         chemins_hints=[
             r"%PROGRAMFILES(X86)%\Epic Games\Launcher\Portal\Binaries\Win64\EpicGamesLauncher.exe",

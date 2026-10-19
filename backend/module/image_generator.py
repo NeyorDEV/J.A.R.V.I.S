@@ -1,6 +1,5 @@
 import requests
 import urllib.parse
-import os
 import time
 import base64
 import io

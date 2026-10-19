@@ -1,8 +1,11 @@
-// ── Panneau désinstallateur (style Revo) — extrait de main.ts ──
+// ── Panneau désinstallateur (style commun css/13_panneaux_modules.css) ──
+// Liste triable (nom, taille, date), action au survol, désinstallation en trois étapes
+// visibles (désinstallation → analyse des traces → nettoyage) dans un volet en bas.
 
 import { wsRef } from "../ws_link";
 import { makePanelDraggable } from "../ui/draggable";
 import { closeWingetPanel } from "./winget_panel";
+import { esc, formatDate, formatTaille, icone, initiales } from "./pm_utils";
 
 // ── Uninstaller DOM Refs ───────────────────────────────────────────────────
 const uninstallerPanel = document.getElementById("uninstaller-panel") as HTMLDivElement;
@@ -11,7 +14,6 @@ const uninstallerCloseBtn = document.getElementById("uninstaller-panel-close-btn
 const uninstallerHeader = document.getElementById("uninstaller-panel-header") as HTMLDivElement;
 const uninstallerSearchInput = document.getElementById("uninstaller-search-input") as HTMLInputElement;
 const uninstallerAppsList = document.getElementById("uninstaller-apps-list") as HTMLDivElement;
-const uninstallerListView = document.getElementById("uninstaller-list-view") as HTMLDivElement;
 const uninstallerActionView = document.getElementById("uninstaller-action-view") as HTMLDivElement;
 const uninstallerStatusMsg = document.getElementById("uninstaller-status-msg") as HTMLDivElement;
 const uninstallerRadarContainer = document.getElementById("uninstaller-radar-container") as HTMLDivElement;
@@ -20,8 +22,11 @@ const uninstallerLeftoversList = document.getElementById("uninstaller-leftovers-
 const uninstallerSelectAll = document.getElementById("uninstaller-select-all") as HTMLInputElement;
 const uninstallerCleanBtn = document.getElementById("uninstaller-clean-btn") as HTMLButtonElement;
 const uninstallerSkipBtn = document.getElementById("uninstaller-skip-btn") as HTMLButtonElement;
+const uninstallerResume = document.getElementById("uninstaller-resume") as HTMLDivElement;
+const uninstallerTracesTitre = document.getElementById("uninstaller-traces-titre") as HTMLSpanElement;
+const uninstallerEtapes = document.getElementById("uninstaller-etapes") as HTMLDivElement;
 
-let allInstalledPrograms: Array<{
+interface Programme {
   name: string;
   subkey: string;
   publisher: string;
@@ -30,257 +35,257 @@ let allInstalledPrograms: Array<{
   install_location: string;
   icon_path: string;
   hive: string;
-}> = [];
-let currentLeftovers: Array<{
-  type: string;
-  path: string;
-  desc: string;
-  hive?: string;
-}> = [];
+  size_kb?: number;        // taille estimée (registre), 0 si inconnue
+  install_date?: string;   // AAAAMMJJ (registre), "" si inconnue
+}
+
+let allInstalledPrograms: Programme[] = [];
+let currentLeftovers: Array<{ type: string; path: string; desc: string; hive?: string }> = [];
+let triActif: "nom" | "taille" | "date" = "nom";
+let programmeEnCours: Programme | null = null;
 
 
-// ── LOGIQUE DU DÉSINSTALLATEUR (UNINSTALLER PANEL) ──────────────────────────
+// ── Ouverture / fermeture ───────────────────────────────────────────────────
 if (uninstallerPanel && uninstallerHeader) {
   makePanelDraggable(uninstallerPanel, uninstallerHeader);
 }
 
-uninstallerCloseBtn?.addEventListener("click", () => {
-  closeUninstallerPanel();
-});
+uninstallerCloseBtn?.addEventListener("click", () => closeUninstallerPanel());
 
 uninstallerToggleBtn?.addEventListener("click", () => {
-  const isHidden = uninstallerPanel.classList.contains("hidden");
-  if (isHidden) {
-    openUninstallerPanel();
-  } else {
-    closeUninstallerPanel();
-  }
+  if (uninstallerPanel.classList.contains("hidden")) openUninstallerPanel();
+  else closeUninstallerPanel();
 });
 
+function synchroniserBoutonMenu(ouvert: boolean) {
+  uninstallerToggleBtn?.setAttribute("aria-pressed", String(ouvert));
+  const menuBtn = document.getElementById("menu-uninstaller-toggle-btn");
+  if (menuBtn) {
+    menuBtn.setAttribute("aria-pressed", String(ouvert));
+    menuBtn.classList.toggle("active", ouvert);
+  }
+}
 
-// ── Uninstaller core functions and listeners ──
 export function openUninstallerPanel() {
-  if (uninstallerPanel) {
-    uninstallerPanel.classList.remove("hidden");
-    uninstallerPanel.classList.add("visible");
-    uninstallerToggleBtn?.setAttribute("aria-pressed", "true");
-    
-    // Synchroniser avec le bouton du menu dropdown unifié
-    const menuBtn = document.getElementById("menu-uninstaller-toggle-btn");
-    if (menuBtn) {
-      menuBtn.setAttribute("aria-pressed", "true");
-      menuBtn.classList.add("active");
-    }
-    
-    closeWingetPanel(); // vérifie l'existence du panneau en interne
-    
-    // Switch to list view initially
-    uninstallerListView?.classList.remove("hidden");
-    uninstallerActionView?.classList.add("hidden");
-    
-    // Set loading status
-    if (uninstallerAppsList) {
-      uninstallerAppsList.innerHTML = '<div class="uninstaller-loading">CHARGEMENT DE LA LISTE DES LOGICIELS...</div>';
-    }
-    
-    // Request installed programs
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "get_installed_programs" }));
-    }
+  if (!uninstallerPanel) return;
+  uninstallerPanel.classList.remove("hidden");
+  uninstallerPanel.classList.add("visible");
+  synchroniserBoutonMenu(true);
+  closeWingetPanel(); // vérifie l'existence du panneau en interne
+
+  fermerVolet();
+  programmeEnCours = null;
+  if (uninstallerAppsList) {
+    uninstallerAppsList.innerHTML = '<div class="pm-vide">CHARGEMENT DE LA LISTE DES LOGICIELS…</div>';
+  }
+  if (uninstallerResume) uninstallerResume.textContent = "Chargement des programmes…";
+  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    wsRef.current.send(JSON.stringify({ type: "get_installed_programs" }));
   }
 }
 
 export function closeUninstallerPanel() {
-  if (uninstallerPanel) {
-    uninstallerPanel.classList.add("hidden");
-    uninstallerPanel.classList.remove("visible");
-    uninstallerToggleBtn?.setAttribute("aria-pressed", "false");
-    
-    // Synchroniser avec le bouton du menu dropdown unifié
-    const menuBtn = document.getElementById("menu-uninstaller-toggle-btn");
-    if (menuBtn) {
-      menuBtn.setAttribute("aria-pressed", "false");
-      menuBtn.classList.remove("active");
-    }
-  }
+  if (!uninstallerPanel) return;
+  uninstallerPanel.classList.add("hidden");
+  uninstallerPanel.classList.remove("visible");
+  synchroniserBoutonMenu(false);
 }
 
-function renderInstalledPrograms(programs: typeof allInstalledPrograms) {
+
+// ── Liste des programmes ────────────────────────────────────────────────────
+function programmesAffiches(): Programme[] {
+  const q = (uninstallerSearchInput?.value || "").trim().toLowerCase();
+  let liste = allInstalledPrograms;
+  if (q) {
+    liste = liste.filter(p => p.name.toLowerCase().includes(q) || (p.publisher || "").toLowerCase().includes(q));
+  }
+  const triee = [...liste];
+  if (triActif === "taille") triee.sort((a, b) => (b.size_kb || 0) - (a.size_kb || 0));
+  else if (triActif === "date") triee.sort((a, b) => (b.install_date || "").localeCompare(a.install_date || ""));
+  else triee.sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }));
+  return triee;
+}
+
+function renderInstalledPrograms() {
   if (!uninstallerAppsList) return;
-  uninstallerAppsList.innerHTML = "";
-  
-  if (programs.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "uninstaller-loading";
-    empty.textContent = "AUCUN LOGICIEL TROUVÉ";
-    uninstallerAppsList.appendChild(empty);
+  const programmes = programmesAffiches();
+  if (programmes.length === 0) {
+    uninstallerAppsList.innerHTML = '<div class="pm-vide">AUCUN LOGICIEL TROUVÉ</div>';
     return;
   }
-  
-  programs.forEach(prog => {
-    const item = document.createElement("div");
-    item.className = "uninstaller-app-item";
-    
-    item.innerHTML = `
-      <div class="uninstaller-app-info">
-        <div class="uninstaller-app-name">${prog.name}</div>
-        <div class="uninstaller-app-publisher">${prog.publisher || 'Éditeur inconnu'} - v${prog.version || 'Inconnue'} (${prog.hive})</div>
+  uninstallerAppsList.innerHTML = "";
+  const enCours = programmeEnCours !== null;
+  programmes.forEach(prog => {
+    const ligne = document.createElement("div");
+    ligne.className = "pm-ligne";
+    const taille = formatTaille(prog.size_kb || 0);
+    const date = formatDate(prog.install_date || "");
+    ligne.innerHTML = `
+      <div class="pm-avatar">${esc(initiales(prog.name))}</div>
+      <div class="pm-texte">
+        <div class="pm-nom" title="${esc(prog.name)}">${esc(prog.name)}</div>
+        <div class="pm-detail">${esc(prog.publisher || "Éditeur inconnu")}${prog.version ? ` · v${esc(prog.version)}` : ""}</div>
       </div>
-      <button class="uninstaller-app-btn">DÉSINSTALLER</button>
-    `;
-    
-    const btn = item.querySelector(".uninstaller-app-btn") as HTMLButtonElement;
-    btn.addEventListener("click", () => {
-      triggerUninstall(prog);
-    });
-    
-    uninstallerAppsList.appendChild(item);
+      <div class="pm-droite">
+        <div class="pm-taille">${taille || "—"}</div>
+        <div class="pm-detail">${date ? `installé le ${date}` : "&nbsp;"}</div>
+      </div>
+      <button class="pm-bouton danger petit pm-action-survol" ${enCours ? "disabled" : ""}>Désinstaller</button>`;
+    ligne.querySelector("button")?.addEventListener("click", () => triggerUninstall(prog));
+    uninstallerAppsList.appendChild(ligne);
   });
 }
 
-function triggerUninstall(prog: typeof allInstalledPrograms[0]) {
-  uninstallerListView?.classList.add("hidden");
+function mettreAJourResume() {
+  if (!uninstallerResume) return;
+  const totalKo = allInstalledPrograms.reduce((s, p) => s + (p.size_kb || 0), 0);
+  const n = allInstalledPrograms.length;
+  uninstallerResume.textContent = `${n} programme${n > 1 ? "s" : ""}${totalKo ? ` · ${formatTaille(totalKo)}` : ""}`;
+}
+
+uninstallerSearchInput?.addEventListener("input", () => renderInstalledPrograms());
+
+uninstallerPanel?.querySelectorAll<HTMLButtonElement>(".pm-pastille[data-tri]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    triActif = (btn.dataset.tri as typeof triActif) || "nom";
+    uninstallerPanel.querySelectorAll(".pm-pastille[data-tri]").forEach(b => b.classList.toggle("active", b === btn));
+    renderInstalledPrograms();
+  });
+});
+
+
+// ── Volet de désinstallation (étapes) ────────────────────────────────────────
+function etapes(etat: Record<number, "faite" | "courante" | "echec" | "">) {
+  uninstallerEtapes?.querySelectorAll<HTMLElement>(".pm-etape").forEach(el => {
+    const n = Number(el.dataset.etape);
+    el.className = `pm-etape ${etat[n] || ""}`.trim();
+    const pastille = el.querySelector("b");
+    if (pastille) pastille.textContent = etat[n] === "faite" ? "✓" : etat[n] === "echec" ? "!" : String(n);
+  });
+}
+
+function fermerVolet() {
+  uninstallerActionView?.classList.add("hidden");
+  uninstallerLeftoversContainer?.classList.add("hidden");
+  uninstallerRadarContainer?.classList.remove("hidden");
+}
+
+function triggerUninstall(prog: Programme) {
+  programmeEnCours = prog;
+  renderInstalledPrograms();   // boutons désactivés pendant l'opération
   uninstallerActionView?.classList.remove("hidden");
-  
   uninstallerRadarContainer?.classList.remove("hidden");
   uninstallerLeftoversContainer?.classList.add("hidden");
-  if (uninstallerStatusMsg) {
-    uninstallerStatusMsg.textContent = `Lancement de la désinstallation de ${prog.name}...`;
-  }
-  
+  etapes({ 1: "courante" });
+  if (uninstallerStatusMsg) uninstallerStatusMsg.textContent = `Désinstallation de ${prog.name}…`;
+
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
     wsRef.current.send(JSON.stringify({
       type: "uninstall_program",
       name: prog.name,
       publisher: prog.publisher,
       install_location: prog.install_location,
-      uninstall_string: prog.uninstall_string
+      uninstall_string: prog.uninstall_string,
     }));
   }
 }
 
 export function updateUninstallProgress(data: any) {
-  if (uninstallerStatusMsg) {
-    uninstallerStatusMsg.textContent = data.message || "En cours...";
-  }
+  if (uninstallerStatusMsg) uninstallerStatusMsg.textContent = data.message || "En cours…";
+  // Le serveur passe à la recherche de traces après la désinstallation
+  if (/trace|résidu|residu|analyse/i.test(data.message || "")) etapes({ 1: "faite", 2: "courante" });
 }
 
 export function showUninstallComplete(data: any) {
   uninstallerRadarContainer?.classList.add("hidden");
   uninstallerLeftoversContainer?.classList.remove("hidden");
-  
   currentLeftovers = data.leftovers || [];
-
-  // Reset Select All checkbox
-  if (uninstallerSelectAll) {
-    uninstallerSelectAll.checked = true;
-  }
+  if (uninstallerSelectAll) uninstallerSelectAll.checked = true;
 
   // Désinstallation annulée ou ratée : on le dit, au lieu de « aucune trace résiduelle »
   const echec = data.success === false
     ? (data.cancelled ? "Désinstallation annulée." : (data.message || "La désinstallation n'a pas abouti."))
     : null;
+  if (echec) etapes({ 1: "echec" });
+  else if (currentLeftovers.length) etapes({ 1: "faite", 2: "faite", 3: "courante" });
+  else etapes({ 1: "faite", 2: "faite", 3: "faite" });
   renderLeftovers(echec);
+}
+
+function afficherToutSelectionner(visible: boolean) {
+  const label = uninstallerSelectAll?.closest("label") as HTMLElement | null;
+  if (label) label.style.display = visible ? "" : "none";
 }
 
 function renderLeftovers(messageVide: string | null = null) {
   if (!uninstallerLeftoversList) return;
-  uninstallerLeftoversList.innerHTML = "";
-
+  const nom = programmeEnCours?.name || "le programme";
+  afficherToutSelectionner(currentLeftovers.length > 0);
   if (currentLeftovers.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "uninstaller-leftover-empty";
-    empty.textContent = messageVide || "Aucune trace résiduelle détectée sur le système.";
-    uninstallerLeftoversList.appendChild(empty);
+    uninstallerLeftoversList.innerHTML =
+      `<div class="pm-detail" style="padding:6px 0">${esc(messageVide || `${nom} est désinstallé, sans trace résiduelle.`)}</div>`;
+    if (uninstallerTracesTitre) uninstallerTracesTitre.textContent = messageVide ? "Désinstallation" : "Terminé";
     if (uninstallerCleanBtn) uninstallerCleanBtn.disabled = true;
+    if (uninstallerSkipBtn) uninstallerSkipBtn.textContent = "Fermer";
     return;
   }
-  
+  if (uninstallerTracesTitre) {
+    uninstallerTracesTitre.textContent = `${currentLeftovers.length} trace${currentLeftovers.length > 1 ? "s" : ""} résiduelle${currentLeftovers.length > 1 ? "s" : ""} de ${nom}`;
+  }
   if (uninstallerCleanBtn) uninstallerCleanBtn.disabled = false;
-  
-  currentLeftovers.forEach((leftover, idx) => {
-    const item = document.createElement("div");
-    item.className = "uninstaller-leftover-item";
-    
-    const icon = leftover.type === 'folder' ? '📁' : '🔑';
-    const typeLabel = leftover.type === 'folder' ? 'Dossier' : 'Registre';
-    
-    item.innerHTML = `
-      <label class="uninstaller-leftover-label">
-        <input type="checkbox" class="uninstaller-leftover-checkbox" data-idx="${idx}" checked>
-        <span class="uninstaller-leftover-icon">${icon}</span>
-        <div class="uninstaller-leftover-details">
-          <div class="uninstaller-leftover-path" title="${leftover.path}">${leftover.path}</div>
-          <div class="uninstaller-leftover-desc">${typeLabel} - ${leftover.desc}</div>
-        </div>
-      </label>
-    `;
-    
-    uninstallerLeftoversList.appendChild(item);
-  });
+  if (uninstallerSkipBtn) uninstallerSkipBtn.textContent = "Garder et fermer";
+  uninstallerLeftoversList.innerHTML = currentLeftovers.map((t, idx) => `
+    <label class="pm-trace">
+      <input type="checkbox" class="pm-case uninstaller-leftover-checkbox" data-idx="${idx}" checked>
+      ${icone(t.type === "folder" ? "dossier" : "registre")}
+      <div class="pm-texte">
+        <div class="pm-nom" title="${esc(t.path)}">${esc(t.path)}</div>
+        <div class="pm-detail">${t.type === "folder" ? "Dossier" : "Registre"} · ${esc(t.desc)}</div>
+      </div>
+    </label>`).join("");
 }
 
 export function showCleanComplete(data: any) {
-  const cleaned = data.cleaned_count || 0;
+  const nettoyees = data.cleaned_count || 0;
   const total = data.total_count || 0;
-  alert(`Nettoyage terminé : ${cleaned}/${total} traces supprimées.`);
-  
-  // Go back to program list
-  openUninstallerPanel();
+  etapes({ 1: "faite", 2: "faite", 3: nettoyees === total ? "faite" : "echec" });
+  afficherToutSelectionner(false);
+  if (uninstallerTracesTitre) uninstallerTracesTitre.textContent = "Nettoyage terminé";
+  if (uninstallerLeftoversList) {
+    uninstallerLeftoversList.innerHTML =
+      `<div class="pm-detail" style="padding:6px 0">${nettoyees}/${total} trace${total > 1 ? "s" : ""} supprimée${nettoyees > 1 ? "s" : ""}.</div>`;
+  }
+  if (uninstallerCleanBtn) uninstallerCleanBtn.disabled = true;
+  if (uninstallerSkipBtn) uninstallerSkipBtn.textContent = "Fermer";
 }
 
-// Event Listeners for Uninstaller Controls
-uninstallerSearchInput?.addEventListener("input", () => {
-  const query = uninstallerSearchInput.value.trim().toLowerCase();
-  if (!query) {
-    renderInstalledPrograms(allInstalledPrograms);
-  } else {
-    const filtered = allInstalledPrograms.filter(p => 
-      p.name.toLowerCase().includes(query) || 
-      (p.publisher && p.publisher.toLowerCase().includes(query))
-    );
-    renderInstalledPrograms(filtered);
-  }
-});
-
 uninstallerSelectAll?.addEventListener("change", () => {
-  const checked = uninstallerSelectAll.checked;
-  const checkboxes = document.querySelectorAll(".uninstaller-leftover-checkbox") as NodeListOf<HTMLInputElement>;
-  checkboxes.forEach(cb => {
-    cb.checked = checked;
-  });
+  document.querySelectorAll<HTMLInputElement>(".uninstaller-leftover-checkbox")
+    .forEach(cb => { cb.checked = uninstallerSelectAll.checked; });
 });
 
 uninstallerCleanBtn?.addEventListener("click", () => {
-  const selectedItems: any[] = [];
-  const checkboxes = document.querySelectorAll(".uninstaller-leftover-checkbox") as NodeListOf<HTMLInputElement>;
-  checkboxes.forEach(cb => {
-    if (cb.checked) {
-      const idx = parseInt(cb.getAttribute("data-idx") || "0");
-      selectedItems.push(currentLeftovers[idx]);
-    }
+  const selection: any[] = [];
+  document.querySelectorAll<HTMLInputElement>(".uninstaller-leftover-checkbox").forEach(cb => {
+    if (cb.checked) selection.push(currentLeftovers[parseInt(cb.dataset.idx || "0")]);
   });
-  
-  if (selectedItems.length === 0) {
-    alert("Veuillez sélectionner au moins une trace à nettoyer.");
+  if (selection.length === 0) {
+    if (uninstallerTracesTitre) uninstallerTracesTitre.textContent = "Sélectionnez au moins une trace à nettoyer.";
     return;
   }
-  
+  uninstallerCleanBtn.disabled = true;
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-    wsRef.current.send(JSON.stringify({
-      type: "clean_leftovers",
-      items: selectedItems
-    }));
+    wsRef.current.send(JSON.stringify({ type: "clean_leftovers", items: selection }));
   }
 });
 
-uninstallerSkipBtn?.addEventListener("click", () => {
-  openUninstallerPanel();
-});
+// « Garder et fermer » / « Fermer » : retour à la liste, rafraîchie
+uninstallerSkipBtn?.addEventListener("click", () => openUninstallerPanel());
 
 
-// ── API pour le dispatch WebSocket de main.ts ──
-export function handleInstalledPrograms(programs: typeof allInstalledPrograms) {
-  allInstalledPrograms = programs;
-  renderInstalledPrograms(allInstalledPrograms);
+// ── API pour le dispatch WebSocket ──
+export function handleInstalledPrograms(programs: Programme[]) {
+  allInstalledPrograms = programs || [];
+  mettreAJourResume();
+  renderInstalledPrograms();
 }

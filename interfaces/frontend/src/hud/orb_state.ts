@@ -1,6 +1,6 @@
 import { initHoloClock } from "../holo_clock";
 import { createOrb, type Orb, type OrbState } from "../orb";
-import { badgeEl, badgeLabelEl, canvas, errorEl, micBtnEl, muteButtonEl, statusEl, visualizerHudEl } from "./dom_refs";
+import { badgeEl, badgeLabelEl, canvas, errorEl, micBtnEl, statusEl, visualizerHudEl } from "./dom_refs";
 
 // ── Orb ───────────────────────────────────────────────────────────────────────
 export let orb!: Orb;
@@ -69,6 +69,5 @@ export function setConnected(ok: boolean): void {
   badgeEl.classList.toggle("connected", ok);
   badgeEl.classList.toggle("disconnected", !ok);
   badgeLabelEl.textContent = ok ? "connecte" : "reconnexion";
-  muteButtonEl.disabled = !ok;
   if (micBtnEl) micBtnEl.disabled = !ok;
 }

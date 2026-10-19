@@ -8,7 +8,7 @@ vectoriels + consignes par locuteur (biométrie). Extrait de main2.py.
 from datetime import datetime
 
 from core.interlocuteur import CREATEUR, NOM_CREATEUR, profil_actif
-from module.memory_manager import construire_contexte_memoire
+from module.memory_manager import composer_contexte_memoire
 
 CREATOR_INFO = (
     "INFORMATIONS SUR TON CREATEUR :\n"
@@ -26,8 +26,8 @@ CREATOR_INFO = (
     "pas par l eloge ; une remarque seche et amusee vaut mieux qu un compliment.\n"
 )
 
-def construire_system_prompt(souvenirs=""):
-    contexte_memoire = construire_contexte_memoire()
+def composer_prompt_systeme(souvenirs=""):
+    contexte_memoire = composer_contexte_memoire()
     
     # Date et heure système dynamiques pour éviter toute hallucination temporelle (ex: Booking, recherche)
     now = datetime.now()
@@ -101,16 +101,16 @@ def construire_system_prompt(souvenirs=""):
     )
     base += (
         "\n\nTu peux GERER LES FICHIERS ET DOSSIERS de l'utilisateur.\n"
-        '{"action": "ouvrir_dossier", "chemin": "bureau/documents/downloads/ou/chemin/complet"}\n'
-        '{"action": "lister_dossier"}\n'
-        '{"action": "trier_par_type", "chemin": "downloads/documents/images/ou/null"}\n'
-        '{"action": "trier_par_date", "chemin": "downloads/documents/images/ou/null"}\n'
+        '{"action": "afficher_dossier", "chemin": "bureau/documents/downloads/ou/chemin/complet"}\n'
+        '{"action": "enumerer_dossier"}\n'
+        '{"action": "classer_par_type", "chemin": "downloads/documents/images/ou/null"}\n'
+        '{"action": "classer_par_date", "chemin": "downloads/documents/images/ou/null"}\n'
         '{"action": "trier_complet", "chemin": "downloads/documents/images/ou/null"}\n'
         '{"action": "creer_dossier", "nom": "NOM_DOSSIER"}\n'
-        '{"action": "renommer_fichier", "ancien": "ancien.txt", "nouveau": "nouveau.txt"}\n'
-        '{"action": "deplacer_fichier", "fichier": "photo.jpg", "destination": "Images"}\n'
-        '{"action": "chercher_fichier", "nom": "rapport"}\n'
-        'Note: L\'action chercher_fichier lancera une recherche globale et OUVRIRA AUTOMATIQUEMENT le premier résultat trouvé.\n'
+        '{"action": "changer_nom_fichier", "ancien": "ancien.txt", "nouveau": "nouveau.txt"}\n'
+        '{"action": "transferer_fichier", "fichier": "photo.jpg", "destination": "Images"}\n'
+        '{"action": "rechercher_fichier", "nom": "rapport"}\n'
+        'Note: L\'action rechercher_fichier lancera une recherche globale et OUVRIRA AUTOMATIQUEMENT le premier résultat trouvé.\n'
         '{"action": "ouvrir_element", "chemin": "C:\\Chemin\\complet\\fichier.txt"}\n'
         '{"action": "analyser_fichier", "nom": "fichier.txt", "question": "question facultative", "chemin": "dossier_optionnel"}\n'
         'Note: Si l\'utilisateur ne précise pas le dossier pour "analyser_fichier", ne mets pas de "chemin", je scannerai automatiquement Bureau/Documents/Downloads.\n\n'
@@ -136,13 +136,7 @@ def construire_system_prompt(souvenirs=""):
 
     )
     base += (
-        "\n\nSPORT :\n"
-        '{"action": "sport_resultats", "equipe": "NOM_ou_null", "ligue": "NOM_LIGUE"}\n'
-        '{"action": "sport_classement", "ligue": "NOM_LIGUE"}\n'
-        '{"action": "sport_live", "question": "question complete de la personne"}\n\n'
-    )
-    base += (
-        "\n\nSPOTIFY (contrôle de l'application Spotify Windows) :\n"
+        "\n\nMUSIQUE SPOTIFY (application Windows) :\n"
         '{"action": "spotify_ouvrir"}\n'
         '{"action": "spotify_rechercher", "recherche": "nom de la chanson ou artiste"}\n'
         '{"action": "spotify_lecture_pause"}\n'
@@ -154,13 +148,13 @@ def construire_system_prompt(souvenirs=""):
         "'chanson suivante', 'reviens en arrière', 'monte le volume', 'baisse le son'.\n"
         "Note : 'paliers' est le nombre de crans de volume (1 cran = ~5%), par défaut 4.\n\n"
         "DEEZER (contrôle de l'application Deezer Windows) :\n"
-        '{"action": "deezer_ouvrir"}\n'
-        '{"action": "deezer_rechercher", "recherche": "nom de la chanson ou artiste"}\n'
-        '{"action": "deezer_lecture_pause"}\n'
-        '{"action": "deezer_stop"}\n'
-        '{"action": "deezer_suivant"}\n'
-        '{"action": "deezer_precedent"}\n'
-        '{"action": "deezer_volume", "direction": "monter/baisser", "paliers": 4}\n'
+        '{"action": "deezer_demarrer"}\n'
+        '{"action": "deezer_chercher", "recherche": "nom de la chanson ou artiste"}\n'
+        '{"action": "deezer_basculer_lecture"}\n'
+        '{"action": "deezer_arreter"}\n'
+        '{"action": "deezer_piste_suivante"}\n'
+        '{"action": "deezer_piste_precedente"}\n'
+        '{"action": "deezer_regler_volume", "direction": "monter/baisser", "paliers": 4}\n'
         "Exemples : 'lance deezer', 'mets sur deezer du rock', 'suivante sur deezer'.\n\n"
     )
     base += (
@@ -246,8 +240,8 @@ def construire_system_prompt(souvenirs=""):
         "REGLES DE SECURITE JSON :\n"
         "1. NE DONNE JAMAIS d'exemples de commandes JSON dans tes explications.\n"
         "2. NE JUSTIFIE PAS l'utilisation d'une commande. Contente-toi de répondre en texte et d'ajouter le JSON.\n"
-        "3. SI tu ne connais pas un chemin ou un nom, utilise 'chercher_fichier' au lieu d'inventer un chemin.\n"
-        "4. INTERDICTION d'inclure des blocs JSON de démonstration comme {'action': 'lister_dossier'} si ce n'est pas l'action demandée.\n\n"
+        "3. SI tu ne connais pas un chemin ou un nom, utilise 'rechercher_fichier' au lieu d'inventer un chemin.\n"
+        "4. INTERDICTION d'inclure des blocs JSON de démonstration comme {'action': 'enumerer_dossier'} si ce n'est pas l'action demandée.\n\n"
         "REGLE ABSOLUE : Si la demande n est PAS une commande JSON, reponds TOUJOURS en texte naturel, sans JSON."
     )
     

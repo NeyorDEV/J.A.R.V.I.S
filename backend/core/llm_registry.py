@@ -1,4 +1,4 @@
-"""Registre des moteurs LLM cloud "génériques" (priorités 1-3 de demander_ia).
+"""Registre des moteurs LLM cloud "génériques" (priorités 1-3 de interroger_ia).
 
 Groq / Claude / Mistral partagent tous la même forme d'appel (fonction async,
 vérification de quota via api_quota, gestion d'erreur identique) — les
@@ -8,7 +8,7 @@ appeler register() une fois, plutôt qu'à copier ~15 lignes de routage.
 
 Volontairement NON inclus ici : Gemini (streaming multi-modèles avec Google
 Search et cooldown par modèle individuel), Grok (routage conditionnel via
-detecter_cerveau), Ollama et SerpAPI (fallbacks de dernier recours avec leur
+choisir_cerveau), Ollama et SerpAPI (fallbacks de dernier recours avec leur
 propre logique métier). Ces chemins ont chacun un comportement trop
 spécifique pour être généralisés sans réécriture complète et re-test
 approfondi — les regrouper de force ici aurait ajouté du risque sans gain.

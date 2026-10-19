@@ -9,12 +9,12 @@ import chess
 
 import core.shared as shared
 import core.speech as speech
-from controller.actions_pc import lister_applications_installees
+from controller.actions_pc import recenser_applications
 from core.confirmation import resoudre_confirmation
 from core.etat_parole import get_is_speaking, set_stop_parler
 from core.speech import parler
-from core.traitement import traiter_reponse_ia
-from core.web_bridge import diffuser_echecs, lancer_tache_arriere_plan, send_web_state
+from core.traitement import gerer_reponse_ia
+from core.web_bridge import diffuser_echecs, demarrer_tache_fond, envoyer_etat_hud
 from core.ws_reglages import ws_get_settings, ws_update_settings
 from core.ws_securite import (
     ws_av_threat_action, ws_block_ip, ws_clear_cache, ws_get_blocked_ips, ws_unblock_ip,
@@ -26,9 +26,9 @@ from core.ws_systeme import (
 from module.chess_manager import ChessGame
 from module.cortex_service import handle_cortex_ws
 from module.domotique_sim import handle_domotic_sim_ws
-from module.meteo_domotique import handle_ha_ws_message
+from module.meteo_domotique import traiter_message_ws_ha
 from module.weather_music_service import broadcast_weather_stats_once
-from plugins.list_manager import _charger_listes
+from plugins.list_manager import _relire_listes
 
 
 # ── SÉCURITÉ WEBSOCKET ────────────────────────────────────────────────────────
@@ -82,11 +82,11 @@ def _en_tache_de_fond(coro):
         try:
             await coro
         except Exception as e:
-            print(f"[WEB] Erreur traitement message : {e}")
-    return lancer_tache_arriere_plan(_executer())
+            print(f"[WEB] Message mal traité : {e}")
+    return demarrer_tache_fond(_executer())
 
 
-async def ws_handler(websocket):
+async def gerer_connexion_ws(websocket):
     if not _origine_autorisee(websocket):
         print("[WEB] ⛔ Connexion refusée : origine non autorisée (site web distant ?).")
         try:
@@ -98,12 +98,12 @@ async def ws_handler(websocket):
     shared.CONNECTED_CLIENTS.add(websocket)
     if _origine_extension(websocket):
         # L'extension n'est pas un HUD : elle ne doit pas empêcher l'arrêt automatique
-        # quand l'interface est fermée (core/lancement._attendre_interface).
+        # quand l'interface est fermée (core/lancement._attendre_hud).
         shared.CLIENTS_EXTENSION.add(websocket)
         print("[WEB] Extension navigateur connectée.")
     else:
         shared.interface_deja_connectee = True
-        print(f"[WEB] Interface connectee (Clients actifs: {len(shared.CONNECTED_CLIENTS)})")
+        print(f"[WEB] HUD connecté (clients : {len(shared.CONNECTED_CLIENTS)})")
     
     # Force le broadcast immédiat de tous les widgets
     asyncio.create_task(broadcast_weather_stats_once())
@@ -127,14 +127,14 @@ async def ws_handler(websocket):
                     shared.MIC_MUTED = not shared.MIC_MUTED
                     await websocket.send(json.dumps({"type": "mic_state", "muted": shared.MIC_MUTED}))
                     if shared.MIC_MUTED:
-                        await send_web_state("idle")
+                        await envoyer_etat_hud("idle")
                     print(f"[WEB] Micro {'COUPE' if shared.MIC_MUTED else 'REACTIF'}")
                 elif data.get("type") == "globe_state":
                     shared.GLOBE_VISIBLE = bool(data.get("visible"))
                 elif data.get("type") == "toggle_fullscreen":
                     if hasattr(shared, "_WEBVIEW_WINDOW") and shared._WEBVIEW_WINDOW:
                         shared._WEBVIEW_WINDOW.toggle_fullscreen()
-                        print("[WEB] Bascule plein ecran pywebview")
+                        print("[WEB] Plein écran pywebview basculé")
                 elif data.get("type") == "get_settings":
                     await ws_get_settings(websocket, data)
                 elif data.get("type") == "update_settings":
@@ -158,13 +158,13 @@ async def ws_handler(websocket):
 
                 # ── Shopping List ──────────────────────────────────────────
                 elif data.get("type") == "get_shopping_list":
-                    listes = _charger_listes()
+                    listes = _relire_listes()
                     await websocket.send(json.dumps({"type": "shopping_list", "items": listes.get("courses", [])}))
                 elif data.get("type") == "update_shopping_list":
                     await ws_update_shopping_list(websocket, data)
                 elif data.get("type") == "get_installed_programs":
-                    from module.uninstaller_helper import list_installed_programs
-                    programs = list_installed_programs()
+                    from module.uninstaller_helper import inventaire_logiciels
+                    programs = inventaire_logiciels()
                     await websocket.send(json.dumps({"type": "installed_programs", "programs": programs}))
                 elif data.get("type") == "uninstall_program":
                     _en_tache_de_fond(ws_uninstall_program(websocket, data))  # attend une confirmation
@@ -178,7 +178,7 @@ async def ws_handler(websocket):
                     await ws_run_winget_upgrade(websocket, data)
                 elif data.get("type") in ("ha_get_states", "ha_call_service"):
                     # ── Home Assistant Dashboard ──────────────────────────────
-                    await handle_ha_ws_message(data, websocket, shared.CONNECTED_CLIENTS)
+                    await traiter_message_ws_ha(data, websocket, shared.CONNECTED_CLIENTS)
                 elif data.get("type") == "block_ip":
                     await ws_block_ip(websocket, data)
                 elif data.get("type") == "get_blocked_ips":
@@ -201,7 +201,7 @@ async def ws_handler(websocket):
                             shared.ENROLEMENT_CLAVIER = True
                         else:
                             # Clavier du HUD local (utilisateur physiquement présent) → de confiance
-                            asyncio.ensure_future(traiter_reponse_ia(texte, de_confiance=True))
+                            asyncio.ensure_future(gerer_reponse_ia(texte, de_confiance=True))
                 elif data.get("type") == "screen_frame":
                     req_id = data.get("id")
                     if req_id in shared.PENDING_SCREEN_CAPTURES:
@@ -304,26 +304,26 @@ async def ws_handler(websocket):
                         pyautogui.press("prevtrack")
                     print(f"[MUSIC] Commande recue : {act}")
                 elif data.get("type") == "detect_apps":
-                    apps = await asyncio.to_thread(lister_applications_installees)
+                    apps = await asyncio.to_thread(recenser_applications)
                     await websocket.send(json.dumps({"type": "detected_apps", "apps": apps}))
                 elif data.get("type") == "av_scan_start":
                     import antivirus_scanner
                     if antivirus_scanner.ACTIVE_SCAN_TASK is None or antivirus_scanner.ACTIVE_SCAN_TASK.done():
-                        async def ws_broadcast(m):
+                        async def ws_diffuser(m):
                             if shared.CONNECTED_CLIENTS:
                                 try:
                                     await asyncio.gather(*[ws.send(json.dumps(m)) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
                                 except Exception:
                                     pass
                         antivirus_scanner.ACTIVE_SCAN_TASK = asyncio.create_task(
-                            antivirus_scanner.executer_scan_antivirus(ws_broadcast, parler)
+                            antivirus_scanner.executer_scan_antivirus(ws_diffuser, parler)
                         )
-                        print("[AV] Lancement de la tâche d'analyse antivirus...")
+                        print("[AV] Démarrage de l'analyse antivirus...")
                 elif data.get("type") == "av_scan_cancel":
                     import antivirus_scanner
                     if antivirus_scanner.ACTIVE_SCAN_TASK and not antivirus_scanner.ACTIVE_SCAN_TASK.done():
                         antivirus_scanner.ACTIVE_SCAN_TASK.cancel()
-                        print("[AV] Tâche d'analyse antivirus annulée par websocket.")
+                        print("[AV] Analyse antivirus annulée depuis le HUD.")
                 elif data.get("type") == "clear_cache":
                     await ws_clear_cache(websocket, data)
                 elif data.get("type") == "av_threat_action":
@@ -333,10 +333,10 @@ async def ws_handler(websocket):
                     if text:
                         parler(text)   # synchrone (create_task(None) levait une erreur)
             except Exception as e:
-                print(f"[WEB] Erreur traitement message : {e}")
+                print(f"[WEB] Message mal traité : {e}")
     except Exception:
         pass
     finally:
         shared.CONNECTED_CLIENTS.discard(websocket)
         shared.CLIENTS_EXTENSION.discard(websocket)
-        print(f"[WEB] Interface deconnectee (Clients actifs: {len(shared.CONNECTED_CLIENTS)})")
+        print(f"[WEB] HUD déconnecté (clients : {len(shared.CONNECTED_CLIENTS)})")

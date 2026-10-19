@@ -1,7 +1,7 @@
 """Resolver local du globe 3D : navigation, itinéraires, position et zoom (sans IA).
 
 Seul resolver du globe : l'ancien plugins/globe_resolver.py s'enregistrait sous le même
-nom (builtins.resoudre_globe_localement) et l'emportait ou non selon l'ordre de
+nom (builtins.traiter_globe_local) et l'emportait ou non selon l'ordre de
 chargement au démarrage ; il a été supprimé.
 """
 
@@ -15,7 +15,7 @@ import time
 
 import core.shared as shared
 from core.interlocuteur import nom_virgule
-from core.web_bridge import geocode_lieu_detaille, nom_lieu_inverse, send_globe_command
+from core.web_bridge import geocode_lieu_detaille, nom_lieu_inverse, envoyer_commande_globe
 
 # Un lieu n'est retenu que si Nominatim le juge assez important : les faux positifs
 # (« La Terre », lieu-dit près de La Rochelle ; « Ma position », un centre au Bénin ;
@@ -160,14 +160,14 @@ def _extraire_lieu(t, mot):
     return reste.rstrip(".,?!;").strip()
 
 
-async def resoudre_globe_localement(texte: str):
+async def traiter_globe_local(texte: str):
     """Détecte les commandes du globe 3D et les envoie au frontend (globe.ts)."""
     t = texte.lower().strip()
 
     # 1. Fermer (priorité absolue). Les vues 3D (« ferme la carte 3D / domotique ») ont
     #    leur propre commande de fermeture.
     if any(m in t for m in _mots_fermer) and not any(k in t for k in ["3d", "domotique"]):
-        await send_globe_command(globe_action="hide")
+        await envoyer_commande_globe(globe_action="hide")
         return f"Navigation fermée. Je reviens à l'interface principale{nom_virgule()}."
 
     # Ne pas détourner une recherche de fichier, une demande d'image ou une info générale
@@ -187,7 +187,7 @@ async def resoudre_globe_localement(texte: str):
         if pos:
             lat, lon, precision = pos
             ville = await nom_lieu_inverse(lat, lon) or ""
-            await send_globe_command(globe_action="my_location", lat=lat, lon=lon, target=ville)
+            await envoyer_commande_globe(globe_action="my_location", lat=lat, lon=lon, target=ville)
             if not ville:
                 return f"Voici votre position actuelle{nom_virgule()}."
             if precision <= 2000:
@@ -199,15 +199,15 @@ async def resoudre_globe_localement(texte: str):
         domicile = _position_configuree()
         if domicile:
             lat, lon, ville = domicile
-            await send_globe_command(globe_action="my_location", lat=lat, lon=lon, target=ville)
+            await envoyer_commande_globe(globe_action="my_location", lat=lat, lon=lon, target=ville)
             return (f"Je n'ai pas accès à votre position actuelle{nom_virgule()} : la localisation de "
                     f"Windows ne répond pas. J'affiche votre domicile" + (f", {ville}." if ville else "."))
-        await send_globe_command(globe_action="my_location")
+        await envoyer_commande_globe(globe_action="my_location")
         return f"Je tente de vous localiser{nom_virgule()}."
 
     # 3. Vue de la Terre entière
     if any(m in t for m in _mots_globe):
-        await send_globe_command(globe_action="show_earth")
+        await envoyer_commande_globe(globe_action="show_earth")
         return f"Vue depuis l'espace activée{nom_virgule()}."
 
     # 4. Itinéraire de X à Y (« à » accentué accepté : avant, seul « a » l'était)
@@ -219,7 +219,7 @@ async def resoudre_globe_localement(texte: str):
             depart = await _lieu_fiable(from_name)
             arrivee = await _lieu_fiable(to_name)
             if depart and arrivee:
-                await send_globe_command(
+                await envoyer_commande_globe(
                     globe_action="route",
                     from_lat=depart["lat"], from_lon=depart["lon"], from_name=from_name,
                     to_lat=arrivee["lat"], to_lon=arrivee["lon"], to_name=to_name,
@@ -235,14 +235,14 @@ async def resoudre_globe_localement(texte: str):
             continue
         reste = _extraire_lieu(t, mot)
         if reste in _LA_TERRE:
-            await send_globe_command(globe_action="show_earth")
+            await envoyer_commande_globe(globe_action="show_earth")
             return f"Vue depuis l'espace activée{nom_virgule()}."
         if len(reste) < 2:
             break
         nom_lieu = reste.title()
         lieu = await _lieu_fiable(nom_lieu)
         if lieu:
-            await send_globe_command(globe_action="fly_to", lat=lieu["lat"], lon=lieu["lon"],
+            await envoyer_commande_globe(globe_action="fly_to", lat=lieu["lat"], lon=lieu["lon"],
                                      target=nom_lieu, distance=_distance_vol(lieu["rang"]))
             return f"Survol de {nom_lieu} en cours{nom_virgule()}."
         if explicite:
@@ -252,13 +252,13 @@ async def resoudre_globe_localement(texte: str):
     # 6. Zoom avant / arrière, seulement quand le globe est affiché
     if shared.GLOBE_VISIBLE:
         if any(m in t for m in _mots_dezoom):
-            await send_globe_command(globe_action="zoom_out")
+            await envoyer_commande_globe(globe_action="zoom_out")
             return f"Je prends de la hauteur{nom_virgule()}."
         if any(m in t for m in _mots_zoom):
-            await send_globe_command(globe_action="zoom_in")
+            await envoyer_commande_globe(globe_action="zoom_in")
             return f"Je me rapproche{nom_virgule()}."
 
     return None
 
 
-builtins.resoudre_globe_localement = resoudre_globe_localement
+builtins.traiter_globe_local = traiter_globe_local

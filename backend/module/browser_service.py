@@ -1,8 +1,6 @@
 import asyncio
-import os
-import json
 from playwright.async_api import async_playwright
-from typing import Optional, List, Dict
+from typing import List, Dict
 
 class AutonomousBrowser:
     def __init__(self):
@@ -70,11 +68,11 @@ class AutonomousBrowser:
         all_data = []
         try:
             print(f"[BROWSER] Recherche SerpApi pour : {query}")
-            from module.sports_web import recherche_web_serpapi_raw
+            from module.recherche_web import serpapi_donnees_brutes
 
             
             # On récupère les résultats bruts (JSON) via SerpApi
-            results = recherche_web_serpapi_raw(query)
+            results = serpapi_donnees_brutes(query)
             links = []
             
             if results and "organic_results" in results:

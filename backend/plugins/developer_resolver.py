@@ -6,9 +6,8 @@ import builtins
 import json
 import re
 import asyncio
-import google.genai as genai
 from google.genai import types
-from core.config import GEMINI_API_KEY, CHOSEN_MODEL
+from core.config import CHOSEN_MODEL
 from core.interlocuteur import nom_ou_utilisateur, nom_virgule
 
 # Client Gemini différé (core/ai_clients.py) : pas de plantage à l'import sans clé,

@@ -11,7 +11,7 @@ import requests
 import core.shared as shared
 
 
-def lancer_tache_arriere_plan(coro):
+def demarrer_tache_fond(coro):
     task = asyncio.create_task(coro)
     shared.BACKGROUND_TASKS.add(task)
     task.add_done_callback(shared.BACKGROUND_TASKS.discard)
@@ -21,16 +21,16 @@ def lancer_tache_arriere_plan(coro):
 def _safe_ws_send(msg):
     if not shared.CONNECTED_CLIENTS or shared.WS_LOOP is None: 
         return
-    async def _send():
+    async def _emettre():
         if shared.CONNECTED_CLIENTS:
             await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
     try:
-        asyncio.run_coroutine_threadsafe(_send(), shared.WS_LOOP)
+        asyncio.run_coroutine_threadsafe(_emettre(), shared.WS_LOOP)
     except Exception as e:
         print(f"[DEBUG WS] Erreur d'envoi: {e}")
 
 
-def send_web_broadcast_sync(payload: dict):
+def diffuser_web_sync(payload: dict):
     """Envoie un message WebSocket (dict) depuis n'importe quel thread — utilisé par module.competences."""
     import json as _json
     _safe_ws_send(_json.dumps(payload))
@@ -47,16 +47,16 @@ async def envoyer_image_web(url, prompt):
     _safe_ws_send(msg)
 
 
-async def send_web_state(state):
+async def envoyer_etat_hud(state):
     shared.ETAT_HUD = state  # repris par le bandeau de la console (core/console_ui)
     _safe_ws_send(json.dumps({"action": "set_state", "state": state}))
 
 
-async def send_web_text(text):
+async def envoyer_texte_hud(text):
     _safe_ws_send(json.dumps({"action": "jarvis_text", "text": text}))
 
 
-async def send_web_volume(volume):
+async def envoyer_volume_hud(volume):
     _safe_ws_send(json.dumps({"action": "set_volume", "volume": round(volume, 3)}))
 
 
@@ -97,14 +97,14 @@ def est_connecte_internet():
             return False
 
 
-async def send_globe_command(**kwargs):
+async def envoyer_commande_globe(**kwargs):
     payload = {"action": "jarvis_globe"}
     payload.update(kwargs)
     _safe_ws_send(json.dumps(payload))
 
 
-async def geocode_lieu(nom_lieu: str):
-    """Géocode un nom de lieu via Nominatim (OpenStreetMap) — gratuit, sans clé API."""
+async def geolocaliser_lieu(nom_lieu: str):
+    """Convertit un nom de lieu en coordonnées avec Nominatim (OpenStreetMap), gratuit et sans clé."""
     try:
         url = f"https://nominatim.openstreetmap.org/search?q={requests.utils.quote(nom_lieu)}&format=json&limit=1"
         headers = {"User-Agent": "JARVIS-Assistant/1.0 (personal use)"}
@@ -167,8 +167,8 @@ async def nom_lieu_inverse(lat: float, lon: float):
     return None
 
 
-async def request_screen_capture():
-    """Demande une capture d'écran au frontend via WebSocket."""
+async def capturer_ecran_hud():
+    """Réclame au HUD une capture d'écran par WebSocket."""
     if not shared.CONNECTED_CLIENTS:
         return None
     
@@ -177,7 +177,7 @@ async def request_screen_capture():
     fut = loop.create_future()
     shared.PENDING_SCREEN_CAPTURES[req_id] = fut
     
-    print(f"[VISION] Envoi requete capture ID: {req_id}")
+    print(f"[VISION] Demande de capture envoyée, id {req_id}")
     msg = json.dumps({"action": "request_screen_capture", "id": req_id})
     await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS])
     
@@ -186,7 +186,7 @@ async def request_screen_capture():
         img_b64 = await asyncio.wait_for(fut, timeout=15.0)
         return img_b64
     except Exception as e:
-        print(f"[VISION] Erreur ou timeout capture : {e}")
+        print(f"[VISION] Capture en échec ou trop lente : {e}")
         shared.PENDING_SCREEN_CAPTURES.pop(req_id, None)
         return None
 
@@ -213,18 +213,18 @@ async def diffuser_echecs(data):
 
 builtins.envoyer_image_web = envoyer_image_web
 builtins.send_action_to_frontend = send_action_to_frontend
-builtins.send_web_state = send_web_state
-builtins.send_web_text = send_web_text
-builtins.send_web_volume = send_web_volume
+builtins.envoyer_etat_hud = envoyer_etat_hud
+builtins.envoyer_texte_hud = envoyer_texte_hud
+builtins.envoyer_volume_hud = envoyer_volume_hud
 builtins.send_web_action = send_web_action
 builtins.send_web_text_interim = send_web_text_interim
 builtins.est_connecte_internet = est_connecte_internet
-builtins.geocode_lieu = geocode_lieu
-builtins.request_screen_capture = request_screen_capture
-builtins.send_globe_command = send_globe_command
+builtins.geolocaliser_lieu = geolocaliser_lieu
+builtins.capturer_ecran_hud = capturer_ecran_hud
+builtins.envoyer_commande_globe = envoyer_commande_globe
 builtins.envoyer_carte_contextuelle = envoyer_carte_contextuelle
 
 
 # Les compétences générées par l'IA diffusent leur animation de compilation au HUD
 import module.competences as _competences_mod
-_competences_mod.send_web_broadcast_sync = send_web_broadcast_sync
+_competences_mod.diffuser_web_sync = diffuser_web_sync

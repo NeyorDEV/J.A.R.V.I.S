@@ -372,7 +372,7 @@
   <div id="orb-clock-hud">
     <div id="holo-clock-canvas-wrap"></div>
   </div>
-    <!-- ══ BOUTON MIC & STOP ═══════════════════════════════════════════ -->
+    <!-- ══ BOUTON MIC (le « stop » se dit à la voix) ═══════════════════════════════════════════ -->
   <div class="bottom-controls-container">
     <div class="mic-stop-panel">
       <button id="mic-btn" aria-label="Activer le microphone" title="Cliquez pour parler à JARVIS">
@@ -381,13 +381,6 @@
           <path d="M5 11a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
           <line x1="12" y1="18" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           <line x1="9" y1="22" x2="15" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <button id="mute-button" aria-label="Stopper JARVIS" title="Cliquez pour stopper JARVIS" aria-pressed="false">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
-          <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" />
-          <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
       </button>
     </div>
@@ -697,173 +690,114 @@
     </div>
   </div>
 
-  <!-- ══ WINGET UPGRADER PANEL - Blue HUD ════════════════════════════ -->
-     <div id="winget-panel" class="uninstaller-panel hidden" style="--un-color: #00e5ff; --un-glow: rgba(0, 229, 255, 0.35); z-index: 609; width: 720px; height: 620px;">
-    <div class="uninstaller-panel-scanlines"></div>
-    <div class="uninstaller-panel-corner-tr"></div>
-    <div class="uninstaller-panel-corner-bl"></div>
-    <div class="uninstaller-panel-header" id="winget-panel-header">
-      <div class="uninstaller-panel-drag-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
+  <!-- ══ MISES À JOUR (WINGET) — style commun css/13_panneaux_modules.css ══════════ -->
+  <div id="winget-panel" class="pm hidden">
+    <div class="pm-tete" id="winget-panel-header">
+      <div class="pm-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></div>
+      <div><div class="pm-titre">MISES À JOUR</div><div class="pm-sous" id="winget-resume">Recherche des mises à jour…</div></div>
+      <div class="pm-tete-droite">
+        <button class="pm-icone-bouton" id="winget-refresh-btn" title="Rechercher à nouveau"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+        <button class="pm-fermer" id="winget-panel-close-btn" title="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       </div>
-      <div class="uninstaller-panel-title">JARVIS // SYSTEM_UPGRADER</div>
-      <button class="uninstaller-panel-close" id="winget-panel-close-btn">&times;</button>
     </div>
-    
-    <div class="uninstaller-panel-body">
-      <!-- Main view: list of upgrades -->
-      <div class="uninstaller-view">
-        <div class="uninstaller-search-box">
-          <input type="text" id="winget-search-input" placeholder="RECHERCHER UN LOGICIEL À METTRE À JOUR...">
-        </div>
-        <div class="uninstaller-leftovers-header" style="border-bottom: 1px solid rgba(0, 229, 255, 0.15); margin-bottom: 10px; padding-bottom: 5px;">
-          <span>MISES À JOUR LOGICIELS DISPONIBLES</span>
-          <label class="uninstaller-select-all-label">
-            <input type="checkbox" id="winget-select-all" checked> TOUT SÉLECTIONNER
+    <div class="pm-outils">
+      <label class="pm-recherche"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="winget-search-input" placeholder="Rechercher un logiciel" autocomplete="off"></label>
+      <label class="pm-detail" style="display:flex;align-items:center;gap:7px;cursor:pointer;margin:0 4px">
+        <input type="checkbox" class="pm-case" id="winget-select-all" checked>Tout sélectionner
+      </label>
+    </div>
+    <div class="pm-corps" id="winget-upgrades-list"><div class="pm-vide">RECHERCHE DES MISES À JOUR…</div></div>
+    <div class="pm-pied">
+      <details class="pm-journal" id="winget-logs-container" style="flex:1;min-width:200px">
+        <summary><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Journal winget</summary>
+        <pre class="pm-journal-texte" id="winget-console"></pre>
+      </details>
+      <span id="winget-selection-compte"></span>
+      <button class="pm-bouton" id="winget-upgrade-all-btn">Tout</button>
+      <button class="pm-bouton plein" id="winget-upgrade-selected-btn">Mettre à jour</button>
+    </div>
+  </div>
+
+  <!-- ══ DÉSINSTALLATEUR — style commun css/13_panneaux_modules.css ══════════════ -->
+  <div id="uninstaller-panel" class="pm hidden">
+    <div class="pm-tete" id="uninstaller-panel-header">
+      <div class="pm-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></div>
+      <div><div class="pm-titre">DÉSINSTALLATEUR</div><div class="pm-sous" id="uninstaller-resume">Chargement des programmes…</div></div>
+      <div class="pm-tete-droite">
+        <button class="pm-fermer" id="uninstaller-panel-close-btn" title="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </div>
+    <div id="uninstaller-list-view">
+      <div class="pm-outils">
+        <label class="pm-recherche"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="uninstaller-search-input" placeholder="Rechercher un programme ou un éditeur" autocomplete="off"></label>
+        <button class="pm-pastille active" data-tri="nom">Nom</button>
+        <button class="pm-pastille" data-tri="taille">Taille</button>
+        <button class="pm-pastille" data-tri="date">Récents</button>
+      </div>
+      <div class="pm-corps" id="uninstaller-apps-list"><div class="pm-vide">CHARGEMENT DE LA LISTE DES LOGICIELS…</div></div>
+    </div>
+    <div id="uninstaller-action-view" class="hidden">
+      <div class="pm-etapes" id="uninstaller-etapes">
+        <span class="pm-etape" data-etape="1"><b>1</b>Désinstallation</span>
+        <span class="pm-etape" data-etape="2"><b>2</b>Analyse des traces</span>
+        <span class="pm-etape" data-etape="3"><b>3</b>Nettoyage</span>
+      </div>
+      <div id="uninstaller-radar-container">
+        <div id="uninstaller-status-msg">En attente de la désinstallation…</div>
+        <div class="pm-barre indeterminee" style="width:100%;margin-top:10px"><i></i></div>
+      </div>
+      <div id="uninstaller-leftovers-container" class="hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px">
+          <span class="pm-detail" id="uninstaller-traces-titre">Traces résiduelles</span>
+          <label class="pm-detail" style="display:flex;align-items:center;gap:7px;cursor:pointer">
+            <input type="checkbox" class="pm-case" id="uninstaller-select-all" checked>Tout sélectionner
           </label>
         </div>
-        <div class="uninstaller-apps-list" id="winget-upgrades-list">
-          <div class="uninstaller-loading" style="color: #00e5ff;">RECHERCHE DES MISES À JOUR...</div>
-        </div>
-        <div class="uninstaller-action-buttons" style="margin-top: 10px; gap: 10px;">
-          <button class="uninstaller-btn" id="winget-upgrade-selected-btn" style="border-color:#00e5ff; color:#00e5ff; background:rgba(0,229,255,0.05); flex:1;">METTRE À JOUR LA SÉLECTION</button>
-                    <button class="uninstaller-btn" id="winget-upgrade-all-btn" style="border-color:#00ff88; color:#00ff88; background:rgba(0,255,136,0.05); flex:1;">TOUT METTRE À JOUR</button>
-          <button class="uninstaller-btn secondary" id="winget-refresh-btn" style="flex:0.5;">ACTUALISER</button>
+        <div id="uninstaller-leftovers-list"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+          <button class="pm-bouton discret" id="uninstaller-skip-btn">Garder et fermer</button>
+          <button class="pm-bouton plein" id="uninstaller-clean-btn">Nettoyer les traces</button>
         </div>
       </div>
-      
-      <!-- Overlay view: Logs console when upgrading -->
-      <div id="winget-logs-container" class="uninstaller-leftovers-container hidden" style="position: absolute; top: 50px; left: 0; right: 0; bottom: 45px; background: rgba(0, 5, 12, 0.98); z-index: 10; padding: 15px; display: none; flex-direction: column; border-top: 1px solid rgba(0, 229, 255, 0.3);">
-        <div style="font-family:'Courier New', monospace; font-size: 11px; margin-bottom: 10px; color: #00e5ff; border-bottom: 1px dashed rgba(0, 229, 255, 0.3); padding-bottom: 5px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
-          <span>CONSOLE DE MISE À JOUR SYSTEME</span>
-          <span class="pulse" style="display:inline-block; width:8px; height:8px; background:#00e5ff; border-radius:50%;"></span>
-        </div>
-        <pre id="winget-console" style="flex: 1; background: #000308; border: 1px solid rgba(0, 229, 255, 0.15); padding: 10px; color: #00ff88; font-family: 'Courier New', monospace; font-size: 11px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin: 0;"></pre>
-        <button class="uninstaller-btn secondary" id="winget-close-logs-btn" style="margin-top: 10px; align-self: flex-end;">FERMER LA CONSOLE</button>
-      </div>
-    </div>
-    
-    <div class="uninstaller-panel-footer">
-      <span>JARVIS_HUD_UPGRADER_V1.0</span>
     </div>
   </div>
 
-  <!-- ══ UNINSTALLER PANEL - Iron Man HUD ════════════════════════════ -->
-     <div id="uninstaller-panel" class="uninstaller-panel hidden">
-    <div class="uninstaller-panel-scanlines"></div>
-    <div class="uninstaller-panel-corner-tr"></div>
-    <div class="uninstaller-panel-corner-bl"></div>
-    <div class="uninstaller-panel-header" id="uninstaller-panel-header">
-      <div class="uninstaller-panel-drag-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          <path d="M2 12h20"/>
-        </svg>
+  <!-- ══ SÉCURITÉ (ANTIVIRUS) — style commun css/13_panneaux_modules.css ══════════ -->
+  <div id="av-panel" class="pm hidden">
+    <div class="pm-tete" id="av-panel-header">
+      <div class="pm-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3z"/></svg></div>
+      <div><div class="pm-titre">SÉCURITÉ</div><div class="pm-sous" id="av-status-label">En attente</div></div>
+      <div class="pm-tete-droite">
+        <span class="pm-detail" style="margin:0">Protection temps réel</span>
+        <label class="pm-inter" style="--pm-inter:#1dd1a1" title="Protection en temps réel"><input type="checkbox" id="av-live-toggle"><span></span></label>
+        <button class="pm-fermer" id="av-panel-close-btn" title="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       </div>
-      <div class="uninstaller-panel-title">JARVIS // SOFTWARE_UNINSTALLER</div>
-      <button class="uninstaller-panel-close" id="uninstaller-panel-close-btn">&times;</button>
     </div>
-    
-    <div class="uninstaller-panel-body">
-      <!-- VUE 1 : Liste des applications -->
-      <div id="uninstaller-list-view" class="uninstaller-view">
-        <div class="uninstaller-search-box">
-          <input type="text" id="uninstaller-search-input" placeholder="RECHERCHER UN PROGRAMME...">
+    <div class="pm-corps">
+      <div style="display:flex;align-items:center;gap:16px;padding:14px">
+        <div class="pm-anneau">
+          <svg viewBox="0 0 92 92" aria-hidden="true">
+            <circle class="fond" cx="46" cy="46" r="38"/>
+            <circle class="valeur" id="av-anneau-valeur" cx="46" cy="46" r="38" stroke-dasharray="238.8" stroke-dashoffset="238.8" transform="rotate(-90 46 46)"/>
+            <text id="av-progress-percent" x="46" y="52" text-anchor="middle">0%</text>
+          </svg>
         </div>
-        <div class="uninstaller-apps-list" id="uninstaller-apps-list">
-          <div class="uninstaller-loading">CHARGEMENT DE LA LISTE DES LOGICIELS...</div>
-        </div>
-      </div>
-      
-      <!-- VUE 2 : Scan / Désinstallation / Traces -->
-      <div id="uninstaller-action-view" class="uninstaller-view hidden">
-        <!-- Animation radar pendant le scan -->
-        <div id="uninstaller-radar-container" class="uninstaller-radar-container">
-          <div class="uninstaller-radar-circle">
-            <div class="uninstaller-radar-sweep"></div>
-            <div class="uninstaller-radar-grid circle-1"></div>
-            <div class="uninstaller-radar-grid circle-2"></div>
-            <div class="uninstaller-radar-grid circle-3"></div>
-          </div>
-                    <div class="uninstaller-status-msg" id="uninstaller-status-msg">En attente de la désinstallation...</div>
-        </div>
-        
-        <!-- Liste des traces détectées -->
-        <div id="uninstaller-leftovers-container" class="uninstaller-leftovers-container hidden">
-          <div class="uninstaller-leftovers-header">
-            <span>TRACES RÉSIDUELLES DÉTECTÉES</span>
-            <label class="uninstaller-select-all-label">
-              <input type="checkbox" id="uninstaller-select-all" checked> TOUT SÉLECTIONNER
-            </label>
-          </div>
-          <div class="uninstaller-leftovers-list" id="uninstaller-leftovers-list">
-            <!-- Dynamique -->
-          </div>
-          <div class="uninstaller-action-buttons">
-            <button class="uninstaller-btn danger" id="uninstaller-clean-btn">NETTOYER LES TRACES</button>
-            <button class="uninstaller-btn secondary" id="uninstaller-skip-btn">PASSER / FERMER</button>
-          </div>
+        <div class="pm-chiffres">
+          <div class="pm-chiffre"><span>Fichiers</span><b id="av-nb-fichiers">0</b></div>
+          <div class="pm-chiffre"><span>Menaces</span><b id="av-threats-count">0</b></div>
+          <div class="pm-chiffre"><span>Durée</span><b id="av-duree">0:00</b></div>
         </div>
       </div>
+      <div class="pm-barre" style="width:auto;margin:0 14px"><i id="av-progress-bar-fill" style="width:0%"></i></div>
+      <div class="pm-mono" id="av-current-file" style="padding:8px 14px 12px">En attente…</div>
+      <div id="av-threats-list" class="hidden"></div>
     </div>
-    
-    <div class="uninstaller-panel-footer">
-      <span>JARVIS_HUD_UNINSTALLER_V1.0</span>
-    </div>
-  </div>
-
-  <!-- ══ ANTIVIRUS SCAN PANEL — Iron Man HUD ════════════════════════════ -->
-     <div id="av-panel" class="av-panel hidden">
-    <div class="av-panel-scanlines"></div>
-    <div class="av-panel-corner-tr"></div>
-    <div class="av-panel-corner-bl"></div>
-    <div class="av-panel-header" id="av-panel-header">
-      <div class="av-panel-drag-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-      </div>
-      <div class="av-panel-title">SECURITY_CORE // ANTIVIRUS_SCAN</div>
-      <button class="av-panel-close" id="av-panel-close-btn">&times;</button>
-    </div>
-    
-    <div class="av-panel-status-bar">
-      <span id="av-status-label">SYS_STATUS: STANDBY</span>
-      <span id="av-threats-count">MENACES DÉTECTÉES: 0</span>
-    </div>
-
-    <div class="av-panel-body">
-      <!-- Radar visualization -->
-      <div class="av-radar-container">
-        <div class="av-radar-circle">
-          <div class="av-radar-sweep"></div>
-          <div class="av-radar-blips"></div>
-        </div>
-        <div class="av-radar-value" id="av-progress-percent">0%</div>
-      </div>
-
-      <!-- Linear progress bar -->
-      <div class="av-progress-bar-container">
-        <div class="av-progress-bar-fill" id="av-progress-bar-fill" style="width: 0%;"></div>
-      </div>
-            <!-- Realtime scanning directory/file label -->
-      <div class="av-current-file" id="av-current-file">SYS_CORE_SCANNER_AWAITING_TRIGGER...</div>
-
-      <!-- Terminal console logs -->
-      <div class="av-console" id="av-console">
-        <div class="av-console-line">[INFO] Sous-système antivirus JARVIS actif. En attente d'instruction.</div>
-      </div>
-
-      <!-- Threats List -->
-      <div class="av-threats-list hidden" id="av-threats-list"></div>
-    </div>
-
-    <div class="av-panel-footer">
-      <button class="av-control-btn" id="av-cancel-btn">ANNULER</button>
-      <span>JARVIS_HUD_SEC_V2.6</span>
+    <div class="pm-pied">
+      <details class="pm-journal" style="flex:1;min-width:200px">
+        <summary><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Journal d'analyse</summary>
+        <div class="pm-journal-texte" id="av-console"></div>
+      </details>
+      <button class="pm-bouton discret" id="av-cancel-btn">Annuler</button>
     </div>
   </div>
 
@@ -1455,65 +1389,28 @@
     </div>
   </div>
 
-  <!-- ══ HOME ASSISTANT PANEL — Iron Man HUD ═══════════════════════ -->
-  <div id="ha-panel" class="ha-panel hidden draggable">
-    <div class="ha-panel-header" id="ha-panel-drag-handle">
-      <div class="ha-panel-title">
-        <span class="ha-pulse-dot"></span>
-        <span class="ha-title-text">🏠 DOMOTIQUE // CONNECTIVITÉ HOME ASSISTANT</span>
-      </div>
-      <div class="ha-panel-controls">
-        <button id="ha-panel-close-btn" class="ha-control-btn" title="Fermer">[ X ]</button>
-      </div>
-    </div>
-    
-    <div class="ha-panel-body">
-      <!-- Barre d'outils / Recherche -->
-      <div class="ha-toolbar">
-        <div class="ha-search-wrapper">
-          <span class="ha-search-icon">🔍</span>
-          <input type="text" id="ha-search-input" placeholder="RECHERCHER UN APPAREIL..." autocomplete="off" />
-        </div>
-        <button id="ha-refresh-btn" class="ha-toolbar-btn" title="Rafraîchir les états">🔄 ACTUALISER</button>
-      </div>
-
-      <div class="ha-layout-container">
-        <!-- Barre latérale pour filtres de catégories -->
-        <div class="ha-sidebar">
-          <button class="ha-tab-btn active" data-category="all">
-            <span class="tab-icon">⚡</span> <span class="tab-label">TOUT</span>
-          </button>
-          <button class="ha-tab-btn" data-category="light">
-            <span class="tab-icon">💡</span> <span class="tab-label">LUMIÈRES</span>
-          </button>
-          <button class="ha-tab-btn" data-category="switch">
-            <span class="tab-icon">🔌</span> <span class="tab-label">PRISES & INTERS</span>
-          </button>
-                    <button class="ha-tab-btn" data-category="sensor">
-            <span class="tab-icon">🌡️</span> <span class="tab-label">CAPTEURS</span>
-          </button>
-          <button class="ha-tab-btn" data-category="fan">
-            <span class="tab-icon">🌀</span> <span class="tab-label">VENTILATEURS</span>
-          </button>
-          <button class="ha-tab-btn" data-category="vacuum">
-            <span class="tab-icon">🧹</span> <span class="tab-label">ASPIRATEURS</span>
-          </button>
-          <button class="ha-tab-btn" data-category="other">
-            <span class="tab-icon">⚙️</span> <span class="tab-label">AUTRES</span>
-          </button>
-        </div>
-
-        <!-- Zone d'affichage des appareils -->
-        <div class="ha-content">
-          <div id="ha-entities-grid" class="ha-entities-grid">
-            <!-- Les cartes d'entités seront injectées ici en JavaScript -->
-            <div class="ha-loading-msg">CHARGEMENT DE LA GRILLE DOMOTIQUE...</div>
-          </div>
-        </div>
+  <!-- ══ DOMOTIQUE (HOME ASSISTANT) — style commun css/13_panneaux_modules.css ═════ -->
+  <div id="ha-panel" class="pm hidden draggable">
+    <div class="pm-tete" id="ha-panel-drag-handle">
+      <div class="pm-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8z"/></svg></div>
+      <div><div class="pm-titre">DOMOTIQUE</div><div class="pm-sous ha-status-label">Connexion à Home Assistant…</div></div>
+      <div class="pm-tete-droite ha-panel-controls">
+        <button class="pm-icone-bouton" id="ha-refresh-btn" title="Actualiser les états"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+        <button class="pm-fermer" id="ha-panel-close-btn" title="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       </div>
     </div>
-    <div class="ha-panel-footer">
-      <span class="ha-status-label">SYS_STATUS // CONNEXION À HOME ASSISTANT…</span>
+    <div class="pm-outils">
+      <label class="pm-recherche"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="text" id="ha-search-input" placeholder="Rechercher un appareil" autocomplete="off"></label>
+      <button class="pm-pastille ha-tab-btn active" data-category="all">Tout</button>
+      <button class="pm-pastille ha-tab-btn" data-category="light">Lumières</button>
+      <button class="pm-pastille ha-tab-btn" data-category="switch">Prises</button>
+      <button class="pm-pastille ha-tab-btn" data-category="sensor">Capteurs</button>
+      <button class="pm-pastille ha-tab-btn" data-category="fan">Ventilation</button>
+      <button class="pm-pastille ha-tab-btn" data-category="vacuum">Aspirateur</button>
+      <button class="pm-pastille ha-tab-btn" data-category="other">Autres</button>
+    </div>
+    <div class="pm-corps">
+      <div id="ha-entities-grid" class="ha-entities-grid"><div class="ha-loading-msg">CHARGEMENT DE LA GRILLE DOMOTIQUE…</div></div>
     </div>
   </div>
 

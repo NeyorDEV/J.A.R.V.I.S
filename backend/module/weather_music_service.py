@@ -26,7 +26,7 @@ def _clients():
     return getattr(builtins, "CONNECTED_CLIENTS", set())
 
 
-def _charger_config():
+def _lire_config():
     try:
         p = os.path.join(_BASE_DIR, "jarvis_config.json")
         if os.path.exists(p):
@@ -36,7 +36,7 @@ def _charger_config():
         pass
     return {}
 
-_location_cfg = _charger_config()
+_location_cfg = _lire_config()
 CLIENT_LOCATION = {
     "lat": _location_cfg.get("latitude", 45.2933),
     "lon": _location_cfg.get("longitude", 4.1720),

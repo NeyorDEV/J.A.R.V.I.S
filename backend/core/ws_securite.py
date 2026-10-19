@@ -1,6 +1,5 @@
 """Messages WebSocket de sécurité : pare-feu (IP bloquées), cache WebView2, actions antivirus."""
 
-import asyncio
 import builtins
 import json
 import os
@@ -8,8 +7,8 @@ import threading
 
 import core.shared as shared
 from core.interlocuteur import nom_virgule
-from core.micro import _charger_config, _sauvegarder_config
-from core.webview_cache import vider_cache_webview_complet
+from core.micro import _lire_config, _ecrire_config
+from core.webview_cache import purger_cache_webview
 
 
 try:
@@ -128,13 +127,13 @@ async def ws_unblock_ip(websocket, data):
 async def ws_clear_cache(websocket, data):
     """Message WS « clear_cache » : vide le cache WebView2 et recharge la fenêtre."""
     print("[CACHE] Nettoyage manuel demandé — reset marqueur + rechargement cache-bust...")
-    success = vider_cache_webview_complet()
+    success = purger_cache_webview()
     await websocket.send(json.dumps({
         "type": "cache_cleared",
         "success": success
     }))
     if _WEBVIEW_OK and webview is not None:
-        def _reload_window_cachebust():
+        def _recharger_fenetre_sans_cache():
             try:
                 import time
                 time.sleep(1.0)
@@ -146,7 +145,7 @@ async def ws_clear_cache(websocket, data):
                         print(f"[CACHE] Rechargement JS alternatif : {_e_js}")
             except Exception as _e:
                 print(f"[CACHE] Erreur rechargement fenêtre : {_e}")
-        threading.Thread(target=_reload_window_cachebust, daemon=True).start()
+        threading.Thread(target=_recharger_fenetre_sans_cache, daemon=True).start()
 
 
 async def ws_av_threat_action(websocket, data):
@@ -171,15 +170,15 @@ async def ws_av_threat_action(websocket, data):
     try:
         if action == "allow":
             if target:
-                config = _charger_config()
+                config = _lire_config()
                 exclusions = config.get("av_exclusions", [])
                 if target not in exclusions:
                     exclusions.append(target)
-                _sauvegarder_config({"av_exclusions": exclusions})
+                _ecrire_config({"av_exclusions": exclusions})
                 success = True
-                msg = f"Menace autorisée et ajoutée aux exclusions : {target}"
+                msg = f"Menace tolérée, ajoutée aux exclusions : {target}"
             else:
-                msg = "Cible de menace manquante pour l'exclusion."
+                msg = "Aucune cible indiquée pour l'exclusion."
         elif action == "delete":
             if t_type == "file":
                 if os.path.exists(target):
@@ -203,7 +202,7 @@ async def ws_av_threat_action(websocket, data):
                         success = True
                         msg = f"Le processus PID {pid} n'est plus actif."
                 else:
-                    msg = f"Cible invalide pour le processus : {target}"
+                    msg = f"Cible incorrecte pour le processus : {target}"
             elif t_type == "registry":
                 import winreg
                 t_name = threat.get("name")
@@ -274,7 +273,7 @@ async def ws_av_threat_action(websocket, data):
                     import shutil
                     shutil.move(target, dest)
                     success = True
-                    msg = f"Fichier déplacé en quarantaine : {safe_name}"
+                    msg = f"Fichier mis en quarantaine : {safe_name}"
                 else:
                     msg = f"Fichier introuvable : {target}"
             elif t_type == "process":

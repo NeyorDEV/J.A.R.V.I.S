@@ -1,10 +1,10 @@
 """
 competences.py — Système de compétences autonomes de JARVIS.
 
-Génération de plugins Python par LLM (jarvis_creer_competence), suppression
+Génération de plugins Python par LLM (fabriquer_competence), suppression
 et exécution à chaud. Extrait de main2.py.
 
-send_web_broadcast_sync est un hook injecté par main2.py après import
+diffuser_web_sync est un hook injecté par main2.py après import
 (évite l'import circulaire).
 """
 
@@ -17,7 +17,7 @@ from core.interlocuteur import nom_espace, nom_virgule
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Hook remplacé par main2.py après import (envoi d'un payload au HUD web)
-def send_web_broadcast_sync(payload):
+def diffuser_web_sync(payload):
     pass
 
 
@@ -152,13 +152,13 @@ def valider_code_competence(code: str):
 
 # ── ANIMATION VISUELLE & SYSTEME DE COMPETENCES AUTONOMES ─────────────────────
 
-def _effet_visuel_iron_man(stop_event):
-    """Affiche un effet de défilement de code et logs style Iron Man HUD dans la console et sur l'écran web."""
+def _effet_hud_matrice(stop_event):
+    """Joue un défilement de caractères façon HUD dans la console et sur l'interface web."""
     import random
     import time
 
     # Passer l'orbe en état thinking immédiatement pour l'animer à l'écran
-    send_web_broadcast_sync({"action": "set_state", "state": "thinking"})
+    diffuser_web_sync({"action": "set_state", "state": "thinking"})
 
     logs_fictifs = [
         ">System: Allocating compilation segment on core_0...",
@@ -179,10 +179,10 @@ def _effet_visuel_iron_man(stop_event):
         "[Info] Code integrity check: 100% compliant.",
         "[Debug] Temperature: 0.1 | Top-P: 0.95 | Top-K: 40",
     ]
-    caracteres = "0123456789ABCDEFghijklmnopqrstuvwxyz[]{}()$#@!*&%^-_=+"
+    caracteres = "ABCDEF0123456789ghijklmnopqrstuvwxyz{}[]()#$@!&%*+=-_^"
 
     print("\n\033[93m" + "="*60)
-    print("   J.A.R.V.I.S — PLUGINS SYSTEM: COMPILING NEW SKILL")
+    print("   JARVIS · ATELIER DE COMPÉTENCES : COMPILATION")
     print("="*60 + "\033[0m\n")
 
     iteration = 0
@@ -205,24 +205,24 @@ def _effet_visuel_iron_man(stop_event):
             
         # Toutes les 2 itérations (~80ms), envoyer le log actuel au HUD web pour le défilement
         if iteration % 2 == 0:
-            send_web_broadcast_sync({"action": "jarvis_text", "text": f"[HUD] {log_texte}"})
+            diffuser_web_sync({"action": "jarvis_text", "text": f"[HUD] {log_texte}"})
             
         iteration += 1
         time.sleep(0.04)
 
     print("\n\033[92m" + "="*60)
-    print("   J.A.R.V.I.S — SKILL SUCCESSFULLY INTEGRATED")
+    print("   JARVIS · COMPÉTENCE INTÉGRÉE")
     print("="*60 + "\033[0m\n")
 
     # Restaurer l'état d'origine de l'orbe et du texte
-    send_web_broadcast_sync({"action": "set_state", "state": "idle"})
-    send_web_broadcast_sync({"action": "jarvis_text", "text": "COMPILATION TERMINÉE — COMPÉTENCE CHARGÉE"})
+    diffuser_web_sync({"action": "set_state", "state": "idle"})
+    diffuser_web_sync({"action": "jarvis_text", "text": "COMPÉTENCE PRÊTE ET CHARGÉE"})
 
 
-def jarvis_creer_competence(nom_competence: str, description_demande: str) -> str:
+def fabriquer_competence(nom_competence: str, description_demande: str) -> str:
     """
-    Appelle Gemini-3.5-flash avec thinking activé pour générer une compétence Python autonome.
-    Sauvegarde le code généré dans le dossier plugins/ sous competence_<nom>.py.
+    Demande à Gemini (réflexion activée) d'écrire une compétence Python autonome.
+    Le code est enregistré dans plugins/competence_<nom>.py.
     """
     import re
     import threading
@@ -232,7 +232,7 @@ def jarvis_creer_competence(nom_competence: str, description_demande: str) -> st
 
     # Valider le client API
     if not hasattr(builtins, "client") or not builtins.client:
-        return "Erreur : le client Gemini n'est pas initialisé ou la clé API est invalide."
+        return "Impossible de générer la compétence : Gemini n'est pas prêt (client absent ou clé refusée)."
 
     nom_formate = re.sub(r'[^a-zA-Z0-9_]', '', nom_competence.lower().replace(" ", "_"))
     dossier_plugins = os.path.join(_BASE_DIR, "plugins")
@@ -243,24 +243,24 @@ def jarvis_creer_competence(nom_competence: str, description_demande: str) -> st
 
     # Animation Iron Man
     stop_event = threading.Event()
-    thread_anim = threading.Thread(target=_effet_visuel_iron_man, args=(stop_event,), daemon=True)
+    thread_anim = threading.Thread(target=_effet_hud_matrice, args=(stop_event,), daemon=True)
     thread_anim.start()
 
     try:
         system_instruction = (
-            "Tu es l'agent de génération de compétences autonomes de JARVIS.\n"
-            "Tu dois écrire du code Python strict, propre et valide.\n\n"
-            "RÈGLES CRITIQUES :\n"
-            "1. Renvoie UNIQUEMENT le code Python pur. Ne mets AUCUNE balise de code markdown comme ```python ou ```. Pas de texte explicatif en dehors du code.\n"
-            "2. Le script doit être entièrement autonome.\n"
-            "3. Tu dois obligatoirement implémenter une fonction principale nommée `executer(texte_utilisateur=None)` qui prend un argument optionnel (string) et qui RETOURNE obligatoirement une string (le texte formaté que JARVIS lira à voix haute).\n"
-            "4. Évite tout appel externe nécessitant des credentials non fournis (clés d'APIs tierces) à moins que ce ne soit faisable via des APIs publiques ou des mocks. Tu peux utiliser des bibliothèques standards ou requests."
+            "Tu rédiges des compétences Python autonomes pour l'assistant JARVIS.\n"
+            "Le code doit être valide, propre et sans fioritures.\n\n"
+            "CONTRAINTES À RESPECTER :\n"
+            "1. Réponds avec le code Python seul : aucune balise markdown (pas de ```python ni de ```), aucun commentaire hors du code.\n"
+            "2. Le script doit se suffire à lui-même.\n"
+            "3. Définis obligatoirement `executer(texte_utilisateur=None)` : un argument texte facultatif, et le retour DOIT être une chaîne (la phrase que JARVIS dira à voix haute).\n"
+            "4. N'utilise aucun service demandant des identifiants que tu n'as pas (clés d'API tierces) : reste sur des API publiques ou des données simulées. La bibliothèque standard et requests sont permises."
         )
 
         prompt = (
-            f"Génère le code complet pour la compétence : '{nom_competence}'.\n"
-            f"Objectif de la compétence : {description_demande}\n\n"
-            "Écris le code Python pur respectant toutes les règles de structure."
+            f"Écris le code de la compétence nommée '{nom_competence}'.\n"
+            f"But recherché : {description_demande}\n\n"
+            "Respecte toutes les contraintes de structure indiquées."
         )
 
         # Appel Gemini-3.5-flash avec configuration Thinking
@@ -303,20 +303,20 @@ def jarvis_creer_competence(nom_competence: str, description_demande: str) -> st
         stop_event.set()
         thread_anim.join()
 
-        print(f"[JARVIS PLUGINS] Nouvelle compétence écrite dans {filename}")
+        print(f"[COMPÉTENCES] Fichier créé : {filename}")
         consigner("competence_creee", nom=nom_competence, description=description_demande, fichier=filename)
-        return f"La compétence '{nom_competence}' a été générée et installée avec succès. Elle est prête à être exécutée."
+        return f"La compétence '{nom_competence}' est créée et installée. Vous pouvez la lancer."
 
     except Exception as e:
         stop_event.set()
         thread_anim.join()
-        print(f"[JARVIS PLUGINS] Erreur lors de la création de compétence : {e}")
+        print(f"[COMPÉTENCES] Échec de la création : {e}")
         consigner("competence_erreur_creation", nom=nom_competence, erreur=str(e))
         return f"Désolé{nom_espace()}, la génération de la compétence a échoué. Détail de l'erreur : {e}"
 
 
-def jarvis_supprimer_competence(nom_competence: str) -> str:
-    """Supprime proprement le fichier de compétence ciblée."""
+def retirer_competence(nom_competence: str) -> str:
+    """Retire le fichier de la compétence demandée."""
     import re
     import os
     nom_formate = re.sub(r'[^a-zA-Z0-9_]', '', nom_competence.lower().replace(" ", "_"))
@@ -325,17 +325,17 @@ def jarvis_supprimer_competence(nom_competence: str) -> str:
     if os.path.exists(filename):
         try:
             os.remove(filename)
-            print(f"[JARVIS PLUGINS] Compétence supprimée : {filename}")
+            print(f"[COMPÉTENCES] Retirée : {filename}")
             consigner("competence_supprimee", nom=nom_competence, fichier=filename)
-            return f"La compétence '{nom_competence}' a été désinstallée et son fichier a été supprimé."
+            return f"La compétence '{nom_competence}' est désinstallée, son fichier est effacé."
         except Exception as e:
-            return f"Erreur lors de la suppression du fichier : {e}"
+            return f"Suppression du fichier impossible : {e}"
     else:
         return f"La compétence '{nom_competence}' n'est pas installée."
 
 
-def executer_competence_vocale(nom_competence: str, texte_recu: str = None) -> str:
-    """Importe et exécute dynamiquement la compétence vocale."""
+def lancer_competence_vocale(nom_competence: str, texte_recu: str = None) -> str:
+    """Charge puis lance la compétence demandée à la voix."""
     import re
     import os
     import sys
@@ -366,7 +366,7 @@ def executer_competence_vocale(nom_competence: str, texte_recu: str = None) -> s
         module_name = f"plugins.competence_{nom_formate}"
         spec = importlib.util.spec_from_file_location(module_name, filename)
         if spec is None or spec.loader is None:
-            return "Impossible de charger la spécification du module."
+            return "Le module de la compétence ne peut pas être chargé."
 
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
@@ -377,11 +377,11 @@ def executer_competence_vocale(nom_competence: str, texte_recu: str = None) -> s
             consigner("competence_executee", nom=nom_competence)
             return str(res)
         else:
-            return "Erreur : cette compétence ne possède pas de point d'entrée 'executer'."
+            return "Cette compétence n'expose pas de fonction 'executer'."
 
     except Exception as e:
-        print(f"[JARVIS PLUGINS] Erreur lors de l'exécution de {nom_competence} : {e}")
+        print(f"[COMPÉTENCES] Échec à l'exécution de {nom_competence} : {e}")
         consigner("competence_erreur_execution", nom=nom_competence, erreur=str(e))
-        return f"Erreur d'exécution dans la compétence '{nom_competence}' : {e}"
+        return f"La compétence '{nom_competence}' : {e}"
 
 

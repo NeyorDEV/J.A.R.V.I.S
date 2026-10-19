@@ -1,6 +1,5 @@
 import builtins
 import subprocess
-import time
 import os
 import re
 import asyncio
@@ -8,7 +7,7 @@ from core.interlocuteur import nom_espace, nom_virgule
 
 # On importe les fonctions du fichier existant si possible
 try:
-    from controller.app_launcher import _APPS_CATALOGUE, _boulot_lancer, mode_boulot, mode_gaming, mode_rocket_league
+    from controller.app_launcher import _APPS_CATALOGUE, _demarrer_appli_travail, mode_travail, mode_gaming, mode_rocket_league
 except ImportError as _e_app:
     # Le repli ne définissait que _APPS_CATALOGUE : si l'import échouait,
     # « mode boulot » levait un NameError au lieu de retourner None, et
@@ -16,14 +15,14 @@ except ImportError as _e_app:
     print(f"[APP LAUNCHER] Import du contrôleur impossible ({_e_app}) — modes désactivés.")
     _APPS_CATALOGUE = {}
 
-    def _boulot_lancer(*args, **kwargs):
+    def _demarrer_appli_travail(*args, **kwargs):
         return False
 
     async def _mode_indisponible(*args, **kwargs):
         return ("Le module de lancement d'applications n'est pas disponible sur "
                 f"cette installation{nom_virgule()}.")
 
-    mode_boulot = mode_gaming = mode_rocket_league = _mode_indisponible
+    mode_travail = mode_gaming = mode_rocket_league = _mode_indisponible
 
 async def resoudre_apps_localement(texte):
     """Gère l'ouverture et la fermeture des applications PC et les modes de travail/jeu."""
@@ -36,7 +35,7 @@ async def resoudre_apps_localement(texte):
         
     # 1. GESTION DES MODES
     if any(k in t for k in ["mode boulot", "mode travail", "espace de travail"]):
-        return await mode_boulot()
+        return await mode_travail()
     if any(k in t for k in ["mode gaming", "mode jeu", "lance un jeu"]):
         return await mode_gaming()
     if any(k in t for k in ["mode rocket league", "lance rocket league"]):
@@ -48,7 +47,7 @@ async def resoudre_apps_localement(texte):
             # Mot entier : « ea » (EA App) était trouvé dans réseau, tableau, bureau,
             # beatles… (« lance le radar réseau » lançait EA App).
             if re.search(rf"(?<![\w-]){re.escape(app_key)}(?![\w-])", t):
-                success = _boulot_lancer(data["label"], data["noms"], data.get("hints"))
+                success = _demarrer_appli_travail(data["label"], data["noms"], data.get("hints"))
                 if success: return f"J'ai lancé {data['label']} pour vous{nom_virgule()}."
                 return f"Je n'ai pas pu localiser {data['label']} sur votre système."
 
@@ -98,14 +97,14 @@ async def resoudre_apps_localement(texte):
             webbrowser.open(url, new=2)
             if pyautogui:
                 asyncio.create_task(asyncio.sleep(5)).add_done_callback(lambda _: pyautogui.press('f'))
-            return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
+            return f"C'est parti{nom_espace()}, votre musique démarre sur YouTube."
         elif lien_perso:
             webbrowser.open(lien_perso, new=2)
             return f"C'est parti{nom_espace()}, je lance votre musique personnalisée."
         elif "spotify" in t:
             try:
                 subprocess.Popen(["explorer", "spotify:"], shell=False)
-                return f"C'est parti{nom_espace()}, je lance votre playlist sur Spotify."
+                return f"C'est parti{nom_espace()}, votre playlist démarre sur Spotify."
             except: pass
         else:
             # Par défaut, on lance la playlist sur Deezer
@@ -117,7 +116,7 @@ async def resoudre_apps_localement(texte):
                 print(f"[RESOLVER] Échec import/lancement Deezer : {e}")
                 try:
                     subprocess.Popen(["explorer", "deezer:"], shell=False)
-                    return f"C'est parti{nom_espace()}, j'ouvre votre musique sur Deezer."
+                    return f"C'est parti{nom_espace()}, votre musique démarre sur Deezer."
                 except:
                     pass
 

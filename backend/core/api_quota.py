@@ -7,8 +7,8 @@ Formatage court des erreurs API et cooldown automatique par fournisseur
 
 import asyncio
 
-class _QuotaExceededError(Exception):
-    """Levée quand une API signale un quota ou rate-limit épuisé."""
+class _ErreurQuotaApi(Exception):
+    """Exception : une API annonce que son quota ou sa limite de débit est atteint."""
     pass
 
 def formater_erreur_courte(e):
@@ -46,10 +46,10 @@ def formater_erreur_courte(e):
         return err_str[:117] + "..."
     return err_str
 
-class APIQuotaManager:
+class GestionnaireQuotas:
     """
-    Gère le cooldown des APIs quand leur quota est épuisé.
-    Détecte automatiquement les erreurs 429 / resource_exhausted / rate_limit.
+    Met en pause les API dont le quota est atteint.
+    Reconnaît les erreurs 429, resource_exhausted et rate_limit.
     """
 
     # Durée de cooldown par API (secondes)
@@ -81,41 +81,41 @@ class APIQuotaManager:
         self._cooldowns  = {}   # {api_name: datetime_disponible}
         self._hit_count  = {}   # {api_name: nb_fois_quota_atteint}
 
-    def is_quota_error(self, error: Exception) -> bool:
-        """Retourne True si l'erreur est liée à un quota/rate-limit."""
+    def est_erreur_quota(self, error: Exception) -> bool:
+        """Vrai si l'erreur vient d'un quota ou d'une limite de débit."""
         err_str = str(error).lower()
         return any(kw.lower() in err_str for kw in self.QUOTA_KEYWORDS)
 
-    def is_available(self, api_name: str) -> bool:
-        """Retourne True si l'API est disponible (pas en cooldown)."""
+    def est_disponible(self, api_name: str) -> bool:
+        """Vrai si l'API n'est pas en pause."""
         if api_name not in self._cooldowns:
             return True
         return self._datetime.now() >= self._cooldowns[api_name]
 
-    def mark_quota_exceeded(self, api_name: str) -> None:
-        """Place une API en cooldown après un quota épuisé."""
+    def declarer_quota_atteint(self, api_name: str) -> None:
+        """Met une API en pause après dépassement de quota."""
         duration = self.COOLDOWNS.get(api_name, 60)
         self._cooldowns[api_name] = self._datetime.now() + self._timedelta(seconds=duration)
         self._hit_count[api_name] = self._hit_count.get(api_name, 0) + 1
         print(f"[QUOTA] ⚠ {api_name.upper()} quota atteint — cooldown {duration}s "
               f"(total: {self._hit_count[api_name]} fois)")
 
-    def remaining_cooldown(self, api_name: str) -> int:
-        """Secondes restantes avant que l'API soit à nouveau disponible (0 si dispo)."""
-        if self.is_available(api_name):
+    def pause_restante(self, api_name: str) -> int:
+        """Secondes avant la reprise de l'API (0 si elle est disponible)."""
+        if self.est_disponible(api_name):
             return 0
         delta = self._cooldowns[api_name] - self._datetime.now()
         return max(0, int(delta.total_seconds()))
 
     def status(self) -> str:
-        """Résumé du statut de toutes les APIs."""
+        """Récapitulatif de l'état de chaque API."""
         lines = []
         for api in self.COOLDOWNS:
-            if not self.is_available(api):
-                lines.append(f"  {api.upper()}: cooldown {self.remaining_cooldown(api)}s")
+            if not self.est_disponible(api):
+                lines.append(f"  {api.upper()}: cooldown {self.pause_restante(api)}s")
             else:
                 lines.append(f"  {api.upper()}: disponible")
         return "\n".join(lines)
 
 # Instance globale
-_quota_mgr = APIQuotaManager()
+_quota_mgr = GestionnaireQuotas()

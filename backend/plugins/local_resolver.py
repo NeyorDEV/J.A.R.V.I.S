@@ -79,7 +79,7 @@ def _calcul(t):
     return f"{expression_dite} font {_formater(resultat)}{nom_virgule()}."
 
 
-async def resoudre_francais_localement(texte):
+async def traiter_question_francais(texte):
     """Gère les questions de base sur le français et les paramètres de JARVIS."""
     t = texte.lower().strip()
 
@@ -94,7 +94,7 @@ async def resoudre_francais_localement(texte):
     # 2. CALCULS MATHÉMATIQUES
     return _calcul(t)
 
-async def resoudre_conversion_localement(texte):
+async def traiter_conversion_locale(texte):
     """Gère les conversions d'unités localement."""
     t = texte.lower().replace("?", "").strip()
     # km <-> miles
@@ -115,7 +115,7 @@ async def resoudre_conversion_localement(texte):
             return f"{val} degrés Celsius font {round((val * 9/5) + 32, 1)} degrés Fahrenheit."
     return None
 
-async def resoudre_traduction_localement(texte):
+async def traiter_traduction_locale(texte):
     """Traduction ultra-rapide de mots courants."""
     t = texte.lower().strip()
     dict_trad = {
@@ -134,6 +134,6 @@ async def resoudre_traduction_localement(texte):
     return None
 
 # Injection builtins
-builtins.resoudre_francais_localement = resoudre_francais_localement
-builtins.resoudre_conversion_localement = resoudre_conversion_localement
-builtins.resoudre_traduction_localement = resoudre_traduction_localement
+builtins.traiter_question_francais = traiter_question_francais
+builtins.traiter_conversion_locale = traiter_conversion_locale
+builtins.traiter_traduction_locale = traiter_traduction_locale

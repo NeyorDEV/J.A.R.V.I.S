@@ -258,17 +258,6 @@ def supprimer_souvenir_semantique(query_text, seuil=0.35):
         print(f"[VECTOR DB] Erreur lors de la suppression sémantique : {e}")
     return False
 
-def lister_souvenirs():
-    """Retourne la liste de tous les souvenirs enregistrés (pour consultation)."""
-    coll = _get_collection()
-    if coll is None: return []
-    try:
-        results = coll.get()
-        return results['documents']
-    except Exception as e:
-        print(f"[VECTOR DB] Erreur lors du listage : {e}")
-        return []
-
 SEUIL_DECLENCHEMENT_CONSOLIDATION = 60  # nb min. de souvenirs bruts avant de consolider
 GARDER_RECENTS_CONSOLIDATION      = 20  # toujours laisser les N plus récents intacts
 MAX_LOT_CONSOLIDATION             = 40  # nb max. de souvenirs bruts envoyés au LLM par passage

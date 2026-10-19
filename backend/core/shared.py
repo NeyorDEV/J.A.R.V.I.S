@@ -53,8 +53,6 @@ DERNIER_LOCUTEUR = None   # (profil, instant) de la dernière voix reconnue (cor
 ETAT_HUD = None            # dernier état envoyé au HUD : idle / listening / thinking / speaking
 MUSIQUE_EN_COURS = None    # {"title", "artist", "status"} du morceau Deezer (weather_music_service)
 ENROLEMENT_CLAVIER = False  # « enregistre ma voix » tapé au clavier du HUD → enrôlement du créateur
-WAKEWORD_MODEL = None
-WAKEWORD_THRESHOLD = 0.35
 
 # ── Clés API et clients des moteurs IA (affectés par core/ai_clients.py) ─────
 GEMINI_API_KEY = None

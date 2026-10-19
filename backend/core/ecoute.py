@@ -17,12 +17,12 @@ import speech_recognition as sr
 import core.shared as shared
 import core.speech as speech
 from core.audio_stream import AudioStreamManager
-from core.ecoute_outils import _protocole_enrolement_vocal, transcribe_audio_groq
+from core.ecoute_outils import _protocole_enrolement_vocal, normaliser_mot_eveil, transcribe_audio_groq
 from core.etat_parole import get_dernier_parle_time, get_is_speaking, set_stop_parler
-from core.micro import detecter_microphone
+from core.micro import choisir_microphone
 from core.speech import parler
-from core.traitement import nettoyer_commande, traiter_reponse_ia
-from core.web_bridge import envoyer_carte_contextuelle, _safe_ws_send, send_web_state
+from core.traitement import epurer_commande, gerer_reponse_ia
+from core.web_bridge import envoyer_carte_contextuelle, _safe_ws_send, envoyer_etat_hud
 from core.interlocuteur import CREATEUR, NOM_CREATEUR, nom_espace, nom_virgule
 
 
@@ -76,9 +76,9 @@ def _interrompre_parole(source):
     print(f"[JARVIS] Interruption forcée ({source}) : parole coupée, file vidée.")
 
 
-def ecouter():
+def boucle_ecoute():
     r = sr.Recognizer()
-    mic_index = detecter_microphone()
+    mic_index = choisir_microphone()
     
     # Paramètres VAD
     RATE = 16000
@@ -124,7 +124,7 @@ def ecouter():
         try:
             if shared.MIC_NEED_RELOAD:
                 print("[MIC] Rechargement du micro demande...")
-                mic_index = detecter_microphone()
+                mic_index = choisir_microphone()
                 try:
                     audio_manager.reload(mic_index)
                 except Exception as e:
@@ -159,7 +159,7 @@ def ecouter():
                 shared.jarvis_actif = False
                 _safe_ws_send(json.dumps({"action": "jarvis_text", "text": ""}))
                 try:
-                    asyncio.run(send_web_state("idle"))
+                    asyncio.run(envoyer_etat_hud("idle"))
                 except: pass
                 
                 # Consolidation automatique de la mémoire en arrière-plan (non bloquante)
@@ -203,7 +203,7 @@ def ecouter():
             # 3. BARGE-IN AUTOMATIQUE DÉSACTIVÉ (À la demande de l'utilisateur)
             # JARVIS ne s'arrête plus au bruit ambiant, seulement sur commande vocale "Stop/Silence"
             else:
-                ecouter._noise_count = 0
+                boucle_ecoute._noise_count = 0
 
             # 4. LOGIQUE VAD (Capture de la phrase)
             is_speech = False
@@ -224,25 +224,16 @@ def ecouter():
                 energy = np.sqrt(np.mean(audio_chunk_int16.astype(np.float64)**2))
                 is_speech = energy > ENERGY_THRESHOLD
 
-            # Alimente openWakeWord en continu quand JARVIS est en veille (détection locale du wake word)
-            if shared.WAKEWORD_MODEL is not None and not shared.jarvis_actif and not get_is_speaking():
-                try:
-                    ww_score = shared.WAKEWORD_MODEL(audio_chunk_int16)
-                    if ww_score > getattr(ecouter, "_wake_score", 0.0):
-                        ecouter._wake_score = ww_score
-                except Exception:
-                    pass
-
             if is_speech:
                 if not is_recording:
                     if not get_is_speaking():
-                        try: asyncio.run(send_web_state("listening"))
+                        try: asyncio.run(envoyer_etat_hud("listening"))
                         except: pass
                     is_recording = True
                     audio_buffer = [data]
-                    ecouter._buffer_sature = False
+                    boucle_ecoute._buffer_sature = False
                     last_interim_time = time.time()  # Reset timer interim
-                    ecouter._recorded_during_speech = get_is_speaking()
+                    boucle_ecoute._recorded_during_speech = get_is_speaking()
                 else:
                     # Plafond de sécurité : sans lui, un bruit continu détecté comme
                     # parole (TV, musique, VAD bloqué haut) faisait grossir la liste
@@ -250,11 +241,11 @@ def ecouter():
                     # envoyé au STT. On coupe l'énoncé à MAX_UTTERANCE_SEC.
                     if len(audio_buffer) < _MAX_CHUNKS_ENONCE:
                         audio_buffer.append(data)
-                    elif not getattr(ecouter, "_buffer_sature", False):
-                        ecouter._buffer_sature = True
+                    elif not getattr(boucle_ecoute, "_buffer_sature", False):
+                        boucle_ecoute._buffer_sature = True
                         print(f"[VAD] Énoncé trop long (> {MAX_UTTERANCE_SEC}s) : capture tronquée.")
                     if get_is_speaking():
-                        ecouter._recorded_during_speech = True
+                        boucle_ecoute._recorded_during_speech = True
                     # --- TRANSCRIPTION INTÉRIMAIRE EN TEMPS RÉEL (Active uniquement si réveillé) ---
                     now = time.time()
                     # (aussi pendant que JARVIS parle, même hors session : c'est là qu'un « stop »
@@ -273,7 +264,7 @@ def ecouter():
                 if len(audio_buffer) < _MAX_CHUNKS_ENONCE:
                     audio_buffer.append(data)
                 if get_is_speaking():
-                    ecouter._recorded_during_speech = True
+                    boucle_ecoute._recorded_during_speech = True
                 if silence_start is None:
                     silence_start = time.time()
                 
@@ -281,13 +272,13 @@ def ecouter():
                     is_recording = False
                     if shared.VAD_MODEL is not None:
                         shared.VAD_MODEL.reset_states()
-                    try: asyncio.run(send_web_state("idle"))
+                    try: asyncio.run(envoyer_etat_hud("idle"))
                     except: pass
                     
                     raw_audio = b"".join(audio_buffer)
                     
                     try:
-                        was_during_speech = getattr(ecouter, "_recorded_during_speech", False)
+                        was_during_speech = getattr(boucle_ecoute, "_recorded_during_speech", False)
                         
                         # Si l'enregistrement a eu lieu pendant que Jarvis parlait, qu'il n'a pas été interrompu,
                         # et qu'on est configuré pour ignorer le micro pendant la parole, on rejette directement.
@@ -304,21 +295,11 @@ def ecouter():
                             audio_buffer = []
                             continue
 
-                        # GATE OPENWAKEWORD : en veille, on ne paie l'appel STT que si le wake word
-                        # a été détecté localement. La vérification "WAKE_WORD in texte" plus bas
-                        # reste l'autorité finale (un faux positif ne coûte qu'une transcription).
-                        if shared.WAKEWORD_MODEL is not None and not shared.jarvis_actif and not was_during_speech:
-                            wake_score = getattr(ecouter, "_wake_score", 0.0)
-                            ecouter._wake_score = 0.0  # Fenêtre de détection consommée
-                            if wake_score < shared.WAKEWORD_THRESHOLD:
-                                print(f"[WAKEWORD] Phrase ignorée sans STT (score {wake_score:.2f} < seuil {shared.WAKEWORD_THRESHOLD}).")
-                                audio_buffer = []
-                                continue
-                            print(f"[WAKEWORD] Wake word détecté localement (score {wake_score:.2f}) → transcription.")
-
                         # Transcription Groq Whisper avec fallback Google STT
                         texte = transcribe_audio_groq(raw_audio, RATE, r)
-                        
+                        if texte and not shared.jarvis_actif:
+                            texte = normaliser_mot_eveil(texte)  # « j'en révise » → « jarvis »
+
                         if time.time() - get_dernier_parle_time() < 0.8:
                             audio_buffer = []
                             continue
@@ -326,8 +307,6 @@ def ecouter():
                         if texte:
                             is_relevant = (shared.WAKE_WORD in texte.lower()) or shared.jarvis_actif
                             if not is_relevant:
-                                if shared.WAKEWORD_MODEL is not None:
-                                    print(f"[WAKEWORD] Détection locale mais aucun 'jarvis' dans la transcription : « {texte} » — ignoré (pas d'activation).")
                                 _safe_ws_send(json.dumps({"action": "jarvis_text", "text": ""}))
                                 audio_buffer = []
                                 continue
@@ -379,7 +358,7 @@ def ecouter():
                                 except Exception as eb:
                                     print(f"❌  [SPEAKER] Erreur lors de l'identification : {eb}")
                             
-                            was_during_speech = getattr(ecouter, "_recorded_during_speech", False)
+                            was_during_speech = getattr(boucle_ecoute, "_recorded_during_speech", False)
                             
                             if was_during_speech and _contient_stop(texte):
                                 _interrompre_parole("barge-in")
@@ -393,7 +372,7 @@ def ecouter():
                             
                             if shared.WAKE_WORD in texte or shared.jarvis_actif:
                                 if shared.WAKE_WORD in texte: shared.jarvis_actif = True
-                                commande = nettoyer_commande(texte)
+                                commande = epurer_commande(texte)
                                 
                                 if commande:
                                     shared.STOP_PARLER = False
@@ -436,7 +415,7 @@ def ecouter():
                                     #     attendait systématiquement les 15 s de timeout).
                                     if shared.WS_LOOP is not None and not shared.WS_LOOP.is_closed():
                                         _fut_cmd = asyncio.run_coroutine_threadsafe(
-                                            traiter_reponse_ia(commande, from_voice=True), shared.WS_LOOP
+                                            gerer_reponse_ia(commande, from_voice=True), shared.WS_LOOP
                                         )
                                         # Non bloquant : l'écoute continue pendant le traitement.
                                         # Avant, la boucle attendait la fin de la commande : la file
@@ -449,7 +428,7 @@ def ecouter():
                                         loop = asyncio.new_event_loop()
                                         try:
                                             loop.run_until_complete(
-                                                traiter_reponse_ia(commande, from_voice=True)
+                                                gerer_reponse_ia(commande, from_voice=True)
                                             )
                                         finally:
                                             loop.close()
@@ -466,8 +445,6 @@ def ecouter():
         except Exception as e:
             print(f"[VAD] Erreur boucle principale : {e}")
             time.sleep(1)
-
-    audio_manager.unsubscribe(queue_ecoute)
 
 
 def _fin_commande_vocale(fut):
@@ -531,6 +508,6 @@ def _envoyer_interim(audio_chunks, rate):
             is_speaking_active = speech.is_speaking or not speech.lecture_queue.empty() or not speech.parole_queue.empty()
             if is_speaking_active and _contient_stop(texte):
                 _interrompre_parole("barge-in interim")
-                ecouter._recorded_during_speech = True
+                boucle_ecoute._recorded_during_speech = True
     except Exception as e:
         pass  # Silencieux — l'interim est cosmétique, pas critique

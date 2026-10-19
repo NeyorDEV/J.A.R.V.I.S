@@ -7,24 +7,13 @@
 
 import os
 import requests
-from datetime import datetime
 from dotenv import load_dotenv
 
 import json
 import asyncio
 from core.interlocuteur import nom_virgule
 
-def _charger_user_name():
-    try:
-        _dir = os.path.dirname(os.path.abspath(__file__))
-        _root = os.path.dirname(os.path.dirname(_dir))  # backend/module/ -> racine projet
-        _p = os.path.join(_root, "jarvis_config.json")
-        with open(_p, "r", encoding="utf-8") as _f:
-            return json.load(_f).get("user_name", "Neyor")
-    except Exception:
-        return "Neyor"
-
-def _update_ha_env():
+def _maj_env_ha():
     global HA_URL, HA_TOKEN, HA_HEADERS
     _dir = os.path.dirname(os.path.abspath(__file__))
     _root = os.path.dirname(os.path.dirname(_dir))  # backend/module/ -> racine projet
@@ -39,7 +28,7 @@ def _update_ha_env():
 HA_URL = ""
 HA_TOKEN = ""
 HA_HEADERS = {}
-_update_ha_env()
+_maj_env_ha()
 
 def ha_active() -> bool:
     return bool(HA_URL) and "votre_ip_ha" not in HA_URL.lower()
@@ -72,7 +61,7 @@ CODES_METEO = {
 #  Ne modifiez pas ces fonctions — elles appellent l'API HA.
 # ════════════════════════════════════════════════════════════════
 
-def ha_appeler_service(domaine, service, entity_id, donnees=None):
+def ha_invoquer_service(domaine, service, entity_id, donnees=None):
     if not ha_active():
         return False
     try:
@@ -99,7 +88,7 @@ OPEN_METEO_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
 
-def geocoder_ville(ville):
+def coordonnees_ville(ville):
     try:
         r = requests.get(
             "https://geocoding-api.open-meteo.com/v1/search",
@@ -136,7 +125,7 @@ def get_meteo_fallback_wttr_sync(city_name):
         pass
     return None
 
-def get_meteo_actuelle(ville=None):
+def meteo_du_moment(ville=None):
     try:
         nom_ville = ville or VILLE_PAR_DEFAUT
         # Sans ville précisée : la position actuelle (celle du widget météo, donnée par
@@ -148,7 +137,7 @@ def get_meteo_actuelle(ville=None):
             if loc.get("_ville_reelle") and loc.get("lat") is not None:
                 position = (loc["lat"], loc["lon"], loc.get("city") or "votre position", "")
                 nom_ville = position[2]
-        lat, lon, nom_affiche, pays = position or geocoder_ville(nom_ville)
+        lat, lon, nom_affiche, pays = position or coordonnees_ville(nom_ville)
         if lat is None:
             lat, lon = LAT_PAR_DEFAUT, LON_PAR_DEFAUT
             nom_affiche = VILLE_PAR_DEFAUT
@@ -177,10 +166,10 @@ def get_meteo_actuelle(ville=None):
         wttr_res = get_meteo_fallback_wttr_sync(nom_ville)
         if wttr_res:
             return wttr_res
-        return "Je n'arrive pas à récupérer la météo pour le moment."
+        return "La météo n'est pas accessible pour l'instant."
 
-def get_meteo_ha():
-    """Lit la météo depuis Home Assistant. Fallback quand Gemini est KO."""
+def meteo_depuis_ha():
+    """Météo lue dans Home Assistant (secours si Gemini ne répond pas)."""
     if not ha_active():
         return None
     try:
@@ -220,10 +209,10 @@ def get_meteo_ha():
         print(f"[METEO HA] Erreur : {e}")
         return None
 
-def get_alertes_meteo(ville=None):
+def alertes_meteo(ville=None):
     try:
         nom_ville = ville or VILLE_PAR_DEFAUT
-        lat, lon, nom_affiche, _ = geocoder_ville(nom_ville)
+        lat, lon, nom_affiche, _ = coordonnees_ville(nom_ville)
         if lat is None:
             lat, lon, nom_affiche = LAT_PAR_DEFAUT, LON_PAR_DEFAUT, VILLE_PAR_DEFAUT
         r = requests.get(
@@ -256,34 +245,34 @@ def get_alertes_meteo(ville=None):
             return f"Alertes meteo pour {nom_affiche} : " + ", ".join(alertes) + "."
         return f"Aucune alerte meteo pour {nom_affiche} dans les 3 prochains jours."
     except Exception as e:
-        return f"Impossible de verifier les alertes meteo : {e}"
+        return f"Alertes météo indisponibles : {e}"
 
 
 # ════════════════════════════════════════════════════════════════
 # NOUVEAUX SERVICES - DASHBOARD CENTRAL DE DOMOTIQUE
 # ════════════════════════════════════════════════════════════════
 
-def ha_get_all_states() -> list:
-    """Récupère tous les états des entités de Home Assistant."""
-    _update_ha_env()
+def ha_tous_les_etats() -> list:
+    """Liste l'état de toutes les entités Home Assistant."""
+    _maj_env_ha()
     if not ha_active():
         return []
     try:
         url = f"{HA_URL}/api/states"
-        print(f"[HA] Récupération de tous les états depuis {url}")
+        print(f"[HA] Lecture de tous les états sur {url}")
         r = requests.get(url, headers=HA_HEADERS, timeout=10)
         if r.status_code == 200:
             return r.json()
         else:
-            print(f"[HA] Échec récupération états. Code : {r.status_code}")
+            print(f"[HA] Lecture des états refusée, code {r.status_code}")
             return []
     except Exception as e:
-        print(f"[HA] Erreur lors de la récupération de tous les états : {e}")
+        print(f"[HA] Lecture des états en échec : {e}")
         return []
 
-def ha_get_etat_complet(entity_id: str) -> dict | None:
-    """Récupère l'état complet d'une entité spécifique."""
-    _update_ha_env()
+def ha_etat_detaille(entity_id: str) -> dict | None:
+    """Donne l'état détaillé d'une seule entité."""
+    _maj_env_ha()
     if not ha_active():
         return None
     try:
@@ -292,15 +281,15 @@ def ha_get_etat_complet(entity_id: str) -> dict | None:
         if r.status_code == 200:
             return r.json()
     except Exception as e:
-        print(f"[HA] Erreur ha_get_etat_complet pour {entity_id} : {e}")
+        print(f"[HA] ha_etat_detaille en échec pour {entity_id} : {e}")
     return None
 
-async def handle_ha_ws_message(data: dict, websocket, connected_clients: set) -> bool:
-    """Gère les messages WebSocket liés à Home Assistant."""
+async def traiter_message_ws_ha(data: dict, websocket, connected_clients: set) -> bool:
+    """Traite les messages WebSocket destinés à Home Assistant."""
     msg_type = data.get("type", "")
 
     if msg_type == "ha_get_states":
-        states = await asyncio.to_thread(ha_get_all_states)
+        states = await asyncio.to_thread(ha_tous_les_etats)
         await websocket.send(json.dumps({
             "type": "ha_states",
             # (« HA_URL != "" » était vrai avec l'URL d'exemple : le panneau affichait
@@ -316,11 +305,11 @@ async def handle_ha_ws_message(data: dict, websocket, connected_clients: set) ->
         entity_id = data.get("entity_id", "")
         service_data = data.get("service_data", None)
 
-        success = await asyncio.to_thread(ha_appeler_service, domain, service, entity_id, service_data)
+        success = await asyncio.to_thread(ha_invoquer_service, domain, service, entity_id, service_data)
 
         updated_state = None
         if success:
-            updated_state = await asyncio.to_thread(ha_get_etat_complet, entity_id)
+            updated_state = await asyncio.to_thread(ha_etat_detaille, entity_id)
 
         await websocket.send(json.dumps({
             "type": "ha_service_result",
@@ -331,7 +320,7 @@ async def handle_ha_ws_message(data: dict, websocket, connected_clients: set) ->
 
         # Diffuser le changement d'état à tous les clients connectés pour synchroniser l'UI
         if success and updated_state:
-            await _broadcast_ha(connected_clients, {
+            await _diffuser_ha(connected_clients, {
                 "type": "ha_state_changed",
                 "entity_id": entity_id,
                 "state": updated_state
@@ -340,7 +329,7 @@ async def handle_ha_ws_message(data: dict, websocket, connected_clients: set) ->
 
     return False
 
-async def _broadcast_ha(clients: set, message: dict):
+async def _diffuser_ha(clients: set, message: dict):
     if not clients:
         return
     msg = json.dumps(message)

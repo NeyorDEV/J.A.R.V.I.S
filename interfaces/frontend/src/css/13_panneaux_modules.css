@@ -1,0 +1,344 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   PANNEAUX DE MODULES — désinstallateur, mises à jour (winget), sécurité (antivirus),
+   domotique. Style commun : cadre, en-tête déplaçable, outils, lignes, tuiles, pied.
+   Une couleur d'accent par module (--pm-a). Classes « pm-* » propres : les anciens
+   styles (.uninstaller-panel, .av-panel…) ne s'appliquent plus à ces panneaux.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.pm {
+  --pm-a: #00e5ff;
+  --pm-fond: rgba(6, 10, 17, 0.97);
+  --pm-ligne: rgba(255, 255, 255, 0.06);
+  --pm-texte: #e6f6ff;
+  --pm-gris: #7d95a6;
+  --pm-gris-fonce: #55707f;
+  --pm-carte: #0a121c;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--pm-largeur, 560px);
+  max-width: calc(100vw - 40px);
+  height: var(--pm-hauteur, auto);
+  max-height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+  background: var(--pm-fond);
+  border: 1px solid color-mix(in srgb, var(--pm-a) 32%, transparent);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 24px color-mix(in srgb, var(--pm-a) 10%, transparent);
+  color: var(--pm-texte);
+  font-family: 'Segoe UI', 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  z-index: 608;
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.pm.hidden { display: none !important; }
+.pm.visible { animation: pm-ouverture 0.22s ease-out; }
+@keyframes pm-ouverture {
+  from { opacity: 0; scale: 0.97; }
+  to   { opacity: 1; scale: 1; }
+}
+.pm svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8;
+          stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+/* ── En-tête (poignée de déplacement) ─────────────────────────────────────── */
+.pm-tete {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--pm-ligne);
+  cursor: move; user-select: none;
+}
+.pm-icone {
+  width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--pm-a);
+  background: color-mix(in srgb, var(--pm-a) 14%, transparent);
+}
+.pm-titre { font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 2.5px; }
+.pm-sous { font-size: 11px; color: var(--pm-gris); margin-top: 3px; }
+.pm-tete-droite { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.pm-fermer {
+  width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--pm-ligne); color: var(--pm-gris);
+  cursor: pointer; transition: all 0.15s ease;
+}
+.pm-fermer:hover { color: #ff5a5f; border-color: rgba(255, 90, 95, 0.5); background: rgba(255, 90, 95, 0.08); }
+
+/* ── Outils : recherche et pastilles ──────────────────────────────────────── */
+.pm-outils { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 14px; }
+.pm-recherche {
+  flex: 1; min-width: 180px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.25);
+  color: var(--pm-gris-fonce);
+  transition: border-color 0.15s ease;
+}
+.pm-recherche:focus-within { border-color: color-mix(in srgb, var(--pm-a) 60%, transparent); color: var(--pm-a); }
+.pm-recherche input {
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+  color: var(--pm-texte); font: inherit; font-size: 12px;
+}
+.pm-recherche input::placeholder { color: var(--pm-gris-fonce); }
+.pm-pastille {
+  font: inherit; font-size: 11px; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.12); background: transparent; color: #93a9b8;
+  transition: all 0.15s ease; white-space: nowrap;
+}
+.pm-pastille:hover { color: var(--pm-texte); border-color: rgba(255, 255, 255, 0.25); }
+.pm-pastille.active {
+  color: var(--pm-a); border-color: var(--pm-a);
+  background: color-mix(in srgb, var(--pm-a) 10%, transparent);
+}
+
+/* ── Zone défilante et lignes ──────────────────────────────────────────────── */
+.pm-corps { flex: 1; min-height: 0; overflow-y: auto; }
+.pm-vide {
+  padding: 34px 16px; text-align: center; color: var(--pm-gris);
+  font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px;
+}
+.pm-ligne {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 14px; border-top: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.12s ease;
+}
+.pm-ligne:hover { background: color-mix(in srgb, var(--pm-a) 6%, transparent); }
+.pm-avatar {
+  width: 32px; height: 32px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #0f1a26; color: #9fd8ea; font-size: 12px; font-weight: 600;
+}
+.pm-texte { min-width: 0; flex: 1; }
+.pm-nom { font-size: 13px; color: var(--pm-texte); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-detail { font-size: 11px; color: var(--pm-gris); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-droite { margin-left: auto; text-align: right; flex-shrink: 0; }
+.pm-case { width: 15px; height: 15px; accent-color: var(--pm-a); cursor: pointer; flex-shrink: 0; }
+
+/* Action révélée au survol (désinstallateur) */
+.pm-action-survol { opacity: 0; transition: opacity 0.12s ease; }
+.pm-ligne:hover .pm-action-survol, .pm-action-survol:focus-visible { opacity: 1; }
+
+/* ── Boutons ──────────────────────────────────────────────────────────────── */
+.pm-bouton {
+  font: inherit; font-size: 12px; padding: 7px 14px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--pm-a); color: var(--pm-a);
+  background: color-mix(in srgb, var(--pm-a) 10%, transparent);
+  white-space: nowrap; transition: all 0.15s ease;
+}
+.pm-bouton:hover:not(:disabled) { background: color-mix(in srgb, var(--pm-a) 20%, transparent); }
+.pm-bouton.plein { background: var(--pm-a); color: #03141a; font-weight: 600; }
+.pm-bouton.plein:hover:not(:disabled) { filter: brightness(1.1); }
+.pm-bouton.discret { border-color: rgba(255, 255, 255, 0.14); color: #93a9b8; background: transparent; }
+.pm-bouton.discret:hover:not(:disabled) { color: var(--pm-texte); border-color: rgba(255, 255, 255, 0.3); }
+.pm-bouton.danger { --pm-a: #ff5a5f; }
+.pm-bouton.petit { font-size: 11px; padding: 4px 10px; }
+.pm-bouton:disabled { opacity: 0.4; cursor: default; }
+/* Action de survol désactivée (désinstallation en cours) : reste masquée hors survol */
+.pm-bouton.pm-action-survol:disabled { opacity: 0; }
+.pm-ligne:hover .pm-bouton.pm-action-survol:disabled { opacity: 0.35; }
+.pm-icone-bouton {
+  width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1); background: transparent; color: var(--pm-gris);
+  transition: all 0.15s ease;
+}
+.pm-icone-bouton:hover { color: var(--pm-a); border-color: var(--pm-a); }
+
+/* ── Pied ─────────────────────────────────────────────────────────────────── */
+.pm-pied {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px; border-top: 1px solid var(--pm-ligne);
+  font-size: 11px; color: var(--pm-gris); background: rgba(0, 0, 0, 0.2);
+}
+
+/* ── Éléments communs ─────────────────────────────────────────────────────── */
+.pm-version {
+  font-family: 'Consolas', monospace; font-size: 11px; padding: 2px 6px; border-radius: 4px;
+  background: #0f1a26; color: #93a9b8;
+}
+.pm-version.nouvelle { color: var(--pm-a); background: color-mix(in srgb, var(--pm-a) 12%, transparent); }
+.pm-barre { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); overflow: hidden; width: 120px; }
+.pm-barre i { display: block; height: 100%; background: var(--pm-a); transition: width 0.3s ease; }
+.pm-barre.indeterminee i { width: 35% !important; animation: pm-indeterminee 1.2s ease-in-out infinite; }
+@keyframes pm-indeterminee { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+.pm-ok { color: #1dd1a1; }
+.pm-erreur { color: #ff5a5f; }
+.pm-mono { font-family: 'Consolas', monospace; font-size: 11px; color: var(--pm-gris);
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Étapes (désinstallation) */
+.pm-etapes { display: flex; gap: 16px; flex-wrap: wrap; }
+.pm-etape { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--pm-gris); }
+.pm-etape b {
+  width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.pm-etape.faite b { background: #1dd1a1; border-color: #1dd1a1; color: #04140f; }
+.pm-etape.faite { color: #c8d6df; }
+.pm-etape.courante b { border-color: var(--pm-a); color: var(--pm-a); animation: pm-pulse 1.4s ease-in-out infinite; }
+.pm-etape.courante { color: var(--pm-texte); }
+.pm-etape.echec b { background: #ff5a5f; border-color: #ff5a5f; color: #1a0506; }
+@keyframes pm-pulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--pm-a) 20%, transparent); } }
+
+/* Tuiles (chiffres clés) */
+.pm-chiffres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: 1; }
+.pm-chiffre { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 10px; background: var(--pm-carte); }
+.pm-chiffre span { font-size: 11px; color: var(--pm-gris); }
+.pm-chiffre b { display: block; font-family: 'Orbitron', sans-serif; font-size: 19px; font-weight: 500; margin-top: 3px; }
+
+/* Interrupteur */
+.pm-inter { position: relative; width: 32px; height: 18px; flex-shrink: 0; cursor: pointer; display: inline-block; }
+.pm-inter input { opacity: 0; width: 0; height: 0; position: absolute; }
+.pm-inter span { position: absolute; inset: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.15); transition: background 0.15s ease; }
+.pm-inter span::after {
+  content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+  top: 2px; left: 2px; background: #93a9b8; transition: all 0.15s ease;
+}
+.pm-inter input:checked + span { background: var(--pm-inter, var(--pm-a)); }
+.pm-inter input:checked + span::after { left: 16px; background: #03141a; }
+
+/* Journal repliable */
+.pm-pied .pm-journal[open] { flex-basis: 100%; order: 2; }   /* journal ouvert : toute la largeur, sous les boutons */
+.pm-journal summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+.pm-journal summary::-webkit-details-marker { display: none; }
+.pm-journal summary svg { width: 14px; height: 14px; transition: transform 0.15s ease; }
+.pm-journal[open] summary svg { transform: rotate(90deg); }
+.pm-journal-texte {
+  margin: 8px 0 0; max-height: 160px; overflow: auto; padding: 8px 10px; border-radius: 6px;
+  background: #000308; border: 1px solid var(--pm-ligne);
+  font-family: 'Consolas', monospace; font-size: 11px; line-height: 1.5; color: #93a9b8; white-space: pre-wrap;
+}
+.pm-journal-texte .menace { color: #ff5a5f; }
+.pm-journal-texte .ok { color: #1dd1a1; }
+
+/* ══ DÉSINSTALLATEUR ══════════════════════════════════════════════════════════ */
+#uninstaller-panel { --pm-a: #ff5a5f; --pm-largeur: 580px; --pm-hauteur: 600px; }
+#uninstaller-panel .pm-taille { font-size: 13px; }
+#uninstaller-action-view { border-top: 1px solid var(--pm-ligne); background: #0a0f17; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+#uninstaller-action-view.hidden, #uninstaller-list-view.hidden,
+#uninstaller-leftovers-container.hidden, #uninstaller-radar-container.hidden { display: none !important; }
+#uninstaller-list-view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#uninstaller-status-msg { font-size: 12px; color: #c8d6df; }
+.pm-trace { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid rgba(255, 255, 255, 0.04); font-size: 12px; }
+.pm-trace .pm-texte .pm-nom { font-size: 12px; }
+#uninstaller-leftovers-list { max-height: 220px; overflow-y: auto; }
+
+/* ══ MISES À JOUR (WINGET) ════════════════════════════════════════════════════ */
+#winget-panel { --pm-a: #00e5ff; --pm-largeur: 620px; --pm-hauteur: 600px; }
+#winget-panel #winget-logs-container { position: static; background: none; border: none; padding: 0; display: block; }
+#winget-panel #winget-logs-container.hidden { display: none; }
+#winget-panel #winget-console { margin: 8px 0 0; height: auto; max-height: 160px; }
+
+/* ══ SÉCURITÉ (ANTIVIRUS) ═════════════════════════════════════════════════════ */
+#av-panel { --pm-a: #f5b13d; --pm-largeur: 580px; }
+#av-panel.etat-sain { --pm-a: #1dd1a1; }
+#av-panel.threat-detected { --pm-a: #ff5a5f; }
+#av-panel .pm-anneau { flex-shrink: 0; }
+#av-panel .pm-anneau circle.fond { stroke: rgba(255, 255, 255, 0.08); }
+#av-panel .pm-anneau circle.valeur { stroke: var(--pm-a); transition: stroke-dashoffset 0.3s ease; }
+#av-panel .pm-anneau text { fill: var(--pm-texte); font-family: 'Orbitron', sans-serif; font-size: 16px; stroke: none; }
+#av-panel .pm-anneau { width: 92px; height: 92px; }
+#av-panel .pm-anneau svg { width: 92px; height: 92px; stroke-width: 7; }
+#av-threats-list.hidden { display: none; }
+.pm-menace { --pm-a: #ff5a5f; background: rgba(255, 90, 95, 0.07); border-top: 1px solid rgba(255, 90, 95, 0.3); }
+.pm-menace.resolved { --pm-a: #1dd1a1; background: rgba(29, 209, 161, 0.06); border-top-color: rgba(29, 209, 161, 0.25); }
+.pm-menace .pm-icone { width: 30px; height: 30px; }
+.pm-menace-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.av-threat-status-badge { font-size: 11px; color: #1dd1a1; }
+
+/* ══ DOMOTIQUE (HOME ASSISTANT) ═══════════════════════════════════════════════
+   Les cartes .ha-entity-card sont aussi utilisées par les tuiles épinglées sur l'écran
+   (.ha-floating-widget) : mêmes styles des deux côtés. */
+#ha-panel { --pm-a: #ffb648; --pm-largeur: 860px; --pm-hauteur: 620px; }
+#ha-entities-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; padding: 4px 14px 14px;
+}
+#ha-panel .ha-loading-msg, #ha-panel .ha-empty-msg {
+  grid-column: 1 / -1; padding: 34px 16px; text-align: center; color: var(--pm-gris);
+  font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px; border: none; background: none;
+}
+#ha-panel .ha-entity-card, .ha-floating-widget.ha-entity-card {
+  --pm-a: #ffb648;
+  position: relative; display: flex; flex-direction: column; gap: 10px;
+  padding: 12px; border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08); background: #0a121c;
+  font-family: 'Segoe UI', system-ui, sans-serif; color: #e6f6ff;
+  box-shadow: none; transition: border-color 0.15s ease, background 0.15s ease;
+}
+#ha-panel .ha-entity-card.state-on, .ha-floating-widget.ha-entity-card.state-on {
+  border-color: rgba(255, 182, 72, 0.5); background: color-mix(in srgb, #ffb648 8%, #0a121c);
+}
+.ha-floating-widget.ha-entity-card { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
+#ha-panel .ha-entity-top, .ha-floating-widget .ha-entity-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+#ha-panel .ha-entity-icon-wrapper, .ha-floating-widget .ha-entity-icon-wrapper {
+  width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.05); color: #93a9b8; border: none; box-shadow: none; font-size: 0;
+}
+#ha-panel .ha-entity-card.state-on .ha-entity-icon-wrapper,
+.ha-floating-widget.state-on .ha-entity-icon-wrapper { color: #ffb648; background: rgba(255, 182, 72, 0.14); box-shadow: none; }
+#ha-panel .ha-entity-icon-wrapper svg, .ha-floating-widget .ha-entity-icon-wrapper svg {
+  width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+#ha-panel .ha-entity-info, .ha-floating-widget .ha-entity-info { display: flex; flex-direction: column; min-width: 0; order: 2; flex: 1; }
+#ha-panel .ha-entity-name, .ha-floating-widget .ha-entity-name {
+  font-size: 13px; color: #e6f6ff; font-weight: 500; letter-spacing: 0; text-transform: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: inherit;
+}
+#ha-panel .ha-entity-domain, .ha-floating-widget .ha-entity-domain { display: none; }
+#ha-panel .ha-entity-middle, .ha-floating-widget .ha-entity-middle { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#ha-panel .ha-entity-state, .ha-floating-widget .ha-entity-state {
+  font-size: 12px; color: #7d95a6; letter-spacing: 0; text-transform: none; font-family: inherit; text-shadow: none;
+}
+#ha-panel .ha-entity-card.domain-sensor .ha-entity-state, .ha-floating-widget.domain-sensor .ha-entity-state {
+  font-family: 'Orbitron', sans-serif; font-size: 18px; color: #e6f6ff;
+}
+#ha-panel .ha-entity-card.state-on .ha-entity-state, .ha-floating-widget.state-on .ha-entity-state { color: #ffcf87; }
+#ha-panel .ha-pin-btn, .ha-floating-widget .ha-pin-btn {
+  width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; background: transparent; color: #55707f; cursor: pointer; font-size: 0; padding: 0;
+  opacity: 0; transition: all 0.15s ease;
+}
+#ha-panel .ha-entity-card:hover .ha-pin-btn, #ha-panel .ha-pin-btn.active, .ha-floating-widget .ha-pin-btn { opacity: 1; }
+#ha-panel .ha-pin-btn.active, .ha-floating-widget .ha-pin-btn.active { color: #ffb648; }
+#ha-panel .ha-pin-btn svg, .ha-floating-widget .ha-pin-btn svg {
+  width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+#ha-panel .ha-switch, .ha-floating-widget .ha-switch { position: relative; width: 32px; height: 18px; display: inline-block; flex-shrink: 0; }
+#ha-panel .ha-switch input, .ha-floating-widget .ha-switch input { opacity: 0; width: 0; height: 0; }
+#ha-panel .ha-slider, .ha-floating-widget .ha-slider {
+  position: absolute; inset: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.15); cursor: pointer;
+  border: none; box-shadow: none; transition: background 0.15s ease;
+}
+#ha-panel .ha-slider::before, .ha-floating-widget .ha-slider::before {
+  content: ""; position: absolute; width: 14px; height: 14px; border-radius: 50%; top: 2px; left: 2px;
+  background: #93a9b8; box-shadow: none; transition: all 0.15s ease;
+}
+#ha-panel input:checked + .ha-slider, .ha-floating-widget input:checked + .ha-slider { background: #ffb648; box-shadow: none; }
+#ha-panel input:checked + .ha-slider::before, .ha-floating-widget input:checked + .ha-slider::before {
+  transform: none; left: 16px; background: #1a1206;
+}
+#ha-panel .ha-action-btn, .ha-floating-widget .ha-action-btn {
+  font: inherit; font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  border: 1px solid #ffb648; color: #ffb648; background: rgba(255, 182, 72, 0.1); letter-spacing: 0;
+}
+#ha-panel .ha-tab-btn.active { color: var(--pm-a); }
+
+/* Neutralise les anciens styles hérités (08_shopping_ha_panels.css, boutons du HUD) */
+.pm .pm-pastille, .pm .pm-bouton { text-transform: none; letter-spacing: normal; text-shadow: none; box-shadow: none; }
+#ha-panel .pm-pastille.ha-tab-btn { display: inline-flex; font-weight: 400; font-size: 11px; padding: 5px 11px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12); background: transparent; color: #93a9b8; }
+#ha-panel .pm-pastille.ha-tab-btn:hover { padding-left: 11px; color: var(--pm-texte); border-color: rgba(255, 255, 255, 0.25); background: transparent; }
+#ha-panel .pm-pastille.ha-tab-btn.active { color: var(--pm-a); border-color: var(--pm-a); padding-left: 11px;
+  background: color-mix(in srgb, var(--pm-a) 10%, transparent); }
+#ha-panel .ha-entity-card::before, .ha-floating-widget.ha-entity-card::before { display: none; }
+#ha-panel .ha-entity-card:hover { transform: none; box-shadow: none; border-color: rgba(255, 255, 255, 0.18); background: #0c1622; }
+#ha-panel .ha-entity-card.state-on:hover { border-color: rgba(255, 182, 72, 0.7); background: color-mix(in srgb, #ffb648 10%, #0a121c); }
+#ha-panel .ha-entity-card.domain-light.state-on .ha-entity-icon-wrapper,
+.ha-floating-widget.domain-light.state-on .ha-entity-icon-wrapper { color: #ffb648; background: rgba(255, 182, 72, 0.14); border: none; box-shadow: none; }
+#ha-panel .ha-entity-card.domain-light.state-on .ha-entity-state,
+.ha-floating-widget.domain-light.state-on .ha-entity-state { color: #ffcf87; text-shadow: none; }
+#ha-panel { --pm-hauteur: auto; }

@@ -13,7 +13,27 @@ import speech_recognition as sr
 import core.shared as shared
 from core.etat_parole import get_is_speaking
 from core.speech import parler
-from core.web_bridge import send_web_state
+from core.web_bridge import envoyer_etat_hud
+
+
+# Formes que Whisper écrit à la place de « jarvis ». Liste volontairement prudente :
+# seulement ce qui n'est pas du français courant.
+_VARIANTES_MOT_EVEIL = re.compile(
+    r"\b(?:"
+    r"d?j ?ar ?vi(?:ss?e?|ce)"                  # jarvis, jar vis, djarvis, jarvisse, jarvice
+    r"|(?:g|ch)ar ?vi(?:ss?e?|ce)"              # garvis, charvis
+    r"|j['\u2019` -]?en r[e\u00e9]vis[e\u00e9]s?"     # « j'en révise »
+    r"|j['\u2019` -]?ai un vice"                # « j'ai un vice »
+    r")\b"
+)
+
+
+def normaliser_mot_eveil(texte):
+    """Remplace par « jarvis » les formes mal transcrites du mot d'éveil (« j'en révise »,
+    « j'ai un vice »…). À n'appeler qu'en veille : en conversation, le texte reste tel quel."""
+    if not texte:
+        return texte
+    return _VARIANTES_MOT_EVEIL.sub(shared.WAKE_WORD, texte)
 
 
 def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, prompt=None):
@@ -182,7 +202,7 @@ def _protocole_enrolement_vocal(commande, queue_ecoute, RATE, CHUNK, SILENCE_LIM
 
         # Indiquer visuellement l'écoute sur le HUD
         try:
-            asyncio.run(send_web_state("listening"))
+            asyncio.run(envoyer_etat_hud("listening"))
         except:
             pass
 
@@ -254,7 +274,7 @@ def _protocole_enrolement_vocal(commande, queue_ecoute, RATE, CHUNK, SILENCE_LIM
                     break
 
         try:
-            asyncio.run(send_web_state("idle"))
+            asyncio.run(envoyer_etat_hud("idle"))
         except:
             pass
 

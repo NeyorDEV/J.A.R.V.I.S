@@ -8,7 +8,7 @@ import core.shared as shared
 from core.web_bridge import envoyer_carte_contextuelle
 
 
-async def broadcast_system_stats():
+async def diffuser_stats_systeme():
     """Diffuse les stats CPU/RAM et envoie des alertes contextuelles si nécessaire.
 
     (Cette définition écrase une première version située plus haut dans le fichier ;
@@ -24,7 +24,7 @@ async def broadcast_system_stats():
             print("[SYS] psutil non disponible. Monitoring CPU/RAM désactivé.")
             return
 
-    print("[SYS] Démarrage du monitoring CPU/RAM...")
+    print("[SYS] Suivi du CPU et de la RAM lancé...")
     shared.psutil.cpu_percent(interval=None)   # amorce la mesure différentielle
 
     last_alert_time = 0

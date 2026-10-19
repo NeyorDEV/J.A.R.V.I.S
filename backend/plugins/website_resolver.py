@@ -7,7 +7,6 @@ import unicodedata
 # NB : import sans le préfixe « backend. » — main.py ajoute backend/ au
 # sys.path. Mélanger les deux formes chargeait le MÊME fichier deux fois
 # comme deux modules distincts, avec des états globaux dupliqués.
-from module.website_builder import generer_site_web_autonome
 from core.interlocuteur import nom_espace, nom_virgule
 def nettoyer_accent(texte: str) -> str:
     """Supprime les accents et met en minuscules pour faciliter la comparaison."""

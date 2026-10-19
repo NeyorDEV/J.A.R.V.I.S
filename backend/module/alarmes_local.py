@@ -10,7 +10,7 @@ import re
 import unicodedata
 
 from core.interlocuteur import nom_virgule
-from core.web_bridge import send_web_broadcast_sync
+from core.web_bridge import diffuser_web_sync
 from module.alarm_manager import (
     ajouter_alarme, annuler_alarme, lister_alarmes, parser_duree, parser_heure,
 )
@@ -71,7 +71,7 @@ async def resoudre_alarmes_localement(texte: str):
     if est_minuteur and not est_alarme:
         if annuler:
             ok, msg = annuler_alarme(label="Minuteur")
-            send_web_broadcast_sync({"action": "timer_stop"})
+            diffuser_web_sync({"action": "timer_stop"})
             return f"Minuteur arrêté{nom_virgule()}." if ok else f"Aucun minuteur en cours{nom_virgule()}."
         if lister:
             return lister_alarmes()
@@ -82,7 +82,7 @@ async def resoudre_alarmes_localement(texte: str):
         ok, msg = ajouter_alarme(f"dans {secondes} secondes", f"Minuteur de {duree}")
         if not ok:
             return msg
-        send_web_broadcast_sync({"action": "timer_start", "duration": secondes})
+        diffuser_web_sync({"action": "timer_start", "duration": secondes})
         return f"Minuteur de {duree} lancé{nom_virgule()}."
 
     # ── Rappel ──

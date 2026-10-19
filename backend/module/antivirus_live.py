@@ -3,7 +3,7 @@
 import asyncio
 
 import core.shared as shared
-from core.micro import _charger_config
+from core.micro import _lire_config
 from core.speech import parler
 
 
@@ -22,8 +22,8 @@ def _alerter(menace, phrase, quarantaine=None):
         pass
 
 
-async def boucle_antivirus_live():
-    """Surveille les dossiers sensibles et processus actifs toutes les 3 secondes."""
+async def boucle_surveillance_av():
+    """Contrôle les dossiers sensibles et les processus en cours toutes les 3 s."""
     import os
     import time
     import stat
@@ -33,12 +33,12 @@ async def boucle_antivirus_live():
 
     # Charger l'état initial depuis la config
     try:
-        cfg = _charger_config()
+        cfg = _lire_config()
         shared.AV_LIVE_PROTECTION_ENABLED = cfg.get("av_live_protection", False)
     except Exception:
         shared.AV_LIVE_PROTECTION_ENABLED = False
 
-    print(f"[AV LIVE] Protection en temps réel initialisée : {'ACTIF' if shared.AV_LIVE_PROTECTION_ENABLED else 'INACTIF'}")
+    print(f"[AV LIVE] Protection temps réel prête : {'ACTIF' if shared.AV_LIVE_PROTECTION_ENABLED else 'INACTIF'}")
 
     last_check_time = time.time()
 
@@ -153,24 +153,24 @@ async def boucle_antivirus_live():
                         desc = ""
                         if "mimikatz" in name_lower or "miner.exe" in name_lower or "keylogger" in name_lower:
                             detected = True
-                            desc = "Processus suspect (menace connue)"
+                            desc = "Processus suspect (signature connue)"
                         elif ("temp" in exe_lower or "tmp" in exe_lower) and name_lower.endswith((".exe", ".bat")):
                             detected = True
-                            desc = "Processus actif lancé depuis le dossier temporaire"
+                            desc = "Processus démarré depuis un dossier temporaire"
                             
                         if detected:
                             if is_excluded(target_key, exclusions) or (exe and is_excluded(exe, exclusions)):
                                 continue
 
                             shared.AV_LIVE_REPORTED_THREATS.add(target_key)
-                            if desc != "Processus suspect (menace connue)":
+                            if desc != "Processus suspect (signature connue)":
                                 # Installeurs et mises à jour tournent depuis %TEMP% : les tuer sur
                                 # ce seul critère cassait des installations légitimes.
                                 _alerter({"type": "process", "name": name, "target": target_key,
                                           "class": "Suspicious.ActiveProcess", "desc": f"À VÉRIFIER (aucune action automatique). {desc}"},
                                          f"Je signale un programme lancé depuis le dossier temporaire : {name}. Je ne l'ai pas arrêté.")
                                 continue
-                            print(f"[AV LIVE] Processus suspect neutralisé : {name} (PID {pid})")
+                            print(f"[AV LIVE] Processus suspect stoppé : {name} (PID {pid})")
 
                             # Arrêter le processus
                             p = psutil.Process(pid)
@@ -188,7 +188,7 @@ async def boucle_antivirus_live():
                                     "name": name,
                                     "target": target_key,
                                     "class": "Suspicious.ActiveProcess",
-                                    "desc": f"PROCESSUS ARRÊTÉ & NEUTRALISÉ. {desc}"
+                                    "desc": f"PROCESSUS STOPPÉ. {desc}"
                                 }
                             }
                             _alerter(msg["threat"], f"Sécurité système. J'ai arrêté un processus suspect : {name}.")
@@ -197,6 +197,6 @@ async def boucle_antivirus_live():
                 
                 last_check_time = current_time
         except Exception as e:
-            print(f"[AV LIVE] Erreur boucle principale : {e}")
+            print(f"[AV LIVE] Boucle de surveillance interrompue : {e}")
             
         await asyncio.sleep(3)

@@ -10,11 +10,11 @@ import os
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ── NETTOYAGE CACHE WEBVIEW (anti-cache après mise à jour) ─────────────────
-def vider_cache_webview_si_nouvelle_version(CURRENT_VERSION):
+def purger_cache_webview_si_mise_a_jour(CURRENT_VERSION):
     """
-    Supprime le cache WebView2 (EBWebView/Default/*) si la version
-    enregistrée dans un fichier marqueur est différente de CURRENT_VERSION.
-    Cela force le rechargement complet de l'interface après une mise à jour.
+    Efface le cache WebView2 (EBWebView/Default/*) quand la version
+    notée dans le fichier marqueur diffère de CURRENT_VERSION.
+    L'interface est ainsi rechargée à neuf après une mise à jour.
     """
     import shutil
     app_dir = _BASE_DIR
@@ -34,7 +34,7 @@ def vider_cache_webview_si_nouvelle_version(CURRENT_VERSION):
         return
 
     # Nouvelle version ou premier lancement → vider le cache WebView2
-    print(f"[CACHE] Version changée ({version_en_cache} → {CURRENT_VERSION}) : nettoyage du cache WebView2...")
+    print(f"[CACHE] Version changée ({version_en_cache} → {CURRENT_VERSION}) : cache WebView2 vidé...")
     # Libérer les verrous en fermant les processus WebView2 résiduels
     import subprocess
     try:
@@ -74,19 +74,19 @@ def vider_cache_webview_si_nouvelle_version(CURRENT_VERSION):
                     print(f"[CACHE]   ✓ Supprimé : {folder}")
                 except Exception as e:
                     print(f"[CACHE]   ✗ Erreur sur {folder} : {e}")
-        print("[CACHE] Cache WebView2 nettoyé avec succès.")
+        print("[CACHE] Cache WebView2 vidé.")
     else:
-        print("[CACHE] Dossier WebView2 introuvable — probablement premier lancement.")
+        print("[CACHE] Pas de dossier WebView2 : sans doute un premier démarrage.")
 
     # Mettre à jour le marqueur de version
     try:
         with open(marker_file, "w", encoding="utf-8") as f:
             f.write(CURRENT_VERSION)
     except Exception as e:
-        print(f"[CACHE] Impossible d'écrire le marqueur de version : {e}")
+        print(f"[CACHE] Marqueur de version non écrit : {e}")
 
 
-def vider_cache_webview_complet():
+def purger_cache_webview():
     """
     Vide le cache WebView2 (appelé manuellement via le bouton frontend).
     Sans tuer les processus actifs pour éviter tout écran noir ou crash de fenêtre.

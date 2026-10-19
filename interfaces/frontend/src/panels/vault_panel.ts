@@ -35,7 +35,7 @@ export function updateVoiceVaultUI(data: any) {
 
   if (errorMsg) {
     if (data.type === "vault_unlock_result" && !data.success) {
-      errorMsg.textContent = "❌ Mot de passe ou PIN incorrect.";
+      errorMsg.textContent = "❌ " + (data.message || "Mot de passe ou PIN incorrect.");
     } else {
       errorMsg.textContent = "";
     }

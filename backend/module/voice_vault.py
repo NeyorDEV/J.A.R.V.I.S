@@ -8,8 +8,9 @@ confidentiels dans un dossier sécurisé via mot de passe / code PIN ou commande
 import os
 import json
 import base64
-import shutil
 import hashlib
+import hmac
+import time
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -17,6 +18,19 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 VAULT_DIR = os.path.join(os.path.expanduser("~"), ".jarvis_vault")
 ENCRYPTED_FILES_DIR = os.path.join(VAULT_DIR, "encrypted_files")
 CONFIG_FILE = os.path.join(VAULT_DIR, "vault_config.json")
+TENTATIVES_FILE = os.path.join(VAULT_DIR, "vault_tentatives.json")
+
+# Dérivation de la clé : 600 000 itérations pour les coffres créés ou migrés maintenant.
+# Les anciens coffres (sans champ « iterations ») ont été créés avec 100 000.
+ITERATIONS = 600000
+ITERATIONS_ANCIEN = 100000
+LONGUEUR_MIN = 8            # caractères, à la création du coffre
+ECHECS_AVANT_DELAI = 3      # puis 30 s, 60 s, 120 s… (plafond 1 h)
+_message = ""               # raison du dernier refus, affichable dans le HUD
+
+
+def dernier_message() -> str:
+    return _message
 
 _unlocked_fernet = None
 _is_unlocked = False
@@ -53,14 +67,88 @@ def _ensure_dirs():
     os.makedirs(VAULT_DIR, exist_ok=True)
     os.makedirs(ENCRYPTED_FILES_DIR, exist_ok=True)
 
-def _derive_key(password: str, salt: bytes) -> bytes:
+def _derive_key(password: str, salt: bytes, iterations: int = ITERATIONS) -> bytes:
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=salt,
-        iterations=100000,
+        iterations=iterations,
     )
     return base64.urlsafe_b64encode(kdf.derive(password.encode("utf-8")))
+
+
+def _ecrire_json_atomique(chemin, donnees):
+    tmp = chemin + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(donnees, f, indent=2)
+    os.replace(tmp, chemin)
+
+
+def _ecrire_octets_atomique(chemin, octets):
+    tmp = chemin + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(octets)
+    os.replace(tmp, chemin)
+
+
+def _lire_tentatives() -> dict:
+    try:
+        with open(TENTATIVES_FILE, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        return {"echecs": int(d.get("echecs", 0)), "jusqu_a": float(d.get("jusqu_a", 0.0))}
+    except Exception:
+        return {"echecs": 0, "jusqu_a": 0.0}
+
+
+def _attente_restante() -> int:
+    """Secondes à attendre avant un nouvel essai (0 si le coffre peut être tenté)."""
+    return max(0, int(_lire_tentatives()["jusqu_a"] - time.time() + 0.999))
+
+
+def _enregistrer_echec():
+    global _message
+    d = _lire_tentatives()
+    d["echecs"] += 1
+    if d["echecs"] >= ECHECS_AVANT_DELAI:
+        delai = min(3600, 30 * 2 ** (d["echecs"] - ECHECS_AVANT_DELAI))
+        d["jusqu_a"] = time.time() + delai
+        _message = f"Trop d'essais. Patientez {delai} s avant de réessayer."
+    try:
+        _ensure_dirs()
+        _ecrire_json_atomique(TENTATIVES_FILE, d)
+    except Exception:
+        pass
+
+
+def _reinitialiser_echecs():
+    try:
+        if os.path.exists(TENTATIVES_FILE):
+            os.remove(TENTATIVES_FILE)
+    except Exception:
+        pass
+
+
+def _migrer_vers_nouvelle_derivation(password: str, salt: bytes, ancienne_cle: bytes):
+    """Passe un ancien coffre (100 000 itérations) à ITERATIONS : tous les fichiers sont
+    rechiffrés dans des .new, puis remplacés ; la config n'est réécrite qu'à la fin."""
+    nouvelle_cle = _derive_key(password, salt, ITERATIONS)
+    ancien, nouveau = Fernet(ancienne_cle), Fernet(nouvelle_cle)
+    fichiers = [f for f in os.listdir(ENCRYPTED_FILES_DIR) if f.endswith(".jvault")]
+    # 1. tout rechiffrer à côté (si une étape échoue, rien n'a changé)
+    for nom in fichiers:
+        with open(os.path.join(ENCRYPTED_FILES_DIR, nom), "rb") as f:
+            clair = ancien.decrypt(f.read())
+        with open(os.path.join(ENCRYPTED_FILES_DIR, nom + ".new"), "wb") as f:
+            f.write(nouveau.encrypt(clair))
+    # 2. remplacer, puis écrire la config
+    for nom in fichiers:
+        os.replace(os.path.join(ENCRYPTED_FILES_DIR, nom + ".new"), os.path.join(ENCRYPTED_FILES_DIR, nom))
+    _ecrire_json_atomique(CONFIG_FILE, {
+        "salt_b64": base64.b64encode(salt).decode("utf-8"),
+        "validation_hash": hashlib.sha256(nouvelle_cle).hexdigest(),
+        "iterations": ITERATIONS,
+    })
+    return nouvelle_cle
 
 def is_vault_configured() -> bool:
     _ensure_dirs()
@@ -68,22 +156,28 @@ def is_vault_configured() -> bool:
 
 def setup_vault(password: str) -> bool:
     """Initialise le coffre-fort avec un mot de passe maître ou un PIN."""
-    global _unlocked_fernet, _is_unlocked
+    global _unlocked_fernet, _is_unlocked, _message
     _ensure_dirs()
+    if len(password) < LONGUEUR_MIN:
+        _message = f"Le mot de passe du coffre doit faire au moins {LONGUEUR_MIN} caractères."
+        print(f"[VOICE VAULT] Création refusée : {_message}")
+        return False
     salt = os.urandom(16)
-    key = _derive_key(password, salt)
-    
+    key = _derive_key(password, salt, ITERATIONS)
+
     val_hash = hashlib.sha256(key).hexdigest()
-    
+
     cfg_data = {
         "salt_b64": base64.b64encode(salt).decode("utf-8"),
-        "validation_hash": val_hash
+        "validation_hash": val_hash,
+        "iterations": ITERATIONS,
     }
-    
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(cfg_data, f, indent=2)
-        
-    _unlocked_fernet = Fernet(key)
+
+    _ecrire_json_atomique(CONFIG_FILE, cfg_data)
+    _reinitialiser_echecs()
+    _message = ""
+
+    _unlocked_fernet= Fernet(key)
     _is_unlocked = True
     _activite()
     print("[VOICE VAULT] Coffre-fort créé et déverrouillé avec succès.")
@@ -91,27 +185,50 @@ def setup_vault(password: str) -> bool:
 
 def unlock_vault(password: str) -> bool:
     """Déverrouille le coffre-fort si le mot de passe est valide."""
-    global _unlocked_fernet, _is_unlocked
+    global _unlocked_fernet, _is_unlocked, _message
+    _message = ""
     if not is_vault_configured():
         return setup_vault(password)
-        
+
+    attente = _attente_restante()
+    if attente > 0:
+        _message = f"Trop d'essais. Patientez {attente} s avant de réessayer."
+        print(f"[VOICE VAULT] Déverrouillage refusé : {_message}")
+        return False
+
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             cfg = json.load(f)
-            
+
         salt = base64.b64decode(cfg["salt_b64"])
         val_hash = cfg["validation_hash"]
-        
-        key = _derive_key(password, salt)
+        iterations = int(cfg.get("iterations", ITERATIONS_ANCIEN))
+
+        key = _derive_key(password, salt, iterations)
         test_hash = hashlib.sha256(key).hexdigest()
-        
-        if test_hash == val_hash:
+
+        if hmac.compare_digest(test_hash, val_hash):
+            if iterations < ITERATIONS:
+                try:
+                    key = _migrer_vers_nouvelle_derivation(password, salt, key)
+                    print(f"[VOICE VAULT] Coffre migré vers {ITERATIONS} itérations.")
+                except Exception as e_mig:
+                    # Rien n'a été remplacé : on continue avec l'ancienne clé
+                    print(f"[VOICE VAULT] Migration impossible ({e_mig}) — ancien format conservé.")
+                    for f in os.listdir(ENCRYPTED_FILES_DIR):
+                        if f.endswith(".new"):
+                            try: os.remove(os.path.join(ENCRYPTED_FILES_DIR, f))
+                            except Exception: pass
             _unlocked_fernet = Fernet(key)
             _is_unlocked = True
             _activite()
+            _reinitialiser_echecs()
             print("[VOICE VAULT] Coffre-fort déverrouillé avec succès.")
             return True
         else:
+            _enregistrer_echec()
+            if not _message:
+                _message = "Mot de passe ou PIN incorrect."
             print("[VOICE VAULT] Échec de déverrouillage : mot de passe incorrect.")
             return False
     except Exception as e:
@@ -173,10 +290,9 @@ def add_file_to_vault(file_path: str) -> bool:
         original_name = _nom_libre(ENCRYPTED_FILES_DIR, os.path.basename(file_path), ".jvault")
         dest_path = os.path.join(ENCRYPTED_FILES_DIR, f"{original_name}.jvault")
         
-        with open(dest_path, "wb") as f:
-            f.write(encrypted_data)
-            
-        print(f"[VOICE VAULT] Fichier chiffré et stocké : {original_name}")
+        _ecrire_octets_atomique(dest_path, encrypted_data)
+
+        print(f"[VOICE VAULT] Fichier chiffré et stocké: {original_name}")
         return True
     except Exception as e:
         print(f"[VOICE VAULT] Erreur chiffrement fichier : {e}")

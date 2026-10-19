@@ -19,15 +19,10 @@ ALARM_FILE = os.path.join(_root, "data", "alarmes.json")
 
 # Callback global — sera défini par main2.py
 _parler_callback = None
-_alarme_sonner_callback = None
 
 def set_parler_callback(fn):
     global _parler_callback
     _parler_callback = fn
-
-def set_sonner_callback(fn):
-    global _alarme_sonner_callback
-    _alarme_sonner_callback = fn
 
 
 # ── Persistance ──────────────────────────────────────────────────────────────
@@ -299,9 +294,9 @@ def _notifier_hud_alarme(label_alarme: str):
     """Carte d'alerte sur le HUD quand une alarme ou un minuteur sonne."""
     try:
         import builtins as _b
-        envoyer = getattr(_b, "send_web_broadcast_sync", None)
+        envoyer = getattr(_b, "diffuser_web_sync", None)
         if envoyer is None:
-            from core.web_bridge import send_web_broadcast_sync as envoyer
+            from core.web_bridge import diffuser_web_sync as envoyer
         envoyer({"action": "ctx_card", "title": "ALARME", "text": label_alarme,
                  "type": "alert", "icon": "⏰", "duration": 15000})
     except Exception as e:
@@ -350,9 +345,7 @@ def _surveiller_alarmes():
 
             for label_alarme in a_sonner:
                 try:
-                    if _alarme_sonner_callback:
-                        _alarme_sonner_callback(label_alarme)
-                    elif _parler_callback:
+                    if _parler_callback:
                         # Un « stop » prononcé plus tôt laisse STOP_PARLER à vrai jusqu'à la
                         # commande suivante : sans ce réarmement, l'alarme restait muette.
                         try:

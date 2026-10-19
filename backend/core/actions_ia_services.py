@@ -1,38 +1,34 @@
-"""Actions JSON du LLM liées aux services : Google, météo, web, sport, vision, alarmes, Deezer."""
+"""Actions JSON du LLM liées aux services : Google, météo, web, vision, alarmes, Deezer."""
 
 import asyncio
 import json
 
 import core.shared as shared
-from controller.actions_pc import action_whatsapp_appel
+from controller.actions_pc import appeler_via_whatsapp
 from controller.deezer_controller import (
-    deezer_lecture_pause, deezer_ouvrir, deezer_precedent, deezer_rechercher, deezer_stop,
-    deezer_suivant, deezer_volume,
+    deezer_basculer_lecture, deezer_demarrer, deezer_piste_precedente, deezer_chercher, deezer_arreter,
+    deezer_piste_suivante, deezer_regler_volume,
 )
-from core.llm_chat import demander_ia
-from core.llm_providers import demander_grok
-from core.micro import _charger_config
+from core.llm_chat import interroger_ia
+from core.micro import _lire_config
 from core.confirmation import demander_confirmation
 from core.speech import parler
 from module.alarm_manager import ajouter_alarme, annuler_alarme, lister_alarmes
 from module.google_services import (
     ajouter_ligne_sheet, archiver_email, charger_fichier_drive, complete_google_task,
-    creer_dossier_drive, creer_evenement_calendar, creer_google_doc, creer_google_sheet,
-    creer_google_task, delete_google_task, envoyer_email, lire_contenu_doc, lire_detail_email,
-    lire_donnees_sheet, lire_emails, lister_evenements_calendar, lister_google_tasks,
-    modifier_evenement_calendar, modifier_google_doc, ouvrir_google_drive,
-    partager_fichier_drive, rechercher_google_drive, repondre_email, supprimer_email,
+    creer_dossier_drive, creer_evenement_calendar, nouveau_google_doc, nouvelle_feuille_google,
+    creer_google_task, delete_google_task, expedier_email, lire_contenu_doc, lire_detail_email,
+    lire_donnees_sheet, consulter_emails, evenements_agenda, lister_google_tasks,
+    modifier_evenement_calendar, editer_google_doc, ouvrir_google_drive,
+    partager_fichier_drive, rechercher_google_drive, repondre_au_mail, effacer_email,
     supprimer_evenement_calendar,
 )
-from module.image_search import recherche_images_web
-from module.meteo_domotique import get_alertes_meteo, get_meteo_actuelle
-from module.sports_web import (
-    get_classement_football, get_resultats_football, get_resultats_sport_gemini,
-    recherche_web_serpapi,
-)
+from module.image_search import images_par_moteur
+from module.meteo_domotique import alertes_meteo, meteo_du_moment
+from module.recherche_web import resume_recherche_web
 from module.vision_module import (
-    jarvis_vision_analyse_live, jarvis_vision_camera, jarvis_vision_cliquer,
-    jarvis_vision_ecrire, jarvis_vision_navigateur, jarvis_vision_rechercher_sur_site,
+    jarvis_vision_analyse_live, vision_camera, vision_cliquer,
+    vision_saisir, vision_sur_navigateur, vision_recherche_site,
 )
 from module.visual_web_agent import run_visual_agent, stop_visual_agent
 from core.interlocuteur import nom_espace, nom_ou_utilisateur, nom_virgule
@@ -45,7 +41,7 @@ async def _google(fonction, *args, **kwargs):
 
 
 async def executer_actions_services(action, data, block, texte_utilisateur, reponse_propre):
-    """Actions JSON « services » : Google, météo, web, sport, vision, dictée, alarmes, antivirus, Deezer.
+    """Actions JSON « services » : Google, météo, web, vision, dictée, alarmes, antivirus, Deezer.
 
     Retourne True si l'action a été prise en charge par ce groupe.
     """
@@ -63,24 +59,24 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
     elif action == "create_doc":
         titre   = data.get("title",   "Document JARVIS")
         contenu = data.get("content", "")
-        result  = await _google(creer_google_doc, titre, contenu)
+        result  = await _google(nouveau_google_doc, titre, contenu)
         parler(result)
     elif action == "write_doc":
         contenu = data.get("content", "")
-        result  = await _google(modifier_google_doc, contenu)
+        result  = await _google(editer_google_doc, contenu)
         parler(result)
     elif action == "create_sheet":
         titre  = data.get("title", "Feuille JARVIS")
-        result = await _google(creer_google_sheet, titre)
+        result = await _google(nouvelle_feuille_google, titre)
         parler(result)
     elif action == "read_emails":
-        result = await _google(lire_emails)
+        result = await _google(consulter_emails)
         if "Aucun nouvel email" in result:
             parler(f"Vous n'avez aucun nouvel email non lu dans votre boîte principale{nom_virgule()}.")
         else:
             parler(f"Voici vos derniers emails non lus{nom_virgule()}. {result}")
     elif action == "read_calendar":
-        result = await _google(lister_evenements_calendar)
+        result = await _google(evenements_agenda)
         parler(f"Voici vos prochains evenements{nom_espace()}. {result}")
     elif action == "create_task":
         titre = data.get("title") or data.get("titre") or ""
@@ -108,7 +104,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         if not await demander_confirmation(None, f"Envoyer un e-mail à {destinataire or 'un destinataire inconnu'}, sujet : {sujet} ?"):
             parler(f"Envoi annulé{nom_virgule()}.")
         else:
-            result = await _google(envoyer_email, destinataire, sujet, corps)
+            result = await _google(expedier_email, destinataire, sujet, corps)
             parler(result)
     elif action == "reply_email":
         corps = data.get("body") or data.get("corps") or ""
@@ -116,7 +112,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         if not await demander_confirmation(None, "Envoyer cette réponse par e-mail ?"):
             parler(f"Réponse annulée{nom_virgule()}.")
         else:
-            result = await _google(repondre_email, corps, msg_id)
+            result = await _google(repondre_au_mail, corps, msg_id)
             parler(result)
     elif action == "read_full_email":
         msg_id = data.get("msg_id") or None
@@ -131,7 +127,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         if not await demander_confirmation(None, "Mettre cet e-mail à la corbeille ?"):
             parler(f"Suppression annulée{nom_virgule()}.")
         else:
-            result = await _google(supprimer_email, msg_id)
+            result = await _google(effacer_email, msg_id)
             parler(result)
     elif action == "create_event":
         summary = data.get("summary") or data.get("titre") or "Événement"
@@ -191,24 +187,24 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
     elif action == "meteo":
         ville = data.get("ville") or None
         parler(f"Je consulte la meteo, un instant{nom_espace()}.")
-        result = get_meteo_actuelle(ville)
+        result = meteo_du_moment(ville)
         parler(result)
     elif action == "alerte_meteo":
         ville = data.get("ville") or None
-        result = get_alertes_meteo(ville)
+        result = alertes_meteo(ville)
         parler(result)
     elif action == "recherche_web":
         query = data.get("query", "")
-        parler(f"Je lance une recherche sur internet pour {query}.")
-        result = recherche_web_serpapi(query)
+        parler(f"Je cherche sur internet : {query}.")
+        result = resume_recherche_web(query)
         parler(result)
     elif action == "recherche_images":
         query = data.get("query", "")
         nb = int(data.get("nb", 6))
         parler(f"Je recherche des images de {query} sur internet, un instant{nom_espace()}.")
-        cfg = _charger_config()
+        cfg = _lire_config()
         engine = cfg.get("image_search_engine", "serpapi")
-        urls = recherche_images_web(query, nb_images=nb, engine=engine)
+        urls = images_par_moteur(query, nb_images=nb, engine=engine)
         if urls:
             msg_json = json.dumps({
                 "type": "show_images",
@@ -238,7 +234,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
                 f"{context}\n\n"
                 f"En tant que JARVIS, fais une synthèse élégante, précise et complète de ces informations pour {nom_ou_utilisateur()}."
             )
-            synthese = await demander_ia(prompt_synthese, update_hist=False, skip_local=True)
+            synthese = await interroger_ia(prompt_synthese, update_hist=False, skip_local=True)
             if synthese:
                 print("\n[BROWSER] --- SOURCES CONSULTÉES ---")
                 for d in research_data:
@@ -258,54 +254,32 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         result = await stop_visual_agent()
         parler(result)
 
-    elif action == "sport_resultats":
-        equipe = data.get("equipe") or None
-        ligue  = data.get("ligue")  or None
-        print(f"[SPORT] Action sport_resultats pour {equipe or ligue}")
-        parler(f"Je cherche les informations pour {equipe or ligue}, un instant.")
-        result = get_resultats_football(equipe=equipe, ligue=ligue)
-        if "pas trouvé" in result or "Impossible" in result:
-            print(f"[SPORT] Echec recherche locale. Verification avec Grok...")
-            if shared.grok_client:
-                res_grok = await demander_grok(f"{nom_ou_utilisateur()} veut savoir : {texte_utilisateur}. Je n'ai pas trouvé l'info dans ma base de données football, peux-tu chercher pour cette personne ?")
-                if res_grok: result = res_grok
-        parler(result)
-    elif action == "sport_classement":
-        ligue  = data.get("ligue", "Ligue 1")
-        parler(f"Je recupere le classement {ligue}.")
-        result = get_classement_football(ligue=ligue)
-        parler(result)
-    elif action == "sport_live":
-        question = data.get("question", "derniers resultats sportifs 2026")
-        parler(f"Je recherche les derniers resultats en direct, un instant{nom_espace()}.")
-        result = await get_resultats_sport_gemini(question)
-        parler(result)
     elif action == "voir_ecran":
         inst = data.get("instruction", "")
-        res = await jarvis_vision_cliquer(inst)
+        res = await vision_cliquer(inst)
         parler(res)
     elif action == "whatsapp_appel":
         contact = data.get("contact")
         if contact:
-            await action_whatsapp_appel(contact)
+            await appeler_via_whatsapp(contact)
             parler(f"Appel WhatsApp vers {contact} lancé.")
         else:
             parler(f"Désolé{nom_espace()}, je n'ai pas trouvé le nom du contact à appeler.")
     elif action == "vision_ecrire":
         inst = data.get("instruction", "")
         txt  = data.get("texte", "")
-        res  = await jarvis_vision_ecrire(inst, txt)
+        res  = await vision_saisir(inst, txt)
         parler(res)
     elif action == "vision_chercher_sur_site":
         txt = data.get("texte", "")
         parler(f"Je cherche la barre de recherche sur ce site{nom_virgule()}.")
-        res = await jarvis_vision_rechercher_sur_site(txt)
+        res = await vision_recherche_site(txt)
         parler(res)
     elif action == "lance_camera":
-        res = await jarvis_vision_camera(texte_utilisateur)
+        res = await vision_camera(texte_utilisateur)
         parler(res)
     elif action == "vision_navigateur":
-        res = await jarvis_vision_navigateur(texte_utilisateur)
+        res = await vision_sur_navigateur(texte_utilisateur)
         parler(res)
     elif action == "analyse_live":
         question = data.get("question", "Analyse mon écran et aide-moi.")
@@ -347,31 +321,31 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
             msg = json.dumps({"type": "av_open"})
             await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
         parler(f"J'initialise le protocole d'analyse de sécurité de votre système{nom_virgule()}. Scan en cours.")
-    elif action in ("spotify_ouvrir", "deezer_ouvrir"):
+    elif action in ("spotify_ouvrir", "deezer_demarrer"):
         parler(f"J'ouvre Deezer{nom_virgule()}.")
-        res = await deezer_ouvrir()
+        res = await deezer_demarrer()
         parler(res)
-    elif action in ("spotify_rechercher", "deezer_rechercher"):
+    elif action in ("spotify_rechercher", "deezer_chercher"):
         recherche = data.get("recherche", "")
         parler(f"Je recherche '{recherche}' sur Deezer{nom_virgule()}.")
-        res = await deezer_rechercher(recherche)
+        res = await deezer_chercher(recherche)
         parler(res)
-    elif action in ("spotify_lecture_pause", "deezer_lecture_pause"):
-        res = await deezer_lecture_pause()
+    elif action in ("spotify_lecture_pause", "deezer_basculer_lecture"):
+        res = await deezer_basculer_lecture()
         parler(res)
-    elif action in ("spotify_stop", "deezer_stop"):
-        res = await deezer_stop()
+    elif action in ("spotify_stop", "deezer_arreter"):
+        res = await deezer_arreter()
         parler(res)
-    elif action in ("spotify_suivant", "deezer_suivant"):
-        res = await deezer_suivant()
+    elif action in ("spotify_suivant", "deezer_piste_suivante"):
+        res = await deezer_piste_suivante()
         parler(res)
-    elif action in ("spotify_precedent", "deezer_precedent"):
-        res = await deezer_precedent()
+    elif action in ("spotify_precedent", "deezer_piste_precedente"):
+        res = await deezer_piste_precedente()
         parler(res)
-    elif action in ("spotify_volume", "deezer_volume"):
+    elif action in ("spotify_volume", "deezer_regler_volume"):
         direction = data.get("direction", "monter")
         paliers   = data.get("paliers", 4)
-        res = await deezer_volume(direction, paliers)
+        res = await deezer_regler_volume(direction, paliers)
         parler(res)
     else:
         return False

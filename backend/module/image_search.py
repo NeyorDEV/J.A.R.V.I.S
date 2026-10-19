@@ -10,23 +10,23 @@ SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
 if SERPAPI_API_KEY == "VOTRE_CLE_ICI":
     SERPAPI_API_KEY = None
 
-def _cle_valide(key):
+def cle_utilisable(key):
     return bool(key) and key != "VOTRE_CLE_ICI"
 
-def recherche_images_gemini(query, nb_images=6):
-    """Recherche des images en demandant à Gemini (avec Google Search Grounding) de renvoyer des URLs d'images."""
+def images_par_gemini(query, nb_images=6):
+    """Cherche des images en demandant à Gemini (recherche Google activée) de lister des URL."""
     import builtins
     if not hasattr(builtins, "client") or builtins.client is None:
-        print("[IMAGE] Gemini client non disponible dans builtins.")
+        print("[IMAGE] Client Gemini introuvable dans builtins.")
         return []
     
     try:
-        print(f"[IMAGE] Recherche Gemini Images (avec Google Search) pour : {query}")
+        print(f"[IMAGE] Images via Gemini + Google pour : {query}")
         prompt = (
-            f"Effectue une recherche sur internet pour trouver des images de '{query}'. "
-            f"Donne-moi une liste de {nb_images} URLs d'images directes ou d'images sources valides (par exemple se terminant par .jpg, .png, .jpeg ou provenant de banques d'images ou d'articles de presse). "
-            f"Renvoie uniquement un tableau JSON contenant ces URLs (exemple: [\"https://site.com/image.jpg\", ...]). "
-            f"Important: Ne mets aucun texte explicatif avant ou après le JSON, pas de balise ```json, uniquement le tableau JSON brut."
+            f"Trouve sur internet des images de '{query}'. "
+            f"Fournis {nb_images} adresses d'images valides (fichiers .jpg, .png ou .jpeg, ou images de banques d'images ou d'articles). "
+            f"Réponds par un tableau JSON des adresses, rien d'autre (exemple : [\"https://site.com/image.jpg\", ...]). "
+            f"Pas de phrase avant ou après, pas de balise ```json : le tableau brut seulement."
         )
         
         model_name = getattr(builtins, "CHOSEN_MODEL", "gemini-2.5-flash")
@@ -36,7 +36,7 @@ def recherche_images_gemini(query, nb_images=6):
             contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
             config=types.GenerateContentConfig(
                 tools=[types.Tool(google_search=types.GoogleSearch())],
-                system_instruction="Tu es un assistant spécialisé dans la recherche d'images sur internet. Tu dois uniquement renvoyer un tableau JSON d'URLs."
+                system_instruction="Tu trouves des images sur internet. Ta réponse est exclusivement un tableau JSON d'adresses."
             )
         )
         text = response.text.strip()
@@ -55,18 +55,18 @@ def recherche_images_gemini(query, nb_images=6):
             print(f"[IMAGE] {len(valid_urls)} image(s) trouvées via Gemini.")
             return valid_urls[:nb_images]
     except Exception as e:
-        print(f"[IMAGE] Erreur recherche Gemini Images : {e}")
+        print(f"[IMAGE] Échec de la recherche Gemini : {e}")
     return []
 
-def recherche_images_web(query, nb_images=6, engine="serpapi"):
-    """Recherche des images sur internet via le moteur spécifié (serpapi, gemini, duckduckgo)."""
+def images_par_moteur(query, nb_images=6, engine="serpapi"):
+    """Cherche des images sur internet avec le moteur choisi (serpapi, gemini ou duckduckgo)."""
     urls = []
     
     # ── Moteur SerpAPI ───────────────────────────────────────────────────────
     from core.ai_clients import api_activee
-    if engine == "serpapi" and _cle_valide(SERPAPI_API_KEY) and api_activee("serpapi"):
+    if engine == "serpapi" and cle_utilisable(SERPAPI_API_KEY) and api_activee("serpapi"):
         try:
-            print(f"[IMAGE] Recherche SerpAPI Images pour : {query}")
+            print(f"[IMAGE] Images via SerpAPI pour : {query}")
             params = {
                 "engine": "google_images",
                 "q": query,
@@ -83,7 +83,7 @@ def recherche_images_web(query, nb_images=6, engine="serpapi"):
                 if src:
                     urls.append(src)
             if urls:
-                print(f"[IMAGE] {len(urls)} image(s) trouvées via SerpAPI.")
+                print(f"[IMAGE] {len(urls)} image(s) obtenue(s) par SerpAPI.")
                 return urls
         except Exception as e:
             print(f"[IMAGE] Erreur/Timeout SerpAPI Images ({e}). Bascule sur Gemini/DDG...")
@@ -92,7 +92,7 @@ def recherche_images_web(query, nb_images=6, engine="serpapi"):
     import builtins
     if hasattr(builtins, "client") and builtins.client is not None:
         try:
-            urls = recherche_images_gemini(query, nb_images)
+            urls = images_par_gemini(query, nb_images)
             if urls:
                 return urls
         except Exception as e:
@@ -100,7 +100,7 @@ def recherche_images_web(query, nb_images=6, engine="serpapi"):
 
     # ── Moteur DuckDuckGo (Dernier recours gratuit et robuste) ────────────────
     try:
-        print(f"[IMAGE] Recherche DuckDuckGo Images pour : {query}")
+        print(f"[IMAGE] Images via DuckDuckGo pour : {query}")
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -130,10 +130,10 @@ def recherche_images_web(query, nb_images=6, engine="serpapi"):
                 if img_url:
                     urls.append(img_url)
             if urls:
-                print(f"[IMAGE] {len(urls)} image(s) trouvées via DuckDuckGo.")
+                print(f"[IMAGE] {len(urls)} image(s) obtenue(s) par DuckDuckGo.")
                 return urls
     except Exception as e:
-        print(f"[IMAGE] Erreur DuckDuckGo Images : {e}")
+        print(f"[IMAGE] Échec de DuckDuckGo : {e}")
 
-    print(f"[IMAGE] Aucune image trouvée pour : {query}")
+    print(f"[IMAGE] Rien trouvé pour : {query}")
     return []

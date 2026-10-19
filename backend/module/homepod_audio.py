@@ -142,14 +142,3 @@ async def jouer_sur_homepod(mp3_path: str, stop_checker) -> bool:
         await asyncio.sleep(0.05)
 
     return True
-
-async def deconnecter():
-    """Ferme proprement la connexion (à appeler à l'arrêt de JARVIS)."""
-    global _atv
-    if _atv:
-        try:
-            await asyncio.gather(*_atv.close())
-        except Exception:
-            pass
-        _atv = None
-        print("[HOMEPOD] Déconnecté.")

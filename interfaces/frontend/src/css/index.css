@@ -11,6 +11,7 @@
 @import "./10_uninstaller_menu.css";
 @import "./11_clock_tips_keyboard.css";
 @import "./12_confirm_dialog.css";
+@import "./13_panneaux_modules.css";
 /* ── SCROLLBARS CYBERPUNK UNIVERSELLES POUR TOUT JARVIS ── */
 *, *::before, *::after {
   scrollbar-width: thin !important;

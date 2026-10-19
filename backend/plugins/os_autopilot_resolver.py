@@ -1,6 +1,5 @@
 import builtins
 import re
-import asyncio
 from module.os_autopilot_agent import lancer_autopilote
 from core.interlocuteur import nom_virgule
 

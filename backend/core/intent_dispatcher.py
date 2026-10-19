@@ -7,7 +7,7 @@ traduite en "phrase canonique" — une formulation que les resolvers existants
 comprennent — puis repassée dans la chaîne de resolvers par main2.py.
 
 Un faux négatif (pas d'appel de fonction) fait simplement suivre le chemin
-historique vers demander_ia : le dispatch est un raccourci, jamais un mur.
+historique vers interroger_ia : le dispatch est un raccourci, jamais un mur.
 """
 
 from google.genai import types
@@ -218,7 +218,7 @@ def _phrase_canonique(name: str, args: dict) -> str | None:
 async def resoudre_intention_llm(texte: str) -> str | None:
     """Retourne la phrase canonique correspondant à l'intention, ou None.
 
-    None = pas d'intention reconnue → main2.py continue vers demander_ia.
+    None = pas d'intention reconnue → main2.py continue vers interroger_ia.
     Toute erreur (réseau, quota…) retourne None : le dispatch ne bloque jamais.
     """
     try:

@@ -4,7 +4,6 @@ import pyautogui
 import builtins
 import random
 import re
-import asyncio
 from core.interlocuteur import nom_virgule
 
 def nettoyer_accent(texte):
@@ -88,7 +87,7 @@ def _date_heure_du_jour(t):
     return None
 
 
-async def resoudre_infos_systeme_localement(cmd):
+async def traiter_infos_systeme(cmd):
     """Donne l'heure, la date et des informations sur l'état du PC."""
     t = nettoyer_accent(cmd.lower().strip()).replace("’", "'").rstrip(" ?!.")
     mots = re.findall(r'\b\w+\b', t)
@@ -118,4 +117,4 @@ async def resoudre_infos_systeme_localement(cmd):
 
 # Injection builtins
 builtins.resoudre_commandes_systeme = resoudre_commandes_systeme
-builtins.resoudre_infos_systeme_localement = resoudre_infos_systeme_localement
+builtins.traiter_infos_systeme = traiter_infos_systeme

@@ -11,7 +11,7 @@ import controller.homepod_controller as homepod_controller
 import core.shared as shared
 from core.actions_ia_services import executer_actions_services
 from core.ha_mcp_client import executer_action_ha
-from core.llm_chat import demander_ia
+from core.llm_chat import interroger_ia
 from core.mcp_client import executer_action_mcp
 from core.speech import parler
 from core.web_bridge import diffuser_echecs, envoyer_image_web, _safe_ws_send
@@ -19,12 +19,12 @@ from module.chess_manager import ChessGame
 from module.echecs_local import _annonce_fin
 from module.domotique_sim import domotic_route_audio
 from module.file_manager import (
-    chercher_fichier, creer_sous_dossier, deplacer_fichier, lire_fichier, lister_dossier,
-    ouvrir_dossier, ouvrir_fichier_ou_dossier, renommer_fichier, trier_par_date,
-    trier_par_type, trier_par_type_puis_date,
+    rechercher_fichier, creer_dossier_enfant, transferer_fichier, lire_fichier, enumerer_dossier,
+    afficher_dossier, ouvrir_fichier_ou_dossier, changer_nom_fichier, classer_par_date,
+    classer_par_type, classer_par_type_et_date,
 )
 from module.image_generator import generer_image_ia
-from module.memory_manager import ajouter_memoire, charger_memoire, supprimer_memoire
+from module.memory_manager import noter_en_memoire, relire_memoire, oublier_memoire
 from core.interlocuteur import nom_espace, nom_ou_utilisateur, nom_virgule
 
 
@@ -118,20 +118,20 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
     elif action == "auto_memoriser":
         cle    = data.get("cle",    "info")
         valeur = data.get("valeur", "")
-        ajouter_memoire(cle, valeur)
+        noter_en_memoire(cle, valeur)
         if hasattr(builtins, "_notify_factual_memory_added"):
             builtins._notify_factual_memory_added(cle, valeur)
     elif action == "memoriser":
         cle    = data.get("cle",    "info")
         valeur = data.get("valeur", "")
-        ajouter_memoire(cle, valeur)
+        noter_en_memoire(cle, valeur)
         if hasattr(builtins, "_notify_factual_memory_added"):
             builtins._notify_factual_memory_added(cle, valeur)
         parler(f"Bien note{nom_espace()}, je me souviendrai que {valeur}.")
     elif action == "oublier":
         cle     = data.get("cle", "")
         # Supprimer de la mémoire clé-valeur
-        success_kv = supprimer_memoire(cle)
+        success_kv = oublier_memoire(cle)
         # Supprimer également de la DB vectorielle
         from module.vector_memory import supprimer_souvenir_semantique
         success_vect = supprimer_souvenir_semantique(cle)
@@ -143,9 +143,9 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                 _safe_ws_send(json.dumps({"action": "cortex_update", "deleted_id": cle}))
             parler(f"Information oubliee{nom_virgule()}.")
         else:
-            parler("Je n avais pas cette information en memoire.")
+            parler("Cette information n'était pas dans ma mémoire.")
     elif action == "lister_memoire":
-        memoire = charger_memoire()
+        memoire = relire_memoire()
         if not memoire:
             parler(f"Aucune information personnalisee en memoire{nom_virgule()}.")
         else:
@@ -157,8 +157,8 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
         desc = data.get("description") or data.get("sujet") or data.get("prompt") or "un site web"
         # (« backend.plugins… » chargeait le module une seconde fois, sous un autre nom)
         from plugins.dev_swarm_resolver import run_dev_swarm_process
-        from core.web_bridge import lancer_tache_arriere_plan
-        lancer_tache_arriere_plan(run_dev_swarm_process(desc))
+        from core.web_bridge import demarrer_tache_fond
+        demarrer_tache_fond(run_dev_swarm_process(desc))
         parler(f"Très bien{nom_espace()}, je mobilise l'essaim d'agents d'élite pour coder votre projet. Suivi actif sur le HUD.")
     elif action == "generer_image":
         prompt = data.get("prompt", "")
@@ -172,9 +172,9 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                 parler(f"Désolé{nom_espace()}, la génération d'image a échoué.")
         else:
             parler(f"Que souhaitez-vous que je dessine{nom_virgule()} ?")
-    elif action == "ouvrir_dossier":
+    elif action == "afficher_dossier":
         chemin = data.get("chemin", "bureau")
-        ok, resultat = ouvrir_dossier(chemin)
+        ok, resultat = afficher_dossier(chemin)
         if ok:
             parler(f"Dossier ouvert{nom_virgule()}. Dites-moi si vous voulez que je le trie.")
         else:
@@ -195,48 +195,48 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                     f"L'utilisateur demande : {question}\n"
                     f"Analyse ce contenu et réponds directement en restant dans ton personnage de JARVIS (poli, efficace, un peu sarcastique)."
                 )
-                rep_analyse = await demander_ia(prompt_analyse, update_hist=False, skip_local=True)
+                rep_analyse = await interroger_ia(prompt_analyse, update_hist=False, skip_local=True)
                 if rep_analyse:
                     parler(rep_analyse)
                 else:
                     parler(f"Désolé{nom_espace()}, j'ai lu le fichier mais je n'arrive pas à synthétiser une réponse.")
         else:
             parler("Je n'ai pas compris quel fichier vous souhaitez que j'analyse.")
-    elif action == "lister_dossier":
-        contenu, err = lister_dossier()
+    elif action == "enumerer_dossier":
+        contenu, err = enumerer_dossier()
         if err:
             parler(err)
         else:
             nb_fichiers = len(contenu["fichiers"])
             nb_dossiers = len(contenu["dossiers"])
             parler(f"Le dossier contient {nb_fichiers} fichiers et {nb_dossiers} sous-dossiers{nom_virgule()}.")
-    elif action == "trier_par_type":
+    elif action == "classer_par_type":
         parler(f"Je trie vos fichiers par type{nom_virgule()}. Un instant.")
-        ok, msg = trier_par_type()
+        ok, msg = classer_par_type()
         parler(msg if ok else f"Probleme lors du tri : {msg}")
-    elif action == "trier_par_date":
+    elif action == "classer_par_date":
         parler(f"Je trie vos fichiers par date{nom_virgule()}. Un instant.")
-        ok, msg = trier_par_date()
+        ok, msg = classer_par_date()
         parler(msg if ok else f"Probleme lors du tri : {msg}")
     elif action == "trier_complet":
         parler(f"Je trie vos fichiers par type puis par date dans chaque categorie{nom_virgule()}.")
-        ok, msg = trier_par_type_puis_date()
+        ok, msg = classer_par_type_et_date()
         parler(msg if ok else f"Probleme lors du tri : {msg}")
     elif action == "creer_dossier":
         nom     = data.get("nom", "Nouveau Dossier")
-        ok, msg = creer_sous_dossier(nom)
+        ok, msg = creer_dossier_enfant(nom)
         parler(msg if ok else f"Erreur : {msg}")
-    elif action == "renommer_fichier":
+    elif action == "changer_nom_fichier":
         ancien  = data.get("ancien", "")
         nouveau = data.get("nouveau", "")
-        ok, msg = renommer_fichier(ancien, nouveau)
+        ok, msg = changer_nom_fichier(ancien, nouveau)
         parler(msg if ok else f"Erreur : {msg}")
-    elif action == "deplacer_fichier":
+    elif action == "transferer_fichier":
         fichier = data.get("fichier",     "")
         dest    = data.get("destination", "")
-        ok, msg = deplacer_fichier(fichier, dest)
+        ok, msg = transferer_fichier(fichier, dest)
         parler(msg if ok else f"Erreur : {msg}")
-    elif action == "chercher_fichier":
+    elif action == "rechercher_fichier":
         nom = data.get("nom", "")
 
         # Détection du type demandé AVANT nettoyage
@@ -270,7 +270,7 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
         type_msg = "le dossier" if type_demande == "dossier" else ("le fichier" if type_demande == "fichier" else "l'élément")
         parler(f"Recherche de {type_msg} '{nom_final}' en cours...")
 
-        resultats, err = chercher_fichier(nom_final, scan_global=True, type_cible=type_demande)
+        resultats, err = rechercher_fichier(nom_final, scan_global=True, type_cible=type_demande)
         if err:
             parler(err)
         elif not resultats:

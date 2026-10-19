@@ -1,5 +1,4 @@
 import builtins
-import asyncio
 import re
 import os
 from core.interlocuteur import nom_virgule

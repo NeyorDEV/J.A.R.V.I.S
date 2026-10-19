@@ -2,7 +2,7 @@ import re
 import builtins
 
 # On importe les fonctions de memory_manager et vector_memory
-from module.memory_manager import ajouter_memoire, charger_memoire, supprimer_memoire
+from module.memory_manager import noter_en_memoire, relire_memoire, oublier_memoire
 from module.vector_memory import supprimer_souvenir_semantique, rechercher_souvenir_semantique
 from core.interlocuteur import nom_espace, nom_virgule
 
@@ -38,7 +38,7 @@ async def resoudre_memoire_locale(texte):
                         sujet = parties[0].strip()
                         valeur = " ".join(parties[1:]).strip()
                         if len(sujet) > 2 and len(valeur) > 1:
-                            ajouter_memoire(sujet, valeur)
+                            noter_en_memoire(sujet, valeur)
                             def _a_la_deuxieme_personne(texte_a_corriger):
                                 # "mon/ma/mes" (1re personne, côté utilisateur) doivent devenir
                                 # "votre/vos" une fois répétés par JARVIS (2e personne). Avant ce
@@ -50,7 +50,7 @@ async def resoudre_memoire_locale(texte):
                             valeur_polie = _a_la_deuxieme_personne(valeur)
                             return f"C'est fait{nom_espace()}, j'ai enregistré que {sujet_poli} {sep.strip()} {valeur_polie}."
                 
-                ajouter_memoire("note_rapide", content)
+                noter_en_memoire("note_rapide", content)
                 return f"C'est noté{nom_espace()}, j'ai mis cela en mémoire : {content}."
     # ── SUPPRESSION / OUBLI (ex: "oublie le code du portail", "oublie mon code", "supprime le code du garage")
     # Oubli : seulement sur une demande explicite. Avant, « supprime » ou « efface »
@@ -70,7 +70,7 @@ async def resoudre_memoire_locale(texte):
                 success_kv = False
                 
                 # Essayer de trouver la clé correspondante dans la mémoire clé-valeur
-                mem = charger_memoire()
+                mem = relire_memoire()
                 cle_exacte = None
                 
                 # 1. Recherche par correspondance exacte (ignorant la casse/les espaces/les accents)
@@ -89,7 +89,7 @@ async def resoudre_memoire_locale(texte):
                             break
                             
                 if cle_exacte:
-                    success_kv = supprimer_memoire(cle_exacte)
+                    success_kv = oublier_memoire(cle_exacte)
                 
                 # Supprimer également de la base vectorielle ChromaDB
                 success_vect = False
@@ -112,7 +112,7 @@ async def resoudre_memoire_locale(texte):
     is_get_query = any(m in t for m in _triggers_get)
     t_clean = re.sub(r'[?!\.]', '', t).strip()
     
-    mem = charger_memoire()
+    mem = relire_memoire()
     if mem:
         for cle, data in mem.items():
             cle_clean = cle.replace("_", " ").lower().strip()

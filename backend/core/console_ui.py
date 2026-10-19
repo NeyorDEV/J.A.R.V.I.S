@@ -41,17 +41,17 @@ _ESSENTIELS = {"ALARME", "CONFIRMATION", "CONFIRM", "AUDIT", "AV LIVE", "AV", "U
                "UNINSTALLER", "WINGET", "VOICE VAULT", "BIOMETRICS", "QUOTA"}
 # Noms lisibles des resolvers locaux (« [DEBUG] Commande résolue par : … »)
 _RESOLVEURS = {
-    "resoudre_infos_systeme_localement": "heure / système", "alarmes": "alarmes", "echecs": "échecs",
+    "traiter_infos_systeme": "heure / système", "alarmes": "alarmes", "echecs": "échecs",
     "commandes_locales": "commandes", "resoudre_commandes_systeme": "système",
     "resoudre_tv_localement": "télé", "resoudre_temps_localement": "heure mondiale",
     "resoudre_listes_locales": "listes", "resoudre_apps_localement": "applications",
-    "resoudre_memoire_locale": "mémoire", "resoudre_globe_localement": "globe",
+    "resoudre_memoire_locale": "mémoire", "traiter_globe_local": "globe",
 }
 # Libellés courts (colonne de 8 caractères)
 _LIBELLES = {"BIOMETRICS": "VOIX", "SPEAKER": "VOIX", "AV LIVE": "ANTIVIR.", "AV": "ANTIVIR.",
              "VOICE VAULT": "COFFRE", "UNINSTALLER": "DÉSINST.", "CONFIRMATION": "CONFIRM.",
              "AUDIOSTREAMMANAGER": "AUDIO", "IA RELOAD": "IA", "DEEZER CDP": "DEEZER", "DEEZER UIA": "DEEZER",
-             "VECTOR DB": "MÉMOIRE", "MEMORY MANAGER": "MÉMOIRE", "WAKEWORD": "ÉVEIL"}
+             "VECTOR DB": "MÉMOIRE", "MEMORY MANAGER": "MÉMOIRE"}
 # Annonces de JARVIS sur la voix reconnue : pas la réponse à la question
 _RE_ANNONCE_VOIX = re.compile(r"^(voix inconnue détectée|voix de .{1,30} détectée)", re.I)
 # Couleurs : une pour l'utilisateur (doré), une pour JARVIS (cyan) ; modules et événements
@@ -328,7 +328,7 @@ class _Console:
         try:
             from core.api_quota import _quota_mgr
             for api in list(_quota_mgr._cooldowns):
-                restant = _quota_mgr.remaining_cooldown(api)
+                restant = _quota_mgr.pause_restante(api)
                 if restant > 0:
                     pauses.append(f"{api[7:] if api.startswith('gemini_') else api.upper()} {restant} s")
         except Exception:

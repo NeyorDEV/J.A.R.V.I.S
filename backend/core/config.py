@@ -18,7 +18,7 @@ ANTHROPIC_API_KEY    = os.getenv("ANTHROPIC_API_KEY")
 
 _API_PLACEHOLDERS = frozenset({"VOTRE_CLE_ICI", "Votre ID", "votre_id", "VOTRE_TOKEN_ICI", "votre_token_ici", ""})
 
-def _cle_valide(key):
+def cle_utilisable(key):
     return bool(key) and str(key).strip() not in _API_PLACEHOLDERS
 
 # --- CONFIGURATION IA ---
@@ -33,7 +33,7 @@ SESSION_TIMEOUT = 30
 WAKE_WORD = "jarvis"
 
 # Exportation vers builtins pour compatibilité descendante immédiate
-builtins._cle_valide = _cle_valide
+builtins.cle_utilisable = cle_utilisable
 builtins.CHOSEN_MODEL = CHOSEN_MODEL
 builtins.MODELS_LIST = MODELS_LIST
 

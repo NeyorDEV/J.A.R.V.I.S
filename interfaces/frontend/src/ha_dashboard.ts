@@ -1,6 +1,10 @@
 // ════════════════════════════════════════════════════════════
 //   ha_dashboard.ts — Home Assistant Control Dashboard
+//   (panneau au style commun css/13_panneaux_modules.css)
 // ════════════════════════════════════════════════════════════
+
+import { esc, icone } from "./panels/pm_utils";
+import { wsRef } from "./ws_link";
 
 interface HAEntity {
   entity_id: string;
@@ -21,7 +25,12 @@ interface PinnedPositionsMap {
   [entity_id: string]: PinnedPosition;
 }
 
-let _ws: WebSocket | null = null;
+// Connexion : toujours wsRef.current (réassignée à chaque reconnexion). Avant, la socket
+// passée au démarrage était gardée à vie : après une reconnexion, interrupteurs et
+// « Actualiser » ne faisaient plus rien, sans message.
+function _ws(): WebSocket | null {
+  return wsRef.current;
+}
 let _entities: HAEntity[] = [];
 let _activeCategory: string = "all";
 let _searchQuery: string = "";
@@ -32,7 +41,7 @@ let _dragOffX = 0;
 let _dragOffY = 0;
 
 export function initHADashboard(ws: WebSocket | null): void {
-  _ws = ws;
+  void ws; // conservé pour compatibilité (main.ts)
 
   const panel = document.getElementById("ha-panel");
   const dragHandle = document.getElementById("ha-panel-drag-handle");
@@ -146,13 +155,13 @@ export function handleHAMessage(data: any): void {
     if (data.success && Array.isArray(data.states)) {
       _entities = data.states;
       if (panelStatus) {
-        panelStatus.textContent = `SYS_STATUS // CONNECTED // ${data.states.length} CAPTEURS ET APPAREILS CONNECTES`;
+        panelStatus.innerHTML = `<span class="pm-ok">●</span> Home Assistant · ${data.states.length} appareil${data.states.length > 1 ? "s" : ""}`;
       }
       renderGrid();
       renderPinnedWidgets();
     } else {
-      showError("ERREUR DE LECTURE DES ÉTATS");
-      if (panelStatus) panelStatus.textContent = "SYS_STATUS // HOME ASSISTANT NON CONFIGURÉ OU INJOIGNABLE";
+      showError("Impossible de lire les appareils de Home Assistant");
+      if (panelStatus) panelStatus.innerHTML = `<span class="pm-erreur">●</span> Home Assistant non configuré ou injoignable`;
     }
   } else if (data.type === "ha_state_changed") {
     if (data.entity_id && data.state) {
@@ -178,20 +187,22 @@ export function handleHAMessage(data: any): void {
 }
 
 function fetchHAStates(): void {
-  if (!_ws || _ws.readyState !== WebSocket.OPEN) return;
+  const ws = _ws();
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
   const grid = document.getElementById("ha-entities-grid");
   if (grid) {
-    grid.innerHTML = `<div class="ha-loading-msg">SYNCHRONISATION AVEC HOME ASSISTANT EN COURS...</div>`;
+    grid.innerHTML = `<div class="ha-loading-msg">SYNCHRONISATION AVEC HOME ASSISTANT…</div>`;
   }
 
-  _ws.send(JSON.stringify({ type: "ha_get_states" }));
+  ws.send(JSON.stringify({ type: "ha_get_states" }));
 }
 
 function callHAService(domain: string, service: string, entity_id: string, service_data?: any): void {
-  if (!_ws || _ws.readyState !== WebSocket.OPEN) return;
+  const ws = _ws();
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-  _ws.send(JSON.stringify({
+  ws.send(JSON.stringify({
     type: "ha_call_service",
     domain,
     service,
@@ -200,50 +211,45 @@ function callHAService(domain: string, service: string, entity_id: string, servi
   }));
 }
 
-function getEntityIcon(entity_id: string, state: string, friendly_name: string): string {
+// Icônes au trait (pm_utils) à la place des emojis : rendu net et cohérent avec les autres
+// panneaux, couleur pilotée par le CSS (ambre quand l'appareil est allumé).
+function getEntityIcon(entity_id: string, _state: string, friendly_name: string): string {
   const domain = entity_id.split(".")[0];
   const nameLower = friendly_name.toLowerCase();
 
   switch (domain) {
     case "light":
-      return "💡";
+      return icone("ampoule");
     case "switch":
-      return "🔌";
+    case "input_boolean":
+      return icone("prise");
     case "valve":
-      return "🚰";
+      return icone("robinet");
     case "fan":
-      return "🌀";
+      return icone("ventilateur");
     case "vacuum":
-      return "🧹";
+      return icone("robot");
     case "climate":
-      return "❄️";
+      return icone("flocon");
     case "binary_sensor":
       if (nameLower.includes("mouvement") || nameLower.includes("motion") || nameLower.includes("presence")) {
-        return "🚶";
+        return icone("mouvement");
       }
       if (nameLower.includes("porte") || nameLower.includes("fenetre") || nameLower.includes("door") || nameLower.includes("window")) {
-        return "🚪";
+        return icone("porte");
       }
-      return "🛡️";
+      return icone("bouclier");
     case "sensor":
-      if (nameLower.includes("temp")) {
-        return "🌡️";
-      }
-      if (nameLower.includes("humi")) {
-        return "💧";
-      }
-      if (nameLower.includes("batterie") || nameLower.includes("battery")) {
-        return "🔋";
-      }
+      if (nameLower.includes("temp")) return icone("thermometre");
+      if (nameLower.includes("humi")) return icone("goutte");
+      if (nameLower.includes("batterie") || nameLower.includes("battery")) return icone("batterie");
       if (nameLower.includes("puissance") || nameLower.includes("power") || nameLower.includes("energie") || nameLower.includes("energy")) {
-        return "⚡";
+        return icone("eclair");
       }
-      if (nameLower.includes("lux") || nameLower.includes("luminosite") || nameLower.includes("light")) {
-        return "☀️";
-      }
-      return "📊";
+      if (nameLower.includes("lux") || nameLower.includes("luminosite") || nameLower.includes("light")) return icone("soleil");
+      return icone("graphique");
     default:
-      return "⚙️";
+      return icone("engrenage");
   }
 }
 
@@ -257,23 +263,39 @@ function getDomainCategory(entity_id: string): string {
   return "other";
 }
 
+const ETATS_ASPIRATEUR: Record<string, string> = {
+  docked: "À la base", cleaning: "Nettoyage", returning: "Retour à la base",
+  idle: "En attente", paused: "En pause", error: "Erreur",
+};
+
 function getFormattedState(entity: HAEntity): string {
-  let stateVal = entity.state;
-  
-  // Format standard
-  if (stateVal === "on") return "ACTIF";
-  if (stateVal === "off") return "INACTIF";
-  if (stateVal === "open") return "OUVERT";
-  if (stateVal === "closed") return "FERMÉ";
-  if (stateVal === "unavailable") return "HORS LIGNE";
-  
-  // Ajouter unité si présente
-  const unit = entity.attributes.unit_of_measurement;
-  if (unit) {
-    return `${stateVal} ${unit}`;
+  const stateVal = entity.state;
+  const domain = entity.entity_id.split(".")[0];
+  const attrs = entity.attributes || {};
+
+  if (stateVal === "unavailable" || stateVal === "unknown") return "Hors ligne";
+  if (domain === "vacuum") {
+    const batterie = attrs.battery_level !== undefined ? ` · ${attrs.battery_level} %` : "";
+    return (ETATS_ASPIRATEUR[stateVal] || stateVal) + batterie;
   }
-  
-  return stateVal.toUpperCase();
+  if (stateVal === "on") {
+    // Détail utile : luminosité d'une lampe, consommation d'une prise
+    if (domain === "light" && typeof attrs.brightness === "number") return `Allumée · ${Math.round(attrs.brightness / 2.55)} %`;
+    const watts = attrs.current_power_w ?? attrs.power ?? attrs.current_consumption;
+    if (typeof watts === "number") return `Allumé · ${Math.round(watts)} W`;
+    return domain === "light" ? "Allumée" : "Allumé";
+  }
+  if (stateVal === "off") return domain === "light" ? "Éteinte" : "Éteint";
+  if (stateVal === "open") return "Ouvert";
+  if (stateVal === "closed") return "Fermé";
+
+  // Valeur de capteur : nombre au format français, avec son unité
+  const unit = attrs.unit_of_measurement;
+  const nombre = Number(stateVal);
+  const valeur = stateVal !== "" && !isNaN(nombre)
+    ? nombre.toLocaleString("fr-FR", { maximumFractionDigits: 1 })
+    : stateVal;
+  return unit ? `${valeur} ${unit}` : valeur.charAt(0).toUpperCase() + valeur.slice(1);
 }
 
 function buildCardHTML(entity: HAEntity): string {
@@ -301,8 +323,8 @@ function buildCardHTML(entity: HAEntity): string {
     bottomControls = `
       <div class="ha-card-actions">
         ${isDocked ? 
-          `<button class="ha-action-btn vacuum-btn" data-action="start" data-entity="${entity.entity_id}">DÉMARRER</button>` : 
-          `<button class="ha-action-btn vacuum-btn" data-action="return_to_base" data-entity="${entity.entity_id}">RETOUR BASE</button>`
+          `<button class="ha-action-btn vacuum-btn" data-action="start" data-entity="${entity.entity_id}">Lancer</button>` : 
+          `<button class="ha-action-btn vacuum-btn" data-action="return_to_base" data-entity="${entity.entity_id}">Retour à la base</button>`
         }
       </div>
     `;
@@ -319,11 +341,11 @@ function buildCardHTML(entity: HAEntity): string {
     <div class="ha-entity-card domain-${domain} ${isOn ? "state-on" : ""}" id="ha-card-${entity.entity_id.replace(/\./g, "-")}">
       <div class="ha-entity-top">
         <div class="ha-entity-info">
-          <span class="ha-entity-name" title="${name}">${name}</span>
+          <span class="ha-entity-name" title="${esc(name)}">${esc(name)}</span>
           <span class="ha-entity-domain">${entity.entity_id}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="ha-pin-btn ${isPinned ? "active" : ""}" data-entity="${entity.entity_id}" title="Épingler sur l'interface">📌</button>
+          <button class="ha-pin-btn ${isPinned ? "active" : ""}" data-entity="${entity.entity_id}" title="Épingler sur l'interface">${icone("epingle")}</button>
           <div class="ha-entity-icon-wrapper">
             ${icon}
           </div>
@@ -359,7 +381,7 @@ function renderGrid(): void {
   }
 
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="ha-empty-msg">AUCUN APPAREIL TROUVÉ POUR CE FILTRE</div>`;
+    grid.innerHTML = `<div class="ha-empty-msg">AUCUN APPAREIL POUR CE FILTRE</div>`;
     return;
   }
 
@@ -391,7 +413,7 @@ function updateSingleCard(entity: HAEntity): void {
   
   // Mettre à jour l'icône
   const iconWrapper = card.querySelector(".ha-entity-icon-wrapper");
-  if (iconWrapper) iconWrapper.textContent = icon;
+  if (iconWrapper) iconWrapper.innerHTML = icon;
 
   // Mettre à jour le texte d'état
   const stateLabel = card.querySelector(".ha-entity-state");
@@ -412,8 +434,8 @@ function updateSingleCard(entity: HAEntity): void {
       controlDiv.innerHTML = `
         <div class="ha-card-actions">
           ${isDocked ? 
-            `<button class="ha-action-btn vacuum-btn" data-action="start" data-entity="${entity.entity_id}">DÉMARRER</button>` : 
-            `<button class="ha-action-btn vacuum-btn" data-action="return_to_base" data-entity="${entity.entity_id}">RETOUR BASE</button>`
+            `<button class="ha-action-btn vacuum-btn" data-action="start" data-entity="${entity.entity_id}">Lancer</button>` : 
+            `<button class="ha-action-btn vacuum-btn" data-action="return_to_base" data-entity="${entity.entity_id}">Retour à la base</button>`
           }
         </div>
       `;
@@ -470,12 +492,12 @@ function attachControlsListeners(container: HTMLElement): void {
 function showError(msg: string): void {
   const grid = document.getElementById("ha-entities-grid");
   if (grid) {
-    grid.innerHTML = `<div class="ha-empty-msg" style="color: #ff3366; border-color: rgba(255,51,102,0.3)">❌ ${msg}</div>`;
+    grid.innerHTML = `<div class="ha-empty-msg pm-erreur">${esc(msg)}</div>`;
   }
 }
 
-export function updateHAWS(ws: WebSocket | null): void {
-  _ws = ws;
+export function updateHAWS(_ws_inutile: WebSocket | null): void {
+  // La connexion courante est lue dans wsRef à chaque envoi (voir _ws)
 }
 
 // ── Pinned Widgets Logic ─────────────────────────────────────────────────────
@@ -530,8 +552,8 @@ function createFloatingWidget(entity: HAEntity, pos: PinnedPosition): void {
     bottomControls = `
       <div class="ha-card-actions">
         ${isDocked ? 
-          `<button class="ha-action-btn vacuum-btn" data-action="start" data-entity="${entity.entity_id}">DÉMARRER</button>` : 
-          `<button class="ha-action-btn vacuum-btn" data-action="return_to_base" data-entity="${entity.entity_id}">RETOUR BASE</button>`
+          `<button class="ha-action-btn vacuum-btn" data-action="start" data-entity="${entity.entity_id}">Lancer</button>` : 
+          `<button class="ha-action-btn vacuum-btn" data-action="return_to_base" data-entity="${entity.entity_id}">Retour à la base</button>`
         }
       </div>
     `;
@@ -557,11 +579,11 @@ function createFloatingWidget(entity: HAEntity, pos: PinnedPosition): void {
   widget.innerHTML = `
     <div class="ha-entity-top">
       <div class="ha-entity-info">
-        <span class="ha-entity-name" title="${name}">${name}</span>
+        <span class="ha-entity-name" title="${esc(name)}">${esc(name)}</span>
         <span class="ha-entity-domain">${entity.entity_id}</span>
       </div>
       <div style="display: flex; align-items: center; gap: 8px;">
-        <button class="ha-pin-btn active" data-entity="${entity.entity_id}" title="Désépingler">📌</button>
+        <button class="ha-pin-btn active" data-entity="${entity.entity_id}" title="Désépingler">${icone("epingle")}</button>
         <div class="ha-entity-icon-wrapper">
           ${icon}
         </div>
@@ -701,7 +723,7 @@ function updateSingleFloatingWidget(entity: HAEntity): void {
   
   // Update icon
   const iconWrapper = widget.querySelector(".ha-entity-icon-wrapper");
-  if (iconWrapper) iconWrapper.textContent = icon;
+  if (iconWrapper) iconWrapper.innerHTML = icon;
 
   // Update state text
   const stateLabel = widget.querySelector(".ha-entity-state");
@@ -722,8 +744,8 @@ function updateSingleFloatingWidget(entity: HAEntity): void {
       controlDiv.innerHTML = `
         <div class="ha-card-actions">
           ${isDocked ? 
-            `<button class="ha-action-btn vacuum-btn" data-action="start" data-entity="${entity.entity_id}">DÉMARRER</button>` : 
-            `<button class="ha-action-btn vacuum-btn" data-action="return_to_base" data-entity="${entity.entity_id}">RETOUR BASE</button>`
+            `<button class="ha-action-btn vacuum-btn" data-action="start" data-entity="${entity.entity_id}">Lancer</button>` : 
+            `<button class="ha-action-btn vacuum-btn" data-action="return_to_base" data-entity="${entity.entity_id}">Retour à la base</button>`
           }
         </div>
       `;

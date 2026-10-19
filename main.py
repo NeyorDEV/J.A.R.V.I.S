@@ -6,7 +6,7 @@ Ce fichier ne fait qu'orchestrer le démarrage, dans un ordre précis :
   3. modules du projet (dans l'ordre d'origine : certains lisent l'environnement
      ou `builtins` au moment de leur import),
   4. clés API et clients des moteurs IA,
-  5. main() : frontend, serveur WebSocket + écoute vocale (start_ia), fenêtre.
+  5. main() : frontend, serveur WebSocket + écoute vocale (demarrer_ia), fenêtre.
 
 La logique vit dans backend/ (core/, module/, controller/, plugins/) ; l'état
 partagé entre ces modules est dans backend/core/shared.py.
@@ -62,7 +62,7 @@ with _cf.ThreadPoolExecutor(max_workers=4) as _pool:
         pygame = _f_pygame.result()
     except Exception:
         pygame = None
-        print("[AVERTISSEMENT] pygame non installe — l'audio TTS sera desactive.")
+        print("[ATTENTION] pygame est absent : pas de voix de synthèse.")
 
 # ── Modules du projet : ORDRE D'IMPORT D'ORIGINE CONSERVÉ ───────────────────
 # Plusieurs modules figent des valeurs au moment de leur import (variables
@@ -72,7 +72,7 @@ import controller.homepod_controller  # noqa: F401  (lit HOMEPOD_* avant le char
 from dotenv import load_dotenv
 import builtins
 
-import core.config  # noqa: F401  (charge le .env, injecte builtins._cle_valide / CHOSEN_MODEL)
+import core.config  # noqa: F401  (charge le .env, injecte builtins.cle_utilisable / CHOSEN_MODEL)
 import core.speech as speech
 # Ancrage robuste du moteur de parole
 parler = getattr(builtins, "parler", None)
@@ -82,18 +82,18 @@ builtins.parler = parler
 
 threading.Thread(target=speech.gestionnaire_parole_worker, daemon=True).start()
 
-# --- INITIALISATION DE SILERO VAD, BIOMÉTRIE VOCALE ET OPENWAKEWORD ---
-from core.voice_init import initialiser_vad_biometrie, initialiser_wakeword
+# --- INITIALISATION DE SILERO VAD, BIOMÉTRIE VOCALE ---
+from core.voice_init import initialiser_vad_biometrie, charger_options_config
 initialiser_vad_biometrie()
-initialiser_wakeword()
+charger_options_config()
 
 import module.file_manager
-builtins.resoudre_chemin = module.file_manager.resoudre_chemin
+builtins.interpreter_chemin = module.file_manager.interpreter_chemin
 from module.alarm_manager import set_parler_callback, demarrer_daemon_alarmes
 import plugins.list_manager  # noqa: F401
-from module.memory_manager import _charger_historique_recent
-from controller.spotify_controller import spotify_lancer_playlist
-builtins.spotify_lancer_playlist = spotify_lancer_playlist
+from module.memory_manager import _relire_historique_recent
+from controller.spotify_controller import spotify_jouer_playlist
+builtins.spotify_jouer_playlist = spotify_jouer_playlist
 import controller.deezer_controller  # noqa: F401
 from controller.app_launcher import _APPS_CATALOGUE
 import module.image_generator  # noqa: F401
@@ -108,7 +108,6 @@ builtins._APPS_CATALOGUE = _APPS_CATALOGUE
 
 import module.google_services  # noqa: F401
 import module.vision_module  # noqa: F401  (avant builtins.client : voir module)
-import module.sports_web  # noqa: F401  (avant builtins.client : voir module)
 import module.image_search  # noqa: F401
 import module.vector_memory  # noqa: F401
 from module.browser_service import AutonomousBrowser
@@ -141,7 +140,7 @@ except ImportError:
     psutil = None
 shared.psutil = psutil
 
-import core.ai_clients  # noqa: F401  (anthropic / mistralai optionnels ; injecte builtins._cle_valide)
+import core.ai_clients  # noqa: F401  (anthropic / mistralai optionnels ; injecte builtins.cle_utilisable)
 
 # Google APIs (Gmail, Drive, Calendar) : optionnels
 try:
@@ -150,8 +149,8 @@ try:
     from google.auth.transport.requests import Request  # noqa: F401
     from googleapiclient.discovery import build  # noqa: F401
 except ImportError:
-    print("[AVERTISSEMENT] google-auth-oauthlib non installe — Gmail/Drive/Calendar desactives.")
-    print("  -> Pour l'installer : pip install google-auth-oauthlib google-api-python-client")
+    print("[ATTENTION] google-auth-oauthlib est absent : Gmail, Drive et Agenda coupés.")
+    print("  -> Installation : pip install google-auth-oauthlib google-api-python-client")
 
 # --- pycaw (volume systeme Windows) et screen-brightness-control : optionnels ---
 # (chargés au démarrage comme avant : initialisation COM dans le thread principal)
@@ -186,7 +185,7 @@ import core.llm_registry  # noqa: F401
 builtins.CONNECTED_CLIENTS = shared.CONNECTED_CLIENTS
 builtins.FORCE_LOCAL_MODE = False
 
-shared.historique = _charger_historique_recent()
+shared.historique = _relire_historique_recent()
 
 # Resolver local du globe, injecté dans builtins (seul resolver du globe : l'ancien
 # plugins/globe_resolver.py, qui écrasait ce nom selon l'ordre de chargement, a été supprimé).
@@ -197,29 +196,29 @@ if pygame:
     pygame.init()
     pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
 else:
-    print("[INFO] Pygame absent — demarrage sans audio TTS.")
+    print("[INFO] Sans pygame : JARVIS démarre sans synthèse vocale.")
 
 # ── Météo/musique & cache webview ───────────────────────────────────────────
 from module.weather_music_service import CLIENT_LOCATION, broadcast_weather_stats, broadcast_music_stats
 shared.CLIENT_LOCATION = CLIENT_LOCATION
-from core.webview_cache import vider_cache_webview_si_nouvelle_version
+from core.webview_cache import purger_cache_webview_si_mise_a_jour
 
 # ── Services du backend (après tout le reste, comme leur code dans l'ancien main.py)
-from core.ws_handler import ws_handler
-from core.ecoute import ecouter
+from core.ws_handler import gerer_connexion_ws
+from core.ecoute import boucle_ecoute
 from core.llm_chat import generer_salutation_demarrage
-from core.micro import monitor_claps
+from core.micro import surveiller_claps
 from core.lancement import (
     afficher_statut_services, liberer_ports_occupes, lancer_frontend, ouvrir_interface,
 )
-from module.antivirus_live import boucle_antivirus_live
+from module.antivirus_live import boucle_surveillance_av
 from module.domotique_sim import broadcast_ha_stats, update_homepods_metadata_loop
-from module.system_stats import broadcast_system_stats
+from module.system_stats import diffuser_stats_systeme
 import module.cortex_service  # noqa: F401  (abonnement aux nouveaux souvenirs du cortex 3D)
 
 
-def start_ia():
-    threading.Thread(target=monitor_claps, daemon=True).start()
+def demarrer_ia():
+    threading.Thread(target=surveiller_claps, daemon=True).start()
 
     # Légère attente pour s'assurer du bon ordonnancement avec les messages du thread claps
     time.sleep(0.15)
@@ -244,18 +243,18 @@ def start_ia():
         print("[WEB] Serveur WebSocket de communication démarré.")
 
         # Lancer le monitoring système en arrière-plan
-        asyncio.create_task(broadcast_system_stats())
+        asyncio.create_task(diffuser_stats_systeme())
         asyncio.create_task(broadcast_weather_stats())
         asyncio.create_task(broadcast_music_stats())
         asyncio.create_task(broadcast_ha_stats())
         asyncio.create_task(update_homepods_metadata_loop())
-        asyncio.create_task(boucle_antivirus_live())
+        asyncio.create_task(boucle_surveillance_av())
 
         # Le gestionnaire de parole est déjà lancé au démarrage du script
 
 
         # Écoute locale uniquement (HUD, PyWebView, extension Chrome) : rien n'est exposé au réseau
-        async with websockets.serve(ws_handler, "localhost", 8765):
+        async with websockets.serve(gerer_connexion_ws, "localhost", 8765):
             await asyncio.Future()
 
     threading.Thread(target=lambda: asyncio.run(start_ws()), daemon=True).start()
@@ -274,7 +273,7 @@ def start_ia():
 
 
     # On lance l'écoute (qui est bloquante dans ce thread)
-    ecouter()
+    boucle_ecoute()
 
 
 # ==========================================
@@ -282,7 +281,7 @@ def start_ia():
 # ==========================================
 # Ursina desactive : l'interface est maintenant le frontend Three.js
 # dans le dossier frontend/ (npm run dev -> http://localhost:5173)
-# Le WebSocket est deja demarre par start_ia() sur ws://localhost:8765
+# Le WebSocket est deja demarre par demarrer_ia() sur ws://localhost:8765
 
 def main():
     afficher_statut_services()
@@ -300,10 +299,10 @@ def main():
     frontend_process, FRONTEND_URL = lancer_frontend()
 
     # Lancer les services en arriere-plan
-    threading.Thread(target=start_ia, daemon=True).start()
+    threading.Thread(target=demarrer_ia, daemon=True).start()
 
     # Nettoyage automatique du cache WebView2 si version changée
-    vider_cache_webview_si_nouvelle_version(shared.CURRENT_VERSION)
+    purger_cache_webview_si_mise_a_jour(shared.CURRENT_VERSION)
 
     ouvrir_interface(frontend_process, FRONTEND_URL)
 

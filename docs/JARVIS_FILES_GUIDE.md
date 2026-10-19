@@ -7,7 +7,7 @@ Ce document propose un inventaire complet et détaillé de chaque fichier et dos
 ## 📂 RACINE DU PROJET (n:\JARVIS)
 
 ### 🖥️ Scripts d'entrée & Utilitaires Principaux
-*   **[main.py](file:///n:/JARVIS/main.py)** : Point d'entrée (~300 lignes). Orchestre le démarrage dans un ordre précis (console, moteur de parole, modèles audio, modules du projet, clés et clients IA) puis lance `main()` : frontend, serveur WebSocket + écoute vocale (`start_ia`), fenêtre. Toute la logique vit dans `backend/` ; l'état partagé est dans `backend/core/shared.py`.
+*   **[main.py](file:///n:/JARVIS/main.py)** : Point d'entrée (~300 lignes). Orchestre le démarrage dans un ordre précis (console, moteur de parole, modèles audio, modules du projet, clés et clients IA) puis lance `main()` : frontend, serveur WebSocket + écoute vocale (`demarrer_ia`), fenêtre. Toute la logique vit dans `backend/` ; l'état partagé est dans `backend/core/shared.py`.
 *   **[antivirus_scanner.py](file:///n:/JARVIS/tools/antivirus_scanner.py)** : Scanner de sécurité à la demande et résident. Il surveille l'écriture de scripts malveillants sur le PC et permet de lancer des analyses de répertoires.
 *   **[consulter_memoire.py](file:///n:/JARVIS/tools/consulter_memoire.py)** : Script console rapide pour lire les faits stockés dans la mémoire locale de JARVIS.
 
@@ -56,23 +56,21 @@ Fichiers gérant les entrées/sorties physiques, la biométrie et les liaisons A
 *   **[prompt_builder.py](file:///n:/JARVIS/backend/core/prompt_builder.py)** : Assembleur du *System Prompt* de JARVIS. Injecte de manière optimisée la date/heure actuelle, les faits en mémoire, et les schémas d'actions JSON.
 *   **[audio_stream.py](file:///n:/JARVIS/backend/core/audio_stream.py)** : Gestionnaire de flux audio d'entrée (PyAudio). capture les blocs audio du micro physique ou virtuel.
 *   **[vad.py](file:///n:/JARVIS/backend/core/vad.py)** : Détection d'Activité Vocale (Voice Activity Detection). Analyse l'audio via Silero VAD (ONNX) et détermine quand l'utilisateur commence et arrête de parler.
-*   **[stt.py](file:///n:/JARVIS/backend/core/stt.py)** : Speech-to-Text. Transcrit l'audio via l'API ultra-rapide Groq Whisper avec repli sur Google STT si nécessaire. Filtre également les hallucinations connues de Whisper.
 *   **[speech.py](file:///n:/JARVIS/backend/core/speech.py)** : Text-to-Speech (TTS). Gère la file d'attente de parole en parallèle, en lisant les phrases au fil de leur génération via `edge_tts` (avec repli SAPI5/pyttsx3 hors-ligne) et en contrôlant les interruptions utilisateur (Barge-in / Claps).
-*   **[wakeword.py](file:///n:/JARVIS/backend/core/wakeword.py)** : Logique de détection passive du mot clé "jarvis".
 *   **[intent_dispatcher.py](file:///n:/JARVIS/backend/core/intent_dispatcher.py)** : Parse les réponses de l'IA. Si un bloc JSON d'action est détecté, il extrait l'action et l'exécute via le module système correspondant.
 *   **[webview_cache.py](file:///n:/JARVIS/backend/core/webview_cache.py)** : Gestion et nettoyage du cache des interfaces WebView locales.
 
 ### Modules issus du découpage de main.py
 *   **[shared.py](file:///n:/JARVIS/backend/core/shared.py)** : État partagé (historique, session vocale, clients IA, clients WebSocket...). Toujours y accéder via `shared.NOM`.
 *   **[console_ui.py](file:///n:/JARVIS/backend/core/console_ui.py)** : Bannière de démarrage, `print()` stylé (rich) et `TeeLogger` (copie de la console dans `data/jarvis_run.log`).
-*   **[voice_init.py](file:///n:/JARVIS/backend/core/voice_init.py)** : Initialisation de Silero VAD, de la biométrie vocale et d'openWakeWord.
+*   **[voice_init.py](file:///n:/JARVIS/backend/core/voice_init.py)** : Initialisation de Silero VAD, de la biométrie vocale.
 *   **[etat_parole.py](file:///n:/JARVIS/backend/core/etat_parole.py)** : Accès synchronisés à l'état du moteur de parole (parle / stop / dernier temps de parole).
 *   **[chargement_plugins.py](file:///n:/JARVIS/backend/core/chargement_plugins.py)** : Import des plugins de résolution en arrière-plan au démarrage.
-*   **[web_bridge.py](file:///n:/JARVIS/backend/core/web_bridge.py)** : Envoi de messages au HUD depuis n'importe quel thread (`send_web_state`, `send_web_action`, cartes contextuelles...).
+*   **[web_bridge.py](file:///n:/JARVIS/backend/core/web_bridge.py)** : Envoi de messages au HUD depuis n'importe quel thread (`envoyer_etat_hud`, `send_web_action`, cartes contextuelles...).
 *   **[ai_clients.py](file:///n:/JARVIS/backend/core/ai_clients.py)** : Clés API (`.env`), création et rechargement à chaud des clients Gemini / Grok / Groq / Claude / Mistral.
-*   **[llm_chat.py](file:///n:/JARVIS/backend/core/llm_chat.py)** : `demander_ia` (routage local/cloud, failover, streaming Gemini) et vision.
+*   **[llm_chat.py](file:///n:/JARVIS/backend/core/llm_chat.py)** : `interroger_ia` (routage local/cloud, failover, streaming Gemini) et vision.
 *   **[llm_providers.py](file:///n:/JARVIS/backend/core/llm_providers.py)** : Appels Grok, Ollama, Groq, Claude, Mistral et leur enregistrement dans `llm_registry`.
-*   **[traitement.py](file:///n:/JARVIS/backend/core/traitement.py)** : `traiter_reponse_ia` : resolvers locaux, intention LLM, réponse IA, parole puis exécution des actions.
+*   **[traitement.py](file:///n:/JARVIS/backend/core/traitement.py)** : `gerer_reponse_ia` : resolvers locaux, intention LLM, réponse IA, parole puis exécution des actions.
 *   **[actions_ia.py](file:///n:/JARVIS/backend/core/actions_ia.py)** / **[actions_ia_services.py](file:///n:/JARVIS/backend/core/actions_ia_services.py)** : Exécution des actions JSON produites par le LLM (échecs, mémoire, fichiers, domotique... / Google, météo, web, sport, vision, alarmes, Deezer).
 *   **[ws_handler.py](file:///n:/JARVIS/backend/core/ws_handler.py)** : Serveur WebSocket : contrôle d'origine et aiguillage des messages du frontend, délégués à **[ws_reglages.py](file:///n:/JARVIS/backend/core/ws_reglages.py)** (paramètres), **[ws_systeme.py](file:///n:/JARVIS/backend/core/ws_systeme.py)** (coffre-fort, courses, désinstallation, fichiers, Winget) et **[ws_securite.py](file:///n:/JARVIS/backend/core/ws_securite.py)** (pare-feu, cache, actions antivirus).
 *   **[ecoute.py](file:///n:/JARVIS/backend/core/ecoute.py)** / **[ecoute_outils.py](file:///n:/JARVIS/backend/core/ecoute_outils.py)** : Boucle d'écoute vocale continue (VAD, wake word, biométrie) ; transcription Groq Whisper / Google et protocole d'enrôlement vocal.
@@ -97,12 +95,10 @@ Fichiers implémentant les fonctionnalités métier autonomes de JARVIS.
 *   **[homepod_audio.py](file:///n:/JARVIS/backend/module/homepod_audio.py)** : Module de routage de la sortie vocale ou musicale de JARVIS vers un HomePod ou une enceinte AirPlay distante.
 *   **[image_generator.py](file:///n:/JARVIS/backend/module/image_generator.py)** : Générateur d'illustrations IA s'appuyant sur l'API gratuite Pollinations.
 *   **[image_search.py](file:///n:/JARVIS/backend/module/image_search.py)** : Service de recherche et d'affichage d'images issues du Web.
-*   **[sports_web.py](file:///n:/JARVIS/backend/module/sports_web.py)** : Récupère les scores de football et classements sportifs via TheSportsDB ou scraping.
 *   **[uninstaller_helper.py](file:///n:/JARVIS/backend/module/uninstaller_helper.py)** : Scanne la base de registre Windows (32/64 bits) pour lister les logiciels installés et déclencher des désinstallations propres.
 *   **[winget_manager.py](file:///n:/JARVIS/backend/module/winget_manager.py)** : Interagit avec l'outil de gestion de paquets Windows (Winget) pour vérifier les mises à jour logicielles disponibles sur la machine.
 *   **[vision_module.py](file:///n:/JARVIS/backend/module/vision_module.py)** : Capture et analyse le flux de la webcam ou de l'écran principal pour décrire ce qui s'y passe via Gemini Vision.
 *   **[weather_music_service.py](file:///n:/JARVIS/backend/module/weather_music_service.py)** : Service d'agrégation météo (wttr.in/Open-Meteo) et d'infos musicales.
-*   **[jarvis_agent.py](file:///n:/JARVIS/backend/module/jarvis_agent.py)** : Classe agent encapsulée pour l'exécution asynchrone des modèles.
 *   **[chess_manager.py](file:///n:/JARVIS/backend/module/chess_manager.py)** : Gère la logique de jeu d'échecs (validation des coups de l'utilisateur, moteur de jeu local Python-Chess).
 *   **[network_radar.py](file:///n:/JARVIS/backend/module/network_radar.py)** : Scanne le réseau local pour découvrir les adresses IP et appareils connectés.
 *   **[commandes_locales.py](file:///n:/JARVIS/backend/module/commandes_locales.py)** / **[commandes_locales_sections.py](file:///n:/JARVIS/backend/module/commandes_locales_sections.py)** : Commandes locales sans IA (compétences, Winget, antivirus, images, voix, identité, HUD 3D, apps, musique, coffre-fort).
@@ -122,7 +118,6 @@ Pilotes légers pour manipuler les applications installées sur le PC de l'utili
 *   **[spotify_controller.py](file:///n:/JARVIS/backend/controller/spotify_controller.py)** : Contrôle de l'application Spotify Windows (Play, Pause, Suivant, Précédent, récupération du titre courant).
 *   **[deezer_controller.py](file:///n:/JARVIS/backend/controller/deezer_controller.py)** : Contrôleur complexe de Deezer Windows par automatisation d'API ou de fenêtres locales.
 *   **[homepod_controller.py](file:///n:/JARVIS/backend/controller/homepod_controller.py)** : Contrôle des commandes multimédias des enceintes HomePod.
-*   **[tv_worker.py](file:///n:/JARVIS/backend/controller/tv_worker.py)** : Script s'exécutant en arrière-plan pour surveiller et piloter la TV connectée ou le Chromecast via des commandes ADB.
 *   **[actions_pc.py](file:///n:/JARVIS/backend/controller/actions_pc.py)** : Détection des applications installées et appel WhatsApp.
 
 ---
@@ -206,7 +201,6 @@ Permet à JARVIS de contrôler le navigateur de l'utilisateur par l'intermédiai
 ## 🧪 ENTRAÎNEMENT & INITIALISATION
 
 ### 🎙️ Entraînement Wake Word (`training/`)
-*   **[jarvis_fr_colab.ipynb](file:///n:/JARVIS/tools/training/wakeword/jarvis_fr_colab.ipynb)** : Notebook Google Colab permettant d'entraîner le modèle de détection du mot clé de réveil ("jarvis") adapté à la voix en français de l'utilisateur.
 
 ### 🏁 Configuration Initiale (`_setup/`)
 *   **[dependances.bat](file:///n:/JARVIS/tools/_setup/dependances.bat)** : Installation des dépendances avancées.

@@ -19,8 +19,8 @@ from core.interlocuteur import nom_espace
 _JARVIS_CONFIG_PATH = os.path.join(shared.RACINE_PROJET, "jarvis_config.json")
 
 
-def _charger_config() -> dict:
-    """Charge jarvis_config.json ou retourne un dict vide si absent/corrompu."""
+def _lire_config() -> dict:
+    """Lit jarvis_config.json ; renvoie un dict vide si le fichier manque ou est abîmé."""
     try:
         if os.path.exists(_JARVIS_CONFIG_PATH):
             import json
@@ -31,11 +31,11 @@ def _charger_config() -> dict:
     return {}
 
 
-def _sauvegarder_config(data: dict) -> None:
+def _ecrire_config(data: dict) -> None:
     """Sauvegarde les données dans jarvis_config.json."""
     try:
         import json
-        cfg = _charger_config()
+        cfg = _lire_config()
         cfg.update(data)
         with open(_JARVIS_CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
@@ -43,20 +43,19 @@ def _sauvegarder_config(data: dict) -> None:
         print(f"[MIC] Impossible de sauvegarder la config : {e}")
 
 
-def detecter_microphone() -> int | None:
+def choisir_microphone() -> int | None:
     """
-    Détecte le meilleur microphone disponible.
+    Choisit le microphone à utiliser.
 
-    Stratégie :
-      1. Essaie l'index mémorisé dans jarvis_config.json
-      2. Essaie le micro par défaut du système (index None)
-      3. Parcourt tous les périphériques d'entrée disponibles
-      4. Sauvegarde l'index retenu pour le prochain lancement
+    Méthode :
+      1. L'index mémorisé dans jarvis_config.json
+      2. Le micro par défaut de Windows (index None)
+      3. Tous les périphériques d'entrée, un par un
+      4. L'index choisi est gardé pour le prochain démarrage
 
-    Retourne l'index (int) du micro retenu, ou None si aucun trouvé
-    (dans ce cas sr.Microphone() utilisera le défaut OS).
+    Renvoie l'index du micro choisi, ou None si aucun ne marche
+    (sr.Microphone() prendra alors le défaut du système).
     """
-    import json
 
     # ── Lister tous les périphériques PyAudio ────────────────
     if pyaudio:
@@ -116,7 +115,7 @@ def detecter_microphone() -> int | None:
             #     print(f"      [{dev['index']}] {dev['clean_name']}")
 
             if not inputs:
-                print("[MIC] ⚠ Aucun périphérique d'entrée détecté par PyAudio.")
+                print("[MIC] ⚠ PyAudio ne voit aucune entrée audio.")
         except Exception as e:
             # print(f"[MIC] Impossible de lister les périphériques : {e}")
             pass
@@ -126,12 +125,12 @@ def detecter_microphone() -> int | None:
         pass
 
     # ── Récupérer l'index mémorisé ───────────────────────────
-    cfg = _charger_config()
+    cfg = _lire_config()
     index_memo = cfg.get("mic_device_index", None)
 
     # ── Fonction de test d'un index ──────────────────────────
-    def _tester_index(idx):
-        """Retourne True si sr.Microphone(device_index=idx) s'ouvre correctement."""
+    def _essayer_index(idx):
+        """Vrai si sr.Microphone(device_index=idx) s'ouvre sans erreur."""
         try:
             kwargs = {} if idx is None else {"device_index": idx}
             mic_test = sr.Microphone(**kwargs)
@@ -156,7 +155,7 @@ def detecter_microphone() -> int | None:
 
     # ── Priorité 2 : micro par défaut OS ─────────────────────
     # print("[MIC] Test du micro par défaut système…")
-    if _tester_index(None):
+    if _essayer_index(None):
         # Identifier son index réel si possible
         idx_reel = None
         if pyaudio:
@@ -168,34 +167,34 @@ def detecter_microphone() -> int | None:
                 pass
         nom_defaut = next((n for i, n in inputs if i == idx_reel), "Défaut système")
         print(f"[MIC] [OK] Micro retenu (défaut) : [{idx_reel}] {nom_defaut}")
-        _sauvegarder_config({"mic_device_index": idx_reel})
+        _ecrire_config({"mic_device_index": idx_reel})
         return idx_reel
 
     # ── Priorité 3 : parcourir tous les périphériques ────────
     # print("[MIC] Recherche sur tous les périphériques disponibles…")
     for idx, nom in inputs:
         # print(f"[MIC]   Test [{idx}] {nom}…")
-        if _tester_index(idx):
+        if _essayer_index(idx):
             print(f"[MIC] [OK] Micro retenu (fallback) : [{idx}] {nom}")
-            _sauvegarder_config({"mic_device_index": idx})
+            _ecrire_config({"mic_device_index": idx})
             return idx
 
     # ── Aucun micro fonctionnel ───────────────────────────────
-    print("[MIC] ⚠ Aucun microphone fonctionnel trouvé.")
-    print("[MIC]   Vérifiez que votre micro est branché et autorisé dans")
-    print("[MIC]   Paramètres Windows → Confidentialité → Microphone.")
-    _sauvegarder_config({"mic_device_index": None})
+    print("[MIC] ⚠ Pas de microphone utilisable.")
+    print("[MIC]   Vérifiez qu'il est branché et autorisé dans")
+    print("[MIC]   Réglages Windows > Confidentialité et sécurité > Microphone.")
+    _ecrire_config({"mic_device_index": None})
     return None
 
 
-def monitor_claps():
+def surveiller_claps():
     if not pyaudio:
-        print("[CLAP] PyAudio absent — detection des applaudissements desactivee.")
+        print("[CLAP] PyAudio manquant : applaudissements non détectés.")
         return
     try:
         import audioop
         audio_manager = AudioStreamManager()
-        cfg_clap = _charger_config()
+        cfg_clap = _lire_config()
         
         # 1. Permettre la désactivation complète depuis le fichier de config
         if not cfg_clap.get("enable_claps", True):
@@ -207,7 +206,7 @@ def monitor_claps():
         
         mic_idx_clap = cfg_clap.get("mic_device_index", None)
         if mic_idx_clap is None:
-            mic_idx_clap = detecter_microphone()
+            mic_idx_clap = choisir_microphone()
             
         audio_manager.start(mic_idx_clap)
         queue_clap = audio_manager.subscribe()
@@ -288,4 +287,4 @@ def monitor_claps():
             audio_manager.unsubscribe(queue_clap)
 
     except Exception as e:
-        print(f"[CLAP] Erreur fatale détection claps : {e}")
+        print(f"[CLAP] La détection s'est arrêtée sur une erreur : {e}")

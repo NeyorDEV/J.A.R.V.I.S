@@ -21,7 +21,7 @@ Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 ## Features
 
 **Voice & AI**
-- Always-on listening with wake word detection ("Jarvis") — local (openWakeWord) or transcription-based
+- Always-on listening with wake word detection ("Jarvis") — transcription-based
 - Speech-to-text via Groq Whisper (Google STT fallback)
 - Streaming generative answers (Gemini as the main model, automatic failover to Groq / Claude / Mistral / Grok / local Ollama depending on availability)
 - Text-to-speech (edge-tts) with a speech queue and interruption ("stop", "silence")
@@ -60,7 +60,7 @@ Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 |---|---|
 | Backend | Python 3, WebSocket (`websockets`), asyncio |
 | LLM | Gemini (main), Groq, Claude (Anthropic), Mistral, Grok (xAI), Ollama (local, 100% offline) |
-| Voice | Silero VAD, openWakeWord, Groq Whisper, edge-tts, sherpa-onnx (biometrics) |
+| Voice | Silero VAD, Groq Whisper, edge-tts, sherpa-onnx (biometrics) |
 | Frontend | TypeScript, Three.js, Vite |
 | Home automation | Home Assistant (REST API / MCP) |
 | Storage | ChromaDB (vector memory), JSON files (config/memory/alarms) |
@@ -99,7 +99,7 @@ The backend listens on `ws://localhost:8765`. Just say **"Jarvis"** followed by 
 ## Project structure
 
 ```
-main.py             — Entry point: startup order, start_ia() and main()
+main.py             — Entry point: startup order, demarrer_ia() and main()
 assets/              — Application icon
 backend/
   core/              — Shared state (shared.py), WebSocket server, command processing,

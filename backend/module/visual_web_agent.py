@@ -12,7 +12,6 @@ import base64
 import json
 import os
 import re
-import time
 import builtins
 from pathlib import Path
 from PIL import Image
@@ -68,7 +67,7 @@ def _extract_json(text: str) -> dict | None:
     return None
 
 
-def _parler(msg: str):
+def _dire(msg: str):
     """Appelle la fonction parler() de JARVIS si disponible."""
     try:
         parler_fn = builtins.parler
@@ -1456,14 +1455,14 @@ class VisualWebAgent:
                     pass
 
         print(f"\n[VISUAL_AGENT] 🚀 Nouvelle tâche : {task}")
-        _parler(f"J'active l'autopilote visuel, un instant{nom_espace()}...")
+        _dire(f"J'active l'autopilote visuel, un instant{nom_espace()}...")
 
         # 1. Planification
         steps = await self._plan_task(task)
         if not steps:
             return f"Je n'ai pas pu planifier la tâche. Essayez de reformuler{nom_virgule()}."
 
-        _parler(f"Plan établi en {len(steps)} étapes. Je lance le navigateur.")
+        _dire(f"Plan établi en {len(steps)} étapes. Je lance le navigateur.")
 
         # 2. Démarrage du navigateur
         try:
@@ -1481,7 +1480,7 @@ class VisualWebAgent:
             if success:
                 completed += 1
             else:
-                _parler(f"J'ai rencontré un obstacle à cette étape{nom_virgule()}. Par sécurité, je désactive l'autopilote et je vous laisse reprendre le contrôle sur cette page.")
+                _dire(f"J'ai rencontré un obstacle à cette étape{nom_virgule()}. Par sécurité, je désactive l'autopilote et je vous laisse reprendre le contrôle sur cette page.")
                 break
             await asyncio.sleep(STEP_DELAY)
 

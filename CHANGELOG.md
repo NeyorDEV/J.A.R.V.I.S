@@ -1,5 +1,28 @@
 # Changelog
 
+## Non publié — Panneaux refaits
+
+- **« Jarvis » mal transcrit rattrapé** (en veille seulement) : « j'en révise », « j'ai un vice », « jar vis », « djarvis », « garvis »… sont remplacés par « jarvis » avant le test du mot d'éveil (`normaliser_mot_eveil`, `ecoute_outils.py`).
+- **Coffre-fort renforcé** : dérivation de la clé à 600 000 itérations (les anciens coffres à 100 000 sont migrés au prochain déverrouillage, fichiers rechiffrés puis remplacés en un bloc), mot de passe de 8 caractères minimum à la création, délai croissant après 3 erreurs (30 s, 60 s, 120 s… plafond 1 h, `vault_tentatives.json`), comparaison en temps constant, écritures atomiques, message du serveur affiché dans le HUD.
+- **Ménage CSS** : 58 règles mortes des anciens panneaux désinstallateur / winget retirées de `10_uninstaller_menu.css` (839 → 360 lignes).
+- **Code mort supprimé** : 5 fichiers jamais appelés (`tv_worker.py`, `core/stt.py`, `jarvis_agent.py`, `website_builder.py`, `local_agent_manager.py`), 17 fonctions sans appelant (dont 7 de `spotify_controller` : les actions « spotify_* » passent par Deezer), le rappel d'alarme jamais défini, 41 imports inutilisés. Copies dans `scratch/code_mort_supprime_2026-10-19/`.
+- **Module sports retiré** : `sports_web.py` supprimé, ainsi que les actions « sport_resultats / sport_classement / sport_live » et leur bloc dans le prompt. La recherche web SerpAPI (secours du LLM, navigateur agent, action `recherche_web`) vit désormais dans `module/recherche_web.py`.
+- **Textes reformulés** : une centaine de messages de console, docstrings et prompts réécrits dans une quinzaine de fichiers (voix, vision, désinstallateur, compétences, lancement…). Aucun changement de comportement ; le banc des commandes reste à 0 différence. Copies d'origine dans `scratch/avant_reformulation_2026-10-19/`.
+- **Fonctions renommées** : environ 145 noms de fonctions, classes et méthodes (Deezer, fichiers, Google, mémoire, météo/HA, désinstallateur, vision, quotas, envoi vers le HUD…) en 65 fichiers, appels, documentation et outils de test compris. Les noms de messages WebSocket et d'actions du HUD ne changent pas. Le banc des commandes (référence mise à jour) reste à 0 différence. Copies d'origine dans `scratch/avant_renommage_2026-10-19/`.
+- **openWakeWord supprimé** (code, modèle `jarvis_fr.onnx`, dépendance, notebook d'entraînement, réglages `use_openwakeword` / `wakeword_threshold`) : le modèle ne reconnaissait pas toutes les voix. JARVIS transcrit chaque phrase (Silero VAD + Groq Whisper) et cherche « jarvis » dans le texte.
+- **Voix de JARVIS rétablie** : edge-tts 7.2.8 était refusé par Microsoft (403) et JARVIS parlait avec la voix de secours de Windows ; passage à 7.3.1.
+- **Mises à jour de sécurité et de stabilité** (versions mineures, le reste bloqué) : cryptography 49, certifi, urllib3, requests, aiohttp, idna, sherpa-onnx 1.13.8, SpeechRecognition, pyatv 0.18, zeroconf, pycaw ; interface : vite 6.4.4, eslint et 5 failles npm des outils de construction corrigées. onnxruntime-gpu 1.26 inchangé (CUDA).
+- **requirements.txt aligné sur les versions réellement utilisées** (il demandait rich 15 et anthropic 0.98, jamais testés avec JARVIS).
+
+- **Bouton « Stopper JARVIS » retiré** (en bas à droite) : JARVIS comprend maintenant « stop » / « tais-toi » à la voix ; seul reste le bouton du micro.
+
+**Style commun** pour le désinstallateur, les mises à jour (winget), la sécurité (antivirus) et la domotique : même cadre, en-tête déplaçable, recherche et pastilles de filtre, lignes et tuiles, une couleur par module, icônes vectorielles au lieu des emojis (`css/13_panneaux_modules.css`, `panels/pm_utils.ts`).
+- **Désinstallateur** : taille et date d'installation (lues dans le registre), tri par nom / taille / date, action « Désinstaller » au survol, désinstallation en trois étapes visibles (désinstallation, analyse des traces, nettoyage) ; plus de fenêtres d'alerte du navigateur.
+- **Mises à jour** : compteur et heure de vérification, versions « actuelle → nouvelle », état de chaque mise à jour sur sa ligne (le serveur indique le paquet en cours), journal repliable qui s'ouvre en cas d'échec ; « Tout » reste une seule commande winget --all (une seule demande d'autorisation Windows).
+- **Sécurité** : anneau d'avancement, fichiers analysés, menaces, durée ; couleur selon l'état (analyse, sain, menace) ; une carte par menace avec ses actions ; protection en temps réel réglable depuis l'en-tête. Prénom écrit en dur retiré du message vocal de fin.
+- **Domotique** : catégories en pastilles, tuiles compactes, états lisibles (« Allumée · 80 % », « Allumé · 142 W », « 19,4 °C », « À la base · 100 % »).
+- **Corrigé** : les interrupteurs et « Actualiser » de la domotique ne faisaient plus rien après une reconnexion du HUD (connexion gardée du démarrage) ; le bouton « Protection temps réel » du menu n'enregistrait pas le réglage. Noms de programmes et d'appareils échappés dans le HTML. « Jarvis, oui. » ouvrait le calendrier : un simple acquiescement (« oui », « d'accord », « merci »…) n'est plus envoyé à l'aiguillage d'intentions par l'IA.
+
 ## 9.5.0 — 2026-10-08 — Corrections de l'audit complet
 
 **Console refaite**

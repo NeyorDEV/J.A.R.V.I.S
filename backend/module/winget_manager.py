@@ -9,7 +9,7 @@ Extrait de main2.py.
 import asyncio
 
 # ── Winget System Upgrade Helpers ──────────────────────────────────────────
-def _clean_winget_version(v):
+def _normaliser_version_winget(v):
     v = v.strip().lower()
     if v.startswith('v'):
         v = v[1:]
@@ -17,9 +17,9 @@ def _clean_winget_version(v):
         v = v[1:]
     return v.strip()
 
-def _version_is_greater_or_equal(installed, available):
-    inst_clean = _clean_winget_version(installed)
-    avail_clean = _clean_winget_version(available)
+def _version_au_moins(installed, available):
+    inst_clean = _normaliser_version_winget(installed)
+    avail_clean = _normaliser_version_winget(available)
     if inst_clean == avail_clean:
         return True
     try:
@@ -38,20 +38,20 @@ def _version_is_greater_or_equal(installed, available):
         pass
     return inst_clean == avail_clean
 
-def lister_mises_a_jour_winget():
+def inventorier_mises_a_jour():
     try:
         import subprocess
         res = subprocess.run(["winget", "upgrade", "--include-unknown"], capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=20)
         stdout = res.stdout
     except subprocess.TimeoutExpired:
-        print("[WINGET] winget upgrade a expiré (timeout).")
+        print("[WINGET] winget upgrade n'a pas répondu à temps.")
         return []
     except Exception as e:
         try:
             res = subprocess.run(["winget", "upgrade", "--include-unknown"], capture_output=True, text=True, encoding="cp1252", errors="ignore", timeout=20)
             stdout = res.stdout
         except Exception as e2:
-            print(f"[WINGET] Erreur d'exécution de winget: {e2}")
+            print(f"[WINGET] winget a échoué : {e2}")
             return []
 
     lines = stdout.splitlines()
@@ -62,7 +62,7 @@ def lister_mises_a_jour_winget():
             break
             
     if header_idx == -1:
-        print("[WINGET] Aucun en-tête trouvé ou système déjà à jour.")
+        print("[WINGET] Pas d'en-tête de tableau, ou tout est déjà à jour.")
         return []
         
     headers_line = lines[header_idx]
@@ -75,7 +75,7 @@ def lister_mises_a_jour_winget():
     idx_src = headers_line.find("Source")
     
     if idx_id == -1 or idx_ver == -1 or idx_disp == -1 or idx_src == -1:
-        print("[WINGET] Indexation des colonnes impossible.")
+        print("[WINGET] Colonnes du tableau introuvables.")
         return []
         
     results = []
@@ -92,7 +92,7 @@ def lister_mises_a_jour_winget():
         source = line[idx_src:].strip()
         
         if pkg_id and available:
-            if _version_is_greater_or_equal(version, available):
+            if _version_au_moins(version, available):
                 continue
             results.append({
                 "name": name,
@@ -104,7 +104,9 @@ def lister_mises_a_jour_winget():
             
     return results
 
-def run_winget_upgrade_sync(args, loop, websocket_client):
+def lancer_mise_a_jour_winget(args, loop, websocket_client, paquet=None):
+    """Lance winget et relaie sa sortie au HUD. `paquet` (identifiant winget) accompagne chaque
+    message : le panneau affiche l'avancement sur la ligne du logiciel concerné."""
     try:
         import subprocess
         import ctypes
@@ -139,6 +141,7 @@ def run_winget_upgrade_sync(args, loop, websocket_client):
             asyncio.run_coroutine_threadsafe(
                 websocket_client.send(json.dumps({
                     "type": "winget_upgrade_progress",
+                    "id": paquet,
                     "status": "running",
                     "log": "[JARVIS] Demande d'élévation Administrateur (UAC) en cours...\n[JARVIS] Une fenêtre de commande administrateur va s'ouvrir pour effectuer l'installation.\n"
                 })),
@@ -171,6 +174,7 @@ def run_winget_upgrade_sync(args, loop, websocket_client):
                     asyncio.run_coroutine_threadsafe(
                         websocket_client.send(json.dumps({
                             "type": "winget_upgrade_progress",
+                            "id": paquet,
                             "status": "running",
                             "log": text + "\n"
                         })),
@@ -182,6 +186,7 @@ def run_winget_upgrade_sync(args, loop, websocket_client):
         asyncio.run_coroutine_threadsafe(
             websocket_client.send(json.dumps({
                 "type": "winget_upgrade_progress",
+                "id": paquet,
                 "status": "complete",
                 "returncode": return_code
             })),
@@ -189,10 +194,11 @@ def run_winget_upgrade_sync(args, loop, websocket_client):
         )
         return return_code == 0
     except Exception as e:
-        print(f"[WINGET] Erreur d'exécution de winget upgrade: {e}")
+        print(f"[WINGET] winget upgrade a échoué : {e}")
         asyncio.run_coroutine_threadsafe(
             websocket_client.send(json.dumps({
                 "type": "winget_upgrade_progress",
+                "id": paquet,
                 "status": "complete",
                 "returncode": -1,
                 "log": f"Erreur: {str(e)}\n"

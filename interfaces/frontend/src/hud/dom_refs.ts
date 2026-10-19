@@ -8,7 +8,6 @@ export const badgeEl = document.getElementById("connection-badge") as HTMLDivEle
 export const badgeLabelEl = document.getElementById(
   "connection-label"
 ) as HTMLSpanElement;
-export const muteButtonEl = document.getElementById("mute-button") as HTMLButtonElement;
 export const micBtnEl = document.getElementById("mic-btn") as HTMLButtonElement;
 export const jarvisMenuBtn = document.getElementById("jarvis-menu-btn") as HTMLButtonElement;
 export const jarvisMenuDropdown = document.getElementById("jarvis-menu-dropdown") as HTMLDivElement;

@@ -20,25 +20,25 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backend")))
 
 from backend.controller.deezer_controller import (
-    deezer_ouvrir,
-    deezer_lecture_pause,
-    deezer_suivant,
-    deezer_precedent,
-    deezer_stop,
-    deezer_volume,
-    deezer_rechercher,
+    deezer_demarrer,
+    deezer_basculer_lecture,
+    deezer_piste_suivante,
+    deezer_piste_precedente,
+    deezer_arreter,
+    deezer_regler_volume,
+    deezer_chercher,
     deezer_lancer_playlist,
     deezer_obtenir_titre_encours,
 )
 
 ACTIONS = {
-    "1": ("Ouvrir Deezer",              lambda: deezer_ouvrir()),
-    "2": ("Lecture / Pause",            lambda: deezer_lecture_pause()),
-    "3": ("Piste suivante",             lambda: deezer_suivant()),
-    "4": ("Piste précédente",           lambda: deezer_precedent()),
-    "5": ("Stop",                       lambda: deezer_stop()),
-    "6": ("Volume +",                   lambda: deezer_volume("up")),
-    "7": ("Volume -",                   lambda: deezer_volume("down")),
+    "1": ("Ouvrir Deezer",              lambda: deezer_demarrer()),
+    "2": ("Lecture / Pause",            lambda: deezer_basculer_lecture()),
+    "3": ("Piste suivante",             lambda: deezer_piste_suivante()),
+    "4": ("Piste précédente",           lambda: deezer_piste_precedente()),
+    "5": ("Stop",                       lambda: deezer_arreter()),
+    "6": ("Volume +",                   lambda: deezer_regler_volume("up")),
+    "7": ("Volume -",                   lambda: deezer_regler_volume("down")),
     "8": ("Rechercher (saisie)",        None),  # géré à part : demande une saisie
     "9": ("Lancer la dernière playlist", lambda: deezer_lancer_playlist()),
     "0": ("Titre en cours",             lambda: asyncio.sleep(0, result=deezer_obtenir_titre_encours())),
@@ -60,7 +60,7 @@ async def menu():
         if choix == "8":
             recherche = input("[?] Terme à rechercher : ").strip()
             if recherche:
-                resultat = await deezer_rechercher(recherche)
+                resultat = await deezer_chercher(recherche)
                 print(f"[RESULTAT] {resultat}")
             continue
 

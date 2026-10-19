@@ -7,7 +7,7 @@ def remplacer_prenom(nouveau_prenom):
     prenom = nouveau_prenom.strip()
     prenom_lower = prenom.lower()
 
-    fichiers = ["main.py", "backend/module/jarvis_agent.py"]
+    fichiers = ["main.py"]
     base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     for nom_fichier in fichiers:

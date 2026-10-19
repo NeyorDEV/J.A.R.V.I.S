@@ -87,8 +87,8 @@ def lancer_frontend():
         except Exception:
             pass
 
-    def _port_ecoute(port, timeout=4.0):
-        """Retourne True si quelque chose ecoute sur le port donne."""
+    def _service_ecoute_sur(port, timeout=4.0):
+        """Indique si un service répond déjà sur ce port."""
         import socket
         debut = time.time()
         while time.time() - debut < timeout:
@@ -101,8 +101,8 @@ def lancer_frontend():
             time.sleep(0.2)
         return False
 
-    def _servir_dist_python(port=5173):
-        """Sert le dossier dist/ avec le serveur HTTP Python (fallback sans npm)."""
+    def _publier_dist_python(port=5173):
+        """Publie le dossier dist/ par un petit serveur HTTP Python (secours sans npm)."""
         import http.server, socketserver, functools
         dist_dir = os.path.join(frontend_dir, "dist")
         # On passe le dossier au handler au lieu de faire os.chdir() : cette fonction
@@ -112,14 +112,14 @@ def lancer_frontend():
         handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=dist_dir)
         handler.log_message = lambda *a: None  # silencieux
         with socketserver.TCPServer(("", port), handler) as httpd:
-            print(f"[JARVIS] Frontend servi via Python HTTP sur http://localhost:{port}")
+            print(f"[JARVIS] Interface servie par Python sur http://localhost:{port}")
             httpd.serve_forever()
 
     vite_ok = False
     if os.path.exists(frontend_dir):
         # Tentative 1 : Vite (npm run dev)
         try:
-            print("[JARVIS] Tentative de lancement Vite (npm run dev)...")
+            print("[JARVIS] Démarrage de Vite (npm run dev)...")
             log_path = os.path.join(frontend_dir, "vite_output.log")
             with open(log_path, "w", encoding="utf-8") as f_log:
                 frontend_process = subprocess.Popen(
@@ -127,11 +127,11 @@ def lancer_frontend():
                     stdout=f_log, stderr=f_log
                 )
             # Timeout augmenté légèrement à 6.0s au cas où le système ralentit
-            vite_ok = _port_ecoute(5173, timeout=6.0)
+            vite_ok = _service_ecoute_sur(5173, timeout=6.0)
             if vite_ok:
                 print("[JARVIS] Interface locale (Vite) initialisée.")
             else:
-                print("[JARVIS] Vite n'a pas demarre (npm/vite absent ou erreur).")
+                print("[JARVIS] Vite ne s'est pas lancé (npm ou vite manquant, ou erreur).")
                 if frontend_process:
                     frontend_process.terminate()
                     frontend_process = None
@@ -147,26 +147,26 @@ def lancer_frontend():
                 except Exception:
                     pass
         except Exception as e:
-            print(f"[JARVIS] Impossible de lancer Vite : {e}")
+            print(f"[JARVIS] Lancement de Vite impossible : {e}")
             frontend_process = None
 
         # Tentative 2 : servir dist/ avec Python (pas besoin de npm)
         if not vite_ok:
             dist_dir = os.path.join(frontend_dir, "dist")
             if os.path.exists(dist_dir) and os.path.exists(os.path.join(dist_dir, "index.html")):
-                print("[JARVIS] Fallback : service du dossier dist/ via Python HTTP...")
-                t_dist = threading.Thread(target=_servir_dist_python, args=(5173,), daemon=True)
+                print("[JARVIS] Secours : dist/ servi par Python...")
+                t_dist = threading.Thread(target=_publier_dist_python, args=(5173,), daemon=True)
                 t_dist.start()
-                vite_ok = _port_ecoute(5173, timeout=3.0)
+                vite_ok = _service_ecoute_sur(5173, timeout=3.0)
                 if vite_ok:
-                    print("[JARVIS] Frontend dist/ servi correctement.")
+                    print("[JARVIS] dist/ est en ligne.")
             else:
-                print("[JARVIS] Aucun dossier dist/ trouve. Interface non disponible.")
-                print("[JARVIS] Pour corriger : cd frontend && npm install && npm run build")
+                print("[JARVIS] Pas de dossier dist/ : l'interface n'est pas disponible.")
+                print("[JARVIS] Pour la construire : cd frontend && npm install && npm run build")
 
     if not vite_ok:
-        print("[JARVIS] ATTENTION : l'interface visuelle ne sera pas disponible.")
-        print("[JARVIS] JARVIS reste fonctionnel en mode vocal uniquement.")
+        print("[JARVIS] Attention : pas d'interface visuelle cette fois.")
+        print("[JARVIS] Le mode vocal reste utilisable.")
 
     return frontend_process, FRONTEND_URL
 
@@ -178,7 +178,7 @@ def ouvrir_interface(frontend_process, FRONTEND_URL):
 
     if use_native:
         # MODE FENETRE NATIVE (pywebview)
-        print("[JARVIS] Ouverture dans une fenetre native (pywebview)...")
+        print("[JARVIS] Ouverture de la fenêtre native (pywebview)...")
 
         # Calcul de la taille et position centrée selon la résolution de l'écran
         try:
@@ -207,8 +207,8 @@ def ouvrir_interface(frontend_process, FRONTEND_URL):
             maximized        = True,
         )
 
-        def _on_closed():
-            print("\n[JARVIS] Fenetre fermee — extinction du systeme...")
+        def _a_la_fermeture():
+            print("\n[JARVIS] Fenêtre close : arrêt de JARVIS...")
             # Arrêter le radar réseau proprement avant la fermeture
             try:
                 import plugins.network_resolver as _nr
@@ -223,11 +223,11 @@ def ouvrir_interface(frontend_process, FRONTEND_URL):
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                 )
 
-        shared._WEBVIEW_WINDOW.events.closed += _on_closed
+        shared._WEBVIEW_WINDOW.events.closed += _a_la_fermeture
 
         _jarvis_loaded_once = False
 
-        def _on_loaded():
+        def _au_chargement():
             nonlocal _jarvis_loaded_once
             if _jarvis_loaded_once:
                 return  # Ignorer les appels dupliqués (2ème fenêtre pywebview)
@@ -236,7 +236,7 @@ def ouvrir_interface(frontend_process, FRONTEND_URL):
                 import ctypes
                 import os
                 # Groupement dans la barre des taches (detache de python.exe)
-                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("TechEnClair.Jarvis.App")
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Neyor.Jarvis.App")
 
                 # Remplacement de l'icone de la fenetre webview
                 hwnd = ctypes.windll.user32.FindWindowW(None, "J.A.R.V.I.S")
@@ -248,9 +248,9 @@ def ouvrir_interface(frontend_process, FRONTEND_URL):
                             ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 0, hicon) # ICON_SMALL
                             ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 1, hicon) # ICON_BIG
             except Exception as e:
-                print(f"[JARVIS] Erreur chargement icone : {e}")
+                print(f"[JARVIS] Icône illisible : {e}")
 
-        shared._WEBVIEW_WINDOW.events.loaded += _on_loaded
+        shared._WEBVIEW_WINDOW.events.loaded += _au_chargement
 
         # webview.start() DOIT etre appele depuis le thread principal
         try:
@@ -274,10 +274,10 @@ def ouvrir_interface(frontend_process, FRONTEND_URL):
                     webview.start(private_mode=False, storage_path=_storage_path, debug=False)
                 except Exception as e3:
                     print(f"[JARVIS] Troisieme tentative PyWebView impossible : {e3} — bascule sur navigateur")
-                    _ouvrir_dans_navigateur(FRONTEND_URL, frontend_process)
+                    _ouvrir_navigateur_secours(FRONTEND_URL, frontend_process)
     else:
         # MODE NAVIGATEUR (fallback si pywebview absent)
-        _ouvrir_dans_navigateur(FRONTEND_URL, frontend_process)
+        _ouvrir_navigateur_secours(FRONTEND_URL, frontend_process)
 
 
 def _trouver_chemin_navigateur():
@@ -295,7 +295,7 @@ def _trouver_chemin_navigateur():
     return None
 
 
-def _ouvrir_dans_navigateur(url, frontend_process):
+def _ouvrir_navigateur_secours(url, frontend_process):
     """
     Ouvre JARVIS dans un navigateur, de préférence en mode 'app' (sans barres).
     """
@@ -318,28 +318,28 @@ def _ouvrir_dans_navigateur(url, frontend_process):
         import webbrowser
         webbrowser.open(url)
     
-    _attendre_interface(frontend_process)
+    _attendre_hud(frontend_process)
 
 
-def _attendre_interface(frontend_process):
-    """Gère la boucle d'attente et l'extinction du système."""
+def _attendre_hud(frontend_process):
+    """Boucle d'attente du HUD et arrêt de JARVIS."""
     try:
         while True:
             time.sleep(1)
             # On ne ferme que si l'interface a été connectée au moins une fois
             if shared.interface_deja_connectee and not (shared.CONNECTED_CLIENTS - shared.CLIENTS_EXTENSION):
-                print("\n[JARVIS] Interface deconnectee. Attente de reconnexion (60s)...")
+                print("\n[JARVIS] HUD déconnecté, 60 s pour se reconnecter...")
                 time.sleep(60)
                 if not (shared.CONNECTED_CLIENTS - shared.CLIENTS_EXTENSION):
-                    print("[JARVIS] Aucune reconnexion. Extinction automatique...")
+                    print("[JARVIS] Pas de reconnexion : arrêt automatique...")
                     break
                 else:
-                    print("[JARVIS] Reconnexion detectee. Reprise.")
+                    print("[JARVIS] HUD de retour, on continue.")
     except KeyboardInterrupt:
         print("\n[JARVIS] Arret manuel.")
 
     if frontend_process:
-        print("[JARVIS] Arret du serveur Web...")
+        print("[JARVIS] Arrêt du serveur web...")
         subprocess.run(
             ["taskkill", "/F", "/T", "/PID", str(frontend_process.pid)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL

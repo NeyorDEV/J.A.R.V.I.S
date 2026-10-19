@@ -6,12 +6,12 @@ import os
 import pyautogui
 
 from core.speech import parler
-from module.vision_module import jarvis_vision_cliquer
+from module.vision_module import vision_cliquer
 from core.interlocuteur import nom_espace, nom_virgule
 
 
-def lister_applications_installees():
-    """Détecte les applications installées sur le PC à partir des raccourcis du menu Démarrer."""
+def recenser_applications():
+    """Recense les applications installées grâce aux raccourcis du menu Démarrer."""
     import win32com.client
     import pythoncom
     import os
@@ -53,7 +53,7 @@ def lister_applications_installees():
         shell = None
         apps.sort(key=lambda x: x["nom"].lower())
     except Exception as e:
-        print(f"[APPS SCAN] Erreur lors du scan : {e}")
+        print(f"[APPS SCAN] Analyse en échec : {e}")
     finally:
         try:
             pythoncom.CoUninitialize()
@@ -63,7 +63,7 @@ def lister_applications_installees():
     return apps
 
 
-async def action_whatsapp_appel(contact):
+async def appeler_via_whatsapp(contact):
     try:
         parler(f"J'appelle {contact} sur WhatsApp{nom_virgule()}.")
         # Lancement de l'app via le protocole
@@ -79,13 +79,13 @@ async def action_whatsapp_appel(contact):
         await asyncio.sleep(3) # On attend que la conversation s'affiche bien
         
         # Utilisation du raccourci clavier officiel pour l'appel audio (plus fiable que la vision)
-        print(f"[WHATSAPP] Envoi du raccourci d'appel (Ctrl+Shift+C)...")
+        print(f"[WHATSAPP] Raccourci d'appel envoyé (Ctrl+Maj+C)...")
         pyautogui.hotkey('ctrl', 'shift', 'c')
         
         # On ajoute quand meme un petit clic de vision en secours si le raccourci ne suffit pas
         await asyncio.sleep(2)
-        print(f"[WHATSAPP] Verification par vision au cas ou...")
-        await jarvis_vision_cliquer("clique sur le bouton 'Appel vocal' ou l icone de telephone qui vient de s afficher en haut a droite")
+        print(f"[WHATSAPP] Contrôle visuel de sécurité...")
+        await vision_cliquer("appuie sur le bouton 'Appel vocal' (icône de téléphone) apparu en haut à droite")
         
         return True
     except Exception as e:

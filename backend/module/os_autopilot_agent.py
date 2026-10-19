@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import json
 import re
@@ -12,10 +11,9 @@ import win32con
 import win32process
 import win32api
 import win32clipboard
-import google.genai as genai
 from google.genai import types
-from core.config import GEMINI_API_KEY, CHOSEN_MODEL
-from controller.app_launcher import _APPS_CATALOGUE, _boulot_lancer
+from core.config import CHOSEN_MODEL
+from controller.app_launcher import _APPS_CATALOGUE, _demarrer_appli_travail
 from core.interlocuteur import nom_espace, nom_virgule
 
 # Client Gemini différé (core/ai_clients.py) : pas de plantage à l'import sans clé,
@@ -383,7 +381,7 @@ async def executer_sequence_actions(sequence):
                             pyautogui.press('enter')
                 elif app_to_launch in _APPS_CATALOGUE:
                     info = _APPS_CATALOGUE[app_to_launch]
-                    _boulot_lancer(info["label"], info["noms"], info["hints"])
+                    _demarrer_appli_travail(info["label"], info["noms"], info["hints"])
                 else:
                     # Application inconnue du catalogue : le nom vient d'un plan
                     # généré par le LLM. On ne le passe SURTOUT PAS à un shell
@@ -558,8 +556,8 @@ async def lancer_autopilote(instruction):
         from core.confirmation import demander_confirmation
         if not await demander_confirmation(None, f"Autopilote : {_resumer_plan(sequence)}. Je lance ?"):
             return f"Autopilote annulé{nom_virgule()}."
-        from core.web_bridge import lancer_tache_arriere_plan
-        lancer_tache_arriere_plan(executer_sequence_actions(sequence))
+        from core.web_bridge import demarrer_tache_fond
+        demarrer_tache_fond(executer_sequence_actions(sequence))
         
         return f"C'est parti{nom_espace()}, j'active l'autopilote OS. Regardez mon curseur virtuel à l'écran."
         

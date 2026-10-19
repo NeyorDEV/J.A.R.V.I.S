@@ -43,7 +43,7 @@ def _sauvegarder_fichier_corrompu(chemin, erreur):
         print(f"[MEMOIRE] ⚠ Fichier illisible ({erreur}), sauvegarde impossible : {e}")
 
 
-def charger_memoire():
+def relire_memoire():
     with _VERROU_MEMOIRE:
         if os.path.exists(MEMOIRE_FILE):
             try:
@@ -56,32 +56,32 @@ def charger_memoire():
                 return {}
         return {}
 
-def sauvegarder_memoire(memoire):
+def ecrire_memoire(memoire):
     with _VERROU_MEMOIRE:
         try:
             _ecrire_json_atomique(MEMOIRE_FILE, memoire)
         except Exception as e:
             print(f"Erreur sauvegarde memoire : {e}")
 
-def ajouter_memoire(cle, valeur):
+def noter_en_memoire(cle, valeur):
     # Le verrou couvre lecture ET écriture : sinon deux ajouts simultanés
     # repartaient de la même copie et le second écrasait le premier.
     with _VERROU_MEMOIRE:
-        memoire      = charger_memoire()
+        memoire      = relire_memoire()
         memoire[cle] = {"valeur": valeur, "timestamp": time.strftime("%d/%m/%Y %H:%M")}
-        sauvegarder_memoire(memoire)
+        ecrire_memoire(memoire)
 
-def supprimer_memoire(cle):
+def oublier_memoire(cle):
     with _VERROU_MEMOIRE:
-        memoire = charger_memoire()
+        memoire = relire_memoire()
         if cle in memoire:
             del memoire[cle]
-            sauvegarder_memoire(memoire)
+            ecrire_memoire(memoire)
             return True
         return False
 
-def construire_contexte_memoire():
-    memoire = charger_memoire()
+def composer_contexte_memoire():
+    memoire = relire_memoire()
     if not memoire:
         return ""
     lignes = ["MEMOIRE PERSISTANTE :"]
@@ -99,7 +99,7 @@ MAX_ECHANGES_CHARGE  = 30    # échanges rechargés au démarrage (contexte IA)
 _NB_ECHANGES_CONSOLIDES = 0   # nombre d'échanges déjà vus par la dernière consolidation
 
 
-def _sauvegarder_echange_conv(user_text: str, model_text: str):
+def _archiver_echange(user_text: str, model_text: str):
     """Ajoute un échange user/model au fichier JSON persistant."""
     # Verrou + écriture atomique : deux requêtes qui se chevauchent partaient
     # sinon de la même liste et la seconde écrasait l'échange de la première.
@@ -129,7 +129,7 @@ def _sauvegarder_echange_conv(user_text: str, model_text: str):
         except Exception as e:
             print(f"[CONV] Erreur sauvegarde historique: {e}")
 
-def _charger_historique_recent():
+def _relire_historique_recent():
     """Charge les derniers échanges et retourne une liste types.Content."""
     if not os.path.exists(HISTORIQUE_CONV_FILE):
         return []
@@ -183,7 +183,7 @@ async def consolider_memoire_ia():
         conv_text += f"[{e.get('date')} {e.get('heure')}] User: {e.get('user')}\nAssistant: {e.get('model')}\n\n"
         
     # Charger la mémoire actuelle
-    memoire_actuelle = charger_memoire()
+    memoire_actuelle = relire_memoire()
     mem_formatted = json.dumps(memoire_actuelle, ensure_ascii=False, indent=2)
     
     prompt = f"""Analyse l'historique récent des conversations ci-dessous pour extraire les faits persistants importants ou les préférences de l'utilisateur (le plus souvent Neyor, ton créateur). 
@@ -234,13 +234,13 @@ Ne renvoie rien d'autre que le JSON brut. Si aucune nouvelle information n'est d
         deletes = data.get("deletes", []) if isinstance(data, dict) else []
         
         if updates or deletes:
-            mem = charger_memoire()
+            mem = relire_memoire()
             timestamp = time.strftime("%d/%m/%Y %H:%M")
             for k, v in updates.items():
                 # Filet de sécurité : si le LLM échoue malgré la consigne et renvoie
                 # l'entrée imbriquée telle quelle ({"valeur": ..., "timestamp": ...}),
                 # on désimbrique plutôt que de stocker un objet dans "valeur" (ce qui
-                # cassait ensuite l'affichage dans construire_contexte_memoire()).
+                # cassait ensuite l'affichage dans composer_contexte_memoire()).
                 if isinstance(v, dict) and "valeur" in v:
                     v = v["valeur"]
                 if not isinstance(v, str):
@@ -253,7 +253,7 @@ Ne renvoie rien d'autre que le JSON brut. Si aucune nouvelle information n'est d
                     consigner("memoire_fait_supprime_par_ia", cle=k, valeur=str(mem[k])[:200])
                     del mem[k]
                     print(f"[MEMORY MANAGER] Fait supprimé : {k}")
-            sauvegarder_memoire(mem)
+            ecrire_memoire(mem)
             return True
             
     except Exception as e:

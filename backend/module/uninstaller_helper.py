@@ -4,8 +4,8 @@ import re
 import shutil
 import subprocess
 
-def clean_name_for_search(name):
-    """Nettoie le nom de l'application pour la recherche heuristique de traces."""
+def simplifier_nom_logiciel(name):
+    """Simplifie le nom de l'application avant de chercher ses traces."""
     # Retirer les parenthèses et les mentions de version
     name = re.sub(r'\(.*?\)|v\d+(\.\d+)*|\d+\.\d+(\.\d+)*', '', name)
     # Retirer les caractères spéciaux
@@ -26,11 +26,11 @@ def _cle_recherche(app_name):
     Désormais le nom doit être identique, et un nom que porte encore un autre programme
     installé (Python 3.12 / Python 3.14 → « Python ») n'est pas utilisé du tout.
     """
-    cle = _cle_nom(clean_name_for_search(app_name))
+    cle = _cle_nom(simplifier_nom_logiciel(app_name))
     if len(cle) < 4:
         return ""
-    for p in list_installed_programs():
-        if p["name"] != app_name and _cle_nom(clean_name_for_search(p["name"])) == cle:
+    for p in inventaire_logiciels():
+        if p["name"] != app_name and _cle_nom(simplifier_nom_logiciel(p["name"])) == cle:
             return ""
     return cle
 
@@ -49,8 +49,8 @@ def _dossier_en_cours_utilisation(chemin):
     return False
 
 
-def list_installed_programs():
-    """Énumère toutes les applications installées sur la machine à partir du Registre."""
+def inventaire_logiciels():
+    """Dresse la liste des logiciels installés d'après le Registre."""
     paths = [
         (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\Uninstall"),
         (winreg.HKEY_LOCAL_MACHINE, r"Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
@@ -98,7 +98,22 @@ def list_installed_programs():
                         icon_path = ""
                         try: icon_path, _ = winreg.QueryValueEx(subkey, "DisplayIcon")
                         except OSError: pass
-                        
+
+                        # Taille (Ko) et date d'installation (AAAAMMJJ) : tri par taille / récents
+                        # dans le panneau. Souvent présentes, pas toujours (0 / "" sinon).
+                        taille_ko = 0
+                        try:
+                            taille_ko, _ = winreg.QueryValueEx(subkey, "EstimatedSize")
+                            taille_ko = int(taille_ko) if isinstance(taille_ko, int) else 0
+                        except (OSError, ValueError): pass
+                        date_installation = ""
+                        try:
+                            date_installation, _ = winreg.QueryValueEx(subkey, "InstallDate")
+                            date_installation = str(date_installation).strip()
+                            if not re.fullmatch(r"\d{8}", date_installation):
+                                date_installation = ""
+                        except OSError: pass
+
                         programs.append({
                             "name": name,
                             "subkey": subkey_name,
@@ -107,6 +122,8 @@ def list_installed_programs():
                             "uninstall_string": uninstall_string.strip(),
                             "install_location": install_location.strip(),
                             "icon_path": icon_path.strip(),
+                            "size_kb": taille_ko,
+                            "install_date": date_installation,
                             "hive": "HKLM" if hive == winreg.HKEY_LOCAL_MACHINE else "HKCU"
                         })
                     except OSError:
@@ -122,10 +139,10 @@ def list_installed_programs():
     programs.sort(key=lambda x: x["name"].lower())
     return programs
 
-def scan_file_leftovers(app_name, publisher="", install_location=""):
+def chercher_traces_fichiers(app_name, publisher="", install_location=""):
     """Recherche des dossiers laissés par l'application (nom identique, voir _cle_recherche)."""
     cle = _cle_recherche(app_name)
-    cle_editeur = _cle_nom(clean_name_for_search(publisher)) if publisher else ""
+    cle_editeur = _cle_nom(simplifier_nom_logiciel(publisher)) if publisher else ""
 
     leftovers = []
     seen_paths = set()
@@ -140,7 +157,7 @@ def scan_file_leftovers(app_name, publisher="", install_location=""):
 
     # 1. Dossier d'installation officiel indiqué par le Registre
     if install_location and os.path.isdir(install_location):
-        _ajouter(install_location, "Dossier d'installation officiel configuré dans le Registre Windows.")
+        _ajouter(install_location, "Dossier d'installation déclaré dans le Registre.")
 
     if not cle:
         return leftovers
@@ -163,7 +180,7 @@ def scan_file_leftovers(app_name, publisher="", install_location=""):
                 if not os.path.isdir(item_path):
                     continue
                 if _cle_nom(item) == cle:
-                    _ajouter(item_path, f"Dossier associé à l'application dans {os.path.basename(base_dir)}.")
+                    _ajouter(item_path, f"Dossier de l'application dans {os.path.basename(base_dir)}.")
                     continue
                 # Niveau 2, seulement sous le dossier de l'éditeur (ex : Google\Android Studio)
                 if not cle_editeur or _cle_nom(item) != cle_editeur:
@@ -181,12 +198,12 @@ def scan_file_leftovers(app_name, publisher="", install_location=""):
     return leftovers
 
 
-def scan_registry_leftovers(app_name, publisher=""):
+def chercher_traces_registre(app_name, publisher=""):
     """Recherche des clés de registre laissées par l'application (nom identique)."""
     cle = _cle_recherche(app_name)
     if not cle:
         return []
-    cle_editeur = _cle_nom(clean_name_for_search(publisher)) if publisher else ""
+    cle_editeur = _cle_nom(simplifier_nom_logiciel(publisher)) if publisher else ""
     leftovers = []
 
     hives = [
@@ -208,7 +225,7 @@ def scan_registry_leftovers(app_name, publisher=""):
                             "type": "registry",
                             "hive": hive_name,
                             "path": full_path,
-                            "desc": "Clé de registre associée au nom de l'application."
+                            "desc": "Clé de registre portant le nom de l'application."
                         })
                         continue
                     # Niveau 2 (ex : HKLM\Software\Editeur\Application)
@@ -223,7 +240,7 @@ def scan_registry_leftovers(app_name, publisher=""):
                                     "type": "registry",
                                     "hive": hive_name,
                                     "path": f"{full_path}\\{subkey_subname}",
-                                    "desc": f"Clé de registre associée sous l'éditeur '{subkey_name}'."
+                                    "desc": f"Clé de registre sous l'éditeur '{subkey_name}'."
                                 })
                         winreg.CloseKey(pub_key)
                     except OSError:
@@ -239,13 +256,13 @@ def scan_registry_leftovers(app_name, publisher=""):
 
 def programme_installe(app_name, uninstall_string=""):
     """True si le programme figure encore dans la liste des programmes installés."""
-    for p in list_installed_programs():
+    for p in inventaire_logiciels():
         if p["name"] == app_name or (uninstall_string and p["uninstall_string"] == uninstall_string.strip()):
             return True
     return False
 
 
-def run_uninstall_process(uninstall_string, app_name="", delai_max=300):
+def executer_desinstallation(uninstall_string, app_name="", delai_max=300):
     """Lance le désinstallateur officiel et vérifie que le programme a bien disparu.
 
     Avant, le code de retour était ignoré : une désinstallation annulée ou ratée était
@@ -255,11 +272,11 @@ def run_uninstall_process(uninstall_string, app_name="", delai_max=300):
     programme disparaisse du Registre (au plus `delai_max` secondes).
     """
     try:
-        print(f"[UNINSTALLER] Lancement du désinstallateur officiel : {uninstall_string}")
+        print(f"[UNINSTALLER] Démarrage du désinstallateur du logiciel : {uninstall_string}")
         p = subprocess.Popen(uninstall_string, shell=True)
         code = p.wait()
     except Exception as e:
-        print(f"[UNINSTALLER] Erreur lors du lancement de la désinstallation : {e}")
+        print(f"[UNINSTALLER] Désinstallation impossible à lancer : {e}")
         return False, str(e)
 
     if not app_name:
@@ -275,8 +292,8 @@ def run_uninstall_process(uninstall_string, app_name="", delai_max=300):
         time.sleep(2)
     return True, "Désinstallation officielle terminée."
 
-def delete_registry_key_recursive(hive, path):
-    """Supprime une clé de registre et toutes ses sous-clés récursivement."""
+def supprimer_cle_registre_recursive(hive, path):
+    """Efface une clé de registre avec toutes ses sous-clés."""
     # Convertir le nom de la ruche en objet winreg HKEY
     hkey_hive = winreg.HKEY_CURRENT_USER if hive == "HKCU" else winreg.HKEY_LOCAL_MACHINE
     
@@ -293,7 +310,7 @@ def delete_registry_key_recursive(hive, path):
         
         # 2. Supprimer les sous-clés d'abord récursivement
         for subkey in subkeys:
-            delete_registry_key_recursive(hive, f"{path}\\{subkey}")
+            supprimer_cle_registre_recursive(hive, f"{path}\\{subkey}")
             
         # 3. Supprimer la clé elle-même
         parent_path, key_name = path.rsplit("\\", 1)
@@ -302,11 +319,11 @@ def delete_registry_key_recursive(hive, path):
         winreg.CloseKey(parent_key)
         return True
     except Exception as e:
-        print(f"[UNINSTALLER] Échec de la suppression de la clé de registre {hive}\\{path} : {e}")
+        print(f"[UNINSTALLER] Clé de registre non effacée {hive}\\{path} : {e}")
         return False
 
-def clean_leftover_item(item):
-    """Supprime un élément résiduel (dossier ou clé de registre)."""
+def effacer_trace(item):
+    """Efface une trace résiduelle (dossier ou clé de registre)."""
     item_type = item.get("type")
     path = item.get("path")
     
@@ -319,7 +336,7 @@ def clean_leftover_item(item):
                 return True, "Dossier supprimé avec succès."
             return True, "Dossier déjà inexistant."
         except Exception as e:
-            return False, f"Impossible de supprimer le dossier : {e}"
+            return False, f"Dossier impossible à effacer : {e}"
             
     elif item_type == "registry":
         hive = item.get("hive")
@@ -329,7 +346,7 @@ def clean_leftover_item(item):
             return False, "Chemin de registre invalide."
         reg_path = parts[1]
         
-        success = delete_registry_key_recursive(hive, reg_path)
+        success = supprimer_cle_registre_recursive(hive, reg_path)
         if success:
             return True, "Clé de registre supprimée avec succès."
         return False, "Échec de la suppression de la clé."

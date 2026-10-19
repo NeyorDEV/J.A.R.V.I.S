@@ -5,9 +5,7 @@ import json
 import re
 import asyncio
 import importlib
-import subprocess
-import google.genai as genai
-from core.config import GEMINI_API_KEY, CHOSEN_MODEL
+from core.config import CHOSEN_MODEL
 from core.interlocuteur import nom_espace, nom_virgule
 
 # Client Gemini différé (core/ai_clients.py) : pas de plantage à l'import sans clé,
@@ -221,8 +219,8 @@ async def resoudre_creation_plugin(cmd: str) -> str | None:
         resultat = await creer_et_habiliter_plugin(cmd)
         if resultat:
             builtins.parler(resultat)
-    from core.web_bridge import lancer_tache_arriere_plan
-    lancer_tache_arriere_plan(_creer())
+    from core.web_bridge import demarrer_tache_fond
+    demarrer_tache_fond(_creer())
     return f"Très bien{nom_espace()}. Je prépare le nouveau plugin ; je vous demanderai confirmation avant de l'installer."
 
 builtins.resoudre_creation_plugin = resoudre_creation_plugin

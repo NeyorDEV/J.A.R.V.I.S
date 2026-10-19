@@ -13,22 +13,22 @@ from google.genai import types
 
 import core.llm_registry as llm_registry
 import core.shared as shared
-from core.api_quota import formater_erreur_courte, _quota_mgr, _QuotaExceededError
+from core.api_quota import formater_erreur_courte, _quota_mgr, _ErreurQuotaApi
 from core.etat_parole import get_stop_parler
-from core.llm_providers import demander_grok, demander_groq, demander_ollama
-from core.prompt_builder import construire_system_prompt
+from core.llm_providers import interroger_grok, interroger_groq, interroger_ollama
+from core.prompt_builder import composer_prompt_systeme
 from core.speech import parler
-from core.web_bridge import est_connecte_internet, _safe_ws_send, send_web_state
-from module.memory_manager import _sauvegarder_echange_conv
-from module.meteo_domotique import get_meteo_actuelle, get_meteo_ha, HA_URL
-from module.sports_web import recherche_web_serpapi
+from core.web_bridge import est_connecte_internet, _safe_ws_send, envoyer_etat_hud
+from module.memory_manager import _archiver_echange
+from module.meteo_domotique import meteo_du_moment, meteo_depuis_ha, HA_URL
+from module.recherche_web import resume_recherche_web
 from module.vector_memory import ajouter_souvenir, rechercher_souvenirs
 from core.interlocuteur import NOM_CREATEUR, nom_espace, nom_virgule
 
 
-async def demander_ia(texte, update_hist=True, skip_local=False):
+async def interroger_ia(texte, update_hist=True, skip_local=False):
     shared.is_thinking = True
-    await send_web_state("thinking")
+    await envoyer_etat_hud("thinking")
     try:
         # --- ROUTAGE HYBRIDE INTELLIGENT (LOCAL-FIRST) ---
         force_local = getattr(builtins, "FORCE_LOCAL_MODE", False)
@@ -53,7 +53,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                     icon="⚙" if force_local else "⚠"
                 )
                 
-            rep_ollama = await demander_ollama(texte, update_hist=update_hist, skip_local=skip_local)
+            rep_ollama = await interroger_ollama(texte, update_hist=update_hist, skip_local=skip_local)
             if rep_ollama:
                 return rep_ollama
                 
@@ -73,8 +73,8 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
         # ── PRIORITÉS 1-3 — moteurs génériques (registre, cf. core/llm_registry) ──
         async def _essayer_registre():
             for engine in llm_registry.available_engines():
-                if not _quota_mgr.is_available(engine.name):
-                    print(f"[CERVEAU] {engine.label} en cooldown ({_quota_mgr.remaining_cooldown(engine.name)}s). Bascule directe.")
+                if not _quota_mgr.est_disponible(engine.name):
+                    print(f"[CERVEAU] {engine.label} en cooldown ({_quota_mgr.pause_restante(engine.name)}s). Bascule directe.")
                     continue
                 print(f"[CERVEAU] Tentative avec {engine.label}...")
                 try:
@@ -82,8 +82,8 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                     if rep_engine:
                         return rep_engine
                     print(f"[CERVEAU] {engine.label} KO (réponse vide). Bascule suivante.")
-                except _QuotaExceededError:
-                    print(f"[CERVEAU] {engine.label} quota épuisé — cooldown {_quota_mgr.remaining_cooldown(engine.name)}s. Bascule.")
+                except _ErreurQuotaApi:
+                    print(f"[CERVEAU] {engine.label} quota épuisé — cooldown {_quota_mgr.pause_restante(engine.name)}s. Bascule.")
                 except Exception as e:
                     print(f"[CERVEAU] {engine.label} erreur ({e}). Bascule suivante.")
                 # Une réponse déjà en partie prononcée ne doit pas être reprise depuis le
@@ -92,26 +92,26 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                     return " ".join(shared.phrases_streamed)
             return None
 
-        cerveau = detecter_cerveau(texte)
+        cerveau = choisir_cerveau(texte)
 
-        async def _call_gemini():
+        async def _appeler_gemini():
             if not shared.gemini_actif:
-                raise Exception("Clé Gemini non configurée — agent ignoré")
+                raise Exception("Pas de clé Gemini : cet agent est sauté")
 
             # Filtrer les modèles dont le quota est épuisé individuellement
             modeles_disponibles = [
                 m for m in shared.MODELS_LIST
-                if _quota_mgr.is_available(f"gemini_{m}")
+                if _quota_mgr.est_disponible(f"gemini_{m}")
             ]
             if not modeles_disponibles:
                 # Tous les modèles Gemini sont en cooldown — bascule globale
-                _quota_mgr.mark_quota_exceeded("gemini")
-                raise _QuotaExceededError("Tous les modèles Gemini sont en cooldown")
+                _quota_mgr.declarer_quota_atteint("gemini")
+                raise _ErreurQuotaApi("Tous les modèles Gemini sont en cooldown")
 
             print(f"[CERVEAU] Modèles Gemini disponibles : {modeles_disponibles}...")
             souvenirs = rechercher_souvenirs(texte)
             temp_hist = shared.historique + [types.Content(role="user", parts=[types.Part(text=texte)])]
-            prompt_actuel = construire_system_prompt(souvenirs=souvenirs)
+            prompt_actuel = composer_prompt_systeme(souvenirs=souvenirs)
             last_err = None
             for model_name in modeles_disponibles:
                 try:
@@ -173,7 +173,7 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                     if update_hist:
                         shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
                         shared.historique.append(types.Content(role="model", parts=[types.Part(text=full_text)]))
-                        _sauvegarder_echange_conv(texte, full_text)
+                        _archiver_echange(texte, full_text)
                         ajouter_souvenir(texte, full_text)
                     
                     if not skip_local and '{' not in full_text and sentence_buffer.strip() and not get_stop_parler():
@@ -197,9 +197,9 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                     except Exception as reinit_err:
                         print(f"[CERVEAU] Échec de la réinitialisation du client : {reinit_err}")
 
-                    if _quota_mgr.is_quota_error(e):
+                    if _quota_mgr.est_erreur_quota(e):
                         # Ce modèle spécifique est épuisé → on le met en cooldown et on continue
-                        _quota_mgr.mark_quota_exceeded(f"gemini_{model_name}")
+                        _quota_mgr.declarer_quota_atteint(f"gemini_{model_name}")
                         print(f"[CERVEAU] Gemini quota sur {model_name} — bascule modèle suivant...")
                         last_err = e
                         continue
@@ -208,28 +208,28 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
                     continue
 
             # Tous les modèles disponibles ont échoué
-            raise _QuotaExceededError(f"Tous les modèles Gemini ont atteint leur quota : {formater_erreur_courte(last_err)}")
+            raise _ErreurQuotaApi(f"Tous les modèles Gemini ont atteint leur quota : {formater_erreur_courte(last_err)}")
 
-        async def _call_grok():
-            if not _quota_mgr.is_available("grok"):
-                raise _QuotaExceededError(f"Grok en cooldown ({_quota_mgr.remaining_cooldown('grok')}s)")
-            print("[CERVEAU] Tentative avec Grok (xAI)...")
-            rep_grok = await demander_grok(texte, update_hist=update_hist)
+        async def _appeler_grok():
+            if not _quota_mgr.est_disponible("grok"):
+                raise _ErreurQuotaApi(f"Grok en cooldown ({_quota_mgr.pause_restante('grok')}s)")
+            print("[CERVEAU] Essai de Grok (xAI)...")
+            rep_grok = await interroger_grok(texte, update_hist=update_hist)
             if not rep_grok:
-                raise Exception("Grok n'a rien renvoyé ou est mal configuré")
+                raise Exception("Grok est resté muet ou mal réglé")
             return rep_grok
 
         # ── Gemini d'abord (3.5 Flash-Lite : 1re phrase en ~1,2 s, seul moteur qui fasse une
         #    recherche Google). Groq gratuit est limité à 8 000 jetons/min alors que le prompt
         #    système en pèse ~6 000 : une question par minute au plus, la suivante attendait
         #    jusqu'à 20 s. Le registre (Groq, Claude, Mistral) sert désormais de secours.
-        #    Une question routée vers Grok (detecter_cerveau) lui reste réservée.
+        #    Une question routée vers Grok (choisir_cerveau) lui reste réservée.
         gemini_deja_tente = False
-        if shared.gemini_actif and _quota_mgr.is_available("gemini") and not (cerveau == "GROK" and shared.grok_client):
+        if shared.gemini_actif and _quota_mgr.est_disponible("gemini") and not (cerveau == "GROK" and shared.grok_client):
             gemini_deja_tente = True
             try:
-                return await _call_gemini()
-            except _QuotaExceededError as e:
+                return await _appeler_gemini()
+            except _ErreurQuotaApi as e:
                 print(f"[CERVEAU] Gemini quota ({formater_erreur_courte(e)}). Bascule sur les autres moteurs.")
             except Exception as e:
                 print(f"[CERVEAU] Gemini erreur ({formater_erreur_courte(e)}). Bascule sur les autres moteurs.")
@@ -241,15 +241,15 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
         # ── ROUTING DYNAMIQUE avec gestion quota ─────────────────────────────
         if cerveau == "GROK" and shared.grok_client:
             try:
-                return await _call_grok()
-            except _QuotaExceededError as e:
+                return await _appeler_grok()
+            except _ErreurQuotaApi as e:
                 print(f"[CERVEAU] Grok quota ({formater_erreur_courte(e)}). Bascule Gemini.")
             except Exception as e:
                 print(f"[CERVEAU] Grok erreur ({formater_erreur_courte(e)}). Bascule Gemini.")
         if not gemini_deja_tente:
             try:
-                return await _call_gemini()
-            except _QuotaExceededError as e:
+                return await _appeler_gemini()
+            except _ErreurQuotaApi as e:
                 print(f"[CERVEAU] Gemini quota ({formater_erreur_courte(e)}). Bascule SerpAPI/Groq/Grok.")
             except Exception as e:
                 print(f"[CERVEAU] Gemini erreur ({formater_erreur_courte(e)}). Bascule SerpAPI.")
@@ -273,13 +273,13 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
 
             if has_ha and any(m in t_low for m in _mots_meteo):
                 print("[CERVEAU] Requête météo détectée → Home Assistant weather")
-                reponse_ha = get_meteo_ha()
+                reponse_ha = meteo_depuis_ha()
                 if reponse_ha:
                     return reponse_ha
-                return get_meteo_actuelle(None)
+                return meteo_du_moment(None)
             elif any(m in t_low for m in _mots_meteo):
                 # Fallback direct si pas de HA
-                return get_meteo_actuelle(None)
+                return meteo_du_moment(None)
 
             # Note : le fallback "température intérieure sans LLM" a été retiré avec
             # l'ancien système HA codé en dur. Le nouveau système (client MCP,
@@ -289,43 +289,43 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
             # totale du LLM + question de température intérieure) est marginal.
 
         # --- FALLBACK GROQ (LLAMA 3.3) ---
-        if shared.groq_client and _quota_mgr.is_available("groq"):
-            print("[CERVEAU] Bascule sur Groq (Llama 3.3).")
+        if shared.groq_client and _quota_mgr.est_disponible("groq"):
+            print("[CERVEAU] Passage à Groq (Llama 3.3).")
             try:
-                rep_groq = await demander_groq(texte, skip_local=skip_local)
+                rep_groq = await interroger_groq(texte, skip_local=skip_local)
                 if rep_groq:
                     return rep_groq
-            except _QuotaExceededError:
-                print(f"[CERVEAU] Groq quota épuisé — cooldown {_quota_mgr.remaining_cooldown('groq')}s.")
+            except _ErreurQuotaApi:
+                print(f"[CERVEAU] Quota Groq atteint, pause de {_quota_mgr.pause_restante('groq')}s.")
             except Exception as e2:
                 print(f"[CERVEAU] Groq erreur ({e2}).")
         elif shared.groq_client:
-            print(f"[CERVEAU] Groq en cooldown ({_quota_mgr.remaining_cooldown('groq')}s). Ignoré.")
+            print(f"[CERVEAU] Groq en cooldown ({_quota_mgr.pause_restante('groq')}s). Ignoré.")
 
         # --- FALLBACK GROK (xAI) ---
-        if shared.grok_client and _quota_mgr.is_available("grok"):
-            print("[CERVEAU] Bascule sur Grok (xAI).")
+        if shared.grok_client and _quota_mgr.est_disponible("grok"):
+            print("[CERVEAU] Passage à Grok (xAI).")
             try:
-                return await _call_grok()
-            except _QuotaExceededError:
-                print(f"[CERVEAU] Grok quota épuisé — cooldown {_quota_mgr.remaining_cooldown('grok')}s.")
+                return await _appeler_grok()
+            except _ErreurQuotaApi:
+                print(f"[CERVEAU] Quota Grok atteint, pause de {_quota_mgr.pause_restante('grok')}s.")
             except Exception as e2:
                 print(f"[ERREUR IA (Grok repli)] {e2}")
         elif shared.grok_client:
-            print(f"[CERVEAU] Grok en cooldown ({_quota_mgr.remaining_cooldown('grok')}s). Ignoré.")
+            print(f"[CERVEAU] Grok en cooldown ({_quota_mgr.pause_restante('grok')}s). Ignoré.")
 
         # --- FALLBACK OLLAMA (100% offline) ---
-        print("[CERVEAU] Gemini et Grok KO. Tentative Ollama (local)...")
-        rep_ollama = await demander_ollama(texte, update_hist=update_hist, skip_local=skip_local)
+        print("[CERVEAU] Gemini et Grok hors service : essai d'Ollama (local)...")
+        rep_ollama = await interroger_ollama(texte, update_hist=update_hist, skip_local=skip_local)
         if rep_ollama:
             return rep_ollama
 
         # --- FALLBACK SERPAPI (Web) ---
         # On ne le met qu'à la fin pour éviter qu'il ne "vole" les questions de mémoire
         if len(texte.split()) > 2:
-            res_serp = recherche_web_serpapi(texte)
-            if res_serp and "VOTRE_CLE" not in res_serp and "rien trouvé" not in res_serp and "erreur" not in res_serp.lower():
-                return "Voici ce que j'ai trouvé sur le web : " + res_serp
+            res_serp = resume_recherche_web(texte)
+            if res_serp and "VOTRE_CLE" not in res_serp and "rien trouvé" not in res_serp.lower() and "échoué" not in res_serp.lower() and "erreur" not in res_serp.lower():
+                return "D'après une recherche sur le web : " + res_serp
 
         # ── Détection : aucune API configurée ou toutes en erreur ──────────
         _aucune_api = (not shared.gemini_actif and not shared.groq_client and not shared.grok_client and not shared.anthropic_client)
@@ -338,17 +338,17 @@ async def demander_ia(texte, update_hist=True, skip_local=False):
         return f"Quota API dépassé{nom_virgule()}. Mes capacités de réflexion sont temporairement limitées."
     finally:
         shared.is_thinking = False
-        await send_web_state("idle")
+        await envoyer_etat_hud("idle")
 
 
-async def demander_ia_vision(texte, img_b64):
+async def interroger_ia_vision(texte, img_b64):
     """Analyse une image (capture d'écran) avec Gemini Vision."""
     if not shared.gemini_actif or shared.client is None:
-        return "La vision nécessite une clé Gemini valide. Configurez-la dans le fichier .env."
+        return "La vision demande une clé Gemini valide, à renseigner dans le fichier .env."
     shared.is_thinking = True
-    await send_web_state("thinking")
+    await envoyer_etat_hud("thinking")
     try:
-        print("[VISION] Analyse de l'image avec Gemini...")
+        print("[VISION] Gemini examine l'image...")
         
         # Conversion base64 en bytes pour l'API
         img_bytes = base64.b64decode(img_b64)
@@ -359,7 +359,7 @@ async def demander_ia_vision(texte, img_b64):
         
         # Recherche de souvenirs
         souvenirs = rechercher_souvenirs(texte)
-        prompt_actuel = construire_system_prompt(souvenirs=souvenirs) + "\n\nIMPORTANT: Réponds uniquement avec le texte de la réponse, n'utilise JAMAIS de format JSON ou de balises structurées. Analyse l'image et réponds."
+        prompt_actuel = composer_prompt_systeme(souvenirs=souvenirs) + "\n\nIMPORTANT: Réponds uniquement avec le texte de la réponse, n'utilise JAMAIS de format JSON ou de balises structurées. Analyse l'image et réponds."
         
         # On envoie l'image et le texte avec retry en cas de 503
         contents = [
@@ -401,15 +401,15 @@ async def demander_ia_vision(texte, img_b64):
         if not rep:
             err_str = str(last_err).lower() if last_err else ""
             if "429" in err_str or "quota" in err_str or "resource_exhausted" in err_str:
-                print("[VISION] Quota Gemini epuise — vision impossible sans Gemini.")
+                print("[VISION] Quota Gemini atteint : pas de vision sans lui.")
                 return (f"Désolé{nom_espace()}, mon quota Gemini est épuisé pour aujourd'hui. "
                         "La vision par caméra et écran fonctionne uniquement avec Gemini — "
                         "je ne peux donc pas analyser d'images en ce moment. "
                         "Réessayez demain quand le quota sera réinitialisé.")
-            print("[VISION] Tous les modeles Gemini ont echoue. Bascule sur Grok (Texte uniquement)...")
+            print("[VISION] Aucun modèle Gemini n'a répondu. Repli sur Grok (texte seul)...")
             if shared.grok_client:
-                return await demander_grok(texte + " (Note: Je n'ai pas pu voir ton écran car mes serveurs de vision sont indisponibles, je réponds donc uniquement à ton texte).")
-            raise last_err or Exception("Aucun modele n'a pu analyser l'image")
+                return await interroger_grok(texte + " (Remarque : ma vision est indisponible, je n'ai pas vu ton écran et réponds seulement à partir de ton texte.)")
+            raise last_err or Exception("L'image n'a pu être analysée par aucun modèle")
 
         # On ajoute la trace dans l'historique (sans l'image pour éviter de saturer la mémoire)
         shared.historique.append(types.Content(role="user", parts=[types.Part(text=f"[Analyse d'écran] {texte}")]))
@@ -417,16 +417,16 @@ async def demander_ia_vision(texte, img_b64):
         
         return rep
     except Exception as e:
-        print(f"[VISION] Erreur Gemini Vision : {e}")
+        print(f"[VISION] Gemini Vision a échoué : {e}")
         # On évite les accolades dans le message d'erreur pour ne pas perturber l'extracteur JSON
         err_msg = str(e).replace("{", "[").replace("}", "]")
         return f"Désolé{nom_espace()}, je n'ai pas pu analyser votre écran. Erreur : {err_msg}"
     finally:
         shared.is_thinking = False
-        await send_web_state("idle")
+        await envoyer_etat_hud("idle")
 
 
-def detecter_cerveau(texte):
+def choisir_cerveau(texte):
     # Heuristique pour basculer sur Grok uniquement pour X/Twitter (mots entiers :
     # « elon » était trouvé dans « selon », « sur x » dans « sur xbox »)
     if re.search(r"(\bsur x\b|\btwitter\b|\bgrok\b|\belon\b|\bx\.com\b)", texte.lower()):
@@ -471,7 +471,7 @@ def generer_salutation_demarrage(timeout=6.0):
             rep = shared.client.models.generate_content(
                 model=shared.MODELS_LIST[0],
                 contents=consigne,
-                config=types.GenerateContentConfig(system_instruction=construire_system_prompt(), temperature=1.0),
+                config=types.GenerateContentConfig(system_instruction=composer_prompt_systeme(), temperature=1.0),
             )
             resultat["texte"] = (rep.text or "").strip()
         except Exception as e:
@@ -486,4 +486,4 @@ def generer_salutation_demarrage(timeout=6.0):
     return texte
 
 
-builtins.demander_ia_vision = demander_ia_vision
+builtins.interroger_ia_vision = interroger_ia_vision

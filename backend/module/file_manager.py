@@ -1,6 +1,5 @@
 import os
 import shutil
-import glob
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -46,7 +45,7 @@ EXTENSIONS = {
     "Executables": [".exe", ".msi", ".apk", ".dmg", ".deb"],
 }
 
-def resoudre_chemin(chemin):
+def interpreter_chemin(chemin):
     if not chemin:
         return None
     chemin = chemin.strip().strip('"').strip("'")
@@ -58,15 +57,15 @@ def resoudre_chemin(chemin):
     chemin_resolu = dossier_connu(chemin) or chemin
     return chemin_resolu
 
-def trouver_extension(ext):
+def deduire_extension(ext):
     for categorie, extensions in EXTENSIONS.items():
         if ext.lower() in extensions:
             return categorie
     return "Autres"
 
-def ouvrir_dossier(chemin):
+def afficher_dossier(chemin):
     global dossier_courant
-    chemin_resolu = resoudre_chemin(chemin)
+    chemin_resolu = interpreter_chemin(chemin)
     if not chemin_resolu or (not os.path.exists(chemin_resolu) and not chemin_resolu.startswith("shell:")):
         return False, f"Dossier introuvable : {chemin_resolu}"
     dossier_courant = chemin_resolu
@@ -77,8 +76,8 @@ def ouvrir_dossier(chemin):
         subprocess.Popen(['explorer', chemin_resolu])
     return True, chemin_resolu
 
-def arranger_fenetres_dossiers():
-    """Ouvre et dispose les dossiers Documents, Téléchargements, Images et Vidéos en mosaïque."""
+def disposer_fenetres_dossiers():
+    """Affiche en mosaïque les dossiers Documents, Téléchargements, Images et Vidéos."""
     dossiers = [
         ("document", 0, 0),             # Haut Gauche
         ("téléchargement", 1, 0),       # Haut Droite
@@ -90,7 +89,7 @@ def arranger_fenetres_dossiers():
     w, h = sw // 2, (sh - 40) // 2  # -40 pour la barre des tâches approximative
     
     for nom, qx, qy in dossiers:
-        ouvrir_dossier(nom)
+        afficher_dossier(nom)
         time.sleep(0.8) # Laisser le temps à Explorer de s'ouvrir
         
         # On tente de trouver la fenêtre active qui vient d'être ouverte
@@ -103,8 +102,8 @@ def arranger_fenetres_dossiers():
     
     return f"J'ai ouvert et disposé vos dossiers principaux en mosaïque{nom_virgule()}."
 
-def lister_dossier(chemin=None):
-    cible = resoudre_chemin(chemin) or dossier_courant
+def enumerer_dossier(chemin=None):
+    cible = interpreter_chemin(chemin) or dossier_courant
     if not cible or not os.path.exists(cible):
         return None, "Aucun dossier ouvert ou chemin invalide."
     fichiers  = []
@@ -116,8 +115,8 @@ def lister_dossier(chemin=None):
             dossiers.append(item.name)
     return {"chemin": cible, "fichiers": fichiers, "dossiers": dossiers}, None
 
-def trier_par_type(chemin=None):
-    cible = resoudre_chemin(chemin) or dossier_courant
+def classer_par_type(chemin=None):
+    cible = interpreter_chemin(chemin) or dossier_courant
     if not cible or not os.path.exists(cible):
         return False, "Aucun dossier ouvert ou invalide."
     deplacements = 0
@@ -127,7 +126,7 @@ def trier_par_type(chemin=None):
         if not item.is_file():
             continue
         ext       = Path(item.name).suffix
-        categorie = trouver_extension(ext)
+        categorie = deduire_extension(ext)
         dest_dir  = os.path.join(cible, categorie)
         try:
             os.makedirs(dest_dir, exist_ok=True)
@@ -145,8 +144,8 @@ def trier_par_type(chemin=None):
     resume = ", ".join([f"{v} {k}" for k, v in categories.items()])
     return True, f"{deplacements} fichiers tries : {resume}. {erreurs} erreurs."
 
-def trier_par_date(chemin=None):
-    cible = resoudre_chemin(chemin) or dossier_courant
+def classer_par_date(chemin=None):
+    cible = interpreter_chemin(chemin) or dossier_courant
     if not cible or not os.path.exists(cible):
         return False, "Aucun dossier ouvert ou invalide."
     deplacements = 0
@@ -173,20 +172,20 @@ def trier_par_date(chemin=None):
             erreurs += 1
     return True, f"{deplacements} fichiers tries par date. {erreurs} erreurs."
 
-def trier_par_type_puis_date(chemin=None):
-    cible = resoudre_chemin(chemin) or dossier_courant
+def classer_par_type_et_date(chemin=None):
+    cible = interpreter_chemin(chemin) or dossier_courant
     if not cible or not os.path.exists(cible):
         return False, "Aucun dossier ouvert."
-    ok1, msg1 = trier_par_type(cible)
+    ok1, msg1 = classer_par_type(cible)
     if not ok1:
         return False, msg1
     for item in os.scandir(cible):
         if item.is_dir() and item.name in EXTENSIONS.keys():
-            trier_par_date(item.path)
+            classer_par_date(item.path)
     return True, "Dossier trie par type puis par date dans chaque categorie."
 
-def creer_sous_dossier(nom, chemin=None):
-    cible = resoudre_chemin(chemin) or dossier_courant
+def creer_dossier_enfant(nom, chemin=None):
+    cible = interpreter_chemin(chemin) or dossier_courant
     if not cible:
         return False, "Aucun dossier ouvert."
     nouveau = os.path.join(cible, nom)
@@ -196,8 +195,8 @@ def creer_sous_dossier(nom, chemin=None):
     except Exception as e:
         return False, f"Erreur creation dossier : {e}"
 
-def renommer_fichier(ancien_nom, nouveau_nom, chemin=None):
-    cible = resoudre_chemin(chemin) or dossier_courant
+def changer_nom_fichier(ancien_nom, nouveau_nom, chemin=None):
+    cible = interpreter_chemin(chemin) or dossier_courant
     if not cible:
         return False, "Aucun dossier ouvert."
     ancien = os.path.join(cible, ancien_nom)
@@ -208,8 +207,8 @@ def renommer_fichier(ancien_nom, nouveau_nom, chemin=None):
     except Exception as e:
         return False, f"Erreur renommage : {e}"
 
-def deplacer_fichier(nom_fichier, dossier_dest, chemin=None):
-    cible = resoudre_chemin(chemin) or dossier_courant
+def transferer_fichier(nom_fichier, dossier_dest, chemin=None):
+    cible = interpreter_chemin(chemin) or dossier_courant
     if not cible:
         return False, "Aucun dossier ouvert."
     source = os.path.join(cible, nom_fichier)
@@ -221,7 +220,7 @@ def deplacer_fichier(nom_fichier, dossier_dest, chemin=None):
     except Exception as e:
         return False, f"Erreur deplacement : {e}"
 
-def chercher_fichier(nom, scan_global=True, type_cible=None):
+def rechercher_fichier(nom, scan_global=True, type_cible=None):
     """
     Cherche un fichier ou un dossier par son nom.
     Si scan_global est True, cherche dans tous les dossiers utilisateurs et sur les disques.
@@ -319,7 +318,7 @@ def lire_fichier(nom_fichier, chemin=None):
     userprofile = os.environ.get("USERPROFILE", "")
 
     if chemin:
-        cible = resoudre_chemin(chemin)
+        cible = interpreter_chemin(chemin)
         dossiers_a_scanner = [cible] if cible else []
     else:
         from core.dossiers import dossiers_personnels

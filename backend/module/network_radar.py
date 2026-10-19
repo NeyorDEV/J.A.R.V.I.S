@@ -7,7 +7,7 @@ import requests
 import socket
 import time
 from typing import Set
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from core.interlocuteur import nom_virgule
 
 # ── Config ────────────────────────────────────────────────────────────────────

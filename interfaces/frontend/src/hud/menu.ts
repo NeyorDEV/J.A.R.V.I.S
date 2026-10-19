@@ -158,6 +158,12 @@ export function initMenu(): void {
       if (jarvisMenuDropdown) jarvisMenuDropdown.classList.add("hidden");
       if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
       settingsAvLive.click();
+      // Enregistré tout de suite (avant : la case changeait sans que le réglage soit envoyé,
+      // la protection restait dans son état précédent)
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "update_settings", settings: { av_live_protection: settingsAvLive.checked } }));
+        wsRef.current.send(JSON.stringify({ type: "get_settings" }));   // libellé ON/OFF du menu à jour
+      }
     });
   }
     // ── Bouton Vider Cache / Recharger ──

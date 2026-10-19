@@ -1,11 +1,9 @@
 import os
 import pickle
 import webbrowser
-from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-import datetime
 from core.interlocuteur import nom_virgule
 
 try:
@@ -33,7 +31,7 @@ SCOPES = [
     'https://www.googleapis.com/auth/tasks'
 ]
 
-def get_google_creds():
+def identifiants_google():
     if not _google_apis_ok:
         print("[GOOGLE] google-auth-oauthlib non installe — fonctions Google desactivees.")
         return None
@@ -83,24 +81,24 @@ def get_google_creds():
             pickle.dump(creds, f)
     return creds
 
-def get_docs_service():
-    creds = get_google_creds()
+def service_docs():
+    creds = identifiants_google()
     return build("docs", "v1", credentials=creds) if creds else None
 
-def get_drive_service():
-    creds = get_google_creds()
+def service_drive():
+    creds = identifiants_google()
     return build("drive", "v3", credentials=creds) if creds else None
 
-def get_gmail_service():
-    creds = get_google_creds()
+def service_gmail():
+    creds = identifiants_google()
     return build("gmail", "v1", credentials=creds) if creds else None
 
-def get_sheets_service():
-    creds = get_google_creds()
+def service_sheets():
+    creds = identifiants_google()
     return build("sheets", "v4", credentials=creds) if creds else None
 
-def get_calendar_service():
-    creds = get_google_creds()
+def service_agenda():
+    creds = identifiants_google()
     return build("calendar", "v3", credentials=creds) if creds else None
 
 def _trouver_par_titre(elements, titre, cle):
@@ -143,10 +141,10 @@ def _date_lisible(debut):
         return debut
 
 
-def creer_google_doc(titre="Nouveau Document", contenu=""):
+def nouveau_google_doc(titre="Nouveau Document", contenu=""):
     global dernier_doc_id, dernier_doc_titre
     try:
-        service = get_docs_service()
+        service = service_docs()
         if not service:
             return "Google Docs non disponible."
         doc    = service.documents().create(body={"title": titre}).execute()
@@ -161,15 +159,15 @@ def creer_google_doc(titre="Nouveau Document", contenu=""):
     except Exception as e:
         return f"Erreur Google Docs : {e}"
 
-def modifier_google_doc(contenu, doc_id=None):
+def editer_google_doc(contenu, doc_id=None):
     global dernier_doc_id
     try:
-        service   = get_docs_service()
+        service   = service_docs()
         if not service:
             return "Google Docs non disponible."
         target_id = doc_id or dernier_doc_id
         if not target_id:
-            return "Aucun document ouvert en memoire."
+            return "Aucun document n'est ouvert pour l'instant."
         doc       = service.documents().get(documentId=target_id).execute()
         end_index = doc["body"]["content"][-1]["endIndex"] - 1
         requests_body = [{"insertText": {"location": {"index": end_index}, "text": "\n" + contenu}}]
@@ -179,10 +177,10 @@ def modifier_google_doc(contenu, doc_id=None):
     except Exception as e:
         return f"Erreur modification doc : {e}"
 
-def lire_emails(max_results=5):
+def consulter_emails(max_results=5):
     global dernier_msg_id, dernier_msg_sujet
     try:
-        service  = get_gmail_service()
+        service  = service_gmail()
         if not service:
             return "Gmail non disponible."
         results  = service.users().messages().list(
@@ -215,11 +213,11 @@ def lire_emails(max_results=5):
     except Exception as e:
         return f"Erreur Gmail : {e}"
 
-def lister_evenements_calendar():
+def evenements_agenda():
     try:
-        service = get_calendar_service()
+        service = service_agenda()
         if not service:
-            return "Google Calendar non disponible."
+            return "Google Agenda est indisponible."
         from datetime import datetime, timezone
         now    = datetime.now(timezone.utc).isoformat()
         events = service.events().list(calendarId="primary", timeMin=now, maxResults=5, singleEvents=True, orderBy="startTime").execute()
@@ -234,10 +232,10 @@ def lister_evenements_calendar():
     except Exception as e:
         return f"Erreur Calendar : {e}"
 
-def creer_google_sheet(titre="Nouvelle Feuille"):
+def nouvelle_feuille_google(titre="Nouvelle Feuille"):
     global dernier_sheet_id, dernier_sheet_titre
     try:
-        service  = get_sheets_service()
+        service  = service_sheets()
         if not service:
             return "Google Sheets non disponible."
         sheet    = service.spreadsheets().create(body={"properties": {"title": titre}}).execute()
@@ -250,7 +248,7 @@ def creer_google_sheet(titre="Nouvelle Feuille"):
         return f"Erreur Google Sheets : {e}"
 
 def get_tasks_service():
-    creds = get_google_creds()
+    creds = identifiants_google()
     return build("tasks", "v1", credentials=creds) if creds else None
 
 def creer_google_task(titre, notes=None):
@@ -341,7 +339,7 @@ def ouvrir_google_drive():
 
 def rechercher_google_drive(nom_fichier=None, max_results=5):
     try:
-        service = get_drive_service()
+        service = service_drive()
         if not service:
             return "Google Drive non disponible."
         
@@ -376,11 +374,11 @@ def rechercher_google_drive(nom_fichier=None, max_results=5):
     except Exception as e:
         return f"Erreur de recherche Google Drive : {e}"
 
-def envoyer_email(destinataire, sujet, corps):
+def expedier_email(destinataire, sujet, corps):
     import base64
     from email.mime.text import MIMEText
     try:
-        service = get_gmail_service()
+        service = service_gmail()
         if not service:
             return "Gmail non disponible."
         
@@ -396,12 +394,12 @@ def envoyer_email(destinataire, sujet, corps):
     except Exception as e:
         return f"Erreur lors de l'envoi de l'e-mail : {e}"
 
-def repondre_email(corps, original_msg_id=None):
+def repondre_au_mail(corps, original_msg_id=None):
     global dernier_msg_id, dernier_msg_sujet
     import base64
     from email.mime.text import MIMEText
     try:
-        service = get_gmail_service()
+        service = service_gmail()
         if not service:
             return "Gmail non disponible."
         
@@ -440,7 +438,7 @@ def repondre_email(corps, original_msg_id=None):
 def lire_detail_email(msg_id=None):
     global dernier_msg_id
     try:
-        service = get_gmail_service()
+        service = service_gmail()
         if not service:
             return "Gmail non disponible."
         
@@ -485,7 +483,7 @@ def lire_detail_email(msg_id=None):
 def archiver_email(msg_id=None):
     global dernier_msg_id
     try:
-        service = get_gmail_service()
+        service = service_gmail()
         if not service:
             return "Gmail non disponible."
         
@@ -501,10 +499,10 @@ def archiver_email(msg_id=None):
     except Exception as e:
         return f"Erreur lors de l'archivage de l'e-mail : {e}"
 
-def supprimer_email(msg_id=None):
+def effacer_email(msg_id=None):
     global dernier_msg_id
     try:
-        service = get_gmail_service()
+        service = service_gmail()
         if not service:
             return "Gmail non disponible."
         
@@ -519,9 +517,9 @@ def supprimer_email(msg_id=None):
 
 def creer_evenement_calendar(summary, start_time, end_time, description=None):
     try:
-        service = get_calendar_service()
+        service = service_agenda()
         if not service:
-            return "Google Calendar non disponible."
+            return "Google Agenda est indisponible."
         
         event = {
             'summary': summary,
@@ -544,9 +542,9 @@ def creer_evenement_calendar(summary, start_time, end_time, description=None):
 
 def modifier_evenement_calendar(ancien_titre, nouveau_titre=None, nouvelle_heure=None, fin_heure=None):
     try:
-        service = get_calendar_service()
+        service = service_agenda()
         if not service:
-            return "Google Calendar non disponible."
+            return "Google Agenda est indisponible."
         
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc).isoformat()
@@ -588,9 +586,9 @@ def modifier_evenement_calendar(ancien_titre, nouveau_titre=None, nouvelle_heure
 
 def supprimer_evenement_calendar(titre):
     try:
-        service = get_calendar_service()
+        service = service_agenda()
         if not service:
-            return "Google Calendar non disponible."
+            return "Google Agenda est indisponible."
         
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc).isoformat()
@@ -616,7 +614,7 @@ def supprimer_evenement_calendar(titre):
 def ajouter_ligne_sheet(valeurs, spreadsheet_id=None, onglet="Feuille 1"):
     global dernier_sheet_id
     try:
-        service = get_sheets_service()
+        service = service_sheets()
         if not service:
             return "Google Sheets non disponible."
         
@@ -645,7 +643,7 @@ def ajouter_ligne_sheet(valeurs, spreadsheet_id=None, onglet="Feuille 1"):
 def lire_donnees_sheet(cell_range, spreadsheet_id=None):
     global dernier_sheet_id
     try:
-        service = get_sheets_service()
+        service = service_sheets()
         if not service:
             return "Google Sheets non disponible."
         
@@ -672,7 +670,7 @@ def lire_donnees_sheet(cell_range, spreadsheet_id=None):
 def lire_contenu_doc(doc_id=None):
     global dernier_doc_id
     try:
-        service = get_docs_service()
+        service = service_docs()
         if not service:
             return "Google Docs non disponible."
         
@@ -702,7 +700,7 @@ def lire_contenu_doc(doc_id=None):
 
 def charger_fichier_drive(local_path, parent_folder_id=None):
     try:
-        service = get_drive_service()
+        service = service_drive()
         if not service:
             return "Google Drive non disponible."
         
@@ -733,7 +731,7 @@ def charger_fichier_drive(local_path, parent_folder_id=None):
 def partager_fichier_drive(email, role="reader", file_id=None):
     global dernier_doc_id
     try:
-        service = get_drive_service()
+        service = service_drive()
         if not service:
             return "Google Drive non disponible."
         
@@ -753,7 +751,7 @@ def partager_fichier_drive(email, role="reader", file_id=None):
 
 def creer_dossier_drive(nom_dossier, parent_folder_id=None):
     try:
-        service = get_drive_service()
+        service = service_drive()
         if not service:
             return "Google Drive non disponible."
         

@@ -1,6 +1,6 @@
 import { toggleArMirror } from "../hand_tracking";
 import { wsRef } from "../ws_link";
-import { haPanel, haToggleBtn, micBtnEl, muteButtonEl, settingsModalEl } from "./dom_refs";
+import { haPanel, haToggleBtn, micBtnEl, settingsModalEl } from "./dom_refs";
 import { setMuted } from "./orb_state";
 import { openAntivirusPanel } from "../panels/antivirus_panel";
 
@@ -28,15 +28,8 @@ export function initControlButtons(): void {
     });
   }
 
-  // mute-button = Stopper JARVIS (interrompre la parole)
-  muteButtonEl?.addEventListener("click", () => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "stop_audio" }));
-    }
-    // Flash visuel rapide
-    muteButtonEl.style.boxShadow = "0 0 25px rgba(0, 229, 255, 0.8)";
-    setTimeout(() => { muteButtonEl.style.boxShadow = ""; }, 400);
-  });
+  // (Bouton « Stopper JARVIS » retiré : JARVIS comprend « stop » / « tais-toi » à la voix,
+  //  ou « stop » tapé dans la barre du HUD.)
 
   // mic-btn = Couper/réactiver le microphone
   micBtnEl?.addEventListener("click", () => {

@@ -11,14 +11,14 @@ import pyautogui
 
 import core.shared as shared
 from controller.app_launcher import (
-    _APPS_CATALOGUE, _boulot_lancer, _fermer_app, mode_boulot, mode_gaming, mode_rocket_league,
+    _APPS_CATALOGUE, _demarrer_appli_travail, _arreter_appli, mode_travail, mode_gaming, mode_rocket_league,
 )
 from controller.deezer_controller import (
-    deezer_lancer_playlist, deezer_lecture_pause, deezer_ouvrir, deezer_precedent,
-    deezer_rechercher, deezer_stop, deezer_suivant, deezer_volume,
+    deezer_lancer_playlist, deezer_basculer_lecture, deezer_demarrer, deezer_piste_precedente,
+    deezer_chercher, deezer_arreter, deezer_piste_suivante, deezer_regler_volume,
 )
 from core.web_bridge import _safe_ws_send
-from module.file_manager import arranger_fenetres_dossiers, ouvrir_dossier
+from module.file_manager import disposer_fenetres_dossiers, afficher_dossier
 from core.interlocuteur import nom_espace, nom_virgule
 
 # Fermeture forcée permise si la demande de fermeture est ignorée au bout de 3 s : musique,
@@ -63,7 +63,7 @@ def _recherche_musicale(t: str):
             return None
         recherche = t[len(prefix):].replace(" sur deezer", "").strip()
         # « la chanson hello d'adele » → « hello d'adele » (« album » / « playlist » sont
-        # gardés : deezer_rechercher s'en sert pour choisir le type de recherche)
+        # gardés : deezer_chercher s'en sert pour choisir le type de recherche)
         recherche = re.sub(r"^(?:(?:la |le |l'|une |un |ma |mon )?(?:chanson|titre|morceau|musique|son)\s+(?:de |d')?)",
                            "", recherche).strip()
         return recherche if len(recherche) > 1 else None
@@ -83,10 +83,10 @@ async def _commandes_identite_hud(t):
     if any(q in t for q in _aide_questions):
         # Envoi IMMEDIAT de l'action help au frontend
         if shared.CONNECTED_CLIENTS:
-            async def _dispatch_help():
+            async def _orienter_aide():
                 msg = json.dumps({"action": "help"})
                 await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
-            asyncio.create_task(_dispatch_help())
+            asyncio.create_task(_orienter_aide())
 
         # Le panneau d'aide s'affiche ; la réponse parlée est laissée à l'IA (personnalité
         # JARVIS, voir core/prompt_builder.py) plutôt qu'à une phrase toute faite.
@@ -94,7 +94,7 @@ async def _commandes_identite_hud(t):
 
     # --- DOSSIERS (Priorité 1) ---
     if any(k in t for k in ["mosaïque dossiers", "range mes dossiers", "range les dossiers", "range tous les dossiers", "range tous mes dossiers", "mosaïque"]):
-        return arranger_fenetres_dossiers()
+        return disposer_fenetres_dossiers()
 
     # --- FERMETURE DES VUES 3D (explorateur, maison, cortex, radar) ---
     # Avant les commandes d'ouverture : « ferme le cortex » contient « cortex ».
@@ -202,7 +202,7 @@ async def _commandes_identite_hud(t):
             # reconnaître le dossier (« la musique » n'est pas un raccourci connu).
             nom_dossier = re.sub(r"^(?:le |la |les |l'|mon |ma |mes |du |des )", "", potentiel_dossier).strip()
             if any(k in nom_dossier for k in mots_cles_dossiers):
-                ok, msg = ouvrir_dossier(nom_dossier)
+                ok, msg = afficher_dossier(nom_dossier)
                 if ok: return f"J'ouvre le dossier {nom_dossier}{nom_virgule()}."
     return _PAS_TROUVE
 
@@ -211,7 +211,7 @@ async def _commandes_apps_musique(t):
     """Modes boulot/gaming, applications, musique/Deezer, coffre-fort, dossiers, demandes inconnues."""
     # --- MODE BOULOT (Priorité 1 bis) ---
     if any(k in t for k in ["au boulot", "mode boulot", "mode travail", "on bosse", "mode bureau", "commence le boulot"]):
-        return await mode_boulot()
+        return await mode_travail()
 
     # (Le bloc TV est désormais en haut)
 
@@ -281,7 +281,7 @@ async def _commandes_apps_musique(t):
         if any(re.search(rf"\b{re.escape(m)}\b", t) for m in mots_fermer):
             if getattr(shared, "ACTIVE_SPEAKER", "guest") == "guest":
                 return "Je ne ferme pas d'application pour une voix que je ne reconnais pas."
-            ok = await asyncio.to_thread(_fermer_app, info["noms"], cle in _FERMETURE_FORCEE)
+            ok = await asyncio.to_thread(_arreter_appli, info["noms"], cle in _FERMETURE_FORCEE)
             if ok:
                 return f"J'ai fermé {info['label']}{nom_virgule()}."
             if ok is None:
@@ -290,7 +290,7 @@ async def _commandes_apps_musique(t):
         if info.get("fermeture_seule"):
             continue
         if any(m in t for m in mots_ouvrir):
-            _boulot_lancer(info["label"], info["noms"], chemins_hints=info["hints"])
+            _demarrer_appli_travail(info["label"], info["noms"], chemins_hints=info["hints"])
             return f"Je lance {info['label']}{nom_virgule()}."
 
     # (Bloc YouTube PC supprimé pour éviter les conflits avec la TV)
@@ -302,7 +302,7 @@ async def _commandes_apps_musique(t):
         webbrowser.open(url, new=2)
         await asyncio.sleep(5)
         pyautogui.press('f')
-        return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
+        return f"C'est parti{nom_espace()}, votre musique démarre sur YouTube."
 
     # Playlist de musique par défaut — intelligente (Deezer, YouTube, Spotify ou personnalisé)
     if any(k in t for k in [
@@ -338,11 +338,11 @@ async def _commandes_apps_musique(t):
                     webbrowser.open(musique_lien, new=2)
                     await asyncio.sleep(5)
                     pyautogui.press('f')
-                    return f"C'est parti{nom_espace()}, je lance votre musique sur YouTube."
+                    return f"C'est parti{nom_espace()}, votre musique démarre sur YouTube."
                 elif "spotify" in musique_lien_lower or musique_lien_lower.startswith("spotify:"):
                     try:
-                        from controller.spotify_controller import spotify_lancer_playlist
-                        ok = spotify_lancer_playlist(musique_lien)
+                        from controller.spotify_controller import spotify_jouer_playlist
+                        ok = spotify_jouer_playlist(musique_lien)
                         if ok:
                             return f"C'est parti{nom_espace()}, je lance votre musique sur Spotify."
                     except: pass
@@ -364,7 +364,7 @@ async def _commandes_apps_musique(t):
                 return f"Je n'ai pas réussi à ouvrir Deezer{nom_virgule()}."
 
     if any(k in t for k in ["ouvre deezer", "lance deezer"]):
-        return await deezer_ouvrir()
+        return await deezer_demarrer()
 
     # Ces mots (« suivant », « précédent », « pause », « lecture ») ne valent commande
     # musicale que dans une phrase courte ou qui parle de musique : « le jour précédent »
@@ -375,23 +375,23 @@ async def _commandes_apps_musique(t):
     # (« passe la musique » relançait la playlist, via l'aiguillage IA)
     passer = re.search(r"\b(passe|passer|zappe|zapper|change|changer)\b.*\b(musique|chanson|morceau|titre|son)\b", t)
     if passer or ((musical or courte) and any(k in t for k in ["suivante", "suivant", "musique d'après", "musique d'apres"])):
-        return await deezer_suivant()
+        return await deezer_piste_suivante()
     if (musical or courte) and any(k in t for k in ["précédente", "précédent", "precedente", "precedent", "reviens en arrière", "retour en arrière", "musique d'avant"]):
-        return await deezer_precedent()
+        return await deezer_piste_precedente()
     if any(k in t for k in ["stop la musique", "arrête la musique", "arrete la musique", "arrête la playlist", "arrete la playlist"]) \
             or ((musical or courte) and "pause" in t):
-        return await deezer_stop()
+        return await deezer_arreter()
     if any(k in t for k in ["remets la musique", "remet la musique", "reprends la musique", "reprend la musique", "relance la musique", "relance la playlist", "lance la musique", "joue la musique", "remets la playlist", "remet la playlist"]) \
             or ((musical or courte) and "lecture" in t):
-        return await deezer_lecture_pause()
+        return await deezer_basculer_lecture()
     # Volume de Deezer seulement s'il est question de musique ; sinon le volume du PC
     # (system_resolver) : « baisse le volume » tout court réglait l'un ou l'autre selon
     # le verbe employé, et « le volume du HomePod » finissait dans Deezer.
     if musical and not any(k in t for k in ["homepod", "enceinte", "télé", "tele", " tv"]):
         if any(k in t for k in ["monte le volume", "monte le son", "augmente le son", "augmente le volume", "plus fort"]):
-            return await deezer_volume("monter")
+            return await deezer_regler_volume("monter")
         if any(k in t for k in ["baisse le son", "baisse le volume", "moins fort"]):
-            return await deezer_volume("baisser")
+            return await deezer_regler_volume("baisser")
 
     # Recherche Deezer générique — en dernier pour ne pas avaler les commandes apps.
     # « joue / écoute » sont des verbes musicaux ; « mets / lance / recherche » ne le sont
@@ -399,7 +399,7 @@ async def _commandes_apps_musique(t):
     # recherche sur Napoléon »… partaient dans Deezer au lieu d'atteindre l'IA.
     recherche_deezer = _recherche_musicale(t)
     if recherche_deezer:
-        return await deezer_rechercher(recherche_deezer)
+        return await deezer_chercher(recherche_deezer)
 
     # --- COFFRE-FORT CRYPTÉ (VOICE VAULT) ---
     if any(k in t for k in ["coffre fort", "coffre-fort", "coffre"]) and getattr(shared, "ACTIVE_SPEAKER", "guest") == "guest":
@@ -447,7 +447,7 @@ async def _commandes_apps_musique(t):
     }
     for cle, chemin in raccourcis_dossiers.items():
         if f"ouvre mon {cle}" in t or f"ouvre le {cle}" in t or t == f"ouvre {cle}":
-            ouvrir_dossier(chemin)
+            afficher_dossier(chemin)
             return f"J'ouvre votre dossier {cle}{nom_virgule()}."
 
     # Application / dossier inconnu : plus de phrase toute faite, l'IA répond elle-même

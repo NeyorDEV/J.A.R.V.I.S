@@ -1,7 +1,5 @@
 import os
-import time
 import asyncio
-import random
 import re
 import requests
 import builtins
@@ -131,7 +129,7 @@ async def tv_lancer_youtube(video_id):
     if await adb_command(cmd): return f"C'est lancé sur votre télé{nom_virgule()} !"
     return "Erreur lors du lancement YouTube."
 
-def chercher_youtube(recherche):
+def rechercher_sur_youtube(recherche):
     try:
         query = requests.utils.quote(recherche)
         url = f"https://www.youtube.com/results?search_query={query}"
@@ -198,7 +196,7 @@ async def resoudre_tv_localement(texte):
                 recherche = recherche.replace(p, "")
             recherche = recherche.strip()
             if recherche:
-                v_id = chercher_youtube(recherche)
+                v_id = rechercher_sur_youtube(recherche)
                 if v_id: return await tv_lancer_youtube(v_id)
             return await tv_lancer_app("youtube")
 

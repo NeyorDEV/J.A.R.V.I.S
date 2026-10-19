@@ -10,11 +10,11 @@ import core.shared as shared
 from core.actions_ia import executer_action
 from core.confirmation import confirmation_en_attente, resoudre_confirmation_vocale
 from core.etat_parole import set_stop_parler
-from core.llm_chat import demander_ia
-from core.llm_providers import demander_grok
+from core.llm_chat import interroger_ia
+from core.llm_providers import interroger_grok
 from core.speech import parler
-from core.web_bridge import send_web_state
-from module.commandes_locales import resoudre_commandes_locales
+from core.web_bridge import envoyer_etat_hud
+from module.commandes_locales import traiter_commandes_locales
 from module.echecs_local import resoudre_echecs_localement
 from module.alarmes_local import resoudre_alarmes_localement
 from core.interlocuteur import nom_ou_utilisateur, nom_virgule
@@ -29,7 +29,7 @@ _RE_DEEZER_MAL_ENTENDU = re.compile(
     + _DEEZER_ENTENDU + r"(?=\s*[.!?]*\s*$|\s+(?:stp|s'il te pla[iî]t|svp)\b)")
 
 
-def nettoyer_commande(texte):
+def epurer_commande(texte):
     t = texte.lower().strip()
     for variante in ["jarvis,", "jarvis", "jervis,", "jervis", "service,", "service"]:
         if t.startswith(variante):
@@ -63,7 +63,21 @@ def _texte_substantiel(texte: str) -> bool:
     « crée un site web », déclenchant tout un swarm de 6 agents pour rien.
     """
     lettres = sum(1 for c in texte if c.isalpha())
-    return lettres >= 3
+    if lettres < 3:
+        return False
+    # Acquiescement ou interjection seuls (« oui », « d'accord », « merci »…) : pas une
+    # commande. Vécu : « Jarvis, oui. » a été classé « montre le calendrier ».
+    mots = re.findall(r"[a-zà-ÿœ']+", texte.lower())
+    return not mots or not all(m in _INTERJECTIONS for m in mots)
+
+
+_INTERJECTIONS = {
+    "oui", "ouais", "ouaip", "non", "nan", "ok", "okay", "d'accord", "dac", "merci", "beaucoup",
+    "super", "cool", "parfait", "génial", "genial", "top", "bien", "très", "tres", "bon", "voilà",
+    "voila", "exactement", "carrément", "carrement", "ah", "oh", "eh", "euh", "hein", "hmm", "bof",
+    "quoi", "salut", "bonjour", "bonsoir", "coucou", "yo", "ça", "ca", "marche", "c'est", "si",
+    "pas", "grave", "vas-y", "vas", "y", "allez", "et", "alors", "bah", "ben", "enfin", "jarvis",
+}
 
 
 # Ordre de priorité des resolvers, du plus spécifique au plus générique.
@@ -84,11 +98,11 @@ _ORDRE_RESOLVEURS = [
     "resoudre_ouvrir_site_web", "resoudre_tv_localement",
     None,  # ← resolvers ajoutés à chaud
     # Commandes générales
-    "commandes_locales", "resoudre_commandes_systeme", "resoudre_infos_systeme_localement",
-    "resoudre_listes_locales", "resoudre_temps_localement", "resoudre_conversion_localement",
-    "resoudre_traduction_localement", "resoudre_francais_localement", "resoudre_extras_locaux",
+    "commandes_locales", "resoudre_commandes_systeme", "traiter_infos_systeme",
+    "resoudre_listes_locales", "resoudre_temps_localement", "traiter_conversion_locale",
+    "traiter_traduction_locale", "traiter_question_francais", "traiter_extras_locaux",
     # Globe : déclencheurs génériques (« montre… », « affiche… ») suivis d'un géocodage réseau
-    "resoudre_globe_localement", "resoudre_apps_localement",
+    "traiter_globe_local", "resoudre_apps_localement",
     # En dernier : mémoire (cache sémantique)
     "resoudre_memoire_locale",
 ]
@@ -102,7 +116,7 @@ _INTERDITS_INVITE = {
     "resoudre_memoire_locale", "resoudre_developpement",
 }
 # Fonctions builtins.resoudre_* qui ne sont pas des resolvers de commande
-_HORS_CHAINE = {"resoudre_chemin", "resoudre_echecs_localement",
+_HORS_CHAINE = {"interpreter_chemin", "resoudre_echecs_localement",
                 "resoudre_mon_resolver"}
 
 
@@ -125,7 +139,7 @@ async def _essayer_resolvers_statiques(texte):
     for nom in _sequence_resolveurs():
         if nom in _INTERDITS_INVITE and getattr(shared, "ACTIVE_SPEAKER", "guest") == "guest":
             continue   # mode invité (avant, seules les actions JSON du LLM étaient filtrées)
-        fn = resoudre_commandes_locales if nom == "commandes_locales" else getattr(builtins, nom, None)
+        fn = traiter_commandes_locales if nom == "commandes_locales" else getattr(builtins, nom, None)
         if fn is None:
             continue
         try:
@@ -171,7 +185,7 @@ async def _resoudre_localement(texte_utilisateur):
 
     # Interception prioritaire des compétences vocales personnalisées pour éviter les conflits avec les plugins (ex: radar réseau)
     if not reponse and any(k in texte_utilisateur.lower() for k in ["compétence", "competence"]):
-        reponse = await resoudre_commandes_locales(texte_utilisateur)
+        reponse = await traiter_commandes_locales(texte_utilisateur)
         if reponse: dernier_resolveur = "commandes_locales"
 
     if not reponse:
@@ -179,7 +193,7 @@ async def _resoudre_localement(texte_utilisateur):
     return reponse
 
 
-async def traiter_reponse_ia(texte_utilisateur, from_voice=False, de_confiance=False):
+async def gerer_reponse_ia(texte_utilisateur, from_voice=False, de_confiance=False):
     """Enveloppe garantissant que l'état « réflexion » est toujours relâché.
 
     Sans ce try/finally, is_thinking restait à True dès qu'une commande était
@@ -195,7 +209,7 @@ async def traiter_reponse_ia(texte_utilisateur, from_voice=False, de_confiance=F
     finally:
         shared.is_thinking = False
         try:
-            await send_web_state("idle")
+            await envoyer_etat_hud("idle")
         except Exception:
             pass
 
@@ -210,7 +224,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
     # sinon la réponse resterait bloquée derrière l'action qui attend justement
     # cette confirmation pour continuer (deadlock logique).
     if confirmation_en_attente():
-        if resoudre_confirmation_vocale(nettoyer_commande(texte_utilisateur)):
+        if resoudre_confirmation_vocale(epurer_commande(texte_utilisateur)):
             return
     if from_voice:
         shared.jarvis_actif = True  # Seules les commandes vocales ouvrent/maintiennent la session
@@ -233,7 +247,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
         reponse = None
         
         # NETTOYAGE DU TEXTE (Enlever 'Jarvis' au début pour ne pas perturber les plugins)
-        texte_utilisateur = nettoyer_commande(texte_utilisateur)
+        texte_utilisateur = epurer_commande(texte_utilisateur)
 
         # TENTATIVE DE RÉSOLUTION LOCALE (Commandes, Math, Français, etc.)
         print(f"[DEBUG] Tentative de résolution locale pour : {texte_utilisateur}")
@@ -241,7 +255,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
 
         # FUNCTION CALLING GEMINI : aucun resolver par mots-clés n'a compris la phrase.
         # Un modèle rapide la mappe sur une intention connue (→ phrase canonique) qu'on
-        # repasse dans les resolvers. Tout échec suit le chemin historique (demander_ia).
+        # repasse dans les resolvers. Tout échec suit le chemin historique (interroger_ia).
         if (not reponse and shared._USE_LLM_INTENT and _texte_substantiel(texte_utilisateur)
                 and (est_action_oriented(texte_utilisateur) or len(texte_utilisateur.split()) <= 12)):
             try:
@@ -259,7 +273,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
 
         if not reponse:
             force_skip_local = est_action_oriented(texte_utilisateur)
-            reponse = await demander_ia(texte_utilisateur, skip_local=force_skip_local)
+            reponse = await interroger_ia(texte_utilisateur, skip_local=force_skip_local)
         
         # print(f"[JARVIS] {reponse}")
 
@@ -329,16 +343,16 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
                 if any(x in block for x in ["NOM_DU_CONTACT", "VALEUR_ICI", "CLE_ICI", "chemin/complet"]):
                     continue
 
-                print(f"[JARVIS] Execution de l'action : {block}")
+                print(f"[JARVIS] Action en cours : {block}")
                 data = json.loads(block)
                 action = data.get("action", "")
                 
                 # Sécurité mode invité : bloquer uniquement les actions définies comme sensibles (fichiers, vision/écrans, Google APIs)
                 restricted_actions = {
                     # Fichiers / Sécurité
-                    "ouvrir_dossier", "lister_dossier", "trier_par_type", "trier_par_date", 
-                    "trier_complet", "creer_dossier", "renommer_fichier", "deplacer_fichier", 
-                    "chercher_fichier", "ouvrir_element", "analyser_fichier", "antivirus_scan",
+                    "afficher_dossier", "enumerer_dossier", "classer_par_type", "classer_par_date", 
+                    "trier_complet", "creer_dossier", "changer_nom_fichier", "transferer_fichier", 
+                    "rechercher_fichier", "ouvrir_element", "analyser_fichier", "antivirus_scan",
                     # Vision / Screenshots / Autopilot
                     "voir_ecran", "vision_ecrire", "vision_chercher_sur_site", "vision_navigateur",
                     "analyse_live", "web_agent_task",
@@ -362,8 +376,8 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
             except Exception as e:
                 print(f"[ACTION ERROR] Block failed: {block} | Error: {e}")
                 if shared.grok_client:
-                    print("[JARVIS] Bascule sur Grok suite a une erreur d'action...")
-                    res_grok = await demander_grok(f"{nom_ou_utilisateur()} m'a demandé : {texte_utilisateur}. J'ai tenté de lancer une action mais j'ai eu une erreur technique ({e}). Peux-tu prendre le relais et lui répondre élégamment ?")
+                    print("[JARVIS] Action en échec : relais à Grok...")
+                    res_grok = await interroger_grok(f"{nom_ou_utilisateur()} m'a demandé : {texte_utilisateur}. Mon action a échoué sur une erreur technique ({e}). Réponds-lui à ma place, avec élégance.")
                     if res_grok: parler(res_grok)
                 continue
 

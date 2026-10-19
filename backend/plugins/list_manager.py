@@ -7,7 +7,7 @@ from core.interlocuteur import nom_virgule
 
 _LISTES_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "jarvis_listes.json")  # backend/plugins/ -> racine projet
 
-def _charger_listes():
+def _relire_listes():
     if os.path.exists(_LISTES_PATH):
         try:
             with open(_LISTES_PATH, "r", encoding="utf-8") as f:
@@ -15,7 +15,7 @@ def _charger_listes():
         except: pass
     return {"courses": [], "notes": [], "todo": []}
 
-def _sauvegarder_listes(data):
+def _ecrire_listes(data):
     try:
         # data/ n'existe pas encore sur une installation neuve (dossier non versionné)
         os.makedirs(os.path.dirname(_LISTES_PATH), exist_ok=True)
@@ -26,7 +26,7 @@ def _sauvegarder_listes(data):
 async def _notifier_web():
     """Notifie le frontend d'ouvrir le panneau courses et lui envoie la liste à jour."""
     if hasattr(builtins, "CONNECTED_CLIENTS") and builtins.CONNECTED_CLIENTS:
-        listes = _charger_listes()
+        listes = _relire_listes()
         msg_open = json.dumps({"type": "shopping_open"})
         msg_list = json.dumps({"type": "shopping_list", "items": listes.get("courses", [])})
         await asyncio.gather(*[ws.send(msg_open) for ws in builtins.CONNECTED_CLIENTS], return_exceptions=True)
@@ -38,7 +38,7 @@ async def resoudre_listes_locales(texte):
     t = texte.strip().strip('"').strip("'").lower().strip()
     if "google" in t or "tasks" in t:
         return None
-    data = _charger_listes()
+    data = _relire_listes()
     
     # 1. AJOUT
     if "ajoute" in t or "ajouter" in t or "mets" in t or "rajoute" in t or "rajouter" in t:
@@ -75,7 +75,7 @@ async def resoudre_listes_locales(texte):
             
             if item:
                 data[cible].append(item.capitalize())
-                _sauvegarder_listes(data)
+                _ecrire_listes(data)
                 if cible == "courses":
                     await _notifier_web()
                 return f"C'est fait, j'ai ajouté {item} à votre liste de {cible}{nom_virgule()}."
@@ -98,11 +98,11 @@ async def resoudre_listes_locales(texte):
             if len(restants) == len(items):
                 return f"Je n'ai pas trouvé « {article} » dans votre liste de courses{nom_virgule()}."
             data["courses"] = restants
-            _sauvegarder_listes(data)
+            _ecrire_listes(data)
             await _notifier_web()
             return f"J'ai retiré {article} de votre liste de courses{nom_virgule()}."
         data["courses"] = []
-        _sauvegarder_listes(data)
+        _ecrire_listes(data)
         await _notifier_web()
         return f"La liste de courses a été vidée{nom_virgule()}."
 

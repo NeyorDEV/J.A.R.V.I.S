@@ -203,9 +203,6 @@ class ChessGame:
             "J'ai joué mon coup."
         ]
 
-    def reset(self):
-        self.board = chess.Board()
-
     def get_state(self) -> dict:
         """
         Retourne l'état actuel de la partie pour synchronisation avec le HUD.

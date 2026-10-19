@@ -94,7 +94,7 @@ programmée dans le système J.A.R.V.I.S.
 * Google Services : Lecture et écriture autonomes sur Gmail, Calendar, Drive, Docs, Sheets et Tasks.
 * Chromecast & TV (ADB) : Allumage TV (WoL), contrôle du volume, Youtube Cast et lancement d'applications.
 * Musique (Deezer/Spotify) : Commandes multimédias Windows et récupération du titre en cours.
-* Sports & Météo : Résultats/classements de football en direct (TheSportsDB) et météo (Open-Meteo/wttr.in).
+* Météo : météo (Open-Meteo/wttr.in).
 ================================================================================
 13. CONFIGURATION API À CHAUD (main.py, frontend/)
 ================================================================================
