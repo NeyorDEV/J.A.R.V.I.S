@@ -146,7 +146,7 @@ _DOSSIERS_CONNUS = {
 
 
 def _fusionner_pdfs_dossier(nom_dossier_utilisateur: str) -> tuple[str | None, int]:
-    from PyPDF2 import PdfMerger
+    from pypdf import PdfWriter
 
     dossier_reel = _DOSSIERS_CONNUS.get(nettoyer_accent(nom_dossier_utilisateur), None)
     if not dossier_reel:
@@ -163,7 +163,7 @@ def _fusionner_pdfs_dossier(nom_dossier_utilisateur: str) -> tuple[str | None, i
     horodatage = datetime.now().strftime("%Y%m%d_%H%M%S")
     chemin_sortie = os.path.join(DOSSIER_SORTIE, f"fusion_{horodatage}.pdf")
 
-    merger = PdfMerger()
+    merger = PdfWriter()
     try:
         for f in fichiers_pdf:
             merger.append(os.path.join(chemin_dossier, f))

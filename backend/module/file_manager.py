@@ -11,9 +11,9 @@ import ctypes
 import time
 from core.interlocuteur import nom_virgule
 try:
-    import PyPDF2
+    import pypdf
 except ImportError:
-    PyPDF2 = None  # type: ignore
+    pypdf = None  # type: ignore
 try:
     import docx
 except ImportError:
@@ -363,10 +363,10 @@ def lire_fichier(nom_fichier, chemin=None):
 
     try:
         if ext == '.pdf':
-            if PyPDF2 is None:
-                return None, "La bibliothèque PyPDF2 n'est pas installée."
+            if pypdf is None:
+                return None, "La bibliothèque pypdf n'est pas installée."
             with open(chemin_complet, 'rb') as f:
-                reader = PyPDF2.PdfReader(f)
+                reader = pypdf.PdfReader(f)
                 for page in reader.pages:
                     texte += page.extract_text() + "\n"
         elif ext in ['.doc', '.docx']:

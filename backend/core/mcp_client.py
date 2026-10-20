@@ -90,7 +90,7 @@ async def lister_outils(server_name: str, force_refresh: bool = False) -> list:
                     {
                         "name": t.name,
                         "description": t.description or "",
-                        "parameters": t.inputSchema or {"type": "object", "properties": {}},
+                        "parameters": (getattr(t, "input_schema", None) or getattr(t, "inputSchema", None)) or {"type": "object", "properties": {}},
                     }
                     for t in resultat.tools
                 ]
