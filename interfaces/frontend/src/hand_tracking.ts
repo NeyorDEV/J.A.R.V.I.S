@@ -1,3 +1,4 @@
+import { icone } from "./panels/pm_utils";
 /**
  * J.A.R.V.I.S — Module de Réalité Augmentée et Suivi Gestuel (Hand Tracking)
  *
@@ -147,7 +148,7 @@ export async function toggleHandTracking(active?: boolean): Promise<boolean> {
     if (btn) {
       btn.setAttribute("aria-pressed", "false");
       btn.classList.remove("active", "ar-active");
-      btn.innerHTML = '<span class="btn-icon">🖐️</span> MODE AR';
+      btn.innerHTML = `<span class="btn-icon">${icone("main")}</span> MODE AR`;
     }
     
     // Restaurer l'orbe principal si le globe n'est pas affiché

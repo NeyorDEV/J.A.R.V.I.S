@@ -1,3 +1,4 @@
+import { icone } from "./panels/pm_utils";
 let stream: MediaStream | null = null;
 
 export async function enableScreenCapture(): Promise<boolean> {
@@ -17,7 +18,7 @@ export async function enableScreenCapture(): Promise<boolean> {
       if (btn) {
         btn.setAttribute("aria-pressed", "false");
         btn.classList.remove("is-toggled-on", "active");
-        btn.innerHTML = '<span class="btn-icon">👁️</span> VISION';
+        btn.innerHTML = `<span class="btn-icon">${icone("oeil")}</span> VISION`;
       }
     });
     console.log("[VISION] Capture d'écran activée");
@@ -104,7 +105,7 @@ export async function toggleVision(btn?: HTMLElement) {
       console.log("[VISION] Demande d'arrêt de la vision...");
       stopScreenCapture();
       if (targetBtn) {
-        targetBtn.innerHTML = '<span class="btn-icon">👁️</span> VISION';
+        targetBtn.innerHTML = `<span class="btn-icon">${icone("oeil")}</span> VISION`;
         targetBtn.classList.remove('is-toggled-on', 'vision-active', 'vision-error');
         targetBtn.setAttribute('aria-pressed', 'false');
       }
@@ -115,7 +116,7 @@ export async function toggleVision(btn?: HTMLElement) {
     console.log("[VISION] Demande d'activation de la vision...");
     const ok = await enableScreenCapture();
     if (targetBtn) {
-      targetBtn.innerHTML = ok ? '<span class="btn-icon">👁️</span> VISION • ON' : '<span class="btn-icon">👁️</span> VISION KO';
+      targetBtn.innerHTML = ok ? `<span class="btn-icon">${icone("oeil")}</span> VISION • ON` : `<span class="btn-icon">${icone("oeil")}</span> VISION KO`;
       targetBtn.classList.toggle('is-toggled-on', ok);
       targetBtn.classList.toggle('vision-active', ok);
       targetBtn.classList.toggle('vision-error', !ok);

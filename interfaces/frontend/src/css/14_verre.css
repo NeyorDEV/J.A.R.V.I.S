@@ -1,0 +1,164 @@
+/* ═════════════════════════════════════════════════════════════════════════════
+   STYLE « VERRE » — habillage futuriste commun des panneaux (.pm).
+   Verre dépoli translucide, cadre néon à la teinte du module (--pm-a), coins repères,
+   lignes de balayage, titres Orbitron, aucune émoticône (icônes SVG au trait).
+   Chargé après 13_panneaux_modules.css : ne change que l'apparence, pas la mise en page.
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+.pm {
+  --pm-fond: transparent;
+  background: linear-gradient(155deg, rgba(16, 36, 52, 0.66), rgba(6, 14, 24, 0.55));
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--pm-a) 42%, transparent);
+  box-shadow:
+    0 0 0 1px rgba(0, 229, 255, 0.06),
+    0 0 30px color-mix(in srgb, var(--pm-a) 20%, transparent),
+    0 18px 44px rgba(0, 0, 0, 0.5),
+    inset 0 0 46px rgba(0, 229, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+/* filet lumineux en haut du cadre */
+.pm::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 3; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--pm-a), transparent); opacity: 0.85;
+}
+/* lignes de balayage + quatre coins repères */
+.pm::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background:
+    linear-gradient(var(--pm-a), var(--pm-a)) left 4px top 4px / 13px 2px no-repeat,
+    linear-gradient(var(--pm-a), var(--pm-a)) left 4px top 4px / 2px 13px no-repeat,
+    linear-gradient(var(--pm-a), var(--pm-a)) right 4px top 4px / 13px 2px no-repeat,
+    linear-gradient(var(--pm-a), var(--pm-a)) right 4px top 4px / 2px 13px no-repeat,
+    linear-gradient(var(--pm-a), var(--pm-a)) left 4px bottom 4px / 13px 2px no-repeat,
+    linear-gradient(var(--pm-a), var(--pm-a)) left 4px bottom 4px / 2px 13px no-repeat,
+    linear-gradient(var(--pm-a), var(--pm-a)) right 4px bottom 4px / 13px 2px no-repeat,
+    linear-gradient(var(--pm-a), var(--pm-a)) right 4px bottom 4px / 2px 13px no-repeat,
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--pm-a) 60%, transparent));
+}
+
+/* ── En-tête ─────────────────────────────────────────────────────────────── */
+.pm-tete {
+  padding: 18px 22px 14px; gap: 14px;
+  border-bottom: 1px solid;
+  border-image: linear-gradient(90deg, color-mix(in srgb, var(--pm-a) 70%, transparent), transparent 85%) 1;
+}
+.pm-icone {
+  width: 40px; height: 40px; border-radius: 0;
+  background: radial-gradient(circle, color-mix(in srgb, var(--pm-a) 24%, transparent), transparent 72%);
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pm-a) 55%, transparent);
+}
+.pm-titre { font-size: 13px; letter-spacing: 3.5px; text-shadow: 0 0 12px color-mix(in srgb, var(--pm-a) 45%, transparent); }
+.pm-sous {
+  font-family: 'Consolas', monospace; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase;
+  color: color-mix(in srgb, var(--pm-a) 65%, #7d95a6);
+}
+.pm-fermer, .pm-icone-bouton { border-radius: 3px; border-color: rgba(0, 229, 255, 0.16); }
+.pm-fermer:hover, .pm-icone-bouton:hover { box-shadow: 0 0 10px color-mix(in srgb, var(--pm-a) 30%, transparent); }
+
+/* ── Outils, pastilles, recherche ─────────────────────────────────────────── */
+.pm-outils { padding: 12px 22px 8px; }
+.pm-recherche { border-radius: 2px; background: rgba(0, 10, 18, 0.45); border-color: rgba(0, 229, 255, 0.16); }
+.pm-pastille {
+  border-radius: 2px; border-color: rgba(0, 229, 255, 0.16);
+  font-family: 'Consolas', monospace; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; padding: 5px 12px;
+}
+.pm-pastille.active { box-shadow: 0 0 10px color-mix(in srgb, var(--pm-a) 25%, transparent); background: color-mix(in srgb, var(--pm-a) 12%, transparent); }
+.pm .pm-pastille { text-transform: uppercase; letter-spacing: 1.6px; }
+
+/* ── Lignes en cartes à repère coloré ─────────────────────────────────────── */
+.pm-corps { padding: 4px 0; }
+.pm-ligne {
+  margin: 5px 18px; padding: 9px 14px; border-radius: 2px;
+  background: rgba(255, 255, 255, 0.028);
+  border: 1px solid rgba(255, 255, 255, 0.04); border-left: 2px solid color-mix(in srgb, var(--pm-a) 70%, transparent);
+}
+.pm-ligne:hover { background: color-mix(in srgb, var(--pm-a) 9%, transparent); }
+.pm-avatar { border-radius: 2px; background: color-mix(in srgb, var(--pm-a) 8%, transparent); border: 1px solid color-mix(in srgb, var(--pm-a) 40%, transparent); color: var(--pm-a); font-family: 'Consolas', monospace; font-size: 10px; letter-spacing: 1px; }
+.pm-vide { color: color-mix(in srgb, var(--pm-a) 55%, #7d95a6); }
+
+/* ── Boutons ─────────────────────────────────────────────────────────────── */
+.pm-bouton {
+  border-radius: 2px; font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2.2px; text-transform: uppercase; padding: 9px 16px;
+  background: transparent; border-color: color-mix(in srgb, var(--pm-a) 45%, transparent);
+}
+.pm .pm-bouton { text-transform: uppercase; letter-spacing: 2.2px; }
+.pm-bouton.plein {
+  background: color-mix(in srgb, var(--pm-a) 18%, transparent); color: var(--pm-a); font-weight: 700; border-color: var(--pm-a);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--pm-a) 35%, transparent), inset 0 0 12px color-mix(in srgb, var(--pm-a) 15%, transparent);
+}
+.pm .pm-bouton.plein { box-shadow: 0 0 16px color-mix(in srgb, var(--pm-a) 35%, transparent), inset 0 0 12px color-mix(in srgb, var(--pm-a) 15%, transparent); }
+.pm-bouton.plein:hover:not(:disabled) { filter: none; background: color-mix(in srgb, var(--pm-a) 28%, transparent); }
+.pm-bouton.discret { color: #7d95a6; border-color: rgba(0, 229, 255, 0.16); }
+.pm-bouton.petit { font-size: 9px; padding: 5px 11px; letter-spacing: 1.6px; }
+
+/* ── Pied, tuiles, journal ────────────────────────────────────────────────── */
+.pm-pied { padding: 14px 22px; background: rgba(0, 10, 18, 0.32); border-top-color: rgba(0, 229, 255, 0.14); font-family: 'Consolas', monospace; letter-spacing: 1px; }
+.pm-chiffre { border-radius: 2px; background: rgba(0, 10, 18, 0.4); border-color: rgba(0, 229, 255, 0.14); border-top: 2px solid color-mix(in srgb, var(--pm-a) 70%, transparent); }
+.pm-journal-texte { border-radius: 2px; background: rgba(0, 4, 10, 0.55); border-color: rgba(0, 229, 255, 0.14); }
+.pm-version { border-radius: 2px; background: rgba(0, 229, 255, 0.07); }
+.pm-barre { border-radius: 0; height: 5px; }
+.pm-barre i { box-shadow: 0 0 10px var(--pm-a); }
+
+/* ── Domotique : cartes d'appareils en verre ──────────────────────────────── */
+#ha-panel .ha-entity-card, .ha-floating-widget.ha-entity-card {
+  border-radius: 3px; background: rgba(0, 10, 18, 0.42); border-color: rgba(0, 229, 255, 0.14);
+}
+#ha-panel .ha-entity-card.state-on, .ha-floating-widget.ha-entity-card.state-on {
+  border-color: rgba(255, 182, 72, 0.6); background: color-mix(in srgb, #ffb648 9%, rgba(0, 10, 18, 0.42));
+  box-shadow: 0 0 14px rgba(255, 182, 72, 0.18);
+}
+#ha-panel .ha-entity-icon-wrapper, .ha-floating-widget .ha-entity-icon-wrapper { border-radius: 2px; }
+
+/* ── Cases à cocher en verre (toutes les listes .pm) ──────────────────────── */
+.pm-case {
+  appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border-radius: 2px;
+  border: 1.5px solid #4f6878; background: transparent; cursor: pointer; flex-shrink: 0;
+  display: inline-grid; place-items: center; transition: all 0.15s ease;
+}
+.pm-case:hover { border-color: var(--pm-a); }
+.pm-case:checked { background: var(--pm-a); border-color: var(--pm-a); box-shadow: 0 0 10px var(--pm-a); }
+.pm-case:checked::after {
+  content: ""; width: 9px; height: 5px; margin-top: -2px;
+  border-left: 2px solid #021018; border-bottom: 2px solid #021018; transform: rotate(-45deg);
+}
+.pm-fait .pm-nom { color: #4f6878; text-decoration: line-through; }
+.pm-fait { border-left-color: #4f6878; }
+
+/* Boutons du pied un peu plus compacts (évite le retour à la ligne) */
+.pm-pied .pm-bouton { padding: 8px 12px; letter-spacing: 1.6px; }
+
+/* ── Coffre-fort ─────────────────────────────────────────────────────────── */
+.coffre-verrou { display: flex; flex-direction: column; align-items: center; padding: 26px 28px 30px; gap: 14px; position: relative; z-index: 2; }
+.coffre-bouclier { width: 76px; height: 76px; color: var(--pm-a); filter: drop-shadow(0 0 12px var(--pm-a)); }
+.coffre-bouclier svg { width: 100%; height: 100%; stroke-width: 1.2; }
+.coffre-consigne { font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 3px; color: var(--pm-a); text-align: center; }
+.coffre-saisie { display: flex; gap: 10px; width: 100%; max-width: 420px; }
+#vault-error-msg { min-height: 16px; font-size: 12px; }
+.coffre-ouvert { display: flex; flex-direction: column; flex: 1; min-height: 0; max-height: 420px; position: relative; z-index: 2; }
+#vault-files-list { max-height: 260px; }
+
+/* Étiquette de section dans un panneau (INGRÉDIENTS, PRÉPARATION…) */
+.pm-etiquette { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 3px; color: var(--pm-a); padding: 14px 22px 4px; opacity: 0.9; }
+
+/* ── Résultats d'images ───────────────────────────────────────────────────── */
+.pm-grille-images { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 18px; max-height: 420px; overflow-y: auto; position: relative; z-index: 2; }
+.pm-vignette {
+  aspect-ratio: 4 / 3; overflow: hidden; cursor: zoom-in; position: relative;
+  border: 1px solid color-mix(in srgb, var(--pm-a) 35%, transparent); background: rgba(0, 10, 18, 0.5);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.pm-vignette img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s ease, filter 0.3s ease; }
+.pm-vignette:hover { border-color: var(--pm-a); box-shadow: 0 0 14px color-mix(in srgb, var(--pm-a) 50%, transparent); }
+.pm-vignette:hover img { transform: scale(1.06); }
+
+/* ── Icônes au trait dans les boutons du HUD (aucune émoticône) ───────────── */
+.btn-icon svg, .toggle-password-eye svg, .wb-icon svg, .swarm-icon svg, .code-editor-icon svg, .confirm-dialog-icon svg, .wp-icon svg {
+  width: 1.15em; height: 1.15em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.2em;
+}
+.wp-icon svg { width: 1.6em; height: 1.6em; }
+.confirm-dialog-icon svg { width: 2.2em; height: 2.2em; }

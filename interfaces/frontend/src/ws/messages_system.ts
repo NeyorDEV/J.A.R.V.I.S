@@ -119,7 +119,7 @@ export function handleSystemMessage(data: JarvisMessage): boolean {
       content: `${menace.name || "Élément inconnu"} — ${menace.desc || ""}`,
       type: "alert" as any,
       duration: 15000,
-      icon: "🛡",
+      icon: "◈",
     });
     return true;
   }
@@ -130,7 +130,7 @@ export function handleSystemMessage(data: JarvisMessage): boolean {
       content: ok ? `Fichier exporté : ${(data as any).path}` : `Impossible d'exporter ${(data as any).filename || "le fichier"}.`,
       type: (ok ? "info" : "alert") as any,
       duration: 8000,
-      icon: "🔐",
+      icon: "◈",
     });
     return true;
   }
@@ -140,7 +140,7 @@ export function handleSystemMessage(data: JarvisMessage): boolean {
       content: (data as any).success ? "Cache de l'interface vidé, rechargement…" : "Le cache n'a pas pu être vidé.",
       type: ((data as any).success ? "info" : "alert") as any,
       duration: 5000,
-      icon: "🧹",
+      icon: "◈",
     });
     return true;
   }
@@ -205,7 +205,7 @@ export function handleSystemMessage(data: JarvisMessage): boolean {
     const saveBtn = document.getElementById("save-code-btn");
     if (saveBtn) {
       const oldText = saveBtn.textContent;
-      saveBtn.textContent = fileData.success ? "✅ Sauvegardé !" : "❌ Échec !";
+      saveBtn.textContent = fileData.success ? "Sauvegardé" : "Échec de la sauvegarde";
       setTimeout(() => { saveBtn.textContent = oldText; }, 2000);
     }
     return true;

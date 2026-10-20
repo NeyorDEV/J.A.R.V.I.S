@@ -435,9 +435,9 @@ class HoteVues3D {
       if (typeof Hands === 'undefined') throw new Error('MediaPipe non chargé');
       this.tracker = new HandTracker(this.video, this);
       this.tracker.onResults = (r) => { this.lastResults = r; };
-      this.tracker.start().catch(err => this._afficherToast('⚠ CAM: ' + (err.message || 'accès refusé').slice(0, 40), true));
+      this.tracker.start().catch(err => this._afficherToast('CAMÉRA : ' + (err.message || 'accès refusé').slice(0, 40), true));
     } catch (err) {
-      this._afficherToast('⚠ CAM: ' + (err.message || 'accès refusé').slice(0, 40), true);
+      this._afficherToast('CAMÉRA : ' + (err.message || 'accès refusé').slice(0, 40), true);
     }
   }
 

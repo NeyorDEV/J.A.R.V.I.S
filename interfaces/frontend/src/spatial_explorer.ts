@@ -204,7 +204,7 @@ class SpatialNode {
     // Icône de type à gauche
     if (this.item.type === 'folder') {
       ctx.font = '26px "Segoe UI Emoji"';
-      ctx.fillText('📁', 30, canvas.height / 2);
+      ctx.save(); ctx.strokeStyle = ctx.fillStyle as string; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(14, canvas.height / 2 - 12); ctx.lineTo(26, canvas.height / 2 - 12); ctx.lineTo(31, canvas.height / 2 - 7); ctx.lineTo(48, canvas.height / 2 - 7); ctx.lineTo(48, canvas.height / 2 + 13); ctx.lineTo(14, canvas.height / 2 + 13); ctx.closePath(); ctx.stroke(); ctx.restore();
     }
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -341,7 +341,7 @@ class BackNode {
     ctx.fillStyle = '#ffcc00';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('⬅ RETOUR', 128, 24);
+    ctx.fillText('< RETOUR', 128, 24);
     const tex = new THREE.CanvasTexture(canvas);
     this.label = new THREE.Sprite(new THREE.SpriteMaterial({
       map: tex, transparent: true, depthWrite: false,
@@ -413,7 +413,7 @@ class TrashZone {
     ctx.fillStyle = '#ff2e4d';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🗑 CORBEILLE', 128, 24);
+    ctx.fillText('CORBEILLE', 128, 24);
     const tex = new THREE.CanvasTexture(canvas);
     this.label = new THREE.Sprite(new THREE.SpriteMaterial({
       map: tex, transparent: true, depthWrite: false,
@@ -849,7 +849,7 @@ export class SpatialFileExplorer {
     if (display.length > 50) {
       display = '…' + display.slice(-48);
     }
-    ctx.fillText(`📂 ${display}`, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(`${display}`, canvas.width / 2, canvas.height / 2);
 
     const tex = new THREE.CanvasTexture(canvas);
     this.breadcrumbSprite = new THREE.Sprite(new THREE.SpriteMaterial({

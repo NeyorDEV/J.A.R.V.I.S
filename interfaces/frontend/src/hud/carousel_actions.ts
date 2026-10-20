@@ -1,3 +1,4 @@
+import { icone } from "../panels/pm_utils";
 import { toggleHandTracking } from "../hand_tracking";
 import { toggleVision } from "../screen_capture";
 import { wsRef } from "../ws_link";
@@ -27,7 +28,7 @@ export function initCarouselActions(): void {
   bindCarouselAction("subtitle-toggle", (btn) => {
     hudState.subtitlesEnabled = !hudState.subtitlesEnabled;
     setCarouselBtnState(btn, hudState.subtitlesEnabled);
-    btn.innerHTML = hudState.subtitlesEnabled ? '<span class="btn-icon">💬</span> HUD TEXT' : '<span class="btn-icon">💬</span> TEXT OFF';
+    btn.innerHTML = hudState.subtitlesEnabled ? `<span class="btn-icon">${icone("discussion")}</span> HUD TEXT` : `<span class="btn-icon">${icone("discussion")}</span> TEXT OFF`;
     const subHud = document.getElementById("subtitle-hud");
     if (subHud && !hudState.subtitlesEnabled) {
       // On masque à la désactivation. À l'activation on NE force PAS l'affichage :
@@ -42,12 +43,12 @@ export function initCarouselActions(): void {
     const isPressed = btn.getAttribute("aria-pressed") === "true";
     const newState = !isPressed;
     (btn as HTMLButtonElement).disabled = true;
-    btn.innerHTML = newState ? '<span class="btn-icon">⏳</span> CHARGEMENT...' : '<span class="btn-icon">🖐️</span> MODE AR';
+    btn.innerHTML = newState ? `<span class="btn-icon">${icone("sablier")}</span> CHARGEMENT...` : `<span class="btn-icon">${icone("main")}</span> MODE AR`;
     const active = await toggleHandTracking(newState);
     (btn as HTMLButtonElement).disabled = false;
     setCarouselBtnState(btn, active);
     btn.classList.toggle("ar-active", active);
-    btn.innerHTML = active ? '<span class="btn-icon">🖐️</span> AR ACTIF' : '<span class="btn-icon">🖐️</span> MODE AR';
+    btn.innerHTML = active ? `<span class="btn-icon">${icone("main")}</span> AR ACTIF` : `<span class="btn-icon">${icone("main")}</span> MODE AR`;
   });
 
   // ── État visuel des boutons du carrousel ──────────────────────────────────────
@@ -182,13 +183,13 @@ export function initCarouselActions(): void {
     if (jarvisMenuBtn) jarvisMenuBtn.classList.remove("active");
 
     (btn as HTMLButtonElement).disabled = true;
-    btn.innerHTML = '<span class="btn-icon">⏳</span> CACHE...';
+    btn.innerHTML = `<span class="btn-icon">${icone("sablier")}</span> CACHE...`;
 
     const banner = document.getElementById("update-banner");
     if (banner) {
       banner.style.display = "block";
       banner.style.cursor = "default";
-      banner.textContent = "⏳ NETTOYAGE DU CACHE EN COURS...";
+      banner.textContent = "NETTOYAGE DU CACHE EN COURS...";
       banner.style.background = "linear-gradient(90deg, rgba(0,30,80,0.95), rgba(0,100,180,0.85))";
     }
 

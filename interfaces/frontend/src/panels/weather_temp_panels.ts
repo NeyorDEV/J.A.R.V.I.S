@@ -1,3 +1,6 @@
+// ── Panneaux météo et température (HUD) ──
+import { icone } from "./pm_utils";
+
 // ── Temp Panel (left side — Home Assistant interior) ────────────────────────
 
 const TEMP_DURATION_MS = 3 * 60 * 1000; // 3 minutes
@@ -70,14 +73,14 @@ function hideTempPanel() {
 
 const WEATHER_DURATION_MS = 2 * 60 * 1000; // 2 minutes
 const WEATHER_ICONS: Record<number, string> = {
-  0: "☀️", 1: "🌤", 2: "⛅", 3: "☁️",
-  45: "🌫", 48: "🌫",
-  51: "🌦", 53: "🌦", 55: "🌧",
-  61: "🌧", 63: "🌧", 65: "🌧",
-  71: "🌨", 73: "🌨", 75: "❄️", 77: "🌨",
-  80: "🌦", 81: "🌦", 82: "⛈",
-  85: "🌨", 86: "❄️",
-  95: "⛈", 96: "⛈", 99: "⛈",
+  0: "soleil", 1: "soleil_nuage", 2: "soleil_nuage", 3: "nuage",
+  45: "brouillard", 48: "brouillard",
+  51: "pluie", 53: "pluie", 55: "pluie",
+  61: "pluie", 63: "pluie", 65: "pluie",
+  71: "neige", 73: "neige", 75: "neige", 77: "neige",
+  80: "pluie", 81: "pluie", 82: "orage",
+  85: "neige", 86: "neige",
+  95: "orage", 96: "orage", 99: "orage",
 };
 
 let _wpTimer: ReturnType<typeof setInterval> | null = null;
@@ -97,7 +100,7 @@ export function showWeatherPanel(d: {
   (document.getElementById("wp-feels") as HTMLElement).textContent = String(d.ressenti);
   (document.getElementById("wp-humidity") as HTMLElement).textContent = String(d.humidite);
   (document.getElementById("wp-wind") as HTMLElement).textContent = String(d.vent);
-  (document.getElementById("wp-icon") as HTMLElement).textContent = WEATHER_ICONS[d.code] ?? "🌡";
+  (document.getElementById("wp-icon") as HTMLElement).innerHTML = icone(WEATHER_ICONS[d.code] ?? "inconnu");
 
   // reset any existing timers
   if (_wpTimer) clearInterval(_wpTimer);

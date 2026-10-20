@@ -1,3 +1,4 @@
+import { esc } from "../panels/pm_utils";
 import { type OrbState } from "../orb";
 import { statusEl } from "../hud/dom_refs";
 import { showHelpHUD } from "../hud/help_hud";
@@ -113,23 +114,16 @@ export function handleHudMessage(data: JarvisMessage, pushDomAction: (domAction:
     if (modal && titleEl && ingListEl && instListEl) {
       titleEl.textContent = (data as any).titre || "RECETTE J.A.R.V.I.S";
 
-      ingListEl.innerHTML = "";
-                const ingredients = (data as any).ingredients || [];
-      ingredients.forEach((ing: string) => {
-        const li = document.createElement("li");
-        li.textContent = ing;
-        ingListEl.appendChild(li);
-      });
+      const ingredients = ((data as any).ingredients || []) as string[];
+      ingListEl.innerHTML = ingredients.map((ing) => `
+        <div class="pm-ligne"><input type="checkbox" class="pm-case"><div class="pm-texte"><div class="pm-nom" style="white-space:normal">${esc(ing)}</div></div></div>`).join("");
 
-      instListEl.innerHTML = "";
-      const instructions = (data as any).instructions || [];
-      instructions.forEach((inst: string) => {
-        const li = document.createElement("li");
-        li.textContent = inst;
-        instListEl.appendChild(li);
-      });
+      const instructions = ((data as any).instructions || []) as string[];
+      instListEl.innerHTML = instructions.map((inst, i) => `
+        <div class="pm-ligne"><div class="pm-avatar">${i + 1}</div><div class="pm-texte"><div class="pm-nom" style="white-space:normal">${esc(inst)}</div></div></div>`).join("");
 
       modal.classList.remove("hidden");
+      modal.classList.add("visible");
     }
     return;
   }

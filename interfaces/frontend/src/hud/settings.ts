@@ -1,3 +1,4 @@
+import { icone } from "../panels/pm_utils";
 import { wsRef } from "../ws_link";
 import { appAddBtn, appAddNameEl, appAddPathEl, appDetectBtn, appDetectSelect, keyboardHudEl, keyboardToggleButtonEl, settingsAgeEl, settingsAppsListEl, settingsCameraSelect, settingsCloseBtn, settingsMicSelect, settingsModalEl, settingsMusiqueLien, settingsNameEl, settingsSaveBtn, swarmLoungeClose, swarmLoungeHud } from "./dom_refs";
 import { orb } from "./orb_state";
@@ -20,7 +21,7 @@ export function handleSettingsMessage(data: JarvisMessage): boolean {
         opt.textContent = app.nom;
         appDetectSelect.appendChild(opt);
       });
-      appDetectBtn.textContent = `🔍 APPS (${appsList.length})`;
+      appDetectBtn.textContent = `APPS (${appsList.length})`;
     }
             return true;
   }
@@ -112,8 +113,8 @@ export function handleSettingsMessage(data: JarvisMessage): boolean {
       const enabled = settings.av_live_protection === true;
       menuAvLiveBtn.setAttribute("aria-pressed", String(enabled));
       menuAvLiveBtn.innerHTML = enabled
-        ? `<span class="btn-icon">🛡️</span> PROT. TEMPS RÉEL : ON`
-        : `<span class="btn-icon">🛡️</span> PROT. TEMPS RÉEL : OFF`;
+        ? `<span class="btn-icon">${icone("bouclier")}</span> PROT. TEMPS RÉEL : ON`
+        : `<span class="btn-icon">${icone("bouclier")}</span> PROT. TEMPS RÉEL : OFF`;
       if (enabled) {
         menuAvLiveBtn.classList.add("active");
         menuAvLiveBtn.style.color = "#00ffcc";
@@ -249,7 +250,7 @@ export function initSettingsForm(): void {
 
   if (appDetectBtn) {
     appDetectBtn.addEventListener("click", () => {
-      appDetectBtn.textContent = "🔍 SCAN...";
+      appDetectBtn.textContent = "SCAN...";
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: "detect_apps" }));
       }
@@ -314,10 +315,10 @@ export function initSettingsForm(): void {
         if (input) {
           if (input.type === "password") {
             input.type = "text";
-            eye.textContent = "🙈";
+            eye.innerHTML = icone("oeil_barre");
           } else {
             input.type = "password";
-            eye.textContent = "👁️";
+            eye.innerHTML = icone("oeil");
           }
         }
       }

@@ -35,13 +35,6 @@ const RISK_COLOR: Record<string, number> = {
   high:   0xff2e4d,
 };
 
-const FLAG: Record<string, string> = {
-  FR:'🇫🇷', US:'🇺🇸', DE:'🇩🇪', GB:'🇬🇧', NL:'🇳🇱', JP:'🇯🇵',
-  SG:'🇸🇬', IE:'🇮🇪', SE:'🇸🇪', CH:'🇨🇭', CA:'🇨🇦', AU:'🇦🇺',
-  IN:'🇮🇳', BR:'🇧🇷', PL:'🇵🇱', FI:'🇫🇮', NO:'🇳🇴', DK:'🇩🇰',
-  CN:'🇨🇳', RU:'🇷🇺', KP:'🇰🇵', IR:'🇮🇷', BY:'🇧🇾', SY:'🇸🇾',
-  VN:'🇻🇳', PK:'🇵🇰', NG:'🇳🇬', UA:'🇺🇦', RO:'🇷🇴',
-};
 
 // Préchargement des frontières pays en arrière-plan dès l'import du module
 let _countryBorderPoints: THREE.Vector3[][] | null = null;
@@ -660,7 +653,7 @@ export class NetworkRadar {
     }
 
     for (const c of sorted) {
-      const flag     = FLAG[c.cc] ?? '🌐';
+      const flag     = c.cc || '--';
       const colorHex = '#' + (RISK_COLOR[c.risk] ?? RISK_COLOR.normal).toString(16).padStart(6, '0');
       const dot      = `<span style="color:${colorHex};font-size:10px;flex-shrink:0">●</span>`;
       const dur      = this._fmtDuration(c.duration_s ?? 0);

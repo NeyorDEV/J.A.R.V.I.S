@@ -2,6 +2,7 @@
 // Extrait de main.ts.
 
 import { makePanelDraggable } from "../ui/draggable";
+import { esc, icone } from "./pm_utils";
 
 // Intervalle de l'animation de balayage en cours (un seul à la fois)
 let scanIntervalActif: number | null = null;
@@ -89,8 +90,11 @@ export function showImagePanel(query: string, images: string[]) {
   if (!container) return;
 
   const panel = document.createElement("div");
-  panel.className = "img-panel";
-  
+  panel.className = "pm visible";
+  panel.style.setProperty("--pm-a", "#00e5ff");
+  panel.style.setProperty("--pm-largeur", "460px");
+  panel.style.transform = "none";
+
   // Bring to front on mousedown
   panel.addEventListener("mousedown", () => {
     maxZIndex++;
@@ -105,46 +109,29 @@ export function showImagePanel(query: string, images: string[]) {
   panel.style.top = `${top}px`;
   imgPanelCount++;
 
-  // Add scanlines, corners & structure
+  const n = images.length;
   panel.innerHTML = `
-    <div class="img-panel-scanlines"></div>
-    <div class="img-panel-corner-tr"></div>
-    <div class="img-panel-corner-bl"></div>
-    <div class="img-panel-header">
-      <div class="img-panel-drag-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M5 9l7-7 7 7M5 15l7 7 7-7" />
-        </svg>
-      </div>
-      <div class="img-panel-title">IMAGE_SCAN // ${query.toUpperCase()}</div>
-      <button class="img-panel-close">&times;</button>
+    <div class="pm-tete">
+      <div class="pm-icone">${icone("image")}</div>
+      <div><div class="pm-titre">IMAGES</div><div class="pm-sous">${n} résultat${n > 1 ? "s" : ""} · ${esc(query)}</div></div>
+      <div class="pm-tete-droite"><button class="pm-fermer img-panel-close" title="Fermer">${icone("fermer")}</button></div>
     </div>
-    <div class="img-panel-status">
-      <span>GRID STATUS: ACTIVE</span>
-      <span class="img-panel-meta">FOUND: ${images.length} SECURE_NODES</span>
-    </div>
-    <div class="img-panel-grid"></div>
-    <div class="img-panel-footer">
-      <span>SYS.LOC: LOCAL_HUD</span>
-      <span>JARVIS_V2.6</span>
-    </div>
+    <div class="pm-grille-images"></div>
+    <div class="pm-pied"><span>Cliquez sur une image pour l'agrandir</span></div>
   `;
 
   // Populate grid
-  const grid = panel.querySelector(".img-panel-grid") as HTMLElement;
+  const grid = panel.querySelector(".pm-grille-images") as HTMLElement;
   if (images.length === 0) {
     const empty = document.createElement("div");
-    empty.style.gridColumn = "span 3";
-    empty.style.padding = "20px";
-    empty.style.textAlign = "center";
-    empty.style.fontSize = "10px";
-    empty.style.color = "rgba(0, 229, 255, 0.4)";
-    empty.textContent = "NO SECURE NODE RESOLVED";
+    empty.className = "pm-vide";
+    empty.style.gridColumn = "1 / -1";
+    empty.textContent = "AUCUNE IMAGE TROUVÉE";
     grid.appendChild(empty);
   } else {
     images.forEach((url, index) => {
       const item = document.createElement("div");
-      item.className = "img-panel-item";
+      item.className = "pm-vignette";
       // Stagger animation delay
       item.style.animationDelay = `${index * 0.08}s`;
       
@@ -155,7 +142,7 @@ export function showImagePanel(query: string, images: string[]) {
       
       // Handle image load error
       img.onerror = () => {
-        img.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='rgba(0,8,20,0.8)'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Courier, monospace' font-size='10' fill='%23ff3366'>LOAD_ERR</text></svg>";
+        img.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='rgba(0,8,20,0.8)'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Courier, monospace' font-size='9' fill='%23ff5a5f'>INDISPONIBLE</text></svg>";
       };
 
       item.appendChild(img);
@@ -179,7 +166,7 @@ export function showImagePanel(query: string, images: string[]) {
   });
 
   // Setup Drag & Drop
-  const header = panel.querySelector(".img-panel-header") as HTMLElement;
+  const header = panel.querySelector(".pm-tete") as HTMLElement;
   makePanelDraggable(panel, header);
 
   // Append & animate in
@@ -195,9 +182,9 @@ function showFullscreenImage(url: string, query: string) {
   overlay.className = "img-zoom-overlay";
 
   overlay.innerHTML = `
-    <button class="img-zoom-close">CLOSE [ESC]</button>
-    <img src="${url}" alt="${query}" />
-    <div class="img-zoom-label">RESOLVED NODE // ${query.toUpperCase()}</div>
+    <button class="img-zoom-close">FERMER [ÉCHAP]</button>
+    <img src="${esc(url)}" alt="${esc(query)}" />
+    <div class="img-zoom-label">IMAGE // ${esc(query.toUpperCase())}</div>
   `;
 
   const closeOverlay = () => {

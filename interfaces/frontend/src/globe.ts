@@ -506,10 +506,10 @@ function setCoords(lat: number, lon: number) {
         clearGroups();
         addMarker(data.lat, data.lon, "#00ff88");
         flyTo(data.lat, data.lon, 230);
-        if (tLabel) tLabel.textContent = "📍 " + (data.target ? String(data.target).toUpperCase() : "VOTRE POSITION");
+        if (tLabel) tLabel.textContent = (data.target ? String(data.target).toUpperCase() : "VOTRE POSITION");
         setCoords(data.lat, data.lon);
       } else if (navigator.geolocation) {
-        if (tLabel) tLabel.textContent = "📍 LOCALISATION...";
+        if (tLabel) tLabel.textContent = "LOCALISATION...";
         if (cLabel) cLabel.textContent = "";
         navigator.geolocation.getCurrentPosition((pos) => {
           const mLat = pos.coords.latitude;
@@ -517,10 +517,10 @@ function setCoords(lat: number, lon: number) {
           clearGroups();
           addMarker(mLat, mLon, "#00ff88");
           flyTo(mLat, mLon, 230);
-          if (tLabel) tLabel.textContent = "📍 VOTRE POSITION";
+          if (tLabel) tLabel.textContent = "VOTRE POSITION";
           setCoords(mLat, mLon);
         }, () => {
-          if (tLabel) tLabel.textContent = "⚠ LOCALISATION REFUSÉE";
+          if (tLabel) tLabel.textContent = "LOCALISATION REFUSÉE";
           if (cLabel) cLabel.textContent = "";
         });
       }

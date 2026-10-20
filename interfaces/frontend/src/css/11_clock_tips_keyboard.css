@@ -193,7 +193,6 @@
 
 /* ── VRAIES MODALES : plein écran, centrées, fond assombri ─────────────────── */
 #api-keys-modal.visible,
-#vault-panel.visible,
 #settings-modal.visible {
   display: flex !important;
   opacity: 1 !important;
