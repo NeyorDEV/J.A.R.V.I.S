@@ -162,3 +162,33 @@
 }
 .wp-icon svg { width: 1.6em; height: 1.6em; }
 .confirm-dialog-icon svg { width: 2.2em; height: 2.2em; }
+
+/* ── État du système ──────────────────────────────────────────────────────── */
+.sys-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 18px 18px; position: relative; z-index: 2; }
+.sys-carte { border: 1px solid color-mix(in srgb, var(--pm-a) 22%, transparent); background: rgba(0, 10, 18, 0.45); padding: 12px 14px; }
+.sys-carte h4 { margin: 0 0 10px; font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2.5px; color: var(--pm-a); font-weight: 600; }
+.sys-carte h4 small { margin-left: 8px; font-family: 'Consolas', monospace; letter-spacing: 1px; color: #55707f; font-weight: 400; text-transform: none; }
+.sys-ligne { display: grid; grid-template-columns: 92px 1fr auto auto; gap: 10px; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.sys-ligne:last-child { border-bottom: none; }
+.sys-nom { color: #e6f6ff; }
+.sys-det { color: #7d95a6; font-family: 'Consolas', monospace; font-size: 11px; text-align: right; }
+.sys-pastille { display: inline-block; padding: 3px 9px; border-radius: 2px; font-family: 'Consolas', monospace; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; background: rgba(255, 255, 255, 0.06); color: #7d95a6; text-align: center; min-width: 54px; white-space: nowrap; }
+.sys-pastille.ok { background: rgba(61, 220, 151, 0.14); color: #3ddc97; }
+.sys-pastille.warn { background: rgba(255, 176, 32, 0.14); color: #ffb020; }
+.sys-pastille.ko { background: rgba(255, 90, 95, 0.14); color: #ff5a5f; }
+.sys-kv { display: flex; justify-content: space-between; padding: 4px 0; color: #7d95a6; font-size: 12px; }
+.sys-kv b { color: #e6f6ff; font-family: 'Consolas', monospace; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.sys-niveau { height: 6px; margin: 4px 0 10px; background: rgba(255, 255, 255, 0.07); border-radius: 3px; overflow: hidden; }
+.sys-niveau i { display: block; height: 100%; background: linear-gradient(90deg, #00e5ff, #3d8bff); box-shadow: 0 0 8px #00e5ff; transition: width 0.4s ease; }
+.sys-actions { display: flex; gap: 8px; margin-top: 12px; }
+.sys-actions .pm-bouton svg { width: 1.2em; height: 1.2em; fill: none; stroke: currentColor; stroke-width: 1.8; vertical-align: -0.25em; margin-right: 4px; }
+.sys-resultat { margin-top: 10px; padding: 6px 10px; font-family: 'Consolas', monospace; font-size: 11px; border-left: 2px solid; }
+.sys-resultat.ok { color: #3ddc97; background: rgba(61, 220, 151, 0.08); }
+.sys-resultat.ko { color: #ff5a5f; background: rgba(255, 90, 95, 0.08); }
+.sys-jauges { display: flex; justify-content: space-around; padding: 6px 0; }
+.sys-jauge { position: relative; width: 96px; text-align: center; font-family: 'Consolas', monospace; font-size: 10px; letter-spacing: 1.5px; color: #7d95a6; }
+.sys-jauge svg { width: 80px; height: 80px; display: block; margin: 0 auto 4px; }
+.sys-jauge-v { position: absolute; top: 28px; left: 0; right: 0; font-family: 'Orbitron', sans-serif; font-size: 14px; color: #e6f6ff; }
+.sys-jauge-s { margin-top: 2px; color: #55707f; }
+.sys-test svg { width: 1em; height: 1em; }
+#system-test-all svg { width: 1.1em; height: 1.1em; fill: currentColor; stroke: none; vertical-align: -0.2em; margin-right: 4px; }

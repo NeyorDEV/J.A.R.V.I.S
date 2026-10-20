@@ -220,6 +220,7 @@ export function initCarouselActions(): void {
     "uninstaller-panel": ["carousel-uninstaller-btn"],
     "winget-panel":      ["carousel-winget-btn"],
     "ha-panel":          ["carousel-ha-btn"],
+    "system-panel":      ["carousel-system-btn"],
     "av-panel":          ["carousel-av-scan-btn"],
     "help-overlay":      ["carousel-commands-btn"],
     // La page paramètres unifiée a deux points d'entrée (bouton haut + dock) : les deux

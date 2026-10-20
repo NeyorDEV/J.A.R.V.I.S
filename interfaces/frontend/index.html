@@ -417,6 +417,7 @@
         <button id="carousel-ha-btn" aria-pressed="false" title="Contrôler la domotique Home Assistant"><span class="btn-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8z"/></svg></span> DOMOTIQUE</button>
 
         <!-- Section Système -->
+        <button id="carousel-system-btn" aria-pressed="false" title="Voir l'état du système (moteurs d'IA, voix, services, ressources)"><span class="btn-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></span> ÉTAT</button>
         <button id="carousel-commands-btn" aria-pressed="false" title="Afficher la liste des commandes vocales"><span class="btn-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span> COMMANDES</button>
         <button id="carousel-api-btn" aria-pressed="false" title="Configurer les clés d'API (OpenAI, Gemini...)"><span class="btn-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v3"/></svg></span> API KEYS</button>
         <button id="clear-cache-btn" aria-pressed="false" title="Vider le cache WebView2 et relancer l'interface"><span class="btn-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></span> CACHE</button>
@@ -1377,6 +1378,19 @@
   </div>
 
   <!-- ══ DOMOTIQUE (HOME ASSISTANT) — style commun css/13_panneaux_modules.css ═════ -->
+  <div id="system-panel" class="pm hidden draggable" style="--pm-a: #00e5ff; --pm-largeur: 900px;">
+    <div class="pm-tete" id="system-tete">
+      <div class="pm-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div>
+      <div><div class="pm-titre">ÉTAT DU SYSTÈME</div><div class="pm-sous" id="system-sous">Lecture en cours…</div></div>
+      <div class="pm-tete-droite">
+        <span class="sys-pastille" id="system-global">…</span>
+        <button class="pm-bouton petit plein" id="system-test-all"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg> Tout tester</button>
+        <button class="pm-fermer" id="system-fermer" title="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+    </div>
+    <div class="pm-corps" id="system-corps"><div class="pm-vide">LECTURE DE L'ÉTAT…</div></div>
+  </div>
+
   <div id="ha-panel" class="pm hidden draggable">
     <div class="pm-tete" id="ha-panel-drag-handle">
       <div class="pm-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8z"/></svg></div>

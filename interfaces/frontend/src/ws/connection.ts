@@ -8,6 +8,7 @@ import { handleCodeWorkshopMessage } from "../panels/code_workshop";
 import { type JarvisMessage } from "./message_types";
 import { handleVues3DMessage } from "./messages_vues3d";
 import { handleHudMessage } from "./messages_hud";
+import { handleSystemPanelMessage } from "../panels/system_panel";
 import { handleAutopilotMessage, handleSystemMessage } from "./messages_system";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ export function connect(): void {
         return;
       }
 
+      if (handleSystemPanelMessage(data)) return;
       if (handleSystemMessage(data)) return;
       if (handleCodeWorkshopMessage(data)) return;
       if (handleVues3DMessage(data)) return;

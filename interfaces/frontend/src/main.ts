@@ -51,6 +51,7 @@ import { initSwarmLounge, initWebsiteBuilderHud } from "./panels/code_workshop";
 import { initConfirmDialog } from "./panels/confirm_dialog";
 import { initRecipePanel } from "./panels/recipe_panel";
 import { initVaultPanel } from "./panels/vault_panel";
+import { initSystemPanel } from "./panels/system_panel";
 import { initWeatherTempPanels } from "./panels/weather_temp_panels";
 import { connect } from "./ws/connection";
 
@@ -112,3 +113,4 @@ initCarouselDock();
 initPanelShortcuts();
 initCarouselActions();
 initVaultPanel();
+initSystemPanel();

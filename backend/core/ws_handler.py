@@ -15,6 +15,7 @@ from core.etat_parole import get_is_speaking, set_stop_parler
 from core.speech import parler
 from core.traitement import gerer_reponse_ia
 from core.web_bridge import diffuser_echecs, demarrer_tache_fond, envoyer_etat_hud
+from core.ws_etat_systeme import ws_get_system_status, ws_system_test
 from core.ws_reglages import ws_get_settings, ws_update_settings
 from core.ws_securite import (
     ws_av_threat_action, ws_block_ip, ws_clear_cache, ws_get_blocked_ips, ws_unblock_ip,
@@ -135,6 +136,10 @@ async def gerer_connexion_ws(websocket):
                     if hasattr(shared, "_WEBVIEW_WINDOW") and shared._WEBVIEW_WINDOW:
                         shared._WEBVIEW_WINDOW.toggle_fullscreen()
                         print("[WEB] Plein écran pywebview basculé")
+                elif data.get("type") == "get_system_status":
+                    await ws_get_system_status(websocket, data)
+                elif data.get("type") == "system_test":
+                    _en_tache_de_fond(ws_system_test(websocket, data))  # requêtes réseau : sans bloquer la lecture
                 elif data.get("type") == "get_settings":
                     await ws_get_settings(websocket, data)
                 elif data.get("type") == "update_settings":

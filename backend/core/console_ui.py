@@ -115,6 +115,7 @@ class _Console:
         self.moteur = None               # dernier moteur ayant répondu
         self.ollama = None               # modèle Ollama chargé en mémoire vidéo (sondé)
         self.stats = {"local": 0, "ia": 0, "durees": deque(maxlen=20)}  # réponses de la session
+        self.micro_nom = None            # micro retenu (relevé dans la ligne [MIC] du démarrage)
         self.alarme = None               # prochaine alarme (texte), relevée dans la veille
         self.gpu = None                  # (utilisation %, VRAM %) échantillonné toutes les 5 s
         self.recents = deque(maxlen=40)  # (texte, instant) des alertes/erreurs affichées : anti-doublon
@@ -166,6 +167,10 @@ class _Console:
             self._noter_voix(reste)
             if not self.detail:
                 return
+        if TAG == "MIC" and "micro retenu" in bas:
+            m_mic = re.search(r":\s*\[\d+\]\s*(.+)$", reste)
+            if m_mic:
+                self.micro_nom = re.sub(r"^Microphone \((?:\d+- )?(.+)\)$", r"\1", m_mic.group(1).strip())
         # Qui répond (sert à l'échange en cours et au bandeau)
         self._noter_route(TAG, reste)
 
