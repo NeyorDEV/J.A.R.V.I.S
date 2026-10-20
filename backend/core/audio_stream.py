@@ -19,6 +19,9 @@ except ImportError:
     print("[ATTENTION] pyaudio est absent : le micro est désactivé.")
     print("  -> Installation : pip install pipwin && pipwin install pyaudio")
 
+NIVEAU_MICRO = 0.0  # dernier niveau sonore capté (0 à 1), lu par la console
+
+
 def _filtre_anticrenelage():
     """Passe-bas (FIR, coupure 7 kHz) appliqué AVANT de ramener le flux de 48 kHz à 16 kHz.
 
@@ -265,6 +268,9 @@ class AudioStreamManager:
                     else:
                         data_to_send = data
                     
+                # Niveau du micro (0 à 1) pour l'affichage de la console
+                global NIVEAU_MICRO
+                NIVEAU_MICRO = min(1.0, float(np.abs(np.frombuffer(data_to_send, dtype=np.int16)).mean()) / 6000.0)
                 with self.subscribers_lock:
                     for q in self.subscribers:
                         q.put(data_to_send)
