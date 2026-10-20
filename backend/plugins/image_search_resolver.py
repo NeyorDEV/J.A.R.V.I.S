@@ -1,4 +1,5 @@
 import builtins
+import re
 import json
 import asyncio
 from module.image_search import images_par_moteur
@@ -7,6 +8,13 @@ from core.interlocuteur import nom_virgule
 def nettoyer_accent(texte):
     import unicodedata
     return "".join(c for c in unicodedata.normalize('NFD', texte) if unicodedata.category(c) != 'Mn')
+
+_MOTIF_IMAGES = re.compile(
+    r"^(?:jarvis[ ,]+)?(?:s'il (?:te|vous) pla[iî]t[ ,]+)?(?:(?:peux|pourrais)[- ](?:tu|vous)[ ]+)?(?:me |m')?"
+    r"(?:montre|montrer|affiche|afficher|cherche|chercher|trouve|trouver|recherche|rechercher|donne|donner|sors)"
+    r"(?:[- ]moi)?[ ]+(?:(?:une?|des|les?|la|quelques)[ ]+)?(?:autres[ ]+)?"
+    r"(?:images?|photos?|dessins?|visuels?|illustrations?)[ ]+(?:de la |de l'|du |des |de |d')\s*(.+)$")
+
 
 async def resoudre_images_locales(texte):
     t = nettoyer_accent(texte.lower().strip())
@@ -31,10 +39,19 @@ async def resoudre_images_locales(texte):
         "affiche-moi des images de ", "affiche-moi des photos de ",
     ]
     
+    # Tournures libres (« montre moi une image de chat », « peux-tu m'afficher des photos de… ») :
+    # sans cela la demande partait vers le LLM, qui lançait une recherche web.
+    m_libre = _MOTIF_IMAGES.match(texte.lower().strip())
+    candidats = []
+    if m_libre:
+        candidats.append(m_libre.group(1).strip().rstrip(".?! "))
     for pref in _images_prefixes:
-        pref_cleaned = nettoyer_accent(pref)
-        if t.startswith(pref_cleaned):
-            query = texte[len(pref):].strip().rstrip(".")
+        if t.startswith(nettoyer_accent(pref)):
+            candidats.append(texte[len(pref):].strip().rstrip("."))
+            break
+
+    for query in candidats[:1]:
+        if True:
             if len(query) > 1:
                 print(f"[IMAGE RESOLVER] Demande de recherche d'images pour : {query}")
                 
