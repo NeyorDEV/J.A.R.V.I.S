@@ -147,4 +147,13 @@ jobs:
         run: |
           python -m pip install --quiet pip-audit==2.10.1
           iconv -f UTF-16 -t UTF-8 requirements.txt | tr -d '\r' > /tmp/requirements-utf8.txt
-          pip-audit -r /tmp/requirements-utf8.txt --no-deps --disable-pip
+          # Failles sans correctif publié, non exploitables ici :
+          #  - chromadb (PYSEC-2026-311, 3813, 3814, 3815) : serveur Chroma (authentification, RBAC) ;
+          #    JARVIS n'utilise que le client embarqué local, sans serveur exposé.
+          #  - js2py (PYSEC-2026-1476) : dépendance de pipwin (secours d'installation de PyAudio),
+          #    jamais importée par le code de JARVIS.
+          # À retirer de la liste dès qu'une version corrigée existe.
+          pip-audit -r /tmp/requirements-utf8.txt --no-deps --disable-pip \
+            --ignore-vuln PYSEC-2026-311 --ignore-vuln PYSEC-2026-3813 \
+            --ignore-vuln PYSEC-2026-3814 --ignore-vuln PYSEC-2026-3815 \
+            --ignore-vuln PYSEC-2026-1476
