@@ -5,6 +5,7 @@
 
   *A personal voice AI assistant, running on your own machine.*
 
+  [![CI](https://github.com/NeyorDEV/J.A.R.V.I.S/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/NeyorDEV/J.A.R.V.I.S/actions/workflows/ci.yml)
   [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](#prerequisites)
   [![Node](https://img.shields.io/badge/node-18%2B-339933?logo=node.js&logoColor=white)](#prerequisites)
   [![Frontend](https://img.shields.io/badge/frontend-Three.js%20%2B%20Vite-black)](interfaces/frontend)
