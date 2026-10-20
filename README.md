@@ -131,3 +131,12 @@ scratch/             — Debug/exploration scripts (not versioned)
 Personal project, developed and maintained by [@NeyorDEV](https://github.com/NeyorDEV).
 
 </div>
+
+## License
+
+Copyright (C) 2026 NeyorDEV
+
+J.A.R.V.I.S is free software, released under the [GNU General Public License v3.0 or later](LICENSE) (GPL-3.0-or-later).
+
+This program comes with ABSOLUTELY NO WARRANTY; see the license for details.
+Third-party libraries keep their own licenses (notably `python-chess`, GPL-3.0+).
