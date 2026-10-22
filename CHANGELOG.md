@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié
+
+- **Mises à jour** : vérification discrète de la dernière release GitHub ~3 s après le lancement (désactivable : case « Vérifier au lancement » dans Paramètres), bannière dans les Paramètres avec les notes de version, « Télécharger la mise à jour » (ouvre la page de la release) et « Plus tard », bouton « Vérifier les mises à jour » en bas des Paramètres, carte discrète au lancement. Comparaison de versions par nombres (9.10.0 > 9.9.9). Backend : `core/mises_a_jour.py`. Aucune installation automatique.
+
 ## 9.5.1 — Confidentialité et réglages personnels
 
 - **Prénom du propriétaire configurable** : JARVIS appelle le propriétaire par le réglage `user_name` (assistant de premier lancement, Paramètres), « Neyor » seulement s'il est vide. L'âge et la date de naissance du créateur ne sont plus dans le code (`createur_infos`, `jarvis_config.json`).

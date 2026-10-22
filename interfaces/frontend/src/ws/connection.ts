@@ -10,6 +10,7 @@ import { handleVues3DMessage } from "./messages_vues3d";
 import { handleHudMessage } from "./messages_hud";
 import { handleSystemPanelMessage } from "../panels/system_panel";
 import { handleSetupMessage } from "../panels/setup_wizard";
+import { handleUpdateMessage, verificationAuLancement } from "../panels/mises_a_jour";
 import { handleAutopilotMessage, handleSystemMessage } from "./messages_system";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ export function connect(): void {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "get_shopping_list" }));
       ws.send(JSON.stringify({ type: "get_setup_state" }));
+      verificationAuLancement();
     }
     // Notifie la séquence de boot que le serveur est prêt
     if (hudState.bootConnectedCallback) {
@@ -76,6 +78,7 @@ export function connect(): void {
       }
 
       if (handleSetupMessage(data)) return;
+      if (handleUpdateMessage(data)) return;
       if (handleSystemPanelMessage(data)) return;
       if (handleSystemMessage(data)) return;
       if (handleCodeWorkshopMessage(data)) return;

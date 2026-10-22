@@ -1008,9 +1008,16 @@
             <span class="settings-nav-icon"></span><span class="settings-nav-label">Clés API</span>
           </button>
         </nav>
+        <div class="maj-pied">
+          <div class="maj-version" id="maj-version">Version —</div>
+          <button type="button" class="settings-btn" id="maj-verifier">Vérifier les mises à jour</button>
+          <div class="maj-etat" id="maj-etat"></div>
+          <label class="maj-auto"><input type="checkbox" id="maj-auto" checked> Vérifier au lancement</label>
+        </div>
       </aside>
 
       <div class="settings-content">
+        <div id="maj-banniere" class="maj-banniere hidden"></div>
 
         <!-- ── PROFIL ─────────────────────────────────────────── -->
         <section class="settings-panel active" data-panel="profil">
@@ -1023,7 +1030,7 @@
               <h3 class="settings-card-title">Identité</h3>
               <div class="settings-group">
                 <label for="settings-name">Prénom</label>
-                <input type="text" id="settings-name" placeholder="Mylan">
+                <input type="text" id="settings-name" placeholder="Votre prénom">
               </div>
               <div class="settings-group">
                 <label for="settings-age">Âge</label>

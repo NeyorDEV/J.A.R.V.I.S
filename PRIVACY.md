@@ -19,6 +19,7 @@ JARVIS only contacts a service when the matching feature is used. You choose whi
 | Network radar | ip-api.com, ipify | IP addresses of your active connections (for a world map); your public IP |
 | Music and video | Deezer API, YouTube API | Search terms |
 | Smart home | Your own Home Assistant server | Commands you give |
+| Update check | GitHub (public API, no account or key) | A request for the latest release of this project, about 3 seconds after start and when you click *Check for updates*. Turn the automatic check off in Settings (*Check at launch*). Nothing is downloaded or installed without you |
 | First-run downloads | GitHub, Hugging Face, python.org, PyPI, Microsoft | Standard download requests (voice-detection and speaker models, Python, dependencies, WebView2) |
 
 These services have their own privacy policies. **To keep everything on your PC**, switch off every cloud provider and use the offline mode with [Ollama](https://ollama.com): your questions to the AI then stay local. Speech transcription, speech synthesis, search, weather and the network radar still use the internet when they are used.

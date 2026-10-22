@@ -38,6 +38,7 @@ async def ws_get_settings(websocket, data):
                     "YOUTUBE_API_KEY", "XAI_API_KEY", "SERPAPI_API_KEY",
                     "ANTHROPIC_API_KEY", "MISTRAL_API_KEY")
     }
+    config_data["maj_auto"] = config_data.get("maj_auto", True)  # vérification des mises à jour au lancement
     # État d'activation des API
     config_data["api_gemini_enabled"] = config_data.get("api_gemini_enabled", cle_utilisable(os.getenv("GEMINI_API_KEY")))
     config_data["api_groq_enabled"] = config_data.get("api_groq_enabled", cle_utilisable(os.getenv("GROQ_API_KEY")))
