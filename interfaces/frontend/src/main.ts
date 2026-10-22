@@ -52,6 +52,7 @@ import { initConfirmDialog } from "./panels/confirm_dialog";
 import { initRecipePanel } from "./panels/recipe_panel";
 import { initVaultPanel } from "./panels/vault_panel";
 import { initSystemPanel } from "./panels/system_panel";
+import { initSetupWizard } from "./panels/setup_wizard";
 import { initWeatherTempPanels } from "./panels/weather_temp_panels";
 import { connect } from "./ws/connection";
 
@@ -114,3 +115,4 @@ initPanelShortcuts();
 initCarouselActions();
 initVaultPanel();
 initSystemPanel();
+initSetupWizard();

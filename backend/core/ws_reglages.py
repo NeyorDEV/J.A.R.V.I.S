@@ -128,6 +128,9 @@ async def ws_update_settings(websocket, data):
         relire_clients_ia()   # appliquer l'activation / la désactivation des API
     if "mic_device_index" in settings and settings["mic_device_index"] != old_mic_index:
         shared.MIC_NEED_RELOAD = True
+    if settings.get("voix_jarvis") in ("homme", "femme"):
+        from core import config as _config
+        _config.VOIX_ACTUELLE = shared.VOIX_ACTUELLE = settings["voix_jarvis"]
     if "av_live_protection" in settings:
         shared.AV_LIVE_PROTECTION_ENABLED = settings["av_live_protection"]
     # Recharger l'identité globalement

@@ -192,3 +192,38 @@
 .sys-jauge-s { margin-top: 2px; color: #55707f; }
 .sys-test svg { width: 1em; height: 1em; }
 #system-test-all svg { width: 1.1em; height: 1.1em; fill: currentColor; stroke: none; vertical-align: -0.2em; margin-right: 4px; }
+
+/* ── Assistant de premier lancement ───────────────────────────────────────── */
+.wz-etapes { display: flex; align-items: center; padding: 14px 24px 8px; position: relative; z-index: 2; }
+.wz-etape { display: flex; align-items: center; gap: 9px; font-family: 'Consolas', monospace; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: #55707f; white-space: nowrap; }
+.wz-etape b { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 1px solid #55707f; border-radius: 50%; font-weight: 400; }
+.wz-etape.on { color: var(--pm-a); } .wz-etape.on b { border-color: var(--pm-a); box-shadow: 0 0 10px var(--pm-a); background: color-mix(in srgb, var(--pm-a) 14%, transparent); }
+.wz-etape.fait { color: #3ddc97; } .wz-etape.fait b { border-color: #3ddc97; background: rgba(61, 220, 151, 0.14); }
+.wz-trait { flex: 1; height: 1px; background: rgba(255, 255, 255, 0.1); margin: 0 12px; min-width: 14px; }
+.wz-corps { padding: 6px 28px 14px; min-height: 340px; position: relative; z-index: 2; }
+.wz-corps h3 { font-family: 'Orbitron', sans-serif; font-size: 15px; letter-spacing: 3px; margin: 8px 0 6px; font-weight: 700; text-transform: uppercase; color: #e6f6ff; }
+.wz-intro { color: #7d95a6; margin: 0 0 14px; line-height: 1.5; font-size: 13px; }
+.wz-intro b { color: #e6f6ff; }
+.wz-etiq { font-family: 'Consolas', monospace; font-size: 10px; letter-spacing: 2px; color: var(--pm-a); text-transform: uppercase; margin: 14px 0 6px; }
+.wz-champ { width: 100%; box-sizing: border-box; padding: 10px 13px; border: 1px solid rgba(0, 229, 255, 0.18); background: rgba(0, 10, 18, 0.55); color: #e6f6ff; border-radius: 2px; font-size: 13px; font-family: inherit; }
+.wz-champ:focus { outline: none; border-color: var(--pm-a); box-shadow: 0 0 10px color-mix(in srgb, var(--pm-a) 30%, transparent); }
+.wz-choix { display: flex; gap: 10px; }
+.wz-opt { flex: 1; display: flex; gap: 11px; align-items: center; text-align: left; padding: 12px 14px; border: 1px solid rgba(0, 229, 255, 0.16); background: rgba(0, 10, 18, 0.4); color: #e6f6ff; border-radius: 2px; cursor: pointer; font-family: inherit; font-size: 13px; }
+.wz-opt small { display: block; color: #7d95a6; font-size: 11px; margin-top: 2px; }
+.wz-opt svg { width: 1.3em; height: 1.3em; fill: none; stroke: currentColor; stroke-width: 1.7; flex-shrink: 0; }
+.wz-opt.on { border-color: var(--pm-a); background: rgba(0, 229, 255, 0.1); box-shadow: 0 0 14px rgba(0, 229, 255, 0.2); }
+.wz-cle { display: grid; grid-template-columns: 200px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.wz-cle-nom small { display: block; color: #7d95a6; font-size: 11px; margin-top: 2px; }
+.wz-cle-nom a { color: var(--pm-a); }
+.wz-badge { font-family: 'Consolas', monospace; font-size: 9px; letter-spacing: 1.5px; padding: 1px 7px; margin-left: 8px; background: rgba(255, 176, 32, 0.14); color: #ffb020; border: 1px solid rgba(255, 176, 32, 0.4); }
+.wz-badge.opt { background: transparent; color: #7d95a6; border-color: rgba(255, 255, 255, 0.14); }
+.wz-resultat { margin: 2px 0 6px; padding: 7px 12px; font-size: 12px; border-left: 3px solid #7d95a6; background: rgba(255, 255, 255, 0.04); color: #7d95a6; }
+.wz-resultat.ok { border-color: #3ddc97; color: #3ddc97; background: rgba(61, 220, 151, 0.08); }
+.wz-resultat.ko { border-color: #ff5a5f; color: #ff5a5f; background: rgba(255, 90, 95, 0.08); }
+.wz-niveau { height: 8px; background: rgba(255, 255, 255, 0.07); overflow: hidden; border-radius: 4px; }
+.wz-niveau i { display: block; height: 100%; background: linear-gradient(90deg, #3ddc97, #00e5ff); box-shadow: 0 0 10px #00e5ff; transition: width 0.3s ease; }
+.wz-pied { display: flex; flex-wrap: nowrap; justify-content: flex-start; gap: 10px; align-items: center; }
+.wz-pied .pm-bouton { white-space: nowrap; flex-shrink: 0; }
+.wz-info { color: #7d95a6; font-size: 11px; }
+.wz-pied .pm-bouton svg, .wz-corps .pm-bouton svg { width: 1.2em; height: 1.2em; fill: none; stroke: currentColor; stroke-width: 1.8; vertical-align: -0.25em; margin-right: 4px; }
+.wz-pied .pm-bouton:disabled { opacity: 0.4; cursor: not-allowed; }

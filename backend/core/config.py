@@ -27,6 +27,15 @@ CHOSEN_MODEL    = MODELS_LIST[0]
 
 # --- CONFIGURATION VOIX ---
 VOIX_ACTUELLE = "homme" # "homme" ou "femme"
+try:  # voix choisie dans l'assistant de premier lancement (jarvis_config.json, clé « voix_jarvis »)
+    import json as _json
+    _chemin = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "jarvis_config.json")
+    with open(_chemin, encoding="utf-8") as _f:
+        _voix = _json.load(_f).get("voix_jarvis")
+    if _voix in ("homme", "femme"):
+        VOIX_ACTUELLE = _voix
+except Exception:
+    pass
 
 # --- CONSTANTES ---
 SESSION_TIMEOUT = 30
