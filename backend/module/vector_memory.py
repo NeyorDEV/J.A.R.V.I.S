@@ -45,7 +45,7 @@ def _get_collection():
             if not os.path.exists(CHROMA_PATH):
                 os.makedirs(CHROMA_PATH)
             
-            _client = chromadb.PersistentClient(path=CHROMA_PATH)
+            _client = chromadb.PersistentClient(path=CHROMA_PATH, settings=chromadb.Settings(anonymized_telemetry=False))  # aucune télémétrie
             
             # Utilisation de la fonction d'embedding par défaut (qui utilise désormais notre patch)
             emb_fn = embedding_functions.DefaultEmbeddingFunction()
