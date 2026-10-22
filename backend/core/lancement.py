@@ -117,8 +117,11 @@ def lancer_frontend():
 
     vite_ok = False
     if os.path.exists(frontend_dir):
-        # Tentative 1 : Vite (npm run dev)
+        # Tentative 1 : Vite (npm run dev) — seulement dans un dossier de développement
+        # (node_modules présent). Une version installée n'a que dist/ : on le sert directement.
         try:
+            if not os.path.isdir(os.path.join(frontend_dir, "node_modules")):
+                raise FileNotFoundError("version installée : pas de node_modules, dist/ sera servi")
             print("[JARVIS] Démarrage de Vite (npm run dev)...")
             log_path = os.path.join(frontend_dir, "vite_output.log")
             with open(log_path, "w", encoding="utf-8") as f_log:
@@ -147,7 +150,7 @@ def lancer_frontend():
                 except Exception:
                     pass
         except Exception as e:
-            print(f"[JARVIS] Lancement de Vite impossible : {e}")
+            print(f"[JARVIS] Vite non utilisé : {e}")
             frontend_process = None
 
         # Tentative 2 : servir dist/ avec Python (pas besoin de npm)

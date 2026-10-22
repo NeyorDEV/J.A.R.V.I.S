@@ -27,6 +27,11 @@ if not defined PYTHON_CMD (
 )
 
 if not defined PYTHON_CMD (
+    :: Python 3.12 installe par l'installateur pour l'utilisateur courant : pas encore dans le PATH
+    if exist "%LocalAppData%\Programs\Python\Python312\python.exe" set "PYTHON_CMD="%LocalAppData%\Programs\Python\Python312\python.exe""
+)
+
+if not defined PYTHON_CMD (
     echo [ERREUR] Python introuvable. Impossible de continuer.
     echo [ERREUR] Installez Python 3.12 depuis https://python.org
     set /a ERRORS+=1
@@ -162,8 +167,9 @@ if "!WEBVIEW2_OK!"=="0" (
 )
 
 :: Verifier via le dossier d'installation (fallback)
+set "PF86=%ProgramFiles(x86)%"
 if "!WEBVIEW2_OK!"=="0" (
-    if exist "%ProgramFiles(x86)%\Microsoft\EdgeWebView\Application" set "WEBVIEW2_OK=1"
+    if exist "!PF86!\Microsoft\EdgeWebView\Application" set "WEBVIEW2_OK=1"
 )
 if "!WEBVIEW2_OK!"=="0" (
     if exist "%ProgramFiles%\Microsoft\EdgeWebView\Application" set "WEBVIEW2_OK=1"
@@ -175,7 +181,7 @@ if "!WEBVIEW2_OK!"=="1" (
     echo [SYSTEME] Edge WebView2 absent - telechargement en cours...
     powershell -Command "try { Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile 'MicrosoftEdgeWebview2Setup.exe' -UseBasicParsing } catch { exit 1 }"
     if exist "MicrosoftEdgeWebview2Setup.exe" (
-        echo [SYSTEME] Installation de Edge WebView2 Runtime (silencieux)...
+        echo [SYSTEME] Installation de Edge WebView2 Runtime ^(silencieux^)...
         start /wait MicrosoftEdgeWebview2Setup.exe /silent /install
         del MicrosoftEdgeWebview2Setup.exe 2>nul
         echo [OK] Edge WebView2 Runtime installe.

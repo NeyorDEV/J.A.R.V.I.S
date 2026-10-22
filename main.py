@@ -22,6 +22,23 @@ if _backend_path not in sys.path:
 if _tools_path not in sys.path:
     sys.path.insert(0, _tools_path)
 
+# Lancement sans console (raccourci de l'installateur : pythonw.exe) : sys.stdout / sys.stderr valent
+# None. On les remplace avant tout import (console_ui, bibliothèques qui impriment), et les
+# processus lancés par JARVIS (taskkill, winget, ADB…) ne doivent pas ouvrir de fenêtre noire.
+if sys.stdout is None or sys.__stdout__ is None:
+    sys.stdout = sys.__stdout__ = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None or sys.__stderr__ is None:
+    sys.stderr = sys.__stderr__ = open(os.devnull, "w", encoding="utf-8")
+if sys.platform == "win32" and os.path.basename(sys.executable).lower() == "pythonw.exe":
+    import subprocess as _subprocess
+
+    class _PopenSansFenetre(_subprocess.Popen):
+        def __init__(self, *args, **kwargs):
+            kwargs["creationflags"] = kwargs.get("creationflags", 0) | 0x08000000  # CREATE_NO_WINDOW
+            super().__init__(*args, **kwargs)
+
+    _subprocess.Popen = _PopenSansFenetre
+
 # Configuration de l'encodage standard en UTF-8 pour supporter les emojis et caractères spéciaux sur Windows
 try:
     sys.stdout.reconfigure(encoding='utf-8')

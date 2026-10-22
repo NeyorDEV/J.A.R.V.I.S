@@ -75,6 +75,14 @@ Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 
 ## Installation
 
+### Windows installer (recommended)
+
+Download `JARVIS-Setup-<version>.exe` from the [Releases](https://github.com/NeyorDEV/J.A.R.V.I.S/releases) page and run it. It installs for the current user (no administrator rights), installs Python 3.12 if it is missing, creates the virtual environment and installs the dependencies (a few minutes, internet connection required). JARVIS then starts from its shortcut with no console window, and a first-launch assistant helps you set up your name, an AI key (Gemini is free), the microphone and your voiceprint.
+
+The installer is not code-signed yet: Windows SmartScreen may warn on first run. Choose *More info*, then *Run anyway*.
+
+### From source
+
 Double-click `install.bat` (at the project root): it creates the virtual environment, installs the Python and Node dependencies, and generates the `.env` file.
 
 Then fill in the generated `.env` with at least:
