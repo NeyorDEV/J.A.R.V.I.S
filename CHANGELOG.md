@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 9.5.2 — Mises à jour
 
 - **Mises à jour** : vérification discrète de la dernière release GitHub ~3 s après le lancement (désactivable : case « Vérifier au lancement » dans Paramètres), bannière dans les Paramètres avec les notes de version, « Télécharger la mise à jour » (ouvre la page de la release) et « Plus tard », bouton « Vérifier les mises à jour » en bas des Paramètres, carte discrète au lancement. Comparaison de versions par nombres (9.10.0 > 9.9.9). Backend : `core/mises_a_jour.py`. Aucune installation automatique.
 
