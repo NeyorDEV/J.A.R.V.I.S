@@ -1,6 +1,15 @@
 # Changelog
 
-## Non publié — Panneaux refaits
+## 9.5.1 — Confidentialité et réglages personnels
+
+- **Prénom du propriétaire configurable** : JARVIS appelle le propriétaire par le réglage `user_name` (assistant de premier lancement, Paramètres), « Neyor » seulement s'il est vide. L'âge et la date de naissance du créateur ne sont plus dans le code (`createur_infos`, `jarvis_config.json`).
+- **Télé** : adresse, MAC et diffusion lues dans `.env` (`TV_IP`, `TV_MAC`, `TV_BROADCAST`) ; sans `TV_IP`, les commandes de télé répondent par une explication. Chemins `C:\Users\<nom>` remplacés par des chemins calculés (Discord, JoyToKey, Deezer, Opera GX, profil du navigateur) ; éditeur de code du HUD : dossier relatif au projet au lieu de `n:\JARVIS`.
+- **Confidentialité** : `PRIVACY.md` (services contactés, ce qui reste sur le PC) et télémétrie anonyme de ChromaDB désactivée.
+- **Antivirus** : les menaces gardent un texte lisible (les boutons passent sous le texte).
+- **Dépendances** : pillow 13.0.0 et certifi 2026.10.19 (failles corrigées).
+- **CI** : audit des dépendances avec exceptions documentées (chromadb en mode serveur, js2py).
+
+## 9.5.0 — Panneaux refaits, assistant de premier lancement, installateur
 
 - **« Jarvis » mal transcrit rattrapé** (en veille seulement) : « j'en révise », « j'ai un vice », « jar vis », « djarvis », « garvis »… sont remplacés par « jarvis » avant le test du mot d'éveil (`normaliser_mot_eveil`, `ecoute_outils.py`).
 - **Coffre-fort renforcé** : dérivation de la clé à 600 000 itérations (les anciens coffres à 100 000 sont migrés au prochain déverrouillage, fichiers rechiffrés puis remplacés en un bloc), mot de passe de 8 caractères minimum à la création, délai croissant après 3 erreurs (30 s, 60 s, 120 s… plafond 1 h, `vault_tentatives.json`), comparaison en temps constant, écritures atomiques, message du serveur affiché dans le HUD.

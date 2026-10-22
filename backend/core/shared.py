@@ -92,7 +92,7 @@ _WEBVIEW_WINDOW = None
 # Passer à True si WebView2 est définitivement cassé sur votre système
 FORCE_BROWSER_MODE = False
 # Version utilisée pour l'invalidation du cache WebView2
-CURRENT_VERSION = "9.5.0"
+CURRENT_VERSION = "9.5.1"
 
 # ── Divers ───────────────────────────────────────────────────────────────────
 _plugins_prets = threading.Event()  # levé quand tous les plugins sont importés

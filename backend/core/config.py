@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- VERSION ---
-CURRENT_VERSION = "9.5.0"
+CURRENT_VERSION = "9.5.1"
 
 # --- CLÉS API ---
 GEMINI_API_KEY       = os.getenv("GEMINI_API_KEY")
