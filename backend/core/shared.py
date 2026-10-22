@@ -127,7 +127,7 @@ SIMULATED_DOMOTIC_STATES = {
     "switch.prise_bureau": "off",
     "switch.prise_cuisine": "off",
 
-    # Nouvelles entités dessinées par Mylan
+    # Entités ajoutées plus tard
     "light.veranda": "off",
     "light.sdb_parents": "off",
     "light.garage": "off",

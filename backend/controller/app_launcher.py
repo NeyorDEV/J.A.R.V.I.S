@@ -464,8 +464,9 @@ async def mode_travail():
     await asyncio.sleep(0.5)
 
     # ── 2. Discord ────────────────────────────────────────────
-    discord_lnk = r"C:\Users\mylan\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk"
-    subprocess.Popen(["explorer", discord_lnk], shell=False)
+    discord_lnk = os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk")
+    if os.path.exists(discord_lnk):
+        subprocess.Popen(["explorer", discord_lnk], shell=False)
     await asyncio.sleep(0.3)
 
     return f"Mode boulot activé{nom_virgule()} ! Deezer et Discord sont lancés. Bonne journée !"
@@ -480,8 +481,9 @@ async def mode_gaming():
     await asyncio.sleep(0.5)
 
     # ── 2. Discord ────────────────────────────────────────────
-    discord_lnk = r"C:\Users\mylan\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk"
-    subprocess.Popen(["explorer", discord_lnk], shell=False)
+    discord_lnk = os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk")
+    if os.path.exists(discord_lnk):
+        subprocess.Popen(["explorer", discord_lnk], shell=False)
     await asyncio.sleep(0.5)
 
     # ── 3. Epic Games Launcher ────────────────────────────────
@@ -506,13 +508,15 @@ async def mode_rocket_league():
     await asyncio.sleep(0.5)
 
     # ── 2. Discord ────────────────────────────────────────────
-    discord_lnk = r"C:\Users\mylan\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk"
-    subprocess.Popen(["explorer", discord_lnk], shell=False)
+    discord_lnk = os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Windows\Start Menu\Programs\Discord Inc\Discord.lnk")
+    if os.path.exists(discord_lnk):
+        subprocess.Popen(["explorer", discord_lnk], shell=False)
     await asyncio.sleep(0.5)
 
     # ── 3. JoyToKey ───────────────────────────────────────────
-    joy_lnk = r"C:\Users\mylan\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\JoyToKey.lnk"
-    subprocess.Popen(["explorer", joy_lnk], shell=False)
+    joy_lnk = os.path.join(os.environ.get("APPDATA", ""), r"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\JoyToKey.lnk")
+    if os.path.exists(joy_lnk):
+        subprocess.Popen(["explorer", joy_lnk], shell=False)
     await asyncio.sleep(0.5)
 
     # ── 4. Rocket League (Epic Games) ─────────────────────────

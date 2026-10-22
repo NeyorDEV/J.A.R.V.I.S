@@ -53,8 +53,8 @@ import subprocess
 _original_open = webbrowser.open
 
 def _custom_open(url, *args, **kwargs):
-    # Chemin détecté de l'exécutable Opera GX sur le PC de neyor
-    opera_gx_path = r"C:\Users\mylan\AppData\Local\Programs\Opera GX\opera.exe"
+    # Opera GX, s'il est installé pour l'utilisateur courant
+    opera_gx_path = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Opera GX", "opera.exe")
     if os.path.exists(opera_gx_path):
         try:
             # Lancement direct via subprocess pour forcer le bon navigateur

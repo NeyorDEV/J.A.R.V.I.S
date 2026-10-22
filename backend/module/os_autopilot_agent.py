@@ -253,7 +253,7 @@ def resoudre_chemin_dossier(nom_dossier):
             return drive_path
             
     # 3. Dossier personnalisé (Recherche rapide à profondeur 2)
-    # Niveau 1 de l'utilisateur (C:\Users\mylan\*)
+    # Niveau 1 de l'utilisateur (C:\Users\<utilisateur>\*)
     try:
         for item in os.listdir(user_profile):
             path = os.path.join(user_profile, item)

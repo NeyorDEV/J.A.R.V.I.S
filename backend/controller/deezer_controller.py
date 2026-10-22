@@ -22,8 +22,8 @@ except ImportError:
     auto = None
 
 # Chemins d'installation de Deezer
-DEEZER_EXE = r"C:\Users\mylan\AppData\Local\Programs\deezer-desktop\Deezer.exe"
-DEEZER_DIR = r"C:\Users\mylan\AppData\Local\Programs\deezer-desktop"
+DEEZER_DIR = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "deezer-desktop")
+DEEZER_EXE = os.path.join(DEEZER_DIR, "Deezer.exe")
 
 _cached_deezer_pids = []
 

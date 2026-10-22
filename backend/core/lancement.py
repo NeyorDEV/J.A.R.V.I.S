@@ -308,7 +308,7 @@ def _ouvrir_navigateur_secours(url, frontend_process):
     if navigateur:
         print(f"[JARVIS] Lancement du mode App (sans bordures) avec profil persistant via : {os.path.basename(navigateur)}")
         try:
-            profile_path = r"C:\Users\mylan\.gemini\antigravity\chrome_profile"
+            profile_path = os.path.join(os.path.expanduser("~"), ".gemini", "antigravity", "chrome_profile")
             if not os.path.exists(profile_path):
                 os.makedirs(profile_path, exist_ok=True)
             subprocess.Popen([navigateur, f"--app={url}", f"--user-data-dir={profile_path}"])

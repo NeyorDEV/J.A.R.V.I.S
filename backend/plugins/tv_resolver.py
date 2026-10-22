@@ -9,10 +9,27 @@ from adb_shell.auth.sign_pythonrsa import PythonRSASigner as sign_with_rsa_key
 from adb_shell.auth.keygen import keygen
 from core.interlocuteur import nom_virgule
 
-# --- CONFIGURATION (Philips 43PUS7906/12) ---
-TV_NAME = "43PUS7906/12"
-TV_IP   = "192.168.0.151"
-TV_MAC  = "24-b7-2a-74-97-db"
+# --- CONFIGURATION (fichier .env : TV_IP, TV_MAC, et TV_BROADCAST facultatif) ---
+# Télé Android TV pilotée par ADB (port 5555) et réveillée par Wake-on-LAN. Lues à chaque
+# commande : rien n'est écrit en dur dans le code, et sans TV_IP la fonction est désactivée.
+def _tv_ip():
+    return os.getenv("TV_IP", "").strip()
+
+
+def _tv_mac():
+    return os.getenv("TV_MAC", "").strip()
+
+
+def _tv_diffusion():
+    explicite = os.getenv("TV_BROADCAST", "").strip()
+    if explicite:
+        return explicite
+    ip = _tv_ip()
+    return ip.rsplit(".", 1)[0] + ".255" if ip.count(".") == 3 else "255.255.255.255"
+
+
+_MSG_TV_NON_CONFIGUREE = ("La télé n'est pas configurée : ajoutez TV_IP (et TV_MAC pour l'allumer) "
+                          "dans le fichier .env, puis relancez JARVIS.")
 # backend/plugins/ → racine du projet = 3 niveaux au-dessus (le calcul précédent
 # s'arrêtait à backend/ et cherchait la clé dans backend/config/, inexistant :
 # une nouvelle clé ADB était donc régénérée à chaque fois, obligeant à ré-autoriser
@@ -35,7 +52,7 @@ async def adb_command(cmd_shell):
     device = None
     try:
         signer = get_adb_signer()
-        device = AdbDeviceTcp(TV_IP, 5555, default_transport_timeout_s=3)
+        device = AdbDeviceTcp(_tv_ip(), 5555, default_transport_timeout_s=3)
         device.connect(rsa_keys=[signer], auth_timeout_s=3)
         device.shell(cmd_shell)
         return True
@@ -56,8 +73,9 @@ async def adb_command(cmd_shell):
 # --- LOGIQUE TECHNIQUE ---
 
 async def tv_allumer():
-    for port in [7, 9]:
-        send_magic_packet(TV_MAC, ip_address="192.168.0.255", port=port)
+    if _tv_mac():
+        for port in [7, 9]:
+            send_magic_packet(_tv_mac(), ip_address=_tv_diffusion(), port=port)
     await asyncio.sleep(2)
     if await adb_command("input keyevent 224"):
         await adb_command("input keyevent 3")
@@ -87,7 +105,7 @@ async def tv_volume(direction, steps=5):
     device = None
     try:
         signer = get_adb_signer()
-        device = AdbDeviceTcp(TV_IP, 5555, default_transport_timeout_s=10)
+        device = AdbDeviceTcp(_tv_ip(), 5555, default_transport_timeout_s=10)
         device.connect(rsa_keys=[signer], auth_timeout_s=5)
         remaining = steps
         while remaining > 0:
@@ -153,6 +171,11 @@ async def resoudre_tv_localement(texte):
     # clavier, phrase canonique du dispatch LLM), le texte peut arriver avec ou
     # sans accents. Les mots-clés ci-dessous sont donc écrits sans accent.
     t = _sans_accent(texte)
+
+    # Sans TV_IP, une vraie commande de télé reçoit une explication claire (au lieu d'un échec réseau)
+    if (not _tv_ip() and re.search(r"\b(tele|teles|tv|television|televiseur|philips)\b", t)
+            and re.search(r"\b(allume|demarre|lance|eteins|arrete|ferme|quitte|monte|baisse|augmente|diminue|mets|joue|ouvre|pause|stop|volume|son)\b", t)):
+        return _MSG_TV_NON_CONFIGUREE
 
     # Mots entiers : « tele » était trouvé dans téléphone, téléchargement, téléverser…
     # (« arrête le téléchargement » éteignait la télé).
