@@ -304,7 +304,7 @@ export function openCodeEditorModal(filePath: string, projectName?: string) {
       fullPath = `${customFolder}\\${filePath}`;
     } else {
       const proj = projectName || "apexmind_studio_saas";
-      fullPath = `n:\\JARVIS\\backend\\sandbox\\${proj}\\${filePath}`;
+      fullPath = `backend\\sandbox\\${proj}\\${filePath}`; // relatif à la racine du projet : le backend le résout
     }
   }
 
@@ -338,7 +338,8 @@ export function openCodeEditorModal(filePath: string, projectName?: string) {
   }
     if (previewBtn) {
     previewBtn.onclick = () => {
-      const cleanPath = fullPath.replace(/\\/g, "/");
+      // Chemin absolu renvoyé par le backend à la lecture du fichier (aperçu dans le navigateur)
+      const cleanPath = String((window as any)._wbAbsolu || fullPath).replace(/\\/g, "/");
       window.open(`file:///${cleanPath}`, "_blank");
     };
   }

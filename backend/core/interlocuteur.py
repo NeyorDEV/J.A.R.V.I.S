@@ -9,11 +9,46 @@ Seules les informations relatives au créateur (son identité, ses droits) reste
 """
 
 import builtins
+import json
+import os
 
 import core.shared as shared
 
 CREATEUR = "neyor"          # identifiant du profil vocal du créateur (dossier voiceprints/neyor)
 NOM_CREATEUR = "Neyor"      # forme affichée ; prononcée « Néyor » (voir core/speech.py)
+
+
+_cache_config = {"mtime": None, "donnees": {}}
+
+
+def _config():
+    """jarvis_config.json, relu seulement s'il a changé (appelé à chaque phrase prononcée)."""
+    chemin = os.path.join(shared.RACINE_PROJET, "jarvis_config.json")
+    try:
+        mtime = os.path.getmtime(chemin)
+        if mtime != _cache_config["mtime"]:
+            with open(chemin, encoding="utf-8") as f:
+                _cache_config["donnees"] = json.load(f)
+            _cache_config["mtime"] = mtime
+    except Exception:
+        pass
+    return _cache_config["donnees"]
+
+
+def nom_createur():
+    """Prénom du propriétaire de l'installation : réglage « user_name » (assistant de premier lancement,
+    Paramètres), « Neyor » tant qu'il est vide."""
+    nom = str(_config().get("user_name", "") or "").strip()
+    return nom[:1].upper() + nom[1:] if nom else NOM_CREATEUR
+
+
+def infos_createur():
+    """Informations privées facultatives sur le propriétaire (« createur_infos » dans jarvis_config.json :
+    une chaîne ou une liste de phrases), transmises aux IA. Rien n'est écrit dans le code."""
+    infos = _config().get("createur_infos", [])
+    if isinstance(infos, str):
+        infos = [infos]
+    return [str(i).strip() for i in infos if str(i).strip()]
 
 
 def profil_actif():
@@ -26,6 +61,8 @@ def nom_interlocuteur():
     profil = profil_actif()
     if not profil or profil == "guest":
         return ""
+    if profil == CREATEUR:
+        return nom_createur()
     return profil.capitalize()
 
 

@@ -247,6 +247,7 @@ async def ws_fichier(websocket, data):
             "action": "file_content",
             "type": "file_content",
             "filepath": filepath,
+            "chemin_absolu": chemin_sur,
             "content": content
         }))
     elif action_type == "write_file":

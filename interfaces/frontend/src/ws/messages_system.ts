@@ -192,6 +192,7 @@ export function handleSystemMessage(data: JarvisMessage): boolean {
     const fileData = data as any;
     const textarea = document.getElementById("code-editor-textarea") as HTMLTextAreaElement;
     const filepathEl = document.getElementById("code-editor-filepath");
+    (window as any)._wbAbsolu = fileData.chemin_absolu || "";
     if (textarea && fileData.filepath) {
       textarea.value = fileData.content || (fileData.error ? `// Erreur : ${fileData.error}` : "");
     }

@@ -23,7 +23,7 @@ from module.memory_manager import _archiver_echange
 from module.meteo_domotique import meteo_du_moment, meteo_depuis_ha, HA_URL
 from module.recherche_web import resume_recherche_web
 from module.vector_memory import ajouter_souvenir, rechercher_souvenirs
-from core.interlocuteur import NOM_CREATEUR, nom_espace, nom_virgule
+from core.interlocuteur import nom_createur, nom_espace, nom_virgule
 
 
 async def interroger_ia(texte, update_hist=True, skip_local=False):
@@ -463,7 +463,7 @@ def generer_salutation_demarrage(timeout=6.0):
             jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
             consigne = (
                 f"Tu viens de démarrer. Nous sommes {jours[maintenant.weekday()]}, il est "
-                f"{maintenant.strftime('%H:%M')}. Salue {NOM_CREATEUR}, ton créateur, en une seule phrase courte "
+                f"{maintenant.strftime('%H:%M')}. Salue {nom_createur()}, ton créateur, en une seule phrase courte "
                 "(8 à 18 mots), adaptée au moment de la journée, dans ton style. "
                 "Varie la formulation : ne dis pas 'Je suis prêt', 'Que puis-je faire pour vous' "
                 "ni 'Tous mes systèmes sont opérationnels'. Aucune flatterie, aucune action JSON."

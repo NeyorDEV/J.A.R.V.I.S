@@ -25,7 +25,7 @@ from module.file_manager import (
 )
 from module.image_generator import generer_image_ia
 from module.memory_manager import noter_en_memoire, relire_memoire, oublier_memoire
-from core.interlocuteur import nom_espace, nom_ou_utilisateur, nom_virgule
+from core.interlocuteur import nom_createur, nom_espace, nom_ou_utilisateur, nom_virgule
 
 
 async def executer_action(action, data, block, texte_utilisateur, reponse_propre):
@@ -189,7 +189,7 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                 parler(err_ou_chemin)
             else:
                 prompt_analyse = (
-                    f"URGENT : Tu es JARVIS, l'assistant personnel de Neyor. Tu réponds à {nom_ou_utilisateur()}.\n"
+                    f"URGENT : Tu es JARVIS, l'assistant personnel de {nom_createur()}. Tu réponds à {nom_ou_utilisateur()}.\n"
                     f"Tu viens d'extraire le contenu du fichier '{nom}'.\n"
                     f"Voici ce contenu :\n\n{texte_fichier}\n\n"
                     f"L'utilisateur demande : {question}\n"

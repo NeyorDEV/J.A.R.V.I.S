@@ -23,7 +23,7 @@ from core.micro import choisir_microphone
 from core.speech import parler
 from core.traitement import epurer_commande, gerer_reponse_ia
 from core.web_bridge import envoyer_carte_contextuelle, _safe_ws_send, envoyer_etat_hud
-from core.interlocuteur import CREATEUR, NOM_CREATEUR, nom_espace, nom_virgule
+from core.interlocuteur import CREATEUR, nom_createur, nom_espace, nom_virgule
 
 
 # Ordres d'interruption de la parole (texte sans accents, mots entiers). « arrête » seul n'est
@@ -352,7 +352,7 @@ def boucle_ecoute():
                                         if shared.ACTIVE_SPEAKER == "guest":
                                             parler("Voix inconnue détectée, connexion en mode invité restreint.")
                                         elif shared.ACTIVE_SPEAKER == CREATEUR:
-                                            parler(f"Voix de {NOM_CREATEUR} détectée, toutes les permissions sont accordées.")
+                                            parler(f"Voix de {nom_createur()} détectée, toutes les permissions sont accordées.")
                                         else:
                                             parler(f"Voix de {shared.ACTIVE_SPEAKER.capitalize()} détectée, connexion sécurisée établie.")
                                 except Exception as eb:
