@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>JARVIS Web Controller</title>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #050b12; color: #e6f6ff; margin: 0; padding: 32px; max-width: 640px; }
+    h1 { font-size: 18px; letter-spacing: 3px; color: #00e5ff; margin: 0 0 4px; }
+    p { color: #7d95a6; line-height: 1.5; font-size: 13px; }
+    label { display: block; margin: 22px 0 6px; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: #00e5ff; }
+    input, textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid rgba(0, 229, 255, 0.25); background: rgba(0, 10, 18, 0.7); color: #e6f6ff; font-family: Consolas, monospace; font-size: 13px; border-radius: 2px; }
+    textarea { height: 110px; }
+    button { margin-top: 16px; padding: 10px 20px; background: rgba(0, 229, 255, 0.15); border: 1px solid #00e5ff; color: #00e5ff; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border-radius: 2px; }
+    #etat { margin-top: 18px; padding: 8px 12px; border-left: 3px solid #7d95a6; background: rgba(255, 255, 255, 0.04); font-size: 13px; }
+    #etat.ok { border-color: #3ddc97; color: #3ddc97; } #etat.ko { border-color: #ff5a5f; color: #ff5a5f; } #etat.attente { border-color: #ffb020; color: #ffb020; }
+  </style>
+</head>
+<body>
+  <h1>JARVIS WEB CONTROLLER</h1>
+  <p>Pour que JARVIS accepte cette extension, collez ci-dessous le jeton affiché dans JARVIS : <b>Paramètres › Sécurité › Extension navigateur</b>. Sans jeton, JARVIS l'ignore.</p>
+
+  <label for="jeton">Jeton</label>
+  <input id="jeton" type="password" autocomplete="off" spellcheck="false" placeholder="Collez le jeton affiché par JARVIS">
+
+  <label for="sites">Sites interdits à JARVIS (un par ligne)</label>
+  <textarea id="sites" spellcheck="false" placeholder="mabanque.fr&#10;paypal.com"></textarea>
+  <p>Sur ces sites (sous-domaines compris), JARVIS ne peut ni lire la page, ni cliquer, ni taper, ni gérer l'onglet.</p>
+
+  <button id="enregistrer">Enregistrer</button>
+  <div id="etat">Lecture de l'état…</div>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -54,6 +54,7 @@ import { initVaultPanel } from "./panels/vault_panel";
 import { initSystemPanel } from "./panels/system_panel";
 import { initSetupWizard } from "./panels/setup_wizard";
 import { initMisesAJour } from "./panels/mises_a_jour";
+import { initExtensionJeton } from "./panels/extension_jeton";
 import { initWeatherTempPanels } from "./panels/weather_temp_panels";
 import { connect } from "./ws/connection";
 
@@ -118,3 +119,4 @@ initVaultPanel();
 initSystemPanel();
 initSetupWizard();
 initMisesAJour();
+initExtensionJeton();

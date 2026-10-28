@@ -23,11 +23,20 @@ function showJarvisHUD(message, submessage = "") {
     });
     document.body.appendChild(hud);
   }
-  hud.innerHTML = `
-    <div style="font-weight: bold; margin-bottom: 6px; letter-spacing: 1px; color: #00e5ff;">◈ J.A.R.V.I.S // AUTOMATION_AGENT</div>
-    <div style="color: #ffffff; font-size: 13px; font-weight: 500;">${message}</div>
-    ${submessage ? `<div style="font-size: 10px; color: rgba(0,229,255,0.75); margin-top: 6px; border-top: 1px solid rgba(0,229,255,0.2); padding-top: 6px; word-break: break-all;">${submessage}</div>` : ""}
-  `;
+  hud.textContent = "";
+  const titre = document.createElement("div");
+  Object.assign(titre.style, { fontWeight: "bold", marginBottom: "6px", letterSpacing: "1px", color: "#00e5ff" });
+  titre.textContent = "◈ J.A.R.V.I.S // AUTOMATION_AGENT";
+  const corps = document.createElement("div");
+  Object.assign(corps.style, { color: "#ffffff", fontSize: "13px", fontWeight: "500" });
+  corps.textContent = String(message);
+  hud.append(titre, corps);
+  if (submessage) {
+    const sous = document.createElement("div");
+    Object.assign(sous.style, { fontSize: "10px", color: "rgba(0,229,255,0.75)", marginTop: "6px", borderTop: "1px solid rgba(0,229,255,0.2)", paddingTop: "6px", wordBreak: "break-all", whiteSpace: "pre-line" });
+    sous.textContent = String(submessage);
+    hud.append(sous);
+  }
   hud.style.opacity = "1";
 }
 
@@ -114,7 +123,7 @@ async function executeSingleAction(step) {
       }
     }
 
-    showJarvisHUD("RECHERCHE D'ÉLÉMENT", `Sélecteur : ${currentSelector}<br>Cible index : ${targetIndex}`);
+    showJarvisHUD("RECHERCHE D'ÉLÉMENT", `Sélecteur : ${currentSelector}\nCible index : ${targetIndex}`);
     console.log(`[JARVIS] Recherche élément avec sélecteur résolu : ${currentSelector} (Cible index: ${targetIndex})`);
     const elements = document.querySelectorAll(currentSelector);
     let visibleCount = 0;
@@ -168,7 +177,7 @@ async function executeSingleAction(step) {
   element.style.outline = "3px solid #00ffaa";
   element.style.boxShadow = "0 0 15px #00ffaa";
   
-  const elDesc = `&lt;${element.tagName.toLowerCase()} class="${element.className}" id="${element.id}"&gt;`;
+  const elDesc = `<${element.tagName.toLowerCase()} class="${element.className}" id="${element.id}">`;
   showJarvisHUD(`CIBLAGE : ${actionType.toUpperCase()}`, `Élément résolu : ${elDesc}`);
 
   // Calculer les coordonnées de l'élément cible via le DOM
@@ -248,7 +257,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
       if (navigationTriggered) break; // Stoppe l'exécution locale, la nouvelle page prendra le relais
       
       // Sauvegarder les étapes SUIVANTES dans le storage Chrome (survit aux changements de sous-domaines)
-      await chrome.storage.local.set({ "jarvis_pending_sequence": message.steps.slice(i + 1) });
+      await chrome.storage.local.set({ "jarvis_pending_sequence": { etapes: message.steps.slice(i + 1), t: Date.now() } });
       navigationTriggered = await executeSingleAction(message.steps[i]);
       if (!navigationTriggered) await wait(800); // Petite pause vitale
     }
@@ -277,7 +286,10 @@ chrome.runtime.onMessage.addListener(async (message) => {
 (async () => {
   try {
     const data = await chrome.storage.local.get("jarvis_pending_sequence");
-    const steps = data.jarvis_pending_sequence;
+    const attente = data.jarvis_pending_sequence;
+    const frais = attente && Array.isArray(attente.etapes) && Date.now() - attente.t < 30000;
+    const steps = frais ? attente.etapes : [];
+    if (attente && !frais) await chrome.storage.local.remove("jarvis_pending_sequence"); // périmée : on l'oublie
     
     if (steps && steps.length > 0) {
       console.log("[JARVIS] Reprise de la séquence depuis le stockage global...");
@@ -286,7 +298,7 @@ chrome.runtime.onMessage.addListener(async (message) => {
       let navigationTriggered = false;
       for (let i = 0; i < steps.length; i++) {
         if (navigationTriggered) break;
-        await chrome.storage.local.set({ "jarvis_pending_sequence": steps.slice(i + 1) });
+        await chrome.storage.local.set({ "jarvis_pending_sequence": { etapes: steps.slice(i + 1), t: Date.now() } });
         navigationTriggered = await executeSingleAction(steps[i]);
         if (!navigationTriggered) await wait(800);
       }
@@ -311,3 +323,31 @@ chrome.runtime.onMessage.addListener(async (message) => {
     try { await chrome.storage.local.remove("jarvis_pending_sequence"); } catch(ex) {}
   }
 })();
+
+// Demandes directes de JARVIS (via background.js) : médias de la page et texte de la page
+chrome.runtime.onMessage.addListener((message, expediteur, repondre) => {
+  if (!message || !message.ext) return false;
+  if (message.ext === "media") {
+    const lecteurs = [...document.querySelectorAll("video, audio")].filter((m) => m.readyState > 0 || !m.paused);
+    const action = message.action;
+    const enLecture = lecteurs.filter((m) => !m.paused);
+    if (action === "pause" || (action === "toggle" && enLecture.length)) {
+      enLecture.forEach((m) => m.pause());
+    } else if (action === "play" || action === "toggle") {
+      const cible = lecteurs.find((m) => m.paused);
+      if (cible) cible.play().catch(() => {});
+    } else if (action === "mute" || action === "unmute") {
+      lecteurs.forEach((m) => { m.muted = action === "mute"; });
+    }
+    repondre({ nombre: lecteurs.length, action });
+    return false;
+  }
+  if (message.ext === "read") {
+    const bloc = document.querySelector("main, article");
+    let texte = bloc && bloc.innerText && bloc.innerText.length > 400 ? bloc.innerText : (document.body ? document.body.innerText : "");
+    texte = texte.replace(/\s+/g, " ").trim().slice(0, 8000);
+    repondre({ titre: document.title, url: location.href, texte });
+    return false;
+  }
+  return false;
+});

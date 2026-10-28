@@ -8,6 +8,7 @@ import core.shared as shared
 _PLUGINS = [
     "plugins.tv_resolver",
     "plugins.steam_resolver",
+    "plugins.navigateur_resolver",
     "plugins.local_resolver",
     "plugins.system_resolver",
     "plugins.extras",

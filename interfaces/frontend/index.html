@@ -1135,6 +1135,16 @@
               <a href="#" id="settings-av-info-btn">Plus d'informations sur l'antivirus</a>
             </div>
           </div>
+          <div class="settings-card" id="settings-ext-card">
+            <h3 class="settings-card-title">Extension navigateur</h3>
+            <p class="ha-hint">JARVIS n'accepte l'extension que si elle présente ce jeton. Collez-le dans les options de l'extension (clic droit sur son icône, puis Options). Ne le partagez pas.</p>
+            <div class="settings-ext-ligne">
+              <input type="password" id="settings-ext-jeton" readonly placeholder="Jeton de l'extension">
+              <button type="button" class="settings-btn" id="settings-ext-afficher">Afficher</button>
+              <button type="button" class="settings-btn primary" id="settings-ext-copier">Copier</button>
+            </div>
+            <div class="maj-etat" id="settings-ext-etat"></div>
+          </div>
         </section>
 
         <!-- ── CLÉS API ───────────────────────────────────────── -->

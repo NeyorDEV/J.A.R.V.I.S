@@ -11,6 +11,7 @@ import { handleHudMessage } from "./messages_hud";
 import { handleSystemPanelMessage } from "../panels/system_panel";
 import { handleSetupMessage } from "../panels/setup_wizard";
 import { handleUpdateMessage, verificationAuLancement } from "../panels/mises_a_jour";
+import { handleExtensionTokenMessage } from "../panels/extension_jeton";
 import { handleAutopilotMessage, handleSystemMessage } from "./messages_system";
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -79,6 +80,7 @@ export function connect(): void {
 
       if (handleSetupMessage(data)) return;
       if (handleUpdateMessage(data)) return;
+      if (handleExtensionTokenMessage(data)) return;
       if (handleSystemPanelMessage(data)) return;
       if (handleSystemMessage(data)) return;
       if (handleCodeWorkshopMessage(data)) return;

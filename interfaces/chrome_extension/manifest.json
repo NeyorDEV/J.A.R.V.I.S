@@ -1,10 +1,9 @@
 {
   "manifest_version": 3,
   "name": "JARVIS Web Controller",
-  "version": "1.1",
-  "description": "Contrôle vocal et curseur virtuel par le DOM pour JARVIS.",
+  "version": "2.0",
+  "description": "Relie J.A.R.V.I.S au navigateur : onglets, médias, lecture de page et actions sur les pages, protégés par un jeton.",
   "permissions": [
-    "activeTab",
     "tabs",
     "storage",
     "alarms"
@@ -12,8 +11,15 @@
   "host_permissions": [
     "<all_urls>"
   ],
+  "action": {
+    "default_title": "JARVIS Web Controller"
+  },
   "background": {
     "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
   },
   "content_scripts": [
     {

@@ -325,6 +325,8 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
             if remaining_steps:
                 payload = {"type": "dom_action", "action": "dom_sequence", "steps": remaining_steps}
                 _safe_ws_send(json.dumps(payload))
+                from core.extension_bridge import diffuser as diffuser_extension
+                await diffuser_extension(payload)  # extensions authentifiées seulement
     elif action == "homepod_action":
         cmd   = data.get("commande", "play")
         val   = data.get("valeur")

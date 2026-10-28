@@ -15,6 +15,7 @@ from core.etat_parole import get_is_speaking, set_stop_parler
 from core.speech import parler
 from core.traitement import gerer_reponse_ia
 from core.web_bridge import diffuser_echecs, demarrer_tache_fond, envoyer_etat_hud
+from core.extension_bridge import deconnecter as ext_deconnecter, jeton as ext_jeton, traiter_message_extension
 from core.mises_a_jour import ws_check_update, ws_open_release
 from core.ws_assistant import ws_get_setup_state, ws_setup_test_key
 from core.ws_etat_systeme import ws_get_system_status, ws_system_test
@@ -98,29 +99,36 @@ async def gerer_connexion_ws(websocket):
             pass
         return
 
-    shared.CONNECTED_CLIENTS.add(websocket)
-    if _origine_extension(websocket):
-        # L'extension n'est pas un HUD : elle ne doit pas empêcher l'arrêt automatique
-        # quand l'interface est fermée (core/lancement._attendre_hud).
+    est_extension = _origine_extension(websocket)
+    if est_extension:
+        # L'extension n'est pas un HUD : elle ne reçoit pas les diffusions des HUD et ne doit pas
+        # empêcher l'arrêt automatique quand l'interface est fermée (core/lancement._attendre_hud).
+        # Elle doit s'authentifier par jeton (core/extension_bridge.py) avant toute chose.
         shared.CLIENTS_EXTENSION.add(websocket)
-        print("[WEB] Extension navigateur connectée.")
+        print("[WEB] Extension navigateur connectée (authentification en attente).")
     else:
+        shared.CONNECTED_CLIENTS.add(websocket)
         shared.interface_deja_connectee = True
         print(f"[WEB] HUD connecté (clients : {len(shared.CONNECTED_CLIENTS)})")
-    
-    # Force le broadcast immédiat de tous les widgets
-    asyncio.create_task(broadcast_weather_stats_once())
-    
-    # Envoi d'un état initial pour la musique
-    asyncio.create_task(websocket.send(json.dumps({
-        "action": "music_update", 
-        "data": {"status": "Stopped", "title": "DEEZER_SYNC...", "artist": "INITIALISATION"}
-    })))
+
+    if not est_extension:
+        # Force le broadcast immédiat de tous les widgets
+        asyncio.create_task(broadcast_weather_stats_once())
+
+        # Envoi d'un état initial pour la musique
+        asyncio.create_task(websocket.send(json.dumps({
+            "action": "music_update",
+            "data": {"status": "Stopped", "title": "DEEZER_SYNC...", "artist": "INITIALISATION"}
+        })))
     
     try:
         async for message in websocket:
             try:
                 data = json.loads(message)
+                if est_extension:
+                    # Une extension n'a accès qu'à ses propres messages (authentification, réponses)
+                    await traiter_message_extension(websocket, data)
+                    continue
                 if data.get("type") == "stop_audio":
                     shared.STOP_PARLER = True
                     set_stop_parler(True)
@@ -142,6 +150,8 @@ async def gerer_connexion_ws(websocket):
                     _en_tache_de_fond(ws_check_update(websocket, data))  # requête réseau : sans bloquer la lecture
                 elif data.get("type") == "open_release":
                     await ws_open_release(websocket, data)
+                elif data.get("type") == "get_extension_token":
+                    await websocket.send(json.dumps({"type": "extension_token", "token": ext_jeton()}))
                 elif data.get("type") == "get_setup_state":
                     await ws_get_setup_state(websocket, data)
                 elif data.get("type") == "setup_test_key":
@@ -354,4 +364,5 @@ async def gerer_connexion_ws(websocket):
     finally:
         shared.CONNECTED_CLIENTS.discard(websocket)
         shared.CLIENTS_EXTENSION.discard(websocket)
-        print(f"[WEB] HUD déconnecté (clients : {len(shared.CONNECTED_CLIENTS)})")
+        ext_deconnecter(websocket)
+        print(f"[WEB] {'Extension déconnectée' if est_extension else 'HUD déconnecté'} (clients : {len(shared.CONNECTED_CLIENTS)})")

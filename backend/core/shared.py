@@ -85,6 +85,7 @@ OLLAMA_MODELS = ["gemma4:12b", "gemma4:latest"]
 WS_LOOP = None
 CONNECTED_CLIENTS = set()
 CLIENTS_EXTENSION = set()           # connexions de l'extension Chrome (pas des HUD)
+EXTENSIONS_AUTH = set()             # celles qui ont présenté le bon jeton (core/extension_bridge.py)
 interface_deja_connectee = False
 PENDING_SCREEN_CAPTURES = {}
 BACKGROUND_TASKS = set()

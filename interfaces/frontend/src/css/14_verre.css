@@ -252,3 +252,8 @@
 .maj-titre small { font-family: 'Consolas', monospace; color: #7d95a6; letter-spacing: 1px; margin-left: 6px; }
 .maj-notes { margin-top: 5px; font-size: 12px; color: #9ab0bf; white-space: pre-line; line-height: 1.4; }
 .maj-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── Extension navigateur (Paramètres › Sécurité) ─────────────────────────── */
+.settings-ext-ligne { display: flex; gap: 8px; align-items: center; margin: 10px 0 6px; }
+.settings-ext-ligne input { flex: 1; min-width: 0; font-family: 'Consolas', monospace; }
+.settings-ext-ligne .settings-btn { width: auto; white-space: nowrap; }
