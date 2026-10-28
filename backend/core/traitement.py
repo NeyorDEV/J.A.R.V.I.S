@@ -96,7 +96,7 @@ _ORDRE_RESOLVEURS = [
     "resoudre_recipe", "resoudre_connexions_reseau",
     "resoudre_dev_swarm", "resoudre_lance_sandbox", "resoudre_creation_site_web",
     "resoudre_ouvrir_site_web", "resoudre_tv_localement", "resoudre_steam_jeux",
-    "resoudre_navigateur",
+    "resoudre_navigateur", "resoudre_discord",
     None,  # ← resolvers ajoutés à chaud
     # Commandes générales
     "commandes_locales", "resoudre_commandes_systeme", "traiter_infos_systeme",
@@ -115,7 +115,7 @@ _INTERDITS_INVITE = {
     "resoudre_lance_sandbox", "resoudre_creation_site_web", "resoudre_uninstaller_localement",
     "resoudre_local_mode", "resoudre_generation_document", "resoudre_modifier_image",
     "resoudre_memoire_locale", "resoudre_developpement", "resoudre_steam_jeux",
-    "resoudre_navigateur",
+    "resoudre_navigateur", "resoudre_discord",
 }
 # Fonctions builtins.resoudre_* qui ne sont pas des resolvers de commande
 _HORS_CHAINE = {"interpreter_chemin", "resoudre_echecs_localement",

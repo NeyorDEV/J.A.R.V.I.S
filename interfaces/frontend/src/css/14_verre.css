@@ -257,3 +257,12 @@
 .settings-ext-ligne { display: flex; gap: 8px; align-items: center; margin: 10px 0 6px; }
 .settings-ext-ligne input { flex: 1; min-width: 0; font-family: 'Consolas', monospace; }
 .settings-ext-ligne .settings-btn { width: auto; white-space: nowrap; }
+
+/* ── Discord (Paramètres) ─────────────────────────────────────────────────── */
+#settings-discord-salons { width: 100%; box-sizing: border-box; padding: 10px 12px; background: rgba(0, 10, 18, 0.55); color: #e6f6ff;
+  border: 1px solid rgba(0, 229, 255, 0.18); border-radius: 2px; font-family: 'Consolas', monospace; font-size: 12px; resize: vertical; }
+#settings-discord-salons:focus { outline: none; border-color: #00e5ff; }
+.settings-ext-label { display: block; margin: 14px 0 6px; font-size: 11px; letter-spacing: 1px; color: #7d95a6; }
+#settings-discord-bot, #settings-ext-jeton { box-sizing: border-box; width: 100%; padding: 10px 12px; background: rgba(0, 10, 18, 0.55); color: #e6f6ff;
+  border: 1px solid rgba(0, 229, 255, 0.18); border-radius: 2px; font-family: 'Consolas', monospace; font-size: 12px; }
+#settings-discord-bot:focus, #settings-ext-jeton:focus { outline: none; border-color: #00e5ff; }

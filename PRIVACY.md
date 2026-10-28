@@ -20,6 +20,7 @@ JARVIS only contacts a service when the matching feature is used. You choose whi
 | Music and video | Deezer API, YouTube API | Search terms |
 | Smart home | Your own Home Assistant server | Commands you give |
 | Page summary (browser extension) | Google Gemini | The text of the current page, only when you ask JARVIS to summarize it; the extension never reads pages on its own, and sites you list as forbidden in its options are never read |
+| Discord messages | Discord (webhook or bot API) | The message you asked JARVIS to send and the target channel, only after you confirm; webhook addresses are stored locally and never shown in clear in the interface |
 | Update check | GitHub (public API, no account or key) | A request for the latest release of this project, about 3 seconds after start and when you click *Check for updates*. Turn the automatic check off in Settings (*Check at launch*). Nothing is downloaded or installed without you |
 | First-run downloads | GitHub, Hugging Face, python.org, PyPI, Microsoft | Standard download requests (voice-detection and speaker models, Python, dependencies, WebView2) |
 

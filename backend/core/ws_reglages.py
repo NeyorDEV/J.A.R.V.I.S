@@ -36,9 +36,13 @@ async def ws_get_settings(websocket, data):
         nom: _masquer_cle(os.getenv(nom, ""))
         for nom in ("GEMINI_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY",
                     "YOUTUBE_API_KEY", "XAI_API_KEY", "SERPAPI_API_KEY",
-                    "ANTHROPIC_API_KEY", "MISTRAL_API_KEY")
+                    "ANTHROPIC_API_KEY", "MISTRAL_API_KEY", "DISCORD_BOT_TOKEN")
     }
     config_data["maj_auto"] = config_data.get("maj_auto", True)  # vérification des mises à jour au lancement
+    # Discord : les adresses de webhook sont des secrets, jamais renvoyées en clair
+    from module import discord_service
+    config_data["discord_salons"] = discord_service.masquer_salons(discord_service.salons())
+    config_data["discord_envoi_ui"] = discord_service.envoi_fenetre_autorise()
     # État d'activation des API
     config_data["api_gemini_enabled"] = config_data.get("api_gemini_enabled", cle_utilisable(os.getenv("GEMINI_API_KEY")))
     config_data["api_groq_enabled"] = config_data.get("api_groq_enabled", cle_utilisable(os.getenv("GROQ_API_KEY")))
@@ -117,6 +121,11 @@ async def ws_update_settings(websocket, data):
             _ecrire_env(api_keys)
             # Recharger les variables et réinitialiser les clients d'IA à chaud
             relire_clients_ia()
+
+    if "discord_salons" in settings:  # valeur masquée = adresse inchangée
+        from module import discord_service
+        settings["discord_salons"] = discord_service.fusionner_salons(
+            discord_service.salons(), settings["discord_salons"] if isinstance(settings["discord_salons"], dict) else {})
 
     interrupteurs_changes = any(
         k.startswith("api_") and k.endswith("_enabled") and config_data.get(k, True) != v

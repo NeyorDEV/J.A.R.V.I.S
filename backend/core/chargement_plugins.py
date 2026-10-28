@@ -9,6 +9,7 @@ _PLUGINS = [
     "plugins.tv_resolver",
     "plugins.steam_resolver",
     "plugins.navigateur_resolver",
+    "plugins.discord_resolver",
     "plugins.local_resolver",
     "plugins.system_resolver",
     "plugins.extras",

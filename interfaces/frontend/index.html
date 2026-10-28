@@ -1007,6 +1007,9 @@
           <button type="button" class="settings-nav-item" data-panel="api">
             <span class="settings-nav-icon"></span><span class="settings-nav-label">Clés API</span>
           </button>
+          <button type="button" class="settings-nav-item" data-panel="discord">
+            <span class="settings-nav-icon"></span><span class="settings-nav-label">Discord</span>
+          </button>
         </nav>
         <div class="maj-pied">
           <div class="maj-version" id="maj-version">Version —</div>
@@ -1120,6 +1123,29 @@
         </section>
 
         <!-- ── SÉCURITÉ ───────────────────────────────────────── -->
+        <section class="settings-panel" data-panel="discord">
+          <header class="settings-panel-header">
+            <h2>Discord</h2>
+            <p>Envoyer des messages par la voix : « envoie bonjour dans le salon annonces ». Chaque envoi demande une confirmation.</p>
+          </header>
+          <div class="settings-card">
+            <h3 class="settings-card-title">Salons</h3>
+            <p class="ha-hint">Un salon par ligne : <b>nom = adresse du webhook</b> (Paramètres du salon › Intégrations › Webhooks) ou <b>nom = identifiant du salon</b> (avec un bot). Les adresses de webhook sont des secrets : elles restent masquées après l'enregistrement.</p>
+            <textarea id="settings-discord-salons" rows="5" spellcheck="false" placeholder="annonces = https://discord.com/api/webhooks/..."></textarea>
+            <label for="settings-discord-bot" class="settings-ext-label">Jeton du bot (facultatif, pour les salons désignés par identifiant)</label>
+            <input type="password" id="settings-discord-bot" autocomplete="off" placeholder="Jeton du bot Discord">
+          </div>
+          <div class="settings-card">
+            <label for="settings-discord-ui" class="settings-toggle-row">
+              <input type="checkbox" id="settings-discord-ui">
+              <span>Autoriser l'envoi en mon nom en pilotant la fenêtre Discord</span>
+            </label>
+            <p class="ha-hint">Permet « écris à Léo sur Discord que je suis en retard ». Zone grise : Discord interdit d'automatiser un compte utilisateur, et JARVIS ne peut pas vérifier le destinataire (Ctrl+K ouvre la première conversation qui correspond au nom). Désactivé par défaut ; à vos risques.</p>
+          </div>
+          <button type="button" class="settings-btn primary" id="settings-discord-save">Enregistrer Discord</button>
+          <div class="maj-etat" id="settings-discord-etat"></div>
+        </section>
+
         <section class="settings-panel" data-panel="securite">
           <header class="settings-panel-header">
             <h2>Sécurité du système</h2>
