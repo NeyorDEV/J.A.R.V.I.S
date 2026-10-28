@@ -7,6 +7,7 @@ import core.shared as shared
 # Ordre d'import d'origine conservé.
 _PLUGINS = [
     "plugins.tv_resolver",
+    "plugins.steam_resolver",
     "plugins.local_resolver",
     "plugins.system_resolver",
     "plugins.extras",

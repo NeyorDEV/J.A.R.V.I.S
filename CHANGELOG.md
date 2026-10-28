@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié
+
+- **Steam** : « lance Portal sur Steam », « joue à Counter-Strike », « mes jeux Steam », « ouvre ma bibliothèque Steam », « ouvre la boutique Steam ». Les jeux sont lus dans les fichiers de Steam (bibliothèques multiples comprises, lecture seule) et lancés par le lien officiel `steam://rungameid/<id>` ; aucun pilotage de l'interface de Steam. Titres écorchés par la reconnaissance vocale rattrapés (« brawlh » → Brawlhalla), hésitation annoncée entre deux jeux proches, et sans « Steam » dans la phrase seuls les titres très proches sont lancés (« lance discord » reste une application). Interdit au mode invité. Backend : `controller/steam_controller.py`, `plugins/steam_resolver.py`.
+
 ## 9.5.2 — Mises à jour
 
 - **Mises à jour** : vérification discrète de la dernière release GitHub ~3 s après le lancement (désactivable : case « Vérifier au lancement » dans Paramètres), bannière dans les Paramètres avec les notes de version, « Télécharger la mise à jour » (ouvre la page de la release) et « Plus tard », bouton « Vérifier les mises à jour » en bas des Paramètres, carte discrète au lancement. Comparaison de versions par nombres (9.10.0 > 9.9.9). Backend : `core/mises_a_jour.py`. Aucune installation automatique.
