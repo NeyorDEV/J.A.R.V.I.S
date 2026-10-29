@@ -272,18 +272,91 @@ async def lancer_artiste(nom, ident, mix=False):
 
 
 async def trouver_playlist_bibliotheque(requete):
-    """(identifiant, nom) d'une playlist de la bibliothèque (barre latérale) dont le nom
-    correspond à `requete` (égalité d'abord, sinon inclusion), ou None."""
+    """(identifiant, nom) d'une playlist de la bibliothèque de l'utilisateur dont le nom correspond à
+    `requete` (égalité d'abord, sinon inclusion, sinon tous les mots), ou None.
+
+    Les playlists sont lues sur la page « Bibliothèque > Playlists » : la barre latérale et l'accueil
+    mélangent les playlists de l'utilisateur et des suggestions de Deezer."""
     try:
-        res = await evaluer("""
-          const q = norm(p.requete);
-          const pl = [...document.querySelectorAll('a[href*="/playlist/"]')].map(a => ({
+        await evaluer("location.hash = '#/' + langue() + '/library/playlists'; return true;")
+        res = await _attendre("""
+          const zone = document.querySelector('#page_content');
+          if (!zone || !document.querySelector('[data-testid="open_history_thumbnail"]')) return null;
+          const pl = [...zone.querySelectorAll('a[href*="/playlist/"]')].map(a => ({
             id: (a.getAttribute('href').match(/\\/playlist\\/(\\d+)/) || [])[1],
             nom: (a.innerText || '').split('\\n')[0].trim(),
           })).filter(x => x.id && x.nom);
-          const t = pl.find(x => norm(x.nom) === q) || pl.find(x => norm(x.nom).includes(q));
-          return t ? [t.id, t.nom] : null;
-        """, {"requete": requete})
-        return tuple(res) if res else None
+          if (!pl.length || !location.hash.includes('/library/playlists')) return null;
+          const q = norm(p.requete);
+          const mots = (p.requete || '').split(/\\s+/).map(norm).filter(m => m.length > 1);
+          const t = pl.find(x => norm(x.nom) === q) || pl.find(x => norm(x.nom).includes(q))
+            || (mots.length ? pl.find(x => mots.every(m => norm(x.nom).includes(m))) : null);
+          return { trouve: t ? [t.id, t.nom] : null, noms: pl.map(x => x.nom) };
+        """, {"requete": requete}, timeout=10)
+        if res and res.get("trouve"):
+            return tuple(res["trouve"])
+        if res:
+            print(f"[DEEZER CDP] Aucune de vos playlists ne correspond à « {requete} » : {res.get('noms')}")
+        return None
+    except Exception:
+        return None
+
+
+# ── Volume, Flow ──────────────────────────────────────────────────────────────
+
+async def volume():
+    """Volume du lecteur Deezer (0 à 1), ou None si injoignable."""
+    try:
+        return await evaluer("return dzPlayer.getVolume();")
+    except Exception:
+        return None
+
+
+async def regler_volume(valeur):
+    """Règle le volume du lecteur Deezer (0 à 1) sans toucher au volume de Windows. Renvoie le volume appliqué."""
+    valeur = max(0.0, min(1.0, float(valeur)))
+    try:
+        return await evaluer("dzPlayer.control.setVolume(p.v); return dzPlayer.getVolume();", {"v": valeur})
+    except Exception as e:
+        print(f"[DEEZER CDP] Échec réglage du volume : {e}")
+        return None
+
+
+async def lancer_flow():
+    """Lance le Flow (bouton de lecture de la section Flow de l'accueil)."""
+    await evaluer("location.hash = '#/' + langue() + '/'; return true;")
+    clic = await _attendre("""
+      if (location.hash.replace(/\\/$/, '').split('/').length > 3) return null;
+      const b = document.querySelector('[data-testid="flow-config-default"] button[aria-label="Écouter"]');
+      if (!b) return null;
+      b.click();
+      return 'Flow';
+    """, timeout=15)
+    if not clic:
+        print("[DEEZER CDP] Bouton du Flow introuvable sur l'accueil")
+        return False
+    print("[DEEZER CDP] Clic sur le Flow")
+    ok = await _attendre("return dzPlayer.isPlaying() && dzPlayer.isRadio && dzPlayer.isRadio() ? true : null;", timeout=10)
+    if not ok:
+        print(f"[DEEZER CDP] Flow non confirmé : {await etat()}")
+    return bool(ok)
+
+
+async def appliquer_lecture(joue, tentatives=3):
+    """Met le lecteur en lecture (joue=True) ou en pause (joue=False) et vérifie. Juste après le lancement d'un
+    morceau, le lecteur peut relancer la lecture tout seul en finissant de charger : on réessaie."""
+    for _ in range(tentatives):
+        await controle("lecture" if joue else "pause")
+        await asyncio.sleep(0.6)
+        e = await etat()
+        if e is not None and bool(e.get("joue")) == bool(joue):
+            return True
+    return False
+
+
+async def position():
+    """Position de lecture en secondes, ou None."""
+    try:
+        return await evaluer("return typeof dzPlayer.getPosition === 'function' ? dzPlayer.getPosition() : null;")
     except Exception:
         return None

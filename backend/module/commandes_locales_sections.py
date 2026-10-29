@@ -15,7 +15,7 @@ from controller.app_launcher import (
 )
 from controller.deezer_controller import (
     deezer_lancer_playlist, deezer_basculer_lecture, deezer_demarrer, deezer_piste_precedente,
-    deezer_chercher, deezer_arreter, deezer_piste_suivante, deezer_regler_volume,
+    deezer_chercher, deezer_arreter, deezer_piste_suivante, deezer_regler_volume, deezer_flow, deezer_reprendre, deezer_fermer,
 )
 from core.web_bridge import _safe_ws_send
 from module.file_manager import disposer_fenetres_dossiers, afficher_dossier
@@ -281,6 +281,8 @@ async def _commandes_apps_musique(t):
         if any(re.search(rf"\b{re.escape(m)}\b", t) for m in mots_fermer):
             if getattr(shared, "ACTIVE_SPEAKER", "guest") == "guest":
                 return "Je ne ferme pas d'application pour une voix que je ne reconnais pas."
+            if cle == "deezer":
+                return await deezer_fermer()
             ok = await asyncio.to_thread(_arreter_appli, info["noms"], cle in _FERMETURE_FORCEE)
             if ok:
                 return f"J'ai fermé {info['label']}{nom_virgule()}."
@@ -363,6 +365,10 @@ async def _commandes_apps_musique(t):
                     return f"C'est parti{nom_espace()}, je lance votre playlist sur Deezer."
                 return f"Je n'ai pas réussi à ouvrir Deezer{nom_virgule()}."
 
+    # Flow de Deezer : « lance mon flow », « mets le flow », « écoute le flow »
+    if re.search(r"\bflow\b", t) and (len(t.split()) <= 3 or re.search(r"\b(lance|lancer|mets|mettre|joue|jouer|ecoute|écoute|ecouter|écouter|demarre|démarre|active)\b", t)):
+        return await deezer_flow()
+
     if any(k in t for k in ["ouvre deezer", "lance deezer"]):
         return await deezer_demarrer()
 
@@ -378,16 +384,22 @@ async def _commandes_apps_musique(t):
         return await deezer_piste_suivante()
     if (musical or courte) and any(k in t for k in ["précédente", "précédent", "precedente", "precedent", "reviens en arrière", "retour en arrière", "musique d'avant"]):
         return await deezer_piste_precedente()
+    # « enlève la pause », « retire la pause », « dépause » : reprendre (et non mettre en pause)
+    if re.search(r"\b(enl[eè]ve|retire|annule|supprime|sors? de|sortir de|fin de)\b.{0,15}\bpause\b|\bd[eé]pause\b", t):
+        return await deezer_reprendre()
     if any(k in t for k in ["stop la musique", "arrête la musique", "arrete la musique", "arrête la playlist", "arrete la playlist"]) \
             or ((musical or courte) and "pause" in t):
         return await deezer_arreter()
     if any(k in t for k in ["remets la musique", "remet la musique", "reprends la musique", "reprend la musique", "relance la musique", "relance la playlist", "lance la musique", "joue la musique", "remets la playlist", "remet la playlist"]) \
             or ((musical or courte) and "lecture" in t):
-        return await deezer_basculer_lecture()
+        return await deezer_reprendre()
     # Volume de Deezer seulement s'il est question de musique ; sinon le volume du PC
     # (system_resolver) : « baisse le volume » tout court réglait l'un ou l'autre selon
     # le verbe employé, et « le volume du HomePod » finissait dans Deezer.
     if musical and not any(k in t for k in ["homepod", "enceinte", "télé", "tele", " tv"]):
+        m_vol = re.search(r"\b(?:volume|son)\b.*?\b(\d{1,3})\b", t)
+        if m_vol and re.search(r"\b(mets|met|mettre|règle|regle|régler|regler|à|a)\b", t):
+            return await deezer_regler_volume("regler", min(100, int(m_vol.group(1))))
         if any(k in t for k in ["monte le volume", "monte le son", "augmente le son", "augmente le volume", "plus fort"]):
             return await deezer_regler_volume("monter")
         if any(k in t for k in ["baisse le son", "baisse le volume", "moins fort"]):

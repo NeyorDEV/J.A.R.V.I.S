@@ -7,7 +7,7 @@ import core.shared as shared
 from controller.actions_pc import appeler_via_whatsapp
 from controller.deezer_controller import (
     deezer_basculer_lecture, deezer_demarrer, deezer_piste_precedente, deezer_chercher, deezer_arreter,
-    deezer_piste_suivante, deezer_regler_volume,
+    deezer_piste_suivante, deezer_regler_volume, deezer_flow, deezer_reprendre, deezer_fermer,
 )
 from core.llm_chat import interroger_ia
 from core.micro import _lire_config
@@ -333,6 +333,15 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
     elif action in ("spotify_lecture_pause", "deezer_basculer_lecture"):
         res = await deezer_basculer_lecture()
         parler(res)
+    elif action == "deezer_flow":
+        res = await deezer_flow()
+        parler(res)
+    elif action == "deezer_reprendre":
+        res = await deezer_reprendre()
+        parler(res)
+    elif action == "deezer_fermer":
+        res = await deezer_fermer()
+        parler(res)
     elif action in ("spotify_stop", "deezer_arreter"):
         res = await deezer_arreter()
         parler(res)
@@ -344,7 +353,7 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         parler(res)
     elif action in ("spotify_volume", "deezer_regler_volume"):
         direction = data.get("direction", "monter")
-        paliers   = data.get("paliers", 4)
+        paliers   = data.get("volume", data.get("paliers", 4)) if direction == "regler" else data.get("paliers", 4)
         res = await deezer_regler_volume(direction, paliers)
         parler(res)
     else:

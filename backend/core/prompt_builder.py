@@ -160,6 +160,10 @@ def composer_prompt_systeme(souvenirs=""):
         '{"action": "deezer_piste_suivante"}\n'
         '{"action": "deezer_piste_precedente"}\n'
         '{"action": "deezer_regler_volume", "direction": "monter/baisser", "paliers": 4}\n'
+        '{"action": "deezer_regler_volume", "direction": "regler", "volume": 30}\n'
+        '{"action": "deezer_flow"}\n'
+        '{"action": "deezer_reprendre"}\n'
+        '{"action": "deezer_fermer"}\n'
         "Exemples : 'lance deezer', 'mets sur deezer du rock', 'suivante sur deezer'.\n\n"
     )
     base += (

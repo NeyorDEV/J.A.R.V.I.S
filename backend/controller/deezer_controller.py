@@ -1,5 +1,6 @@
 import time
 import asyncio
+import threading
 import subprocess
 import os
 import requests
@@ -208,7 +209,10 @@ def _restore_focus(hwnd):
         ctypes.windll.user32.keybd_event(0x12, 0, 0, 0)
         time.sleep(0.01)
         ctypes.windll.user32.keybd_event(0x12, 0, 2, 0)
-        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        # SW_RESTORE seulement si la fenêtre est réduite : sur une fenêtre maximisée (JARVIS en plein écran) il la remettait
+        # en fenêtre et la rétrécissait
+        if win32gui.IsIconic(hwnd):
+            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
         win32gui.SetForegroundWindow(hwnd)
     except Exception as e:
         print(f"[DEEZER UIA] Impossible de restaurer le focus : {e}")
@@ -750,333 +754,315 @@ def _get_deezer_hwnd_rapide():
     except Exception:
         return None
 
+async def _avertissement_volume():
+    """Phrase à ajouter quand le volume de Deezer est si bas que la musique serait quasi inaudible."""
+    v = await cdp.volume()
+    if v is not None and v < 0.08:
+        return f" Attention, le volume de Deezer n'est qu'à {round(v * 100)} %."
+    return ""
+
+
+def _msg_indisponible():
+    return f"Je n'arrive pas à lancer Deezer{nom_virgule()}."
+
+
 async def deezer_demarrer(afficher=True):
-    """Lance Deezer s'il n'est pas ouvert en s'assurant que l'accessibilité soit active.
+    """Lance Deezer s'il n'est pas ouvert, TOUJOURS en arrière-plan : réduit, sans jamais prendre le focus
+    (un jeu en cours n'est pas interrompu), accessible ensuite par Alt-Tab ou la barre des tâches.
+    `afficher` est conservé pour compatibilité : Deezer n'est plus jamais amené au premier plan."""
+    deja = await cdp.pret(1)
+    if not await _deezer_pilotable():
+        return _msg_indisponible()
+    return f"Deezer {'est déjà ouvert' if deja else 'est lancé'} en arrière-plan{nom_virgule()}."
 
-    afficher=False (opérations internes de JARVIS : lancer un titre, pause...) : la
-    fenêtre existante n'est pas touchée, et un Deezer tout juste lancé est aussitôt
-    réduit en rendant le focus à l'utilisateur. Seule la commande « ouvre Deezer »
-    l'affiche."""
-    try:
-        _initialize_com()
-        import win32gui
-        import win32process
-        import win32con
-        import psutil
-        
-        deezer_pids = _get_deezer_pids()
-        hwnd = None
-        if deezer_pids:
-            def enum_windows_callback(h, extra):
-                nonlocal hwnd
-                try:
-                    _, pid = win32process.GetWindowThreadProcessId(h)
-                    if pid in deezer_pids:
-                        classname = win32gui.GetClassName(h)
-                        if "Chrome_WidgetWin" in classname:
-                            if not win32gui.GetParent(h):
-                                hwnd = h
-                                return False
-                except Exception:
-                    pass
-                return True
-            try:
-                win32gui.EnumWindows(enum_windows_callback, None)
-            except:
-                pass
-
-        if hwnd:
-            if not afficher:
-                return f"Deezer est déjà ouvert{nom_virgule()}."
-            reparer_fenetres_deezer()   # fenêtre restée non activable / transparente : affichable
-            try:
-                if not win32gui.IsWindowVisible(hwnd) or win32gui.IsIconic(hwnd):
-                    win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
-                    if win32gui.IsIconic(hwnd):
-                        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-                    _attendre_deezer_prete(3.0)
-                # « Ouvre Deezer » : l'utilisateur veut la voir, au premier plan
-                try:
-                    win32gui.SetForegroundWindow(hwnd)
-                except Exception:
-                    pass
-            except:
-                pass
-            return f"Deezer est déjà ouvert et accessible{nom_virgule()}."
-
-        # Si processus présent mais pas de fenêtre accessible, on le redémarre (Desktop uniquement)
-        if deezer_pids:
-            if os.path.exists(DEEZER_EXE):
-                for pid in deezer_pids:
-                    try: psutil.Process(pid).kill()
-                    except: pass
-                await asyncio.sleep(1.5)
-            else:
-                return f"Deezer est déjà ouvert en arrière-plan{nom_virgule()}."
-
-        if os.path.exists(DEEZER_EXE):
-            hwnd_before = None
-            try: hwnd_before = win32gui.GetForegroundWindow()
-            except: pass
-            
-            subprocess.Popen(
-                [DEEZER_EXE, "--force-renderer-accessibility", cdp.ARG_PORT],
-                cwd=DEEZER_DIR,
-                shell=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            _attendre_deezer_prete(8.0)
-            if hwnd_before and hwnd_before != 0:
-                _restore_focus(hwnd_before)
-            if not afficher:
-                # Lancé pour une opération interne : on le réduit aussitôt
-                _h = _get_deezer_hwnd_rapide()
-                if _h:
-                    win32gui.ShowWindow(_h, win32con.SW_SHOWMINNOACTIVE)
-            return f"Deezer lancé en mode accessible{nom_virgule()}."
-        else:
-            hwnd_before = None
-            try: hwnd_before = win32gui.GetForegroundWindow()
-            except: pass
-            subprocess.Popen(
-                ["explorer", "deezer:"],
-                shell=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            _attendre_deezer_prete(6.0)
-            if hwnd_before and hwnd_before != 0:
-                _restore_focus(hwnd_before)
-            if not afficher:
-                # Lancé pour une opération interne : on le réduit aussitôt
-                _h = _get_deezer_hwnd_rapide()
-                if _h:
-                    win32gui.ShowWindow(_h, win32con.SW_SHOWMINNOACTIVE)
-            return f"Deezer lancé via protocole standard{nom_virgule()}."
-    except Exception as e:
-        return f"Deezer ne s'est pas ouvert : {e}"
 
 async def deezer_basculer_lecture():
-    """Bascule Play/Pause en arrière-plan sans vol de focus."""
-    # Pilotage direct si Deezer a été lancé avec son port (jamais de relancement ici)
-    if await cdp.pret(1) and await cdp.controle("bascule") is not None:
-        return f"Lecture/Pause sur Deezer{nom_virgule()}."
-    hwnd = _get_deezer_hwnd_rapide()
-    if hwnd:
-        try:
-            import win32gui
-            WM_APPCOMMAND = 0x0319
-            APPCOMMAND_MEDIA_PLAY_PAUSE = 14
-            lParam = APPCOMMAND_MEDIA_PLAY_PAUSE << 16
-            win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-            return f"Lecture/Pause sur Deezer{nom_virgule()}."
-        except Exception as e:
-            print(f"[DEEZER UIA] Échec PostMessage play/pause : {e}")
-            
-    await deezer_demarrer(afficher=False)
-    try:
-        ctrl = get_deezer_main_control()
-        if ctrl:
-            top = ctrl.GetTopLevelControl()
-            hwnd = top.NativeWindowHandle if top else None
-            if hwnd:
-                import win32gui
-                WM_APPCOMMAND = 0x0319
-                APPCOMMAND_MEDIA_PLAY_PAUSE = 14
-                lParam = APPCOMMAND_MEDIA_PLAY_PAUSE << 16
-                win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-                return f"Lecture/Pause sur Deezer{nom_virgule()}."
-    except Exception as e:
-        print(f"[DEEZER UIA] Échec fallback play/pause : {e}")
-        
-    if pyautogui:
-        pyautogui.press('playpause')
-    return f"Lecture/Pause sur Deezer{nom_virgule()}."
+    """Bascule lecture / pause."""
+    if not await _deezer_pilotable():
+        return _msg_indisponible()
+    e = await cdp.etat()
+    if not (e and e.get("titre")):
+        return await deezer_flow()
+    await cdp.controle("bascule")
+    return f"{'Musique mise en pause' if e.get('joue') else 'Lecture reprise'} sur Deezer{nom_virgule()}."
 
-async def deezer_piste_suivante():
-    """Piste suivante en arrière-plan sans vol de focus."""
-    # Pilotage direct si Deezer a été lancé avec son port (jamais de relancement ici)
-    if await cdp.pret(1) and await cdp.controle("suivant") is not None:
-        return f"Piste suivante sur Deezer{nom_virgule()}."
-    hwnd = _get_deezer_hwnd_rapide()
-    if hwnd:
-        try:
-            import win32gui
-            WM_APPCOMMAND = 0x0319
-            APPCOMMAND_MEDIA_NEXTTRACK = 11
-            lParam = APPCOMMAND_MEDIA_NEXTTRACK << 16
-            win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-            return f"Piste suivante sur Deezer{nom_virgule()}."
-        except Exception as e:
-            print(f"[DEEZER UIA] Échec PostMessage suivant : {e}")
-            
-    await deezer_demarrer(afficher=False)
-    try:
-        ctrl = get_deezer_main_control()
-        if ctrl:
-            top = ctrl.GetTopLevelControl()
-            hwnd = top.NativeWindowHandle if top else None
-            if hwnd:
-                import win32gui
-                WM_APPCOMMAND = 0x0319
-                APPCOMMAND_MEDIA_NEXTTRACK = 11
-                lParam = APPCOMMAND_MEDIA_NEXTTRACK << 16
-                win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-                return f"Piste suivante sur Deezer{nom_virgule()}."
-    except Exception as e:
-        print(f"[DEEZER UIA] Échec fallback suivant : {e}")
-        
-    if pyautogui:
-        pyautogui.press('nexttrack')
-    return f"Piste suivante sur Deezer{nom_virgule()}."
 
-async def deezer_piste_precedente():
-    """Piste précédente en arrière-plan sans vol de focus."""
-    # Pilotage direct si Deezer a été lancé avec son port (jamais de relancement ici)
-    if await cdp.pret(1) and await cdp.controle("precedent") is not None:
-        return f"Piste précédente sur Deezer{nom_virgule()}."
-    hwnd = _get_deezer_hwnd_rapide()
-    if hwnd:
-        try:
-            import win32gui
-            WM_APPCOMMAND = 0x0319
-            APPCOMMAND_MEDIA_PREVTRACK = 12
-            lParam = APPCOMMAND_MEDIA_PREVTRACK << 16
-            win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-            return f"Piste précédente sur Deezer{nom_virgule()}."
-        except Exception as e:
-            print(f"[DEEZER UIA] Échec PostMessage précédent : {e}")
-            
-    await deezer_demarrer(afficher=False)
-    try:
-        ctrl = get_deezer_main_control()
-        if ctrl:
-            top = ctrl.GetTopLevelControl()
-            hwnd = top.NativeWindowHandle if top else None
-            if hwnd:
-                import win32gui
-                WM_APPCOMMAND = 0x0319
-                APPCOMMAND_MEDIA_PREVTRACK = 12
-                lParam = APPCOMMAND_MEDIA_PREVTRACK << 16
-                win32gui.PostMessage(hwnd, WM_APPCOMMAND, hwnd, lParam)
-                return f"Piste précédente sur Deezer{nom_virgule()}."
-    except Exception as e:
-        print(f"[DEEZER UIA] Échec fallback précédent : {e}")
-        
-    if pyautogui:
-        pyautogui.press('prevtrack')
-    return f"Piste précédente sur Deezer{nom_virgule()}."
+async def deezer_reprendre():
+    """Reprend la lecture ; si rien n'est chargé (Deezer vient d'être lancé), lance le Flow."""
+    if not await _deezer_pilotable():
+        return _msg_indisponible()
+    e = await cdp.etat()
+    if e and e.get("joue"):
+        return f"La musique joue déjà{nom_virgule()}."
+    if not (e and e.get("titre")):
+        return await deezer_flow()
+    if not await cdp.appliquer_lecture(True):
+        return f"Je n'ai pas réussi à relancer la musique sur Deezer{nom_virgule()}."
+    return f"Lecture reprise sur Deezer{nom_virgule()}." + await _avertissement_volume()
+
 
 async def deezer_arreter():
-    """Arrête la lecture (Pause)."""
-    if await cdp.pret(1):
-        e = await cdp.etat()
-        if e is not None:
-            if not e.get("joue"):
-                return f"La musique est déjà en pause{nom_virgule()}."
-            if await cdp.controle("pause") is not None:
-                return f"Musique mise en pause sur Deezer{nom_virgule()}."
-    await deezer_demarrer(afficher=False)
-    try:
-        def _stop_uia():
-            deezer_ctrl = get_deezer_main_control()
-            if deezer_ctrl:
-                btn = find_player_button(deezer_ctrl, ["Écouter"] + NOMS_BOUTON_PAUSE)
-                if btn:
-                    if btn.Name in NOMS_BOUTON_PAUSE:
-                        if _clic_control(btn):
-                            return f"Musique mise en pause sur Deezer{nom_virgule()}."
-                    elif btn.Name == "Écouter":
-                        return f"La musique est déjà en pause{nom_virgule()}."
-            return None
-            
-        with _garder_focus_utilisateur(), _deezer_actionnable():
-            res = await asyncio.to_thread(_stop_uia)
-        if res:
-            return res
-    except:
-        pass
-        
-    if pyautogui:
-        pyautogui.press('playpause')
+    """Met la lecture en pause."""
+    if not await _deezer_pilotable():
+        return _msg_indisponible()
+    e = await cdp.etat()
+    if not (e and e.get("titre")):
+        return f"Aucune musique n'est en cours sur Deezer{nom_virgule()}."
+    if not e.get("joue"):
+        return f"La musique est déjà en pause{nom_virgule()}."
+    if not await cdp.appliquer_lecture(False):
+        return f"Je n'ai pas réussi à mettre la musique en pause sur Deezer{nom_virgule()}."
     return f"Musique mise en pause sur Deezer{nom_virgule()}."
 
+
+async def deezer_piste_suivante():
+    """Morceau suivant."""
+    if not await _deezer_pilotable():
+        return _msg_indisponible()
+    e = await cdp.etat()
+    if not (e and e.get("titre")):
+        return f"Aucune musique n'est en cours sur Deezer{nom_virgule()}."
+    await cdp.controle("suivant")
+    return f"Piste suivante sur Deezer{nom_virgule()}."
+
+
+async def deezer_piste_precedente():
+    """Morceau précédent. Deezer recommence d'abord le morceau en cours s'il a démarré depuis plus de 3 secondes :
+    on le remet au début avant de reculer, pour toujours revenir au morceau d'avant."""
+    if not await _deezer_pilotable():
+        return _msg_indisponible()
+    e = await cdp.etat()
+    if not (e and e.get("titre")):
+        return f"Aucune musique n'est en cours sur Deezer{nom_virgule()}."
+    pos = await cdp.position()
+    if pos is not None and pos > 3:
+        await cdp.evaluer("dzPlayer.control.seek(0); return true;")
+        await asyncio.sleep(0.4)
+    await cdp.controle("precedent")
+    return f"Piste précédente sur Deezer{nom_virgule()}."
+
+
+async def deezer_flow():
+    """Lance le Flow."""
+    if not await _deezer_pilotable():
+        return _msg_indisponible()
+    if await cdp.lancer_flow():
+        return f"C'est parti{nom_espace()}, je lance votre Flow sur Deezer." + await _avertissement_volume()
+    return f"Je n'ai pas réussi à lancer votre Flow sur Deezer{nom_virgule()}."
+
+
 async def deezer_regler_volume(direction, paliers=4):
-    """Monte ou baisse le volume général du PC."""
-    if not pyautogui:
-        return "Volume impossible, pyautogui non disponible."
-    await asyncio.sleep(0.2)
-    for _ in range(int(paliers)):
-        if direction in ("monter", "up", "augmenter", "plus"):
-            pyautogui.press('volumeup')
-        else:
-            pyautogui.press('volumedown')
-        await asyncio.sleep(0.05)
-    msg = "Volume monté" if direction in ("monter", "up", "augmenter", "plus") else "Volume baissé"
-    return f"{msg}{nom_virgule()}."
+    """Volume du lecteur Deezer (pas celui de Windows : le son d'un jeu ne bouge pas).
+    direction « monter » / « baisser » (chaque palier vaut 2,5 %), ou « regler » avec `paliers` = pourcentage voulu."""
+    if not await _deezer_pilotable():
+        return _msg_indisponible()
+    actuel = await cdp.volume()
+    if actuel is None:
+        return f"Je n'arrive pas à régler le volume de Deezer{nom_virgule()}."
+    if direction in ("regler", "set", "mettre"):
+        cible = float(paliers) / 100
+    elif direction in ("monter", "up", "augmenter", "plus"):
+        cible = actuel + 0.025 * int(paliers)
+    else:
+        cible = actuel - 0.025 * int(paliers)
+    appliquee = await cdp.regler_volume(cible)
+    if appliquee is None:
+        return f"Je n'arrive pas à régler le volume de Deezer{nom_virgule()}."
+    return f"Volume de Deezer à {round(appliquee * 100)} %{nom_virgule()}."
+
+
+async def deezer_fermer():
+    """Ferme Deezer (tous ses processus)."""
+    import psutil
+    global _cached_deezer_pids
+    _cached_deezer_pids = []
+    procs = []
+    for p in psutil.process_iter(["name"]):
+        if "deezer" in (p.info["name"] or "").lower():
+            procs.append(p)
+    if not procs:
+        return f"Deezer n'est pas ouvert{nom_virgule()}."
+
+    def _fermer():
+        for p in procs:
+            try:
+                p.terminate()
+            except Exception:
+                pass
+        _, vivants = psutil.wait_procs(procs, timeout=4)
+        for p in vivants:
+            try:
+                p.kill()
+            except Exception:
+                pass
+        psutil.wait_procs(vivants, timeout=3)
+        return [p for p in procs if p.is_running()]
+    restants = await asyncio.to_thread(_fermer)
+    _cached_deezer_pids = []
+    if restants:
+        return f"Deezer n'a pas voulu se fermer{nom_virgule()}."
+    return f"J'ai fermé Deezer{nom_virgule()}."
+
+
+class _GardeFenetres:
+    """Empêche Deezer de prendre le focus à son démarrage.
+
+    Deezer appelle `window.show()` (qui active la fenêtre) dès qu'elle est prête, même lancé réduit ou caché : un jeu
+    au premier plan perdrait le focus. Dès qu'une fenêtre de premier niveau de Deezer est créée (bien avant son
+    affichage), elle est rendue non activable et transparente ; le focus ne bouge donc jamais. À la fin du démarrage,
+    la fenêtre est réduite dans la barre des tâches puis remise dans son état normal : Alt-Tab et la barre des
+    tâches la rouvrent comme n'importe quelle fenêtre."""
+
+    def __init__(self):
+        self._arret = threading.Event()
+        self._vues = {}   # hwnd -> style étendu d'origine
+        self._fil = None
+        try:
+            import win32gui
+            self._avant = win32gui.GetForegroundWindow()
+        except Exception:
+            self._avant = None
+
+    def demarrer(self):
+        self._fil = threading.Thread(target=self._boucle, daemon=True)
+        self._fil.start()
+
+    def _boucle(self):
+        import psutil, win32con, win32gui, win32process
+        pids, prochain = set(), 0.0
+
+        def examiner(h, _):
+            try:
+                if h in self._vues or win32process.GetWindowThreadProcessId(h)[1] not in pids:
+                    return True
+                if "Chrome_WidgetWin" not in win32gui.GetClassName(h) or win32gui.GetParent(h):
+                    return True
+                ex = win32gui.GetWindowLong(h, win32con.GWL_EXSTYLE)
+                win32gui.SetWindowLong(h, win32con.GWL_EXSTYLE, ex | win32con.WS_EX_NOACTIVATE | win32con.WS_EX_LAYERED | win32con.WS_EX_TRANSPARENT)
+                win32gui.SetLayeredWindowAttributes(h, 0, 0, win32con.LWA_ALPHA)
+                self._vues[h] = ex
+            except Exception:
+                pass
+            return True
+
+        while not self._arret.is_set():
+            if time.time() >= prochain:
+                pids = {p.pid for p in psutil.process_iter(["name"]) if "deezer" in (p.info["name"] or "").lower()}
+                prochain = time.time() + 0.05
+            if pids:
+                try:
+                    win32gui.EnumWindows(examiner, None)
+                except Exception:
+                    pass
+            time.sleep(0.005)
+
+    def terminer(self):
+        """Fin du démarrage : fenêtres réduites sans activation, puis remises dans leur état normal."""
+        import ctypes, win32con, win32gui
+        self._arret.set()
+        if self._fil:
+            self._fil.join(1.5)
+        for h in list(self._vues):
+            try:
+                if win32gui.IsWindowVisible(h):
+                    win32gui.ShowWindow(h, win32con.SW_SHOWMINNOACTIVE)
+            except Exception:
+                pass
+        time.sleep(0.25)
+        for h, ex in self._vues.items():
+            try:
+                win32gui.SetWindowLong(h, win32con.GWL_EXSTYLE, ex)
+                if ex & win32con.WS_EX_LAYERED:
+                    win32gui.SetLayeredWindowAttributes(h, 0, 255, win32con.LWA_ALPHA)
+                win32gui.SetWindowPos(h, 0, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOZORDER
+                                      | win32con.SWP_FRAMECHANGED | win32con.SWP_NOACTIVATE)
+            except Exception:
+                pass
+        # La fenêtre a été affichée « non activable » : Windows ne lui a alors créé aucun bouton dans la barre des tâches
+        # (seul le raccourci épinglé apparaissait, comme si Deezer n'était pas lancé). La masquer puis la ré-afficher
+        # réduite, sans activation, l'inscrit à la barre des tâches sans toucher au focus.
+        for h in list(self._vues):
+            try:
+                if win32gui.IsWindowVisible(h) and win32gui.GetWindowText(h):
+                    win32gui.ShowWindow(h, win32con.SW_HIDE)
+                    time.sleep(0.15)
+                    win32gui.ShowWindow(h, win32con.SW_SHOWMINNOACTIVE)
+            except Exception:
+                pass
+        # Secours : si malgré tout Deezer a pris le focus, on le rend à la fenêtre d'avant
+        try:
+            if self._avant and not _fenetre_deezer(self._avant) and _fenetre_deezer(win32gui.GetForegroundWindow()):
+                _restore_focus(self._avant)
+        except Exception:
+            pass
+
+
+_verrou_lancement = None
+
+
+async def _terminer_garde_plus_tard(garde, delai):
+    """Deezer réaffiche parfois sa fenêtre quelques secondes après être prêt : la garde reste active en tâche de fond,
+    la commande de l'utilisateur n'attend pas."""
+    await asyncio.sleep(delai)
+    await asyncio.to_thread(garde.terminer)
+
 
 async def _deezer_pilotable(relancer=True):
     """Vrai si Deezer est pilotable par son port local (controller/deezer_cdp.py).
 
-    Sinon, avec relancer=True, (re)lance Deezer avec ce port, réduit et sans prendre le
-    focus. Un Deezer démarré sans le port (raccourci, démarrage de Windows) est fermé puis
-    relancé : la lecture en cours s'interrompt, une seule fois par session de Deezer.
-    Réservé aux commandes qui lancent une musique (pas à pause/suivant)."""
+    Sinon, avec relancer=True, le lance avec ce port, réduit et SANS prendre le focus (voir _GardeFenetres) : toute
+    commande Deezer lance donc Deezer s'il n'est pas ouvert. Un Deezer démarré sans le port (raccourci, démarrage de
+    Windows) est fermé puis relancé : la lecture en cours s'interrompt, une seule fois par session de Deezer."""
+    global _verrou_lancement, _cached_deezer_pids
     if await cdp.pret(2):
         return True
     if not relancer or not os.path.exists(DEEZER_EXE):
         return False
-    try:
-        import psutil, win32gui, win32con
-        print("[DEEZER] (Re)lancement de Deezer avec le port de pilotage, en arrière-plan...")
-        avant = win32gui.GetForegroundWindow()
-        for pid in _get_deezer_pids():
-            try:
-                psutil.Process(pid).kill()
-            except Exception:
-                pass
-        await asyncio.sleep(1.5)
-        si = subprocess.STARTUPINFO()
-        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        si.wShowWindow = win32con.SW_SHOWMINNOACTIVE
-        subprocess.Popen([DEEZER_EXE, "--force-renderer-accessibility", cdp.ARG_PORT], cwd=DEEZER_DIR,
-                         startupinfo=si, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        def _discret():
-            # Deezer s'affiche parfois au démarrage malgré la demande : on le réduit
-            # aussitôt et on rend le focus à la fenêtre de l'utilisateur.
-            h = _get_deezer_hwnd_rapide()
-            if h and win32gui.IsWindowVisible(h) and not win32gui.IsIconic(h):
-                win32gui.ShowWindow(h, win32con.SW_SHOWMINNOACTIVE)
-            if avant and not _fenetre_deezer(avant) and _fenetre_deezer(win32gui.GetForegroundWindow()):
-                _restore_focus(avant)
-
-        # Surveillance rapprochée (50 ms) dans un fil dédié pendant tout le démarrage
-        import threading
-        stop = threading.Event()
-        def _veille():
-            while not stop.is_set():
+    if _verrou_lancement is None:
+        _verrou_lancement = asyncio.Lock()
+    async with _verrou_lancement:   # deux commandes simultanées ne lancent pas Deezer deux fois
+        if await cdp.pret(1):
+            return True
+        garde = _GardeFenetres()
+        garde.demarrer()
+        pret = False
+        garde_confiee = False
+        try:
+            import psutil, win32con
+            print("[DEEZER] Lancement de Deezer en arrière-plan (sans prendre le focus)...")
+            vivants = []
+            for p in psutil.process_iter(["name"]):
+                if "deezer" in (p.info["name"] or "").lower():
+                    vivants.append(p)
+            for p in vivants:
                 try:
-                    _discret()
+                    p.kill()
                 except Exception:
                     pass
-                time.sleep(0.05)
-        threading.Thread(target=_veille, daemon=True).start()
-        try:
-            pret = False
-            fin = time.time() + 30
+            _cached_deezer_pids = []
+            if vivants:
+                await asyncio.sleep(1.5)
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            si.wShowWindow = win32con.SW_SHOWMINNOACTIVE
+            subprocess.Popen([DEEZER_EXE, "--force-renderer-accessibility", cdp.ARG_PORT], cwd=DEEZER_DIR,
+                             startupinfo=si, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            fin = time.time() + 40
             while time.time() < fin and not pret:
                 pret = await cdp.pret(0.5)
                 await asyncio.sleep(0.2)
-            await asyncio.sleep(8)  # Deezer se réaffiche parfois quelques secondes après
+            if pret:
+                asyncio.ensure_future(_terminer_garde_plus_tard(garde, 6.0))
+                garde_confiee = True
+        except Exception as e:
+            print(f"[DEEZER] Échec du lancement : {e}")
         finally:
-            stop.set()
+            if not garde_confiee:
+                await asyncio.to_thread(garde.terminer)
+            _cached_deezer_pids = []
         print(f"[DEEZER] Deezer pilotable : {pret}")
         return pret
-    except Exception as e:
-        print(f"[DEEZER] Échec du relancement pilotable : {e}")
-        return False
+
 
 # ── Lancement sans lien deezer:// ─────────────────────────────────────────────
 # Ouvrir un lien deezer:// restaure Deezer et lui donne le focus quand il est réduit
@@ -1286,6 +1272,14 @@ async def deezer_chercher(recherche, _deja_corrige=False, _preparation=None):
             
     print(f"[DEEZER] Recherche type={type_recherche} pour : '{query}'")
     
+    if type_recherche == "playlist" and await preparation:
+        perso = await cdp.trouver_playlist_bibliotheque(query)
+        if perso:
+            ident, nom_perso = perso
+            if await cdp.lancer_page("playlist", ident, nom_perso):
+                return f"C'est parti{nom_espace()}, je lance votre playlist « {nom_perso} » sur Deezer." + await _avertissement_volume()
+            return f"J'ai trouvé votre playlist « {nom_perso} », mais je n'ai pas réussi à la lancer sur Deezer{nom_virgule()}."
+
     try:
         # 1. Résolution via l'API Deezer
         if type_recherche == "playlist":
@@ -1364,7 +1358,7 @@ async def deezer_chercher(recherche, _deja_corrige=False, _preparation=None):
                 ok = await cdp.lancer_artiste(name, res_id, mix=veux_mix)
             else:
                 ok = await cdp.lancer_page("album", res_id, name, artist)
-            return msg if ok else echecs[type_recherche]
+            return (msg + await _avertissement_volume()) if ok else echecs[type_recherche]
 
         # 3. Secours, si le pilotage direct est indisponible : accessibilité Windows, sans
         #    jamais de lien deezer:// (voir plus haut), avec la même vérification.
@@ -1518,14 +1512,12 @@ async def deezer_lancer_playlist(url=None):
                     return _lancer_meilleur_resultat_ui(f"{nom} {artiste}", nom, ["Écouter"], artiste_attendu=artiste)
                 return _lancer_meilleur_resultat_ui(nom, nom, ["Top titres"], artiste_attendu=nom)
         else:
-            if await cdp.pret(1):
-                return await cdp.controle("lecture") is not None
-            await deezer_demarrer(afficher=False)
-            with _garder_focus_utilisateur(), _deezer_actionnable(), prevent_focus_theft():
-                await asyncio.sleep(1)
-                await asyncio.to_thread(_uia_clic_bouton, ["Écouter"])
-                await asyncio.sleep(1.5)
-                return True
+            if await _deezer_pilotable():
+                e = await cdp.etat()
+                if e and e.get("titre"):
+                    return await cdp.controle("lecture") is not None
+                return await cdp.lancer_flow()
+            return False
     except Exception as e:
         print(f"[DEEZER] Erreur lancement playlist : {e}")
         return False
