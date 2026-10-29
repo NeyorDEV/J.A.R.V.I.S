@@ -74,6 +74,28 @@ def _origine_extension(websocket) -> bool:
         return False
 
 
+async def ws_music_control(act, valeur=None):
+    """Boutons du widget musique : ils pilotent Deezer (page pilotée, sans focus), pas les touches médias du système.
+    Deezer est lancé discrètement s'il est fermé."""
+    import controller.deezer_cdp as cdp
+    import controller.deezer_controller as dz
+    try:
+        if act == "toggle":
+            await dz.deezer_basculer_lecture()
+        elif act == "next":
+            await dz.deezer_piste_suivante()
+        elif act == "prev":
+            await dz.deezer_piste_precedente()
+        elif act == "volume" and valeur is not None:
+            if await cdp.pret(1):
+                await cdp.regler_volume(float(valeur) / 100)
+        elif act == "seek" and valeur is not None:
+            if await cdp.pret(1):
+                await cdp.chercher_dans_le_morceau(float(valeur))
+    except Exception as e:
+        print(f"[MUSIC] Commande « {act} » en échec : {e}")
+
+
 def _en_tache_de_fond(coro):
     """Lance un handler sans bloquer la lecture des messages suivants de la connexion.
 
@@ -318,16 +340,8 @@ async def gerer_connexion_ws(websocket):
                 elif data.get("type") == "music_control":
 
                     act = data.get("action")
-                    if act == "toggle":
-                        import pyautogui
-                        pyautogui.press("playpause")
-                    elif act == "next":
-                        import pyautogui
-                        pyautogui.press("nexttrack")
-                    elif act == "prev":
-                        import pyautogui
-                        pyautogui.press("prevtrack")
                     print(f"[MUSIC] Commande recue : {act}")
+                    _en_tache_de_fond(ws_music_control(act, data.get("value")))
                 elif data.get("type") == "detect_apps":
                     apps = await asyncio.to_thread(recenser_applications)
                     await websocket.send(json.dumps({"type": "detected_apps", "apps": apps}))

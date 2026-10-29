@@ -18,6 +18,7 @@ from controller.deezer_controller import (
     deezer_chercher, deezer_arreter, deezer_piste_suivante, deezer_regler_volume, deezer_flow, deezer_reprendre, deezer_fermer,
 )
 from core.web_bridge import _safe_ws_send
+from core import module_catalogue
 from module.file_manager import disposer_fenetres_dossiers, afficher_dossier
 from core.interlocuteur import nom_espace, nom_virgule
 
@@ -106,6 +107,7 @@ async def _commandes_identite_hud(t):
         "ferme l'hologramme", "désactive l'hologramme", "desactive l'hologramme",
         "désactive le mode hologramme", "desactive le mode hologramme", "ferme le mode holo",
     ]):
+        module_catalogue.annoncer("JEUX ET 3D")
         _safe_ws_send(json.dumps({"action": "close_3d_view"}))
         return f"Vue 3D fermée{nom_virgule()}."
 
@@ -116,6 +118,7 @@ async def _commandes_identite_hud(t):
         "dossier spatial", "explorateur spatial 3d", "mode explorer", "affiche l'explorateur", 
         "ouvre l'explorateur spatial", "affiche mes fichiers"
     ]):
+        module_catalogue.annoncer("JEUX ET 3D", "Explorateur")
         _safe_ws_send(json.dumps({"action": "open_spatial_explorer"}))
         return f"Déploiement de l'explorateur spatial 3D{nom_virgule()}."
 
@@ -125,6 +128,7 @@ async def _commandes_identite_hud(t):
         "carte 3d", "affiche la carte 3d", "affiche la carte de la maison", "affiche la carte domotique", 
         "ma maison 3d"
     ]):
+        module_catalogue.annoncer("JEUX ET 3D", "Maison 3D")
         _safe_ws_send(json.dumps({"action": "open_domotic_map"}))
         return f"Déploiement de la carte domotique 3D{nom_virgule()}."
 
@@ -136,6 +140,7 @@ async def _commandes_identite_hud(t):
                 query = query.replace(prefix, "").strip()
         query = query.replace("?", "").strip()
         if len(query) > 1:
+            module_catalogue.annoncer("JEUX ET 3D", "Cortex")
             _safe_ws_send(json.dumps({"action": "cortex_search", "query": query}))
             return f"Recherche de '{query}' initiée dans mon cortex neuronal{nom_virgule()}."
         return f"Que souhaitez-vous chercher dans votre cortex{nom_virgule()} ?"
@@ -264,6 +269,7 @@ async def _commandes_apps_musique(t):
     for nom, cmd in apps_standard.items():
         if re.search(rf"\b(?:{verbes_ouvrir})\s+(?:le |la |les |l'|un |une |mon |ma |mes )?{re.escape(nom)}\b", t):
             try:
+                module_catalogue.annoncer("SYSTÈME", "Applications")
                 subprocess.Popen(cmd)
                 return f"J'ouvre {nom}{nom_virgule()}."
             except Exception:
@@ -281,6 +287,7 @@ async def _commandes_apps_musique(t):
         if any(re.search(rf"\b{re.escape(m)}\b", t) for m in mots_fermer):
             if getattr(shared, "ACTIVE_SPEAKER", "guest") == "guest":
                 return "Je ne ferme pas d'application pour une voix que je ne reconnais pas."
+            module_catalogue.annoncer("SYSTÈME", "Applications")
             if cle == "deezer":
                 return await deezer_fermer()
             ok = await asyncio.to_thread(_arreter_appli, info["noms"], cle in _FERMETURE_FORCEE)
@@ -292,6 +299,7 @@ async def _commandes_apps_musique(t):
         if info.get("fermeture_seule"):
             continue
         if any(m in t for m in mots_ouvrir):
+            module_catalogue.annoncer("SYSTÈME", "Applications")
             _demarrer_appli_travail(info["label"], info["noms"], chemins_hints=info["hints"])
             return f"Je lance {info['label']}{nom_virgule()}."
 

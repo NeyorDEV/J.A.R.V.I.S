@@ -7,6 +7,7 @@ import re
 import time
 
 import core.shared as shared
+from core import module_catalogue
 from core.actions_ia import executer_action
 from core.confirmation import confirmation_en_attente, resoudre_confirmation_vocale
 from core.etat_parole import set_stop_parler
@@ -165,6 +166,7 @@ async def _resoudre_localement(texte_utilisateur):
     """Résolution sans IA : échecs, alarmes, contextes en attente, puis les resolvers."""
     global dernier_resolveur
     dernier_resolveur = None
+    module_catalogue.reinitialiser()
     reponse = None
     # Échecs (Priorité absolue pour intercepter les coups et éviter de charger la DB vectorielle de la mémoire locale)
     if not reponse:
@@ -192,6 +194,8 @@ async def _resoudre_localement(texte_utilisateur):
 
     if not reponse:
         reponse = await _essayer_resolvers_statiques(texte_utilisateur)
+    if reponse:
+        module_catalogue.annoncer_pour_resolveur(dernier_resolveur)   # la roue du cylindre s'arrête sur le vrai module
     return reponse
 
 
@@ -275,6 +279,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
 
         if not reponse:
             force_skip_local = est_action_oriented(texte_utilisateur)
+            module_catalogue.annoncer("ASSISTANT")   # conversation, sauf si l'IA répond par une action (annoncée à son exécution)
             reponse = await interroger_ia(texte_utilisateur, skip_local=force_skip_local)
         
         # print(f"[JARVIS] {reponse}")

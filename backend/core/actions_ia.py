@@ -9,6 +9,7 @@ import chess
 
 import controller.homepod_controller as homepod_controller
 import core.shared as shared
+from core import module_catalogue
 from core.actions_ia_services import executer_actions_services
 from core.ha_mcp_client import executer_action_ha
 from core.llm_chat import interroger_ia
@@ -30,6 +31,7 @@ from core.interlocuteur import nom_createur, nom_espace, nom_ou_utilisateur, nom
 
 async def executer_action(action, data, block, texte_utilisateur, reponse_propre):
     """Exécute une action JSON produite par le LLM (même ordre de priorité que la chaîne d'origine)."""
+    module_catalogue.annoncer_pour_action(action)
     if await _actions_systeme(action, data, block, texte_utilisateur, reponse_propre):
         return
     if await executer_actions_services(action, data, block, texte_utilisateur, reponse_propre):

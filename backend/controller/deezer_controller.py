@@ -9,6 +9,7 @@ from datetime import datetime
 import contextlib
 import unicodedata
 from core.interlocuteur import nom_espace, nom_virgule
+from core import module_catalogue
 import controller.deezer_cdp as cdp
 
 try:
@@ -770,6 +771,7 @@ async def deezer_demarrer(afficher=True):
     """Lance Deezer s'il n'est pas ouvert, TOUJOURS en arrière-plan : réduit, sans jamais prendre le focus
     (un jeu en cours n'est pas interrompu), accessible ensuite par Alt-Tab ou la barre des tâches.
     `afficher` est conservé pour compatibilité : Deezer n'est plus jamais amené au premier plan."""
+    module_catalogue.annoncer("MUSIQUE", "Deezer")
     deja = await cdp.pret(1)
     if not await _deezer_pilotable():
         return _msg_indisponible()
@@ -778,6 +780,7 @@ async def deezer_demarrer(afficher=True):
 
 async def deezer_basculer_lecture():
     """Bascule lecture / pause."""
+    module_catalogue.annoncer("MUSIQUE", "Pause")
     if not await _deezer_pilotable():
         return _msg_indisponible()
     e = await cdp.etat()
@@ -789,6 +792,7 @@ async def deezer_basculer_lecture():
 
 async def deezer_reprendre():
     """Reprend la lecture ; si rien n'est chargé (Deezer vient d'être lancé), lance le Flow."""
+    module_catalogue.annoncer("MUSIQUE", "Pause")
     if not await _deezer_pilotable():
         return _msg_indisponible()
     e = await cdp.etat()
@@ -803,6 +807,7 @@ async def deezer_reprendre():
 
 async def deezer_arreter():
     """Met la lecture en pause."""
+    module_catalogue.annoncer("MUSIQUE", "Pause")
     if not await _deezer_pilotable():
         return _msg_indisponible()
     e = await cdp.etat()
@@ -817,6 +822,7 @@ async def deezer_arreter():
 
 async def deezer_piste_suivante():
     """Morceau suivant."""
+    module_catalogue.annoncer("MUSIQUE", "Titre suivant")
     if not await _deezer_pilotable():
         return _msg_indisponible()
     e = await cdp.etat()
@@ -829,6 +835,7 @@ async def deezer_piste_suivante():
 async def deezer_piste_precedente():
     """Morceau précédent. Deezer recommence d'abord le morceau en cours s'il a démarré depuis plus de 3 secondes :
     on le remet au début avant de reculer, pour toujours revenir au morceau d'avant."""
+    module_catalogue.annoncer("MUSIQUE", "Titre précédent")
     if not await _deezer_pilotable():
         return _msg_indisponible()
     e = await cdp.etat()
@@ -844,6 +851,7 @@ async def deezer_piste_precedente():
 
 async def deezer_flow():
     """Lance le Flow."""
+    module_catalogue.annoncer("MUSIQUE", "Flow")
     if not await _deezer_pilotable():
         return _msg_indisponible()
     if await cdp.lancer_flow():
@@ -854,6 +862,7 @@ async def deezer_flow():
 async def deezer_regler_volume(direction, paliers=4):
     """Volume du lecteur Deezer (pas celui de Windows : le son d'un jeu ne bouge pas).
     direction « monter » / « baisser » (chaque palier vaut 2,5 %), ou « regler » avec `paliers` = pourcentage voulu."""
+    module_catalogue.annoncer("MUSIQUE", "Volume")
     if not await _deezer_pilotable():
         return _msg_indisponible()
     actuel = await cdp.volume()
@@ -873,6 +882,7 @@ async def deezer_regler_volume(direction, paliers=4):
 
 async def deezer_fermer():
     """Ferme Deezer (tous ses processus)."""
+    module_catalogue.annoncer("MUSIQUE", "Deezer")
     import psutil
     global _cached_deezer_pids
     _cached_deezer_pids = []
@@ -1271,6 +1281,7 @@ async def deezer_chercher(recherche, _deja_corrige=False, _preparation=None):
             print(f"[DEEZER] Erreur auto-détection artiste : {e}")
             
     print(f"[DEEZER] Recherche type={type_recherche} pour : '{query}'")
+    module_catalogue.annoncer("MUSIQUE", {"track": "Deezer", "album": "Albums", "artist": "Artistes", "playlist": "Playlists"}.get(type_recherche, "Deezer"))
     
     if type_recherche == "playlist" and await preparation:
         perso = await cdp.trouver_playlist_bibliotheque(query)
@@ -1471,6 +1482,7 @@ async def deezer_lancer_playlist(url=None):
     sans lien, reprend la lecture. Tout se fait en arrière-plan : le lien sert seulement
     à retrouver le nom via l'API Deezer, jamais à ouvrir une URI deezer:// (qui
     afficherait Deezer et lui donnerait le focus)."""
+    module_catalogue.annoncer("MUSIQUE", "Playlists")
     try:
         playlist_url = url or os.getenv("DEEZER_PLAYLIST_URL")
 

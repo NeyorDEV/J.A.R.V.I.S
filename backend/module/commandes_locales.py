@@ -5,6 +5,7 @@ import json
 import re
 
 import core.shared as shared
+from core import module_catalogue
 from core.speech import parler
 from core.web_bridge import envoyer_carte_contextuelle, envoyer_image_web
 from module.commandes_locales_sections import (
@@ -181,6 +182,7 @@ async def _commandes_competences_systeme(t):
     ]
     for p in _winget_phrases:
         if p in t:
+            module_catalogue.annoncer("LOGICIELS", "Mises à jour")
             if shared.CONNECTED_CLIENTS:
                 msg = json.dumps({"action": "winget_open"})
                 await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
@@ -204,6 +206,7 @@ async def _commandes_competences_systeme(t):
     # contient très souvent " et " (ex: "noir et blanc") et se faisait sinon
     # avaler par ce garde-fou avant d'atteindre le vrai bloc de génération plus bas.
     if any(k in t for k in ["génère", "genere", "crée une image", "cree une image", "dessine"]):
+        module_catalogue.annoncer("IMAGES", "Générer")
         import re
         prompt = re.sub(r'(jarvis|génère(-moi| moi|)?|genere(-moi| moi|)?|crée|cree|dessine(-moi| moi|)?)( une| l\'| des| de l\'|) ?(image|photo|dessin|illustration)? ?(de |d\'|d\'une |d\'un |des )?', '', t).strip()
 

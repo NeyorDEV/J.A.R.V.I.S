@@ -134,6 +134,88 @@ async def get_raw_weather(lat, lon, city_name):
         print(f"[METEO] ⚠ Météo indisponible pour {city_name} (Open-Meteo + wttr.in KO).")
     return None
 
+_JOURS_COURTS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
+_CODES_METEO_FR = {
+    0: "ciel dégagé", 1: "plutôt dégagé", 2: "partiellement nuageux", 3: "couvert", 45: "brouillard", 48: "brouillard givrant",
+    51: "bruine légère", 53: "bruine", 55: "bruine dense", 56: "bruine verglaçante", 57: "bruine verglaçante",
+    61: "pluie faible", 63: "pluie", 65: "pluie forte", 66: "pluie verglaçante", 67: "pluie verglaçante",
+    71: "neige faible", 73: "neige", 75: "neige forte", 77: "grains de neige",
+    80: "averses faibles", 81: "averses", 82: "averses violentes", 85: "averses de neige", 86: "fortes averses de neige",
+    95: "orage", 96: "orage avec grêle", 99: "orage violent avec grêle",
+}
+
+
+async def get_forecast(lat, lon, city_name):
+    """Prévisions pour le widget météo : 7 jours (températures, pluie, vent) et les 24 prochaines heures. None si indisponible."""
+    from datetime import datetime
+    try:
+        params = {
+            "latitude": lat, "longitude": lon, "timezone": "auto", "forecast_days": 7,
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max",
+            "hourly": "temperature_2m,precipitation_probability",
+            "current": "temperature_2m,apparent_temperature,weather_code",
+        }
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"}
+        resp = await asyncio.to_thread(requests.get, "https://api.open-meteo.com/v1/forecast", params=params, headers=headers, timeout=6)
+        if resp.status_code != 200:
+            return None
+        d = resp.json()
+        jours = []
+        for i, date in enumerate(d["daily"]["time"]):
+            code = d["daily"]["weather_code"][i]
+            jours.append({
+                "date": date, "jour": _JOURS_COURTS[datetime.strptime(date, "%Y-%m-%d").weekday()], "code": code,
+                "desc": _CODES_METEO_FR.get(code, "conditions inconnues"),
+                "tmax": d["daily"]["temperature_2m_max"][i], "tmin": d["daily"]["temperature_2m_min"][i],
+                "pluie_pct": d["daily"]["precipitation_probability_max"][i], "pluie_mm": d["daily"]["precipitation_sum"][i],
+                "vent": d["daily"]["wind_speed_10m_max"][i],
+            })
+        maintenant = d["current"]["time"][:13]
+        debut = max(0, next((i for i, h in enumerate(d["hourly"]["time"]) if h[:13] >= maintenant), 0))
+        heures = [{"h": int(d["hourly"]["time"][i][11:13]), "t": d["hourly"]["temperature_2m"][i], "pluie_pct": d["hourly"]["precipitation_probability"][i]}
+                  for i in range(debut, min(debut + 24, len(d["hourly"]["time"])))]
+        cur = d["current"]
+        return {"city": city_name, "jours": jours, "heures": heures, "actuel": {
+            "temp": cur["temperature_2m"], "ressenti": cur["apparent_temperature"], "code": cur["weather_code"],
+            "desc": _CODES_METEO_FR.get(cur["weather_code"], "conditions inconnues")}}
+    except Exception as e:
+        print(f"[METEO] Prévisions indisponibles : {e}")
+        return None
+
+
+def resume_meteo(prev, vue):
+    """Phrase prononcée pour la vue demandée (aujourdhui, demain, semaine, pluie, temperature)."""
+    ville = prev["city"]
+    j0, j1 = prev["jours"][0], prev["jours"][1] if len(prev["jours"]) > 1 else None
+    pluie = lambda j: (f"risque de pluie de {round(j['pluie_pct'])} pour cent" if (j["pluie_pct"] or 0) >= 30 else "pas de pluie prévue")
+    if vue == "demain" and j1:
+        return f"Demain à {ville} : {j1['desc']}, de {round(j1['tmin'])} à {round(j1['tmax'])} degrés, {pluie(j1)}."
+    if vue == "semaine":
+        mini, maxi = min(j["tmin"] for j in prev["jours"]), max(j["tmax"] for j in prev["jours"])
+        pluvieux = [j["jour"].rstrip(".") for j in prev["jours"] if (j["pluie_pct"] or 0) >= 50]
+        quand = f"de la pluie est probable {', '.join(pluvieux)}" if pluvieux else "pas de grosse pluie prévue"
+        return f"Cette semaine à {ville}, de {round(mini)} à {round(maxi)} degrés, {quand}."
+    if vue == "pluie":
+        return f"Aujourd'hui à {ville} : {pluie(j0)}. Demain : {pluie(j1) if j1 else 'inconnu'}."
+    if vue == "temperature":
+        a = prev["actuel"]
+        return f"À {ville}, il fait {round(a['temp'])} degrés, ressenti {round(a['ressenti'])}. Maximum {round(j0['tmax'])}, minimum {round(j0['tmin'])}."
+    a = prev["actuel"]
+    return f"À {ville}, il fait {round(a['temp'])} degrés, {a['desc']}. Maximum {round(j0['tmax'])}, minimum {round(j0['tmin'])}."
+
+
+async def diffuser_prevision(vue=None):
+    """Envoie les prévisions au HUD (et la vue à afficher, le cas échéant). Renvoie les prévisions, ou None."""
+    prev = await get_forecast(CLIENT_LOCATION["lat"], CLIENT_LOCATION["lon"], CLIENT_LOCATION["city"])
+    if prev and _clients():
+        msg = {"action": "weather_view" if vue else "weather_forecast", "forecast": prev}
+        if vue:
+            msg["vue"] = vue
+        texte = json.dumps(msg)
+        await asyncio.gather(*[ws.send(texte) for ws in _clients()], return_exceptions=True)
+    return prev
+
+
 async def actualiser_position_reelle():
     """Met CLIENT_LOCATION à la position actuelle donnée par Windows (celle du globe pour
     « ma position »). Le widget météo affichait la ville de la configuration (domicile),
@@ -171,6 +253,7 @@ async def broadcast_weather_stats_once():
                 msg = json.dumps({"action": "weather_update", "weather_type": "local", "weather": local_weather})
                 await asyncio.gather(*[ws.send(msg) for ws in _clients()], return_exceptions=True)
             
+            await diffuser_prevision()
             mon_weather = await get_raw_weather(45.2917, 4.1722, "Monistrol-sur-Loire")
             if mon_weather:
                 msg = json.dumps({"action": "weather_update", "weather_type": "monistrol", "weather": mon_weather})
@@ -272,7 +355,9 @@ async def get_media_info():
             def mm_ss(s):
                 m, s = divmod(int(s or 0), 60)
                 return f"{m:02d}:{s:02d}"
-            pos, duree = lecture.get("position") or 0, lecture.get("duree") or 0
+            pos, duree = float(lecture.get("position") or 0), float(lecture.get("duree") or 0)
+            md5 = lecture.get("pochette")
+            volume = lecture.get("volume")
             return {
                 "title": lecture["titre"].upper(),
                 "artist": (lecture.get("artiste") or "DEEZER").upper(),
@@ -280,6 +365,13 @@ async def get_media_info():
                 "position": mm_ss(pos),
                 "duration": mm_ss(duree),
                 "percent": (pos / duree * 100) if duree else 0,
+                "position_s": round(pos, 1),
+                "duration_s": round(duree, 1),
+                "cover": f"https://cdn-images.dzcdn.net/images/cover/{md5}/300x300-000000-80-0-0.jpg" if md5 else None,
+                "volume": round(float(volume) * 100) if volume is not None else None,
+                "muet": bool(lecture.get("muet")),
+                "shuffle": bool(lecture.get("aleatoire")),
+                "repeat": lecture.get("repetition"),
             }
     except Exception:
         pass

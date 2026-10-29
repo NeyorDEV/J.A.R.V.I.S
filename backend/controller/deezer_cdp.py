@@ -114,7 +114,8 @@ async def etat():
 _JS_LECTURE = """
 const f = (n) => (typeof dzPlayer[n] === 'function') ? dzPlayer[n]() : null;
 return { joue: dzPlayer.isPlaying(), titre: dzPlayer.getSongTitle() || '', artiste: dzPlayer.getArtistName() || '',
-         position: f('getPosition'), duree: f('getDuration') };
+         position: f('getPosition'), duree: f('getDuration'), pochette: f('getCover'), volume: f('getVolume'),
+         muet: f('isMuted'), aleatoire: f('isShuffle'), repetition: f('getRepeat') };
 """
 
 
@@ -409,6 +410,17 @@ async def appliquer_lecture(joue, tentatives=3):
         if e is not None and bool(e.get("joue")) == bool(joue):
             return True
     return False
+
+
+async def chercher_dans_le_morceau(fraction):
+    """Se place à `fraction` (0 à 1) du morceau en cours (effectif pendant la lecture)."""
+    fraction = max(0.0, min(1.0, float(fraction)))
+    try:
+        await evaluer("dzPlayer.control.seek(p.v); return true;", {"v": fraction})
+        return True
+    except Exception as e:
+        print(f"[DEEZER CDP] Échec du déplacement dans le morceau : {e}")
+        return False
 
 
 async def position():

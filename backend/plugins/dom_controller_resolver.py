@@ -23,6 +23,28 @@ def _set_homepod_audio(actif: bool):
     os.environ["USE_HOMEPOD_AUDIO"] = "true" if actif else "false"
     return True
 
+def _vue_meteo(t):
+    """Vue du widget météo demandée par la phrase (texte sans accent) : aujourdhui, demain, semaine, pluie, temperature ; None
+    si la phrase ne parle pas de météo. « temps » seul n'est pas retenu (« combien de temps »), ni le passé (« faisait », « hier »),
+    ni la maison (thermostat, chauffage, pièces : c'est Home Assistant), ni « il fait froid » sans « dehors »."""
+    if re.search(r"\b(faisait|hier|precedent|precedente|regle|regler|thermostat|chauffage|clim|climatisation|radiateur|salon|chambre|cuisine|bureau|piece|maison)\b", t):
+        return None
+    contexte = re.search(r"\b(meteo|quel temps|temps fait|temps va|temps demain|pleuvoir|parapluie)\b", t) or (
+        re.search(r"\b(temperature|degres|chaud|froid)\b", t) and re.search(r"\b(dehors|exterieur|fait il)\b", t))
+    pluie = re.search(r"\b(pleuvoir|parapluie|averse|il pleut)\b", t) or (re.search(r"\bpluie\b", t) and re.search(r"\b(va|prevu|prevue|demain|aujourd hui|ce soir|meteo)\b", t))
+    if not (contexte or pluie):
+        return None
+    if re.search(r"\bdemain\b", t):
+        return "demain"
+    if re.search(r"\b(semaine|prochains jours|jours a venir|week end)\b", t):
+        return "semaine"
+    if pluie:
+        return "pluie"
+    if re.search(r"\b(temperature|degres|chaud|froid)\b", t):
+        return "temperature"
+    return "aujourdhui"
+
+
 async def resoudre_dom_hud(cmd):
     """Gère le contrôle de l'interface graphique (DOM) du HUD via WebSocket."""
     t = nettoyer_accent(cmd.lower().replace("-", " ").strip())
@@ -106,6 +128,8 @@ async def resoudre_dom_hud(cmd):
     if any(k in t for k in ["montre le calendrier", "montre moi le calendrier", "affiche le calendrier",
                               "ouvre le calendrier", "widget calendrier", "montre le widget calendrier"]):
         if hasattr(builtins, "send_web_action"):
+            from core import module_catalogue
+            module_catalogue.annoncer("AGENDA", "Calendrier")
             await builtins.send_web_action("add_class", selector="#calendar-hud", class_name="hud-revealed")
             return f"Calendrier affiché{nom_virgule()}."
 
@@ -114,6 +138,16 @@ async def resoudre_dom_hud(cmd):
         if hasattr(builtins, "send_web_action"):
             await builtins.send_web_action("remove_class", selector="#calendar-hud", class_name="hud-revealed")
             return f"Calendrier masqué{nom_virgule()}."
+
+    # --- 9. WIDGET MÉTÉO : questions (« la météo de demain », « va-t-il pleuvoir ») avec la vue correspondante ---
+    vue = _vue_meteo(t)
+    if vue and hasattr(builtins, "send_web_action") and not re.search(r"\b(cache|masque|ferme|retire)\b", t):
+        from core import module_catalogue
+        from module.weather_music_service import diffuser_prevision, resume_meteo
+        module_catalogue.annoncer("MÉTÉO", {"aujourdhui": "Aujourd'hui", "demain": "Demain", "semaine": "Semaine", "pluie": "Pluie", "temperature": "Température"}[vue])
+        prev = await diffuser_prevision(vue)
+        await builtins.send_web_action("add_class", selector="#weather-hud", class_name="hud-revealed")
+        return resume_meteo(prev, vue) if prev else f"Widget météo affiché{nom_virgule()}."
 
     # --- 9. WIDGET MÉTÉO (panneau bottom-right) ---
     if any(k in t for k in ["montre moi la meteo", "montre la meteo", "affiche la meteo", "affiche moi la meteo",
