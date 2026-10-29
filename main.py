@@ -285,7 +285,7 @@ def demarrer_ia():
         if not texte:
             salutation = "Bonjour" if 5 <= time.localtime().tm_hour < 18 else "Bonsoir"
             texte = f"{salutation} {NOM_CREATEUR}. Je suis prêt. Que puis-je faire pour vous ?"
-        speech.parler(texte)
+        speech.parler(texte, orbe=False)  # l'orbe reste en veille pendant l'accueil
     threading.Thread(target=_accueil, daemon=True).start()
 
 

@@ -1,115 +1,80 @@
 import { hudState } from "./state";
 
-// ── Subtitles HUD Logic ──────────────────────────────────────────────────────
+// ── Paroles de JARVIS : texte léger dont les mots apparaissent un à un, au-dessus d'une ligne fine ─────────────
 let subtitleTimer: number | null = null;
 let subtitleTypeInterval: number | null = null;
 let hudLogs: string[] = [];
+
+function arreter(): void {
+  if (subtitleTimer) { clearTimeout(subtitleTimer); subtitleTimer = null; }
+  if (subtitleTypeInterval) { clearInterval(subtitleTypeInterval); subtitleTypeInterval = null; }
+}
+
+function progression(ratio: number): void {
+  document.getElementById("subtitle-hud")?.style.setProperty("--progression", `${Math.round(ratio * 100)}%`);
+}
 
 export function showSubtitles(text: string) {
   const container = document.getElementById("subtitle-hud")!;
   const textEl = document.getElementById("subtitle-text")!;
   const metaEl = document.getElementById("subtitle-meta")!;
 
-  if (textEl) {
-    textEl.style.fontStyle = "normal";
-    textEl.style.color = "#00e5ff";
-  }
-
-  // Si c'est un message du HUD de compilation (Iron Man Matrix)
+  // Messages de compilation d'une compétence : fil de journal façon console, sans animation mot à mot
   if (text.startsWith("[HUD]")) {
-    if (subtitleTypeInterval) {
-      clearInterval(subtitleTypeInterval);
-      subtitleTypeInterval = null;
-    }
-    if (subtitleTimer) {
-      clearTimeout(subtitleTimer);
-      subtitleTimer = null;
-    }
+    arreter();
+    container.classList.add("log");
+    container.classList.remove("vous");
     container.style.display = "block";
-    metaEl.textContent = "COMPILING_SKILL_MATRIX...";
-    metaEl.style.color = "#ffaa00"; // Orange néon
-    
-    // Style type console / terminal
-    if (textEl) {
-      textEl.style.display = "block";
-      textEl.style.textAlign = "left";
-      textEl.style.whiteSpace = "pre-wrap";
-      textEl.style.fontSize = "11px";
-      textEl.style.lineHeight = "1.5";
-      textEl.style.maxHeight = "120px";
-      textEl.style.overflowY = "hidden";
-      textEl.style.fontFamily = "'Courier New', monospace";
-    }
-    
+    metaEl.textContent = "COMPILATION D'UNE COMPÉTENCE";
+    progression(0);
     const cleanText = text.replace("[HUD] ", "").replace("[HUD]", "");
-    
     // Réinitialiser les logs au début du processus
-    if (cleanText.includes("COMPILING NEW SKILL") || cleanText.includes("SYSTEM: ALLOCATING")) {
-            hudLogs = [];
-    }
-    
+    if (cleanText.includes("COMPILING NEW SKILL") || cleanText.includes("SYSTEM: ALLOCATING")) hudLogs = [];
     // Filtrer les codes de couleur console ANSI éventuels
-    const filteredText = cleanText.replace(/\u001b\[\d+m/g, '').replace(/\[0m/g, '').replace(/\[9\dm/g, '');
-    
+    const filteredText = cleanText.replace(/\u001b\[\d+m/g, "").replace(/\[0m/g, "").replace(/\[9\dm/g, "");
     if (filteredText.trim()) {
       hudLogs.push(filteredText);
-      // Garder au maximum les 6 dernières lignes de logs à l'écran
-      if (hudLogs.length > 6) {
-        hudLogs.shift();
-      }
+      if (hudLogs.length > 6) hudLogs.shift(); // les 6 dernières lignes seulement
     }
-    
-    if (textEl) {
-      textEl.textContent = hudLogs.join("\n");
-    }
+    textEl.textContent = hudLogs.join("\n");
     return;
   }
 
-  // Restauration du style d'origine pour les sous-titres ordinaires de Jarvis
-  if (textEl) {
-    textEl.style.display = "inline";
-    textEl.style.textAlign = "center";
-    textEl.style.whiteSpace = "normal";
-    textEl.style.fontSize = "18px";
-    textEl.style.lineHeight = "1.4";
-  }
-  hudLogs = []; // Vider la console
-
-  // Clear any existing animation
-  if (subtitleTimer) clearTimeout(subtitleTimer);
-  if (subtitleTypeInterval) clearInterval(subtitleTypeInterval);
+  container.classList.remove("log", "vous");
+  hudLogs = [];
+  arreter();
 
   if (!hudState.subtitlesEnabled || text === "") {
     container.style.display = "none";
     return;
   }
-  
+
   container.style.display = "block";
+  metaEl.textContent = "JARVIS";
   textEl.textContent = "";
-  metaEl.textContent = "DECRYPTING_RESPONSE...";
-  metaEl.style.color = "rgba(0, 229, 255, 0.4)";
+  progression(0);
 
+  // Les mots sont tous dans la page (invisibles) : la mise en page ne bouge pas pendant qu'ils apparaissent
+  const mots = text.split(/\s+/).filter(Boolean).map((mot) => {
+    const span = document.createElement("span");
+    span.className = "mot";
+    span.textContent = mot;
+    textEl.appendChild(span);
+    textEl.appendChild(document.createTextNode(" "));
+    return span;
+  });
+  const pas = text.length > 200 ? 90 : 220; // plus vite pour un long texte (actualités)
   let i = 0;
-  // Faster for long text (news), slower for short phrases
-  const speed = text.length > 100 ? 15 : 25;
-
   subtitleTypeInterval = window.setInterval(() => {
-    if (i < text.length) {
-      // Add a bit of "glitch" feel by sometimes adding random chars before the real one
-      textEl.textContent += text.charAt(i);
+    if (i > 0) mots[i - 1].classList.remove("courant");
+    if (i < mots.length) {
+      mots[i].classList.add("visible", "courant");
       i++;
-
-      // Auto-scroll if it's long? (The box is fixed width/max-width)
-    } else {
-      if (subtitleTypeInterval) clearInterval(subtitleTypeInterval);
-      metaEl.textContent = "DECRYPTION_COMPLETE [STABLE]";
-      metaEl.style.color = "#22c55e";
-
-      // Hide after a delay proportional to text length
-      const delay = Math.max(3000, text.length * 50);
-      subtitleTimer = window.setTimeout(() => {
-        container.style.display = "none";
-      }, delay);
+      progression(i / mots.length);
+      return;
     }
-  }, speed);
+    if (subtitleTypeInterval) { clearInterval(subtitleTypeInterval); subtitleTypeInterval = null; }
+    // Masquer après un délai proportionnel à la longueur du texte
+    subtitleTimer = window.setTimeout(() => { container.style.display = "none"; }, Math.max(3000, text.length * 50));
+  }, pas);
 }

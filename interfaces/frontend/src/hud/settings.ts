@@ -61,7 +61,8 @@ export function handleSettingsMessage(data: JarvisMessage): boolean {
     // Orb Style & Antivirus Live
             const settingsOrbStyleEl = document.getElementById("settings-orb-style") as HTMLSelectElement;
     if (settingsOrbStyleEl) {
-      settingsOrbStyleEl.value = settings.orb_style || "default";
+      // Ancienne valeur « default » (ou inconnue) : le bleu JARVIS
+      settingsOrbStyleEl.value = Array.from(settingsOrbStyleEl.options).some((o) => o.value === settings.orb_style) ? settings.orb_style : "cyan";
       orb.setTheme(settingsOrbStyleEl.value);
       localStorage.setItem("jarvis-orb-style", settingsOrbStyleEl.value);
     }

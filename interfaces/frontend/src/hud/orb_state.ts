@@ -1,5 +1,5 @@
 import { initHoloClock } from "../holo_clock";
-import { createOrb, type Orb, type OrbState } from "../orb";
+import { createOrb, type Orb, type OrbState } from "../orb_cylindre";
 import { badgeEl, badgeLabelEl, canvas, errorEl, micBtnEl, statusEl, visualizerHudEl } from "./dom_refs";
 
 // ── Orb ───────────────────────────────────────────────────────────────────────
@@ -17,6 +17,11 @@ export function initOrb(): void {
   const orbStyleSelect = document.getElementById("settings-orb-style") as HTMLSelectElement;
   if (orbStyleSelect) {
     orbStyleSelect.value = savedOrbStyle;
+    // Aperçu immédiat : l'orbe, l'horloge et les paroles changent de couleur dès le choix
+    orbStyleSelect.addEventListener("change", () => {
+      localStorage.setItem("jarvis-orb-style", orbStyleSelect.value);
+      orb.setTheme(orbStyleSelect.value);
+    });
   }
 }
 

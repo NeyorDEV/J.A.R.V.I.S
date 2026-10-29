@@ -2,6 +2,7 @@
 // Extrait de main.ts.
 
 import { makePanelDraggable } from "../ui/draggable";
+import { ouvrirEcran, fermerEcran } from "../hud/cylindre_ouvert";
 import { esc, icone } from "./pm_utils";
 
 // Intervalle de l'animation de balayage en cours (un seul à la fois)
@@ -15,6 +16,7 @@ export function showImageHUD(url: string, prompt: string) {
   const scan = document.getElementById("image-scan")!;
 
   container.style.display = "block";
+  ouvrirEcran("image-generee", container); // recherche de la fiche, puis le cylindre s'étire en écran de la taille de l'image
   img.style.opacity = "0";
   img.src = url;
   promptEl.textContent = `PROMPT: ${prompt}`;
@@ -73,6 +75,7 @@ export function showImageHUD(url: string, prompt: string) {
 document.getElementById("image-close")?.addEventListener("click", () => {
   const hud = document.getElementById("image-hud");
   if (hud) hud.style.display = "none";
+  fermerEcran("image-generee", hud ?? undefined);
   // Fermer à la main pendant le chargement laissait l'animation tourner sans fin.
   if (scanIntervalActif !== null) {
     clearInterval(scanIntervalActif);
@@ -83,12 +86,14 @@ document.getElementById("image-close")?.addEventListener("click", () => {
 
 // ── Image Panels Logic (Iron Man style floating panels) ──────────────────────
 let imgPanelCount = 0;
+let imgPanelId = 0;
 let maxZIndex = 600;
 
 export function showImagePanel(query: string, images: string[]) {
   const container = document.getElementById("image-panels-container");
   if (!container) return;
 
+  const raison = `images-${++imgPanelId}`;
   const panel = document.createElement("div");
   panel.className = "pm visible";
   panel.style.setProperty("--pm-a", "#00e5ff");
@@ -159,6 +164,7 @@ export function showImagePanel(query: string, images: string[]) {
   // Setup close button
   const closeBtn = panel.querySelector(".img-panel-close") as HTMLElement;
   closeBtn.addEventListener("click", () => {
+    fermerEcran(raison, panel);
     panel.classList.remove("visible");
     setTimeout(() => {
       panel.remove();
@@ -171,6 +177,7 @@ export function showImagePanel(query: string, images: string[]) {
 
   // Append & animate in
   container.appendChild(panel);
+  ouvrirEcran(raison, panel);
   
   // Trigger Reflow to animate opacity/scale
   void panel.offsetWidth;

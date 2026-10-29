@@ -29,6 +29,7 @@ speak_volume = 0.0
 STOP_PARLER = False
 stop_depuis = 0.0   # instant du dernier « stop » (cf. parler)
 parole_queue = queue.Queue()
+_SANS_ORBE = set()  # phrases dites sans animer l'orbe du HUD (accueil du lancement)
 parole_stop_event = threading.Event()
 dernier_parle_time = 0
 
@@ -108,6 +109,9 @@ async def _jouer_tts_fichier(texte, tmp_path):
     envoyer_etat_hud = getattr(builtins, "envoyer_etat_hud", None)
     envoyer_texte_hud = getattr(builtins, "envoyer_texte_hud", None)
     envoyer_volume_hud = getattr(builtins, "envoyer_volume_hud", None)
+    if texte in _SANS_ORBE:  # l'orbe reste en veille : ni état « speaking », ni volume
+        _SANS_ORBE.discard(texte)
+        envoyer_etat_hud = envoyer_volume_hud = None
 
     is_speaking = True
     if envoyer_etat_hud: await envoyer_etat_hud("speaking")
@@ -245,7 +249,7 @@ def vider_files():
         except:
             break
 
-def parler(texte, print_console=True):
+def parler(texte, print_console=True, orbe=True):
     global STOP_PARLER
     if STOP_PARLER:
         # « Stop » coupe la réponse en cours ; mais le drapeau restait levé jusqu'à la
@@ -267,6 +271,8 @@ def parler(texte, print_console=True):
             except Exception:
                 safe_text = "".join(c for c in texte if ord(c) < 128)
                 print(f"[DIT] {safe_text}")
+    if not orbe:
+        _SANS_ORBE.add(texte)
     parole_queue.put(texte)
 
 builtins.parler = parler

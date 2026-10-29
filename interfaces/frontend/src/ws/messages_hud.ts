@@ -1,5 +1,5 @@
 import { esc } from "../panels/pm_utils";
-import { type OrbState } from "../orb";
+import { type OrbState } from "../orb_cylindre";
 import { statusEl } from "../hud/dom_refs";
 import { showHelpHUD } from "../hud/help_hud";
 import { applyState, orb, setMuted } from "../hud/orb_state";
@@ -63,16 +63,17 @@ export function handleHudMessage(data: JarvisMessage, pushDomAction: (domAction:
     return;
   }
   if (data.action === "interim_speech" && typeof data.text === "string") {
+    orb.noteText(data.text);
     const container = document.getElementById("subtitle-hud")!;
     const textEl = document.getElementById("subtitle-text")!;
     const metaEl = document.getElementById("subtitle-meta")!;
     if (container && textEl && metaEl) {
       container.style.display = "block";
+      container.classList.add("vous");
+      container.classList.remove("log");
+      container.style.setProperty("--progression", "0%");
       textEl.textContent = data.text;
-      textEl.style.fontStyle = "italic";
-      textEl.style.color = "rgba(0, 229, 255, 0.85)";
-      metaEl.textContent = "DECRYPTING_SPEECH_STREAM...";
-      metaEl.style.color = "rgba(0, 229, 255, 0.6)";
+      metaEl.textContent = "VOUS";
     }
     return;
   }

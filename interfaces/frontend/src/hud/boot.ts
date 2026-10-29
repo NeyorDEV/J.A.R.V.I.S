@@ -46,10 +46,8 @@ export function runBootSequence(): void {
   const overlay     = document.getElementById("boot-overlay") as HTMLDivElement;
   const logoSection = document.getElementById("boot-logo-section") as HTMLDivElement;
   const statusText  = document.getElementById("boot-status-text") as HTMLDivElement;
-  const buildYear   = document.getElementById("boot-build-year") as HTMLSpanElement;
 
   if (!overlay) return;
-  if (buildYear) buildYear.textContent = new Date().getFullYear().toString();
 
   // Durée d'affichage minimale : évite un flash désagréable si la connexion
   // WebSocket (souvent locale, quasi instantanée) répond avant même que le
@@ -64,7 +62,6 @@ export function runBootSequence(): void {
       // Le noyau du réacteur passe du cyan pulsant au vert stable : c'est
       // l'indicateur de progression, plus de barre séparée à animer.
       logoSection.classList.add("online");
-      statusText.textContent = "SYSTÈMES OPÉRATIONNELS";
 
       setTimeout(() => {
         // Retirer la protection anti-FOUC pour révéler l'interface
@@ -74,8 +71,6 @@ export function runBootSequence(): void {
       }, 1100);
     }, wait);
   }
-
-  statusText.textContent = "CONNEXION AU SERVEUR EN COURS...";
 
   if (hudState.wsConnectedBeforeBoot) {
     finishBoot();

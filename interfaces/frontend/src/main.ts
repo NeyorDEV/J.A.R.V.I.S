@@ -10,7 +10,7 @@
  * exactement celui de l'ancien main.ts monolithique : ne pas le réordonner.
  */
 
-import "./orb";
+import "./orb_cylindre";
 import { injectVisionButton } from "./screen_capture";
 import { initJarvisGlobe } from "./globe";
 import { initWidgets } from "./widgets";
@@ -56,6 +56,7 @@ import { initSetupWizard } from "./panels/setup_wizard";
 import { initMisesAJour } from "./panels/mises_a_jour";
 import { initExtensionJeton } from "./panels/extension_jeton";
 import { initDiscordReglages } from "./panels/discord_reglages";
+import { initCylindreOuvert } from "./hud/cylindre_ouvert";
 import { initWeatherTempPanels } from "./panels/weather_temp_panels";
 import { connect } from "./ws/connection";
 
@@ -122,3 +123,4 @@ initSetupWizard();
 initMisesAJour();
 initExtensionJeton();
 initDiscordReglages();
+initCylindreOuvert();
