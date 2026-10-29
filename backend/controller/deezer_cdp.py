@@ -213,6 +213,44 @@ const signature = () => [...document.querySelectorAll('[data-testid="masthead-su
 """
 
 
+_JS_SENS_TRI = r"""
+if (!location.hash.endsWith(`/playlist/${p.id}`) || !document.querySelector('[data-testid="masthead"]')) return null;
+const dates = [...document.querySelectorAll('[role="row"]')].map(l => (l.innerText || '').match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/))
+  .filter(Boolean).map(m => Number(m[3] + m[2] + m[1]));
+if (dates.length < 2 || dates[0] === dates[dates.length - 1]) return 'plat';
+return dates[0] > dates[dates.length - 1] ? 'recent' : 'ancien';
+"""
+
+
+async def trier_recent_en_premier(ident):
+    """Trie la playlist affichée par date d'ajout, les titres ajoutés le plus récemment en premier : Deezer joue
+    dans l'ordre affiché. Un clic sur « AJOUTÉ » alterne ancien/récent en premier ; Deezer retient le dernier tri.
+    La direction se lit sur les dates des lignes affichées (deux lectures identiques : la page a fini de charger).
+    Sans colonne de dates (playlist éditoriale, un seul titre), rien n'est fait."""
+    for _ in range(4):
+        sens = await _attendre(_JS_SENS_TRI, {"id": str(ident)}, timeout=10)
+        await asyncio.sleep(0.5)
+        try:
+            controle = await evaluer(_JS_SENS_TRI, {"id": str(ident)})
+        except Exception:
+            controle = None
+        if not sens or sens != controle:
+            continue
+        if sens in ("recent", "plat"):
+            return True
+        clic = await evaluer("""
+          const b = [...document.querySelectorAll('button')].find(x => (x.innerText || '').trim() === 'AJOUTÉ');
+          if (!b) return false;
+          b.click();
+          return true;
+        """)
+        if not clic:
+            return False
+        print("[DEEZER CDP] Playlist triée : titres ajoutés le plus récemment en premier")
+        await asyncio.sleep(1.2)
+    return False
+
+
 async def lancer_page(genre, ident, titre, artiste=None):
     """Ouvre la page album / playlist / artiste par son identifiant et clique son bouton
     de lecture (album-play_small-button, playlist-play_small-button, artist-play-button ;
@@ -228,6 +266,23 @@ async def lancer_page(genre, ident, titre, artiste=None):
       location.hash = `#/${langue()}/${p.genre}/${p.id}`;
       return avant;
     """, params)
+    if genre == "playlist":
+        await trier_recent_en_premier(ident)
+        # Lecture depuis la première ligne de la liste triée : la playlist repart toujours du titre ajouté le plus
+        # récemment (le bouton de la page, lui, reprendrait la file en cours, ancien ordre compris). Si elle joue
+        # déjà, on n'y touche pas.
+        ligne = await _attendre("""
+          if (!location.hash.endsWith(`/playlist/${p.id}`)) return null;
+          if (dzPlayer.isPlaying() && String((dzPlayer.getContext() || {}).ID) === String(p.id)) return 'déjà en cours';
+          const b = document.querySelector('#page_content [role="row"] button[aria-label^="Écouter "]');
+          if (!b) return null;
+          const nom = b.getAttribute('aria-label');
+          b.click();
+          return nom;
+        """, {"id": str(ident)}, timeout=6)
+        if ligne:
+            print(f"[DEEZER CDP] Playlist « {titre} » : {ligne}")
+            return await _verifier(contexte_id=ident)
     clic = await _attendre(_JS_SIGNATURE_PAGE + """
       if (!location.hash.endsWith(`/${p.genre}/${p.id}`)) return null;
       const sig = signature();
@@ -239,6 +294,8 @@ async def lancer_page(genre, ident, titre, artiste=None):
       const b = [...document.querySelectorAll(`[data-testid="${p.genre}-play_small-button"], [data-testid="${p.genre}-play-button"]`)]
         .find(x => tete.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING);
       if (!b) return null;
+      // Déjà en cours de lecture : le bouton de la page est alors un bouton « pause », le cliquer couperait la musique
+      if (dzPlayer.isPlaying() && String((dzPlayer.getContext() || {}).ID) === String(p.id)) return 'déjà en cours';
       b.click();
       return b.getAttribute('aria-label') || 'lecture';
     """, params, timeout=12)
