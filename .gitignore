@@ -67,3 +67,6 @@ backend/.jarvis_cache_version
 
 # Installateur (dossier d'empaquetage et .exe générés)
 tools/installateur/build/
+
+# Skills : approbations propres à cette machine
+data/skills/_approbations.json
