@@ -13,6 +13,19 @@ export function initOrb(): void {
   const savedOrbStyle = localStorage.getItem("jarvis-orb-style") || "cyan";
   orb.setTheme(savedOrbStyle);
 
+  // Mode économe (allège l'orbe pour ne pas gêner un jeu)
+  let ecoSauve = "auto";
+  try { ecoSauve = localStorage.getItem("jarvis-orb-eco") || "auto"; } catch { /* stockage indisponible */ }
+  orb.setEco(ecoSauve);
+  const ecoSelect = document.getElementById("settings-orb-eco") as HTMLSelectElement | null;
+  if (ecoSelect) {
+    ecoSelect.value = ecoSauve;
+    ecoSelect.addEventListener("change", () => {
+      try { localStorage.setItem("jarvis-orb-eco", ecoSelect.value); } catch { /* stockage indisponible */ }
+      orb.setEco(ecoSelect.value);
+    });
+  }
+
   // Initialize select element value
   const orbStyleSelect = document.getElementById("settings-orb-style") as HTMLSelectElement;
   if (orbStyleSelect) {

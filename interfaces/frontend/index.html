@@ -1088,6 +1088,15 @@
               </select>
               <div class="ha-hint">S'applique tout de suite à l'orbe, à l'horloge et aux paroles de JARVIS.</div>
             </div>
+            <div class="settings-group">
+              <label for="settings-orb-eco">Mode économe</label>
+              <select id="settings-orb-eco">
+                <option value="auto">Automatique (30 images/s si la fenêtre n'est pas active)</option>
+                <option value="1">Toujours (30 images/s, résolution réduite)</option>
+                <option value="0">Jamais (60 images/s)</option>
+              </select>
+              <div class="ha-hint">Allège l'orbe pour ne pas gêner un jeu. Pour mesurer son coût : localStorage.setItem("jarvis-perf", "1") dans la console du HUD, puis recharger.</div>
+            </div>
           </div>
         </section>
 

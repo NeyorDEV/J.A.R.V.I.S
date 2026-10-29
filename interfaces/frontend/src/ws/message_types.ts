@@ -19,4 +19,11 @@ export type JarvisMessage = {
   weather_type?: string;
   status_text?: string;
   data?: Record<string, any>;
+  categorie?: string;   // module_trouve : catégorie du cylindre
+  sous?: string | null; // module_trouve : sous-catégorie
+  vue?: string;         // weather_view : vue demandée
+  forecast?: any;
+  sous_titre?: string;  // module_ecran : sous-titre, lignes et pied (voir panels/ecran_module.ts)
+  lignes?: any[];
+  pied?: string | null;       // weather_forecast / weather_view : prévisions (voir weather_vues.ts)
 };

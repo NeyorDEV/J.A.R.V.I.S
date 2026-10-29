@@ -1,6 +1,7 @@
 import { cardManager } from "../cards";
 import { handleHAMessage } from "../ha_dashboard";
 import { updateMusicUI, updateWeatherUI } from "../widgets";
+import { majPrevisions, type Previsions } from "../weather_vues";
 import { fermerVues3D, ouvrirVue3D, vue3DOuverte } from "../hud/vues_3d";
 import { orb } from "../hud/orb_state";
 import { closeConfirmDialog, showConfirmDialog } from "../panels/confirm_dialog";
@@ -195,6 +196,10 @@ export function handleVues3DMessage(data: JarvisMessage): boolean {
       duration: data.duration,
       icon: data.icon
     });
+    return true;
+  }
+  if ((data.action === "weather_forecast" || data.action === "weather_view") && data.forecast) {
+    majPrevisions(data.forecast as Previsions, data.action === "weather_view" ? data.vue : undefined);
     return true;
   }
   if (data.action === "weather_update" && data.weather) {

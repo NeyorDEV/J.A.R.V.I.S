@@ -11,7 +11,7 @@
  * Même interface que l'ancien orbe (setState, setVolume, setAnalyser…) : le reste du HUD n'a pas changé.
  */
 
-import { CATEGORIES, DEFAUT, choisir } from "./orb_themes";
+import { CATEGORIES, DEFAUT, choisir, choisirSous } from "./orb_themes";
 
 export type OrbState = "idle" | "listening" | "thinking" | "speaking" | "searching";
 
@@ -24,14 +24,18 @@ export interface Orb {
   setTheme(t: string): void;
   /** Dernière phrase prononcée ou saisie : sert à choisir la fiche « trouvée ». */
   noteText(t: string): void;
+  /** Catégorie (et sous-catégorie) réellement exécutées, annoncées par le backend : la roue s'arrête dessus. */
+  setModule(categorie: string, sous?: string | null): void;
   /** Ouvre le cylindre en écran tant qu'au moins une « raison » est active ; l'écran prend la taille de l'élément (panneau) donné. */
   setOuvert(raison: string, ouvert: boolean, element?: HTMLElement, centre?: boolean): void;
   /** Joue la recherche de la fiche (défilement, arrêt sur le thème de `texte`, envol à gauche) puis rend la main : l'appelant ouvre ensuite l'écran. */
-  chercher(texte?: string): Promise<void>;
+  chercher(texte?: string, module?: [categorie: string, sous: string | null]): Promise<void>;
   /** Écran presque entièrement ouvert (les widgets attendent ce moment pour apparaître). */
   ecranOuvert(): boolean;
   /** Position (pixels écran) où poser un élément pour qu'il occupe l'écran du cylindre. */
   emplacement(element: HTMLElement): { left: number; top: number };
+  /** Mode économe : "auto" (30 images/s quand la fenêtre n'est pas active), "1" (toujours, résolution réduite), "0" (jamais). */
+  setEco(mode: string): void;
   destroy(): void;
 }
 
@@ -72,6 +76,11 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   let cible: Cible = CIBLES.veille;
   let tSeq = 0;             // début de la séquence « recherche de la fiche » (s) : continue de réflexion à parole
   let tempoVeille: ReturnType<typeof setTimeout> | null = null;
+  let ecoMode = "auto";   // mode économe (voir Orb.setEco)
+  let dernierRendu = 0, tPrec = 0, dtF = 1;   // dtF : durée de l'image en « images à 60 Hz » (lissages indépendants de la cadence)
+  const perf = { ms: 0, fps: 0, n: 0, t0: 0, pRoue: 0, niveau: 0, cat: "", sous: "" };   // coût du dessin, lu par la surimpression et par les bancs de mesure
+  (window as unknown as { __orbPerf?: typeof perf }).__orbPerf = perf;
+  let surimpression: HTMLElement | null = null;
   let rechercheForcee = false;  // recherche jouée à la demande (widget) : l'état du backend ne la coupe pas
   let cibleCat = DEFAUT, cibleSous = 0;  // catégorie et sous-catégorie trouvées pour la phrase en cours
   let volume = 0;
@@ -82,12 +91,26 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
 
   // Recherche en deux temps : une roue pour les catégories, puis une pour les sous-catégories. La liste part avec son premier
   // élément en haut de la roue et défile toujours dans le même sens ; plus la cible est loin, plus la roue dure.
-  const NV = 7;  // éléments visibles à la fois
-  const distanceRoue = (n: number, visee: number): number => { const d = ((visee - (Math.min(n, NV) - 1) / 2) % n + n) % n; return d < 1 ? d + n : d; };
-  function sequence(): { d1: number; d2: number; T: number } {
-    const d1 = Math.min(1.75, 0.63 + distanceRoue(CATEGORIES.length, cibleCat) * 0.086);
-    const d2 = Math.min(1.75, 0.63 + distanceRoue(CATEGORIES[cibleCat].sous.length, cibleSous) * 0.086);
-    return { d1, d2, T: d1 + 0.35 + d2 + 0.35 };
+  // Tant que le backend n'a pas annoncé le module réellement exécuté (setModule), la roue dérive lentement ; à la
+  // confirmation (ou après ATTENTE s) elle part vers sa cible depuis sa position du moment : un changement de cible ne
+  // la fait donc jamais sauter. La cible provisoire est celle devinée d'après les mots de la phrase.
+  const NV = 7;           // éléments visibles à la fois
+  const ATTENTE = 0.45;   // attente maximale de la confirmation du backend (s)
+  const DERIVE = 2.5;     // vitesse de dérive avant confirmation (éléments/s)
+  const PAUSE = 0.35;     // arrêt sur l'élément trouvé (s)
+  interface Phase { t0: number; p0: number; dist: number; duree: number; visee: number }
+  let confirme = false;   // le backend a annoncé le module de la commande en cours
+  let derniereTexte = "";
+  let r1: Phase | null = null, r2: Phase | null = null;   // plan de la roue des catégories, puis des sous-catégories
+  const arrivee = (n: number, p0: number, visee: number): number => { const d = ((visee - p0) % n + n) % n; return d < 2 ? d + n : d; };
+  const dureeRoue = (dist: number): number => Math.min(1.75, 0.63 + dist * 0.086);
+  const planifier = (n: number, p0: number, visee: number, t0: number): Phase => { const dist = arrivee(n, p0, visee); return { t0, p0, dist, duree: dureeRoue(dist), visee }; };
+  const position = (ph: Phase, tt: number): number => ph.p0 + ph.dist * (1 - Math.pow(1 - cl((tt - ph.t0) / ph.duree, 0, 1), 3));
+  /** Durée estimée de toute la recherche (sans le vol de la fiche), quand la cible est connue d'emblée. */
+  function sequence(): { T: number } {
+    const n1 = CATEGORIES.length, ns = CATEGORIES[cibleCat].sous.length;
+    const d1 = dureeRoue(arrivee(n1, (Math.min(n1, NV) - 1) / 2, cibleCat)), d2 = dureeRoue(arrivee(ns, (Math.min(ns, NV) - 1) / 2, cibleSous));
+    return { T: 0.12 + d1 + PAUSE + d2 + PAUSE };
   }
   let demoTimers: ReturnType<typeof setTimeout>[] = [];
   let etatBackend: OrbState = "idle";
@@ -366,8 +389,10 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
 
   function dessiner(t: number): void {
     const tE = t - tSeq;
+    dtF = tPrec ? cl((t - tPrec) * 60, 0.5, 8) : 1; tPrec = t;
+    const ki = (x: number): number => 1 - Math.pow(1 - x, dtF);
     const rt: Record<keyof Cible, number> = { h: 0.04, cards: 0.07, panels: 0.06, open: 0.03, spec: 0.06, fast: 0.1, voice: 0.1 };
-    (Object.keys(rt) as (keyof Cible)[]).forEach((k) => { P[k] += (cible[k] - P[k]) * rt[k]; });
+    (Object.keys(rt) as (keyof Cible)[]).forEach((k) => { P[k] += (cible[k] - P[k]) * ki(rt[k]); });
     // Taille de l'écran : celle des panneaux affichés, plus une marge (le cylindre ne doit pas faire le double du widget)
     if (mode === "ouvert") {
       const rects = [...raisonsOuvert.values()].filter((r) => r.el !== null).map(({ el, centre }) => {
@@ -380,24 +405,45 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
         const haut = Math.min(...rects.map((r) => r.top)), bas = Math.max(...rects.map((r) => r.bottom));
         const cDemi = cl((Math.max(Math.abs(gauche - largeur / 2), Math.abs(droite - largeur / 2)) + 16) / echelle, RX * 1.2, (largeur / 2 - 8) / echelle);
         const cTop = Math.max((haut - 15 - origY) / echelle, (16 - origY) / echelle), cBas = (bas + 15 - origY) / echelle;
-        ecran.demi += (cDemi - ecran.demi) * 0.14; ecran.top += (cTop - ecran.top) * 0.14; ecran.bas += (cBas - ecran.bas) * 0.14;
+        ecran.demi += (cDemi - ecran.demi) * ki(0.14); ecran.top += (cTop - ecran.top) * ki(0.14); ecran.bas += (cBas - ecran.bas) * ki(0.14);
       }
     }
     // L'ouverture ne commence qu'une fois le cylindre dressé (s'il était en veille, il monte d'abord)
     const h = P.h * HF, e = sm(P.open) * cl((P.h - 0.8) / 0.2, 0, 1);
     const ry0 = RX * 0.22, rxS = RX + (ecran.demi - RX) * sm(e / 0.55), ryS = ry0 * (1 - sm(e / 0.55)) + 2.2 * sm(e / 0.55), top = BY - h + (ecran.top - (BY - h)) * sm(e / 0.55), bas = BY + (ecran.bas - BY) * sm((e - 0.3) / 0.7);
     const ch = 28, gap = (HF - 2 * ry0 - 46 - ch) / (NV - 1), cardsA = cl(1 - P.open * 3, 0, 1), y0 = top + ry0 + 22;
-    const sq = sequence();
-    const flyU = mode === "reflexion" || mode === "parole" ? cl((tE - sq.T) / 0.7, 0, 1) : 0;
-    P.info += ((flyU >= 1 || (mot !== null && performance.now() < mot.fin) ? 1 : 0) - P.info) * 0.14;
+    // Avancement de la roue de recherche (voir planifier)
+    let niveau = 0, ue = 0, locked = 0, pRoue = 0, tVol = Infinity;
+    const n1 = CATEGORIES.length, haut1 = (Math.min(n1, NV) - 1) / 2;
+    if (mode === "reflexion" || mode === "parole") {
+      if (!r1 && (confirme || tE >= ATTENTE)) r1 = planifier(n1, haut1 + DERIVE * tE, cibleCat, tE);
+      if (r1 && r1.visee !== cibleCat) { r1 = planifier(n1, position(r1, tE), cibleCat, tE); r2 = null; }
+      if (!r1) { niveau = 1; pRoue = haut1 + DERIVE * tE; }
+      else {
+        const a1 = r1.t0 + r1.duree, a2 = a1 + PAUSE;
+        if (tE < a1) { niveau = 1; ue = (tE - r1.t0) / r1.duree; pRoue = position(r1, tE); }
+        else if (tE < a2) { niveau = 1; ue = 1; locked = cl((tE - a1) / 0.25, 0, 1); pRoue = position(r1, a1); }
+        else {
+          const ns = CATEGORIES[cibleCat].sous.length, hauts = (Math.min(ns, NV) - 1) / 2;
+          if (!r2) r2 = planifier(ns, hauts, cibleSous, a2);
+          else if (r2.visee !== cibleSous) r2 = planifier(ns, position(r2, tE), cibleSous, tE);
+          const a3 = r2.t0 + r2.duree;
+          niveau = 2; pRoue = position(r2, Math.min(tE, a3)); tVol = a3 + PAUSE;
+          if (tE < a3) ue = (tE - r2.t0) / r2.duree; else { ue = 1; locked = cl((tE - a3) / 0.25, 0, 1); }
+        }
+      }
+    } else if (P.voice > 0.5 && P.cards > 0.2) { niveau = 2; ue = 1; locked = 1; pRoue = cibleSous; }
+    const flyU = mode === "reflexion" || mode === "parole" ? cl((tE - tVol) / 0.7, 0, 1) : 0;
+    perf.pRoue = pRoue; perf.niveau = niveau; perf.cat = CATEGORIES[cibleCat].nom; perf.sous = CATEGORIES[cibleCat].sous[cibleSous].nom;   // lus par les bancs de mesure
+    P.info += ((flyU >= 1 || (mot !== null && performance.now() < mot.fin) ? 1 : 0) - P.info) * ki(0.14);
     if (analyser && analyseData) {
       analyser.getByteFrequencyData(analyseData);
       let somme = 0; for (let i = 0; i < analyseData.length; i++) somme += analyseData[i];
-      micNiveau += (cl(somme / analyseData.length / 90, 0, 1) - micNiveau) * 0.2;
-    } else micNiveau *= 0.9;
+      micNiveau += (cl(somme / analyseData.length / 90, 0, 1) - micNiveau) * ki(0.2);
+    } else micNiveau *= Math.pow(0.9, dtF);
 
     const bg = g.createRadialGradient(CX, BY, 10, CX, BY - 100, 520); bg.addColorStop(0, "rgba(20,60,200,.35)"); bg.addColorStop(0.5, "rgba(5,12,60,.18)"); bg.addColorStop(1, "rgba(0,0,10,0)");
-    g.fillStyle = bg; g.fillRect(-1500, -1000, 3900, 2600);
+    g.fillStyle = bg; g.fillRect(-80, -180, 1060, 1060);  // zone du dégradé seulement (le reste est transparent : le remplir coûtait ~25 % du dessin à haute résolution)
     chev(34, 1, t); chev(W - 34, -1, t);
     g.save(); g.translate(CX, BY); g.scale(1, ry0 / RX);
     const gd = g.createRadialGradient(0, 0, RX * 0.2, 0, 0, RX * 2.4); gd.addColorStop(0, "rgba(40,110,255,.5)"); gd.addColorStop(1, "rgba(40,110,255,0)");
@@ -433,18 +479,9 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       if (e < 0.5) sc.forEach((u) => { const yy = top + u * (bas - top); g.strokeStyle = A("0,229,255", 0.3 * fa * (1 - e * 2) * Math.sin(u * Math.PI)); g.lineWidth = 1.4; ell(CX, yy, rxS, ryS); g.stroke(); });
       // Roue : catégories puis sous-catégories. Le cadre de sélection part du haut de la roue et descend au milieu pendant que
       // la liste défile ; la cible s'arrête dans le cadre.
-      let niveau = 0, u = 1, locked = 0;
-      if (mode === "reflexion" || mode === "parole") {
-        const a1 = sq.d1, a2 = a1 + 0.35, a3 = a2 + sq.d2;
-        if (tE < a1) { niveau = 1; u = tE / a1; }
-        else if (tE < a2) { niveau = 1; locked = cl((tE - a1) / 0.25, 0, 1); }
-        else if (tE < a3) { niveau = 2; u = (tE - a2) / sq.d2; }
-        else { niveau = 2; locked = cl((tE - a3) / 0.25, 0, 1); }
-      } else if (P.voice > 0.5 && P.cards > 0.2) { niveau = 2; locked = 1; }
       if (niveau > 0 && P.cards > 0.05 && cardsA > 0.01) {
         const liste = niveau === 1 ? CATEGORIES.map((k) => k.nom) : CATEGORIES[cibleCat].sous.map((k) => k.nom.toUpperCase());
-        const visee = niveau === 1 ? cibleCat : cibleSous, n = liste.length, haut = (Math.min(n, NV) - 1) / 2, demi = haut + 0.5;
-        const ue = locked > 0 ? 1 : u, p = haut + distanceRoue(n, visee) * (1 - Math.pow(1 - ue, 3));
+        const n = liste.length, haut = (Math.min(n, NV) - 1) / 2, demi = haut + 0.5, p = pRoue;
         const cs = 1 - Math.pow(1 - Math.min(1, ue * 1.25), 3), yc = y0 + 3 * gap, ys = yc - haut * gap * (1 - cs);
         const base = cl(P.cards / 0.4, 0, 1) * cardsA * cl(h / 200, 0, 1);
         for (let i = 0; i < n; i++) {
@@ -494,22 +531,49 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   }
 
   function ajuster(): void {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    dpr = Math.min(window.devicePixelRatio || 1, ecoMode === "1" ? 1 : 2);
     largeur = window.innerWidth; hauteur = window.innerHeight;
     canvas.width = Math.round(largeur * dpr); canvas.height = Math.round(hauteur * dpr);
   }
   ajuster();
   window.addEventListener("resize", ajuster);
 
+  // Cadence du dessin : jamais plus de 60 images/s (un écran à 144 Hz redessinait 144 fois), 30 en veille, en mode
+  // économe, ou quand la fenêtre n'est pas active (jeu au premier plan, JARVIS sur un second écran).
+  function cadence(): number {
+    if (ecoMode === "1") return 30;
+    if (ecoMode === "auto" && !document.hasFocus()) return 30;
+    if (ecoMode !== "0" && mode === "veille" && P.h < 0.02 && P.open < 0.02) return 30;
+    return 60;
+  }
+
+  function majSurimpression(): void {
+    let actif = false;
+    try { actif = localStorage.getItem("jarvis-perf") === "1" || new URLSearchParams(location.search).has("perf"); } catch { /* stockage indisponible */ }
+    if (!actif) { surimpression?.remove(); surimpression = null; return; }
+    if (!surimpression) {
+      surimpression = document.createElement("div");
+      surimpression.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:99999;font:11px Consolas,monospace;color:#7dffb0;background:rgba(0,0,0,.6);padding:3px 7px;pointer-events:none";
+      document.body.appendChild(surimpression);
+    }
+    surimpression.textContent = `orbe ${perf.ms.toFixed(1)} ms/image · ${perf.fps.toFixed(0)} images/s · ${mode}${ecoMode === "1" ? " · économe" : ""}`;
+  }
+
   function boucle(ms: number): void {
     raf = requestAnimationFrame(boucle);
     if (document.hidden || canvas.style.display === "none") return;
+    if (ms - dernierRendu < 1000 / cadence() - 3) return;
+    dernierRendu = ms;
+    const debutDessin = performance.now();
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, canvas.width, canvas.height);
     const baseY = hauteur * 0.74;
     const s = cl(Math.min((baseY - 130) / (HF + 50), largeur / 1000), 0.45, 1.6);
     echelle = s; origX = largeur / 2 - CX * s; origY = baseY - BY * s;
     g.setTransform(dpr * s, 0, 0, dpr * s, dpr * origX, dpr * origY);
     dessiner(ms / 1000);
+    perf.ms += (performance.now() - debutDessin - perf.ms) * 0.1;
+    perf.n++;
+    if (ms - perf.t0 >= 1000) { perf.fps = (perf.n * 1000) / (ms - perf.t0); perf.n = 0; perf.t0 = ms; majSurimpression(); }
   }
   raf = requestAnimationFrame(boucle);
 
@@ -521,7 +585,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     const prochain: Mode = raisonsOuvert.size > 0 ? "ouvert" : (MODE_DE_ETAT[etat] ?? "veille");
     if (prochain === mode) return;
     // Réponse sans phase de réflexion (commande locale instantanée) : la recherche se joue quand même, pendant la parole
-    if (prochain === "reflexion" || (prochain === "parole" && mode !== "reflexion")) tSeq = maintenant();
+    if (prochain === "reflexion" || (prochain === "parole" && mode !== "reflexion")) { tSeq = maintenant(); r1 = r2 = null; }
     mode = prochain; cible = CIBLES[prochain];
   }
 
@@ -535,7 +599,17 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
 
   function noteText(texte: string): void {
     const t = sansAccent(texte);
+    derniereTexte = t; confirme = false;
     [cibleCat, cibleSous] = choisir(t);
+  }
+
+  function setModule(categorie: string, sous?: string | null): void {
+    const i = CATEGORIES.findIndex((k) => k.nom === categorie);
+    if (i < 0) return;
+    cibleCat = i;
+    const j = sous ? CATEGORIES[i].sous.findIndex((k) => k.nom === sous) : -1;
+    cibleSous = j >= 0 ? j : choisirSous(i, derniereTexte);
+    confirme = true;
   }
 
   return {
@@ -554,13 +628,17 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       const paroles = document.getElementById("subtitle-hud"); if (paroles) paroles.style.filter = filtre;
     },
     noteText,
+    setModule,
+    setEco(m: string): void { ecoMode = m === "1" || m === "0" ? m : "auto"; ajuster(); },
     setOuvert(raison: string, ouvert: boolean, element?: HTMLElement, centre = false): void {
       if (ouvert) raisonsOuvert.set(raison, { el: element ?? null, centre }); else raisonsOuvert.delete(raison);
       appliquer(etatBackend);
     },
-    chercher(texte?: string): Promise<void> {
+    chercher(texte?: string, module?: [string, string | null]): Promise<void> {
       return new Promise((fin) => {
         if (texte) noteText(texte);
+        if (module) setModule(module[0], module[1]);
+        confirme = true; r1 = r2 = null;   // cible connue d'emblée
         if (tempoVeille) { clearTimeout(tempoVeille); tempoVeille = null; }
         rechercheForcee = true; mode = "reflexion"; cible = CIBLES.reflexion; tSeq = maintenant();
         setTimeout(() => { rechercheForcee = false; fin(); }, (sequence().T + 0.7 + 0.3) * 1000);

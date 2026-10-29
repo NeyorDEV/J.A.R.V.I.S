@@ -7,6 +7,7 @@ import { showSubtitles } from "../hud/subtitles";
 import { addTimer, removeTimer, startTimer, stopTimer } from "../hud/timer_clock";
 import { updateVoiceVaultUI } from "../panels/vault_panel";
 import { showTempPanel, showWeatherPanel } from "../panels/weather_temp_panels";
+import { afficherEcranModule } from "../panels/ecran_module";
 import { type JarvisMessage } from "./message_types";
 
 // Messages backend : coffre-fort, actions DOM, aide, minuteur, globe, sous-titres,
@@ -95,6 +96,16 @@ export function handleHudMessage(data: JarvisMessage, pushDomAction: (domAction:
       ramHud?.classList.toggle("stat-critical", data.ram > 90);
       if (ramBar) ramBar.style.width = `${Math.min(100, data.ram)}%`;
     }
+    return;
+  }
+
+  if (data.action === "module_ecran") {
+    afficherEcranModule(data as Parameters<typeof afficherEcranModule>[0]);
+    return;
+  }
+
+  if (data.action === "module_trouve" && typeof data.categorie === "string") {
+    orb.setModule(data.categorie, typeof data.sous === "string" ? data.sous : null);
     return;
   }
 

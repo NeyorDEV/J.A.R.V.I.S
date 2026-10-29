@@ -13,9 +13,9 @@ const r = (motifs: string): RegExp => new RegExp(`\\b(${motifs})s?\\b`);
 const s = (nom: string, motifs = "$^"): Sous => ({ nom, mots: r(motifs) });
 
 export const CATEGORIES: Categorie[] = [
-  { nom: "MUSIQUE", mots: r("musique|spotify|deezer|chanson|morceau|playlist|album|artiste|pause|suivant|precedent|joue|mets du|mets de la|mets des|mets moi du|mets moi de la|daft punk"), faibles: r("volume|son"),
+  { nom: "MUSIQUE", mots: r("musique|spotify|deezer|chanson|morceau|playlist|album|artiste|pause|suivant|precedent|joue|mets du|mets de la|mets des|mets moi du|mets moi de la|daft punk|flow"), faibles: r("volume|son"),
     icone: "M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0a3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0a3 3 0 0 1 6 0z",
-    sous: [s("Deezer", "deezer"), s("Spotify", "spotify"), s("Playlists", "playlist"), s("Albums", "album"), s("Artistes", "artiste|chante"),
+    sous: [s("Deezer", "deezer"), s("Flow", "flow"), s("Spotify", "spotify"), s("Playlists", "playlist"), s("Albums", "album"), s("Artistes", "artiste|chante"),
       s("Volume", "volume|son|fort"), s("Pause", "pause|stop"), s("Titre suivant", "suivant|passe"), s("Titre précédent", "precedent|retour")] },
   { nom: "TÉLÉ", mots: r("tele|television|tv|chaine|netflix|youtube"),
     icone: "M2 7h20v13H2zM17 2l-5 5-5-5",
@@ -61,9 +61,9 @@ export const CATEGORIES: Categorie[] = [
   { nom: "CRÉATION", mots: r("skill|competence|plugin|dev swarm|editeur|site web|application web|developpe"), faibles: r("code|script|projet"),
     icone: "M16 18l6-6-6-6M8 6l-6 6 6 6",
     sous: [s("Site web", "site|web"), s("Code", "code|script|programme"), s("Skills", "skill|skills"), s("Compétences", "competence|competences"), s("Plugins", "plugin|plugins"), s("Éditeur", "editeur"), s("Projet", "projet")] },
-  { nom: "DISCORD", mots: r("discord|serveur"), faibles: r("salon"),
+  { nom: "DISCORD", mots: r("discord|serveur|whatsapp"), faibles: r("salon"),
     icone: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2zM8 10h.01M12 10h.01M16 10h.01",
-    sous: [s("Salon", "salon"), s("Message privé", "prive|mp|dm"), s("Serveur", "mes serveurs|liste des serveurs|ouvre le serveur|ouvre un serveur|change de serveur|rejoins le serveur|quitte le serveur")] },
+    sous: [s("Salon", "salon"), s("Message privé", "prive|mp|dm"), s("Serveur", "mes serveurs|liste des serveurs|ouvre le serveur|ouvre un serveur|change de serveur|rejoins le serveur|quitte le serveur"), s("WhatsApp", "whatsapp")] },
   { nom: "MÉMOIRE", mots: r("souviens|memoire|retiens|rappelle-toi|souvenir|oublie|prefere|preferences|historique"),
     icone: "M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM9 9h6v6H9zM9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3",
     sous: [s("Souvenirs", "souviens|souvenir|souvenirs|retiens"), s("Préférences", "prefere|preferences"), s("Oublier", "oublie"), s("Historique", "historique|conversation")] },
@@ -96,7 +96,12 @@ export function choisir(texte: string): [categorie: number, sous: number] {
     const p = points(CATEGORIES[i], texte);
     if (p > record) { record = p; meilleure = i; }
   }
-  // La première sous-catégorie est le choix par défaut : une autre ne gagne que si la phrase la désigne précisément
-  const j = CATEGORIES[meilleure].sous.findIndex((x, k) => k > 0 && x.mots.test(texte));
-  return [meilleure, j < 0 ? 0 : j];
+  return [meilleure, choisirSous(meilleure, texte)];
+}
+
+/** Sous-catégorie d'une catégorie donnée pour la phrase : la première est le choix par défaut, une autre ne gagne que
+ *  si la phrase la désigne précisément. */
+export function choisirSous(categorie: number, texte: string): number {
+  const j = CATEGORIES[categorie].sous.findIndex((x, k) => k > 0 && x.mots.test(texte));
+  return j < 0 ? 0 : j;
 }
