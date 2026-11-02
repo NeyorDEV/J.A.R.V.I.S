@@ -2,6 +2,8 @@
 
 ## Non publié
 
+## 10.0.0 — Cylindre, roue de recherche, menu et thème global
+
 - **Annonces du module exécuté dans `commandes_locales`** : les branches qui n'annonçaient rien au HUD le font maintenant (compétences, antivirus, coffre-fort, fermeture du navigateur, voix, aide, dossiers et mosaïque, cortex, orbe et démo, modes boulot / gaming, toutes les commandes Deezer : lecture, pause, suivant, précédent, volume, flow, playlist, recherche). La roue du cylindre s'arrête donc sur la bonne catégorie au lieu de la deviner d'après la phrase.
 - **Tout passe par la recherche du cylindre** : les écrans qui s'affichaient aussitôt (aide / liste des commandes, minuteur, créateur de site, atelier de projets, panneaux latéraux météo et capteurs) sortent maintenant du cylindre après la recherche (`hud/cylindre_ouvert.ts`) ; les commandes du menu sans écran (vision, texte HUD, mode AR, cache) la jouent avant de s'exécuter (`hud/menu_roue.ts`, champ `module`). Backend : le resolver « dom_hud » annonce le module de chaque élément du HUD qu'il pilote (`_SELECTEUR_VERS_MODULE`), et six actions de l'IA sans catégorie en ont une (`auto_memoriser`, `dictee`, `dom_sequence`, `domotic_route_audio`, `generer_image`, `recherche_images`).
 - **Les paramètres passent par la recherche du cylindre** (`hud/cylindre_ouvert.ts`, `orb_themes.ts`, `plugins/dom_controller_resolver.py`) : la page des réglages s'affichait aussitôt et cachait la recherche. Elle sort maintenant du cylindre une fois la fiche trouvée (JARVIS > Paramètres, nouvelle sous-catégorie ; le backend l'annonce pour « ouvre les paramètres »), quelle que soit la façon de l'ouvrir (voix, menu, bouton).
