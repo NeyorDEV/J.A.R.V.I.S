@@ -167,11 +167,6 @@ def composer_prompt_systeme(souvenirs=""):
         "Exemples : 'lance deezer', 'mets sur deezer du rock', 'suivante sur deezer'.\n\n"
     )
     base += (
-        "\n\nMODE IRON MAN (Sécurité Domotique) :\n"
-        '{"action": "mode_iron_man", "etat": "on/off"}\n'
-        "Instructions : Active ou désactive la détection des applaudissements pour contrôler les lumières et YouTube.\n\n"
-    )
-    base += (
         "\nAPPRENTISSAGE CONTINU :\n"
         "Si l'utilisateur te donne une information personnelle, une préférence, ou un fait qu'il veut que tu retiennes à long terme, "
         "réponds-lui NORMALEMENT en texte, puis ajoute OBLIGATOIREMENT ce bloc JSON spécial à la toute fin de ta réponse :\n"

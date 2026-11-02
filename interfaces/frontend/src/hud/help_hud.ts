@@ -199,7 +199,6 @@ const HELP_COMMANDS = [
     // Configuration & Flux
   "Prends la voix d'homme",
   "Prends la voix de femme",
-  "Active le mode Iron Man",
   "Silence !",
   "Tais-toi !"
 ];

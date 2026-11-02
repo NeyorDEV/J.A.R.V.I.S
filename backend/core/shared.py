@@ -24,7 +24,6 @@ _derniere_reponse_streamed = False
 phrases_streamed = []
 is_thinking = False
 _USE_LLM_INTENT = True              # Dispatch d'intentions par function calling Gemini (fallback resolvers)
-MODE_IRON_MAN = False
 VOIX_ACTUELLE = "homme"             # "homme" ou "femme"
 attente_nom_dossier = False
 attente_nom_app = False

@@ -11,7 +11,7 @@ const TAU = Math.PI * 2, CX = 450, BY = 452, RX = 108, HF = 345, K = 0.22, TOP0 
 const ry0 = RX * K;
 
 type Icone = keyof typeof TRACES;
-interface Entree { id: string; titre: string; sous: string; ic: Icone }
+interface Entree { id: string; titre: string; sous: string; ic: Icone; module?: [string, string | null] }   // module : fiche à chercher avant d'agir (commandes sans écran)
 interface Groupe { titre: string; sous: string; ic: Icone; entrees: Entree[] }
 
 const TRACES = {
@@ -30,9 +30,9 @@ const TRACES = {
 
 const GROUPES: Groupe[] = [
   { titre: "IA", sous: "VISION · TEXTE · GESTES", ic: "oeil", entrees: [
-    { id: "vision-button", titre: "VISION", sous: "CAMÉRA DE JARVIS", ic: "oeil" },
-    { id: "subtitle-toggle", titre: "HUD TEXT", sous: "SOUS-TITRES", ic: "texte" },
-    { id: "gestures-toggle", titre: "MODE AR", sous: "GESTES DES MAINS", ic: "main" },
+    { id: "vision-button", titre: "VISION", sous: "CAMÉRA DE JARVIS", ic: "oeil", module: ["SYSTÈME", "Capture d'écran"] },
+    { id: "subtitle-toggle", titre: "HUD TEXT", sous: "SOUS-TITRES", ic: "texte", module: ["JARVIS", "Sous-titres"] },
+    { id: "gestures-toggle", titre: "MODE AR", sous: "GESTES DES MAINS", ic: "main", module: ["JEUX ET 3D", "Gestes"] },
   ] },
   { titre: "OUTILS", sous: "LOGICIELS · SÉCURITÉ", ic: "bouclier", entrees: [
     { id: "carousel-uninstaller-btn", titre: "UNINSTALL", sous: "DÉSINSTALLER UNE APPLI", ic: "corbeille" },
@@ -44,7 +44,7 @@ const GROUPES: Groupe[] = [
     { id: "carousel-system-btn", titre: "ÉTAT", sous: "MOTEURS ET SERVICES", ic: "pouls" },
     { id: "carousel-commands-btn", titre: "COMMANDES", sous: "LISTE VOCALE", ic: "liste" },
     { id: "carousel-api-btn", titre: "API KEYS", sous: "CLÉS D'ACCÈS", ic: "cle" },
-    { id: "clear-cache-btn", titre: "CACHE", sous: "VIDER ET RELANCER", ic: "rafraichir" },
+    { id: "clear-cache-btn", titre: "CACHE", sous: "VIDER ET RELANCER", ic: "rafraichir", module: ["JARVIS", "Paramètres"] },
     { id: "settings-button", titre: "PARAMS", sous: "RÉGLAGES GLOBAUX", ic: "reglages" },
   ] },
 ];
@@ -190,7 +190,6 @@ export function initMenuRoue(): void {
 
   function image(ms: number): void {
     boucle = requestAnimationFrame(image);
-    const tr = (orbCanvas as HTMLCanvasElement).style.filter; if (cv.style.filter !== tr) cv.style.filter = tr;
     expand += (expandCible - expand) * 0.18;
     if (expandCible === 0 && expand < 0.02) { expand = 0; groupe = -1; }
     if (ouvert && orb.modeActuel() !== "menu") fermer(false);   // la voix ou un panneau reprend la main
@@ -219,8 +218,11 @@ export function initMenuRoue(): void {
 
   function executer(id: string): void {
     const bouton = document.getElementById(id);
+    const module = GROUPES.flatMap((gr) => gr.entrees).find((en) => en.id === id)?.module;
     fermer();
-    window.setTimeout(() => bouton?.click(), 320);
+    // Une commande sans écran passe d'abord par la recherche de la roue ; celles qui ouvrent un panneau la jouent déjà elles-mêmes
+    if (module) window.setTimeout(() => { void orb.chercher(undefined, module).then(() => bouton?.click()); }, 320);
+    else window.setTimeout(() => bouton?.click(), 320);
   }
 
   /** Déplie (ou replie) un groupe ; ouvrir un autre groupe replie d'abord le précédent. */

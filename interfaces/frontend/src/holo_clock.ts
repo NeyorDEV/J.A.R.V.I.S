@@ -3,7 +3,6 @@
  * le curseur de la ligne de gauche avance avec les secondes, la date est dessous. Même teinte que l'orbe.
  */
 
-import { TEINTES } from "./orb_cylindre";
 
 const JOURS = ["DIMANCHE", "LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI", "SAMEDI"];
 const MOIS = ["JANVIER", "FÉVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET", "AOÛT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DÉCEMBRE"];
@@ -49,10 +48,6 @@ export function initHoloClock(): void {
     ls(2); g.font = "400 9px Orbitron,Consolas,monospace"; g.fillStyle = A("0,229,255", 0.95); g.textAlign = "left"; g.fillText(p2(d.getSeconds()), 372, 51); ls(0);
     ls(3); g.font = "400 7.5px Orbitron,Consolas,monospace"; g.fillStyle = A("130,215,255", 0.85); g.textAlign = "center";
     g.fillText(`${JOURS[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]}`, LARGEUR / 2 + 1.5, 72); ls(0);
-    // Même teinte que l'orbe (style choisi dans les Paramètres)
-    const teinte = TEINTES[localStorage.getItem("jarvis-orb-style") || "cyan"] ?? 0;
-    const filtre = teinte ? `hue-rotate(${teinte}deg)` : "";
-    if (canvas.style.filter !== filtre) canvas.style.filter = filtre;
   }
 
   dessiner();

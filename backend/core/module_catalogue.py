@@ -127,6 +127,8 @@ ACTION_VERS_CATEGORIE = {
     "spotify_stop": ("MUSIQUE", "Pause"), "spotify_suivant": ("MUSIQUE", "Titre suivant"),
     "spotify_precedent": ("MUSIQUE", "Titre précédent"), "spotify_volume": ("MUSIQUE", "Volume"),
     "deezer_demarrer": ("MUSIQUE", "Deezer"), "deezer_chercher": ("MUSIQUE", None), "deezer_basculer_lecture": ("MUSIQUE", "Pause"),
+    "auto_memoriser": ("MÉMOIRE", "Souvenirs"), "dictee": ("DOCUMENTS", "Modifier"), "dom_sequence": ("INTERNET", "Navigateur"),
+    "domotic_route_audio": ("MUSIQUE", None), "generer_image": ("IMAGES", "Générer"), "recherche_images": ("IMAGES", "Rechercher"),
     "deezer_arreter": ("MUSIQUE", "Pause"), "deezer_reprendre": ("MUSIQUE", "Pause"),
     "deezer_piste_suivante": ("MUSIQUE", "Titre suivant"), "deezer_piste_precedente": ("MUSIQUE", "Titre précédent"),
     "deezer_regler_volume": ("MUSIQUE", "Volume"), "deezer_flow": ("MUSIQUE", "Flow"), "deezer_fermer": ("MUSIQUE", "Deezer"),

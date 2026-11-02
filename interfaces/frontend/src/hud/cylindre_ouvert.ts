@@ -116,4 +116,13 @@ export function initCylindreOuvert(): void {
   // Salon d'agents et éditeur de code : fenêtres affichées par d'autres modules, elles sortent aussi du cylindre
   surveillerPleinEcran("#swarm-lounge-hud", "salon-agents", ["CRÉATION", "Projet"]);
   surveillerPleinEcran("#code-editor-modal", "editeur-code", ["CRÉATION", "Éditeur"]);
+  // Les paramètres : la roue cherche d'abord, puis la page sort du cylindre (avant, elle s'affichait aussitôt et cachait la recherche)
+  surveillerPleinEcran("#settings-modal", "parametres", ["JARVIS", "Paramètres"], { visible: (el) => el.classList.contains("visible") });
+  // Aide (liste des commandes), minuteur, créateur de site, atelier de projets, panneaux latéraux météo et capteurs : même chose
+  surveillerPleinEcran("#help-overlay", "aide", ["JARVIS", "Aide"], { visible: (el) => el.classList.contains("visible") });
+  surveillerPleinEcran("#timer-hud", "minuteur", ["ALARMES", "Minuteur"]);
+  surveillerPleinEcran("#website-builder-hud", "createur-site", ["CRÉATION", "Site web"]);
+  surveillerPleinEcran("#dev-swarm-hud", "atelier-projet", ["CRÉATION", "Projet"]);
+  surveillerPleinEcran("#weather-panel", "panneau-meteo", ["MÉTÉO", null], { visible: (el) => el.classList.contains("wp-visible") });
+  surveillerPleinEcran("#temp-panel", "panneau-capteurs", ["MAISON", "Capteurs"], { visible: (el) => el.classList.contains("tp-visible") });
 }

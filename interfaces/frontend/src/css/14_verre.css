@@ -416,3 +416,7 @@
 #hud-control-bar.carousel-container, #hud-control-bar, #carousel-arrow-wrap, #carousel-toggle-arrow { display: none !important; }
 #menu-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 55; pointer-events: none; }
 #menu-disque { position: fixed; z-index: 56; border-radius: 50%; cursor: pointer; display: none; }
+
+/* Couleur de JARVIS (Paramètres > Apparence) : la page entière tourne de --teinte (orb_cylindre.ts, setTheme) ; ce qui doit garder
+   ses vraies couleurs (photos, vidéos, cartes, globe) tourne en sens inverse. */
+html.teinte-active img, html.teinte-active video, html.teinte-active .leaflet-container, html.teinte-active #globe-canvas { filter: hue-rotate(calc(var(--teinte) * -1)); }

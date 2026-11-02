@@ -2,7 +2,6 @@
 
 // ── Dynamic Quick Tips Carousel (Option 2) ──────────────────────────
 const QUICK_TIPS = [
-  "DEMANDEZ : 'ACTIVE LE MODE IRON MAN'",
   "DEMANDEZ : 'LANCE LE SCAN ANTIVIRUS'",
   "DEMANDEZ : 'ALLUME LA LUMIERE DU SALON'",
   "DEMANDEZ : 'LANCE UNE PARTIE D'ECHECS'",

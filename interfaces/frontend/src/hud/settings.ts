@@ -61,10 +61,16 @@ export function handleSettingsMessage(data: JarvisMessage): boolean {
     // Orb Style & Antivirus Live
             const settingsOrbStyleEl = document.getElementById("settings-orb-style") as HTMLSelectElement;
     if (settingsOrbStyleEl) {
-      // Ancienne valeur « default » (ou inconnue) : le bleu JARVIS
-      settingsOrbStyleEl.value = Array.from(settingsOrbStyleEl.options).some((o) => o.value === settings.orb_style) ? settings.orb_style : "cyan";
-      orb.setTheme(settingsOrbStyleEl.value);
-      localStorage.setItem("jarvis-orb-style", settingsOrbStyleEl.value);
+      // Le dernier choix fait dans la liste (gardé dans localStorage dès le changement) prime sur la config du backend, qui
+      // ne connaît que la valeur enregistrée avec « Sauvegarder » : sinon fermer les réglages sans sauvegarder, puis les
+      // rouvrir, remettait la couleur d'avant. Valeur absente ou inconnue (ex. ancien « default ») : le bleu JARVIS.
+      const valides = Array.from(settingsOrbStyleEl.options).map((o) => o.value);
+      let choisi = "";
+      try { choisi = localStorage.getItem("jarvis-orb-style") || ""; } catch { /* stockage indisponible */ }
+      if (!valides.includes(choisi)) choisi = valides.includes(settings.orb_style) ? settings.orb_style : "cyan";
+      settingsOrbStyleEl.value = choisi;
+      orb.setTheme(choisi);
+      localStorage.setItem("jarvis-orb-style", choisi);
     }
     const settingsAvLiveEl = document.getElementById("settings-av-live") as HTMLInputElement;
     if (settingsAvLiveEl) {

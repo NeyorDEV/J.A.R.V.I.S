@@ -110,13 +110,6 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
                         parler(remark)
             except ValueError as e:
                 parler(str(e))
-    elif action == "mode_iron_man":
-        # `etat` n'était jamais lu depuis le JSON : NameError systématique,
-        # avalé par le catch-all → le mode ne s'activait jamais.
-        etat = data.get("etat", "on")
-        shared.MODE_IRON_MAN = (etat == "on")
-        msg = f"Mode Iron Man activé{nom_virgule()}. Je reste à l'écoute de vos signaux." if shared.MODE_IRON_MAN else "Mode Iron Man désactivé. Je repasse en veille domotique."
-        parler(msg)
     elif action == "auto_memoriser":
         cle    = data.get("cle",    "info")
         valeur = data.get("valeur", "")

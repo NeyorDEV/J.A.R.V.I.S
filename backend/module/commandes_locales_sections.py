@@ -82,6 +82,7 @@ async def _commandes_identite_hud(t):
         "montre moi tes commandes", "liste tes commandes", "qu'est-ce que tu peux faire"
     ]
     if any(q in t for q in _aide_questions):
+        module_catalogue.annoncer("JARVIS", "Aide")
         # Envoi IMMEDIAT de l'action help au frontend
         if shared.CONNECTED_CLIENTS:
             async def _orienter_aide():
@@ -95,6 +96,7 @@ async def _commandes_identite_hud(t):
 
     # --- DOSSIERS (Priorité 1) ---
     if any(k in t for k in ["mosaïque dossiers", "range mes dossiers", "range les dossiers", "range tous les dossiers", "range tous mes dossiers", "mosaïque"]):
+        module_catalogue.annoncer("SYSTÈME", "Fichiers")
         return disposer_fenetres_dossiers()
 
     # --- FERMETURE DES VUES 3D (explorateur, maison, cortex, radar) ---
@@ -150,11 +152,13 @@ async def _commandes_identite_hud(t):
         "cortex", "affiche ton cortex", "affiche le cortex", "mode cortex", "ouvre le cortex", 
         "ouvre ton cortex", "connexions neuronales", "cortex neuronal"
     ]):
+        module_catalogue.annoncer("JEUX ET 3D", "Cortex")
         _safe_ws_send(json.dumps({"action": "open_cortex"}))
         return f"Déploiement du cortex neuronal 3D{nom_virgule()}."
 
     # --- NARRATION VOCALE DE SOUVENIR ---
     if any(p in t for p in ["lis ce souvenir", "raconte ce souvenir", "lis la mémoire", "raconte cette mémoire", "lis le souvenir"]):
+        module_catalogue.annoncer("JEUX ET 3D", "Cortex")
         _safe_ws_send(json.dumps({"action": "cortex_vocal_speak_request"}))
         return f"C'est entendu{nom_virgule()}. Lecture du souvenir actif..."
 
@@ -184,12 +188,14 @@ async def _commandes_identite_hud(t):
                     word = candidat
                 break
     if word:
+        module_catalogue.annoncer("JARVIS")
         word = word.rstrip(".?! ")
         _safe_ws_send(json.dumps({"action": "orb_write_word", "word": word}))
         return f"Très bien{nom_espace()}, je reconfigure l'orbe pour dessiner le mot : {word}."
 
     # --- DECLENCHEMENT PROTOCOLE DEMONSTRATION ORBE ---
     if any(k in t for k in ["démonstration", "demonstration", "démo", "demo", "lance la démo", "lance une démo", "lance une démonstration", "lance la démonstration", "protocole de démo", "fais une démo", "fais une demo"]):
+        module_catalogue.annoncer("JARVIS")
         _safe_ws_send(json.dumps({"action": "demo"}))
         return f"Initialisation du protocole de démonstration visuelle{nom_virgule()}."
 
@@ -208,7 +214,9 @@ async def _commandes_identite_hud(t):
             nom_dossier = re.sub(r"^(?:le |la |les |l'|mon |ma |mes |du |des )", "", potentiel_dossier).strip()
             if any(k in nom_dossier for k in mots_cles_dossiers):
                 ok, msg = afficher_dossier(nom_dossier)
-                if ok: return f"J'ouvre le dossier {nom_dossier}{nom_virgule()}."
+                if ok:
+                    module_catalogue.annoncer("SYSTÈME", "Fichiers")
+                    return f"J'ouvre le dossier {nom_dossier}{nom_virgule()}."
     return _PAS_TROUVE
 
 
@@ -216,14 +224,17 @@ async def _commandes_apps_musique(t):
     """Modes boulot/gaming, applications, musique/Deezer, coffre-fort, dossiers, demandes inconnues."""
     # --- MODE BOULOT (Priorité 1 bis) ---
     if any(k in t for k in ["au boulot", "mode boulot", "mode travail", "on bosse", "mode bureau", "commence le boulot"]):
+        module_catalogue.annoncer("SYSTÈME", "Applications")
         return await mode_travail()
 
     # (Le bloc TV est désormais en haut)
 
     if any(k in t for k in ["mode gaming", "mode jeu", "on joue", "session gaming", "lance le gaming", "mode gamer"]):
+        module_catalogue.annoncer("JEUX")
         return await mode_gaming()
 
     if any(k in t for k in ["mode rocket league", "lance rocket league", "joue à rocket league", "on joue à rocket league"]):
+        module_catalogue.annoncer("JEUX")
         return await mode_rocket_league()
 
     # --- APPLICATIONS STANDARD & CATALOGUE (Priorité 2) ---
@@ -308,6 +319,7 @@ async def _commandes_apps_musique(t):
     # --- SPOTIFY / MUSIQUE (Priorité 3) ---
     # YouTube music spécifique — doit être AVANT le check Spotify
     if any(k in t for k in ["musique sur youtube", "met de la musique sur youtube", "mets de la musique sur youtube"]):
+        module_catalogue.annoncer("MUSIQUE")
         url = shared.YOUTUBE_MUSIQUE_URL or "https://www.youtube.com/watch?v=Cr8K88UcO0s"
         webbrowser.open(url, new=2)
         await asyncio.sleep(5)
@@ -332,6 +344,7 @@ async def _commandes_apps_musique(t):
 
         specific_query = query_normalized.strip()
         if not specific_query:
+            module_catalogue.annoncer("MUSIQUE", "Playlists")
             import json as _j
             musique_lien = None
             try:
@@ -375,9 +388,11 @@ async def _commandes_apps_musique(t):
 
     # Flow de Deezer : « lance mon flow », « mets le flow », « écoute le flow »
     if re.search(r"\bflow\b", t) and (len(t.split()) <= 3 or re.search(r"\b(lance|lancer|mets|mettre|joue|jouer|ecoute|écoute|ecouter|écouter|demarre|démarre|active)\b", t)):
+        module_catalogue.annoncer("MUSIQUE", "Flow")
         return await deezer_flow()
 
     if any(k in t for k in ["ouvre deezer", "lance deezer"]):
+        module_catalogue.annoncer("MUSIQUE", "Deezer")
         return await deezer_demarrer()
 
     # Ces mots (« suivant », « précédent », « pause », « lecture ») ne valent commande
@@ -389,22 +404,28 @@ async def _commandes_apps_musique(t):
     # (« passe la musique » relançait la playlist, via l'aiguillage IA)
     passer = re.search(r"\b(passe|passer|zappe|zapper|change|changer)\b.*\b(musique|chanson|morceau|titre|son)\b", t)
     if passer or ((musical or courte) and any(k in t for k in ["suivante", "suivant", "musique d'après", "musique d'apres"])):
+        module_catalogue.annoncer("MUSIQUE", "Titre suivant")
         return await deezer_piste_suivante()
     if (musical or courte) and any(k in t for k in ["précédente", "précédent", "precedente", "precedent", "reviens en arrière", "retour en arrière", "musique d'avant"]):
+        module_catalogue.annoncer("MUSIQUE", "Titre précédent")
         return await deezer_piste_precedente()
     # « enlève la pause », « retire la pause », « dépause » : reprendre (et non mettre en pause)
     if re.search(r"\b(enl[eè]ve|retire|annule|supprime|sors? de|sortir de|fin de)\b.{0,15}\bpause\b|\bd[eé]pause\b", t):
+        module_catalogue.annoncer("MUSIQUE", "Pause")
         return await deezer_reprendre()
     if any(k in t for k in ["stop la musique", "arrête la musique", "arrete la musique", "arrête la playlist", "arrete la playlist"]) \
             or ((musical or courte) and "pause" in t):
+        module_catalogue.annoncer("MUSIQUE", "Pause")
         return await deezer_arreter()
     if any(k in t for k in ["remets la musique", "remet la musique", "reprends la musique", "reprend la musique", "relance la musique", "relance la playlist", "lance la musique", "joue la musique", "remets la playlist", "remet la playlist"]) \
             or ((musical or courte) and "lecture" in t):
+        module_catalogue.annoncer("MUSIQUE", "Pause")
         return await deezer_reprendre()
     # Volume de Deezer seulement s'il est question de musique ; sinon le volume du PC
     # (system_resolver) : « baisse le volume » tout court réglait l'un ou l'autre selon
     # le verbe employé, et « le volume du HomePod » finissait dans Deezer.
     if musical and not any(k in t for k in ["homepod", "enceinte", "télé", "tele", " tv"]):
+        module_catalogue.annoncer("MUSIQUE", "Volume")
         m_vol = re.search(r"\b(?:volume|son)\b.*?\b(\d{1,3})\b", t)
         if m_vol and re.search(r"\b(mets|met|mettre|règle|regle|régler|regler|à|a)\b", t):
             return await deezer_regler_volume("regler", min(100, int(m_vol.group(1))))
@@ -419,6 +440,7 @@ async def _commandes_apps_musique(t):
     # recherche sur Napoléon »… partaient dans Deezer au lieu d'atteindre l'IA.
     recherche_deezer = _recherche_musicale(t)
     if recherche_deezer:
+        module_catalogue.annoncer("MUSIQUE", "Deezer")
         return await deezer_chercher(recherche_deezer)
 
     # --- COFFRE-FORT CRYPTÉ (VOICE VAULT) ---
@@ -431,6 +453,7 @@ async def _commandes_apps_musique(t):
         # formes chargeaient sinon le même fichier comme deux modules Python
         # distincts, chacun avec son propre état _is_unlocked : déverrouiller via
         # la voix ne déverrouillait pas la version vue par les boutons du HUD.
+        module_catalogue.annoncer("SÉCURITÉ", "Coffre-fort")
         from module import voice_vault
         async def _bc_vault(msg):
             if shared.CONNECTED_CLIENTS:
@@ -467,6 +490,7 @@ async def _commandes_apps_musique(t):
     }
     for cle, chemin in raccourcis_dossiers.items():
         if f"ouvre mon {cle}" in t or f"ouvre le {cle}" in t or t == f"ouvre {cle}":
+            module_catalogue.annoncer("SYSTÈME", "Fichiers")
             afficher_dossier(chemin)
             return f"J'ouvre votre dossier {cle}{nom_virgule()}."
 

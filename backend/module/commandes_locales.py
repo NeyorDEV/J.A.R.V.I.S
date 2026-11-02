@@ -104,6 +104,7 @@ async def traiter_commandes_locales(texte):
             if not cibles and any(w in t for w in mots_generiques):
                 cibles = [proc for procs in navigateurs.values() for proc in procs]
             if cibles:
+                module_catalogue.annoncer("INTERNET", "Navigateur")
                 import subprocess
                 for proc in cibles:
                     try:
@@ -130,6 +131,7 @@ async def _commandes_competences_systeme(t):
     # ── SYSTEME DE PLUGINS DE COMPETENCES AUTONOMES ────────────────────────────
     # 1. Création / Apprentissage de compétence
     if "crée la compétence" in t or "cree la competence" in t or "apprends la compétence" in t or "apprends la competence" in t:
+        module_catalogue.annoncer("CRÉATION", "Compétences")
         # Format attendu : "Crée la compétence [nom] pour [description]" ou "Apprends la compétence [nom] : [description]"
         match = re.search(r'(?:crée|cree|apprends)\s+la\s+compétence\s+(.+?)\s+(?:pour|qui|de|:)\s+(.+)', t)
         if match:
@@ -142,6 +144,7 @@ async def _commandes_competences_systeme(t):
 
     # 2. Suppression de compétence
     if "supprime la compétence" in t or "supprime la competence" in t or "désinstalle la compétence" in t or "desinstalle la competence" in t:
+        module_catalogue.annoncer("CRÉATION", "Compétences")
         match = re.search(r'(?:supprime|désinstalle|desinstalle)\s+la\s+compétence\s+(.+)', t)
         if match:
             nom = match.group(1).strip()
@@ -150,6 +153,7 @@ async def _commandes_competences_systeme(t):
 
     # 3. Exécution explicite de compétence
     if "exécute la compétence" in t or "execute la competence" in t or "lance la compétence" in t or "lance la competence" in t:
+        module_catalogue.annoncer("CRÉATION", "Compétences")
         match = re.search(r'(?:exécute|execute|lance)\s+la\s+compétence\s+(.+?)(?:\s+avec\s+(.+))?$', t)
         if match:
             nom = match.group(1).strip()
@@ -159,6 +163,7 @@ async def _commandes_competences_systeme(t):
 
     # 4. Liste des compétences personnalisées
     if any(k in t for k in ["liste les compétences", "liste mes compétences", "liste tes compétences", "quelles sont mes compétences", "affiche mes compétences", "liste toutes mes compétences", "liste toutes tes compétences"]):
+        module_catalogue.annoncer("CRÉATION", "Compétences")
         import os
         # Les compétences sont écrites dans backend/plugins/ (module/competences.py) :
         # la racine du projet n'a pas de dossier plugins/.
@@ -196,6 +201,7 @@ async def _commandes_competences_systeme(t):
     ]
     for p in _av_phrases:
         if p in t:
+            module_catalogue.annoncer("SÉCURITÉ", "Antivirus")
             if shared.CONNECTED_CLIENTS:
                 msg = json.dumps({"type": "av_open"})
                 await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
@@ -238,6 +244,7 @@ async def _commandes_carte_voix(t):
     """Carte de test du HUD et changement de voix."""
     # --- TEST CARTES CONTEXTUELLES ---
     if ("carte" in t and "test" in t) or "affiche une carte" in t:
+        module_catalogue.annoncer("JARVIS")
         await envoyer_carte_contextuelle(
             "Test Protocole", 
             "Ceci est une carte de test générée par le système contextuel. Tous les capteurs sont opérationnels.",
@@ -251,12 +258,14 @@ async def _commandes_carte_voix(t):
     # annonçait le changement sans l'appliquer.
     import core.config as config
     if any(kw in t for kw in ["prends la voix d'homme", "prends la voix de l'homme", "voix d'homme", "voix masculine"]):
+        module_catalogue.annoncer("JARVIS", "Voix")
         if config.VOIX_ACTUELLE == "homme":
             return f"Ma voix est déjà configurée sur le mode masculin{nom_virgule()}."
         config.VOIX_ACTUELLE = shared.VOIX_ACTUELLE = "homme"
         return f"Très bien{nom_espace()}, je reprends ma voix habituelle."
 
     if any(kw in t for kw in ["prends la voix de femme", "prends la voix d'une femme", "voix de femme", "voix féminine"]):
+        module_catalogue.annoncer("JARVIS", "Voix")
         if config.VOIX_ACTUELLE == "femme":
             return f"Ma voix est déjà configurée sur le mode féminin{nom_virgule()}."
         config.VOIX_ACTUELLE = shared.VOIX_ACTUELLE = "femme"

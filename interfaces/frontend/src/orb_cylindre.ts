@@ -799,9 +799,12 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     },
     writeWord(w: string): void { mot = { texte: w.toUpperCase().slice(0, 14), fin: performance.now() + 4000 }; },
     setTheme(theme: string): void {
-      const filtre = TEINTES[theme] ? `hue-rotate(${TEINTES[theme]}deg)` : "";
-      canvas.style.filter = filtre;
-      const paroles = document.getElementById("subtitle-hud"); if (paroles) paroles.style.filter = filtre;
+      // La couleur choisie dans les Paramètres s'applique à tout le HUD : une rotation de teinte sur la page entière
+      // (variable --teinte, annulée sur les photos, vidéos et cartes : voir css/14_verre.css). Aucun filtre quand c'est le bleu d'origine.
+      const racine = document.documentElement, teinte = TEINTES[theme] ?? 0;
+      racine.style.setProperty("--teinte", `${teinte}deg`);
+      racine.style.filter = teinte ? "hue-rotate(var(--teinte))" : "";
+      racine.classList.toggle("teinte-active", teinte !== 0);
     },
     noteText,
     setModule,
