@@ -162,7 +162,7 @@ export function initMenuRoue(): void {
     const ch = 28, hb = ch - 3, gap = (HF - 2 * ry0 - 46 - ch) / 7;
     const clipHaut = TOP0 + ry0 * 0.6 + 4, clipBas = BY - ry0 - 12;
     g.save(); g.beginPath(); g.rect(CX - RX - 6, clipHaut, 2 * RX + 12, clipBas - clipHaut); g.clip();
-    const R = RX * 0.9, TH_COL = 0, OFFSET_SOUS = 0;   // cartes centrées et droites : la recherche les courbe et les décale, pas le menu
+    const TH_COL = 0, OFFSET_SOUS = 0;   // cartes centrées et droites : la recherche les courbe et les décale, pas le menu
     const pivot = (x: number): number => 1 - Math.pow(1 - cl(x / 0.38, 0, 1), 3);
     const nSous = groupe >= 0 ? GROUPES[groupe].entrees.length : 0;
     const y0 = TOP0 + ry0 + 22 + ((8 - (GROUPES.length + nSous * expand)) * gap) / 2;   // colonne centrée tant qu'elle n'est pas pleine

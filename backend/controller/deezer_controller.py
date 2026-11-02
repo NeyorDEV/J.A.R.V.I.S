@@ -968,7 +968,7 @@ class _GardeFenetres:
 
     def terminer(self):
         """Fin du démarrage : fenêtres réduites sans activation, puis remises dans leur état normal."""
-        import ctypes, win32con, win32gui
+        import win32con, win32gui
         self._arret.set()
         if self._fil:
             self._fil.join(1.5)

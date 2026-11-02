@@ -14,7 +14,7 @@ from controller.app_launcher import (
     _APPS_CATALOGUE, _demarrer_appli_travail, _arreter_appli, mode_travail, mode_gaming, mode_rocket_league,
 )
 from controller.deezer_controller import (
-    deezer_lancer_playlist, deezer_basculer_lecture, deezer_demarrer, deezer_piste_precedente,
+    deezer_lancer_playlist, deezer_demarrer, deezer_piste_precedente,
     deezer_chercher, deezer_arreter, deezer_piste_suivante, deezer_regler_volume, deezer_flow, deezer_reprendre, deezer_fermer,
 )
 from core.web_bridge import _safe_ws_send
