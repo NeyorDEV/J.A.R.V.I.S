@@ -70,7 +70,7 @@ def liberer_ports_occupes():
                 print(f"[DÉMARRAGE] Port {port} : {e}")
 
 
-def lancer_frontend():
+def lancer_frontend(timeout_vite=6.0):
     """Démarre l'interface web (Vite, sinon dist/ servi en Python). Retourne (processus, URL)."""
     # Lancer le serveur Frontend
     frontend_dir = os.path.join(shared.RACINE_PROJET, "interfaces", "frontend")
@@ -130,7 +130,7 @@ def lancer_frontend():
                     stdout=f_log, stderr=f_log
                 )
             # Timeout augmenté légèrement à 6.0s au cas où le système ralentit
-            vite_ok = _service_ecoute_sur(5173, timeout=6.0)
+            vite_ok = _service_ecoute_sur(5173, timeout=timeout_vite)
             if vite_ok:
                 print("[JARVIS] Interface locale (Vite) initialisée.")
             else:
@@ -172,6 +172,37 @@ def lancer_frontend():
         print("[JARVIS] Le mode vocal reste utilisable.")
 
     return frontend_process, FRONTEND_URL
+
+
+_frontend = {"thread": None, "resultat": None}
+
+
+def preparer_frontend():
+    """Libère les ports puis démarre Vite dans un thread, pendant que le backend charge ses modules.
+
+    Vite met jusqu'à 7 s à répondre (davantage à froid) : le lancer ici plutôt qu'après les imports retire
+    ce délai du chemin critique. Le délai d'attente est plus large, car les imports chargent le disque.
+    """
+    if _frontend["thread"] is not None:
+        return
+
+    def _tache():
+        try:
+            liberer_ports_occupes()
+            _frontend["resultat"] = lancer_frontend(timeout_vite=30.0)
+        except Exception as e:
+            print(f"[JARVIS] Démarrage anticipé de l'interface impossible : {e}")
+
+    _frontend["thread"] = threading.Thread(target=_tache, daemon=True, name="frontend")
+    _frontend["thread"].start()
+
+
+def attendre_frontend():
+    """Retourne (processus, URL) du frontend démarré par preparer_frontend() (le lance ici si besoin)."""
+    if _frontend["thread"] is None:
+        preparer_frontend()
+    _frontend["thread"].join()
+    return _frontend["resultat"] or (None, "http://localhost:5173")
 
 
 def ouvrir_interface(frontend_process, FRONTEND_URL):

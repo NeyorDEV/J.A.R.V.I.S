@@ -78,26 +78,7 @@ export function handleHudMessage(data: JarvisMessage, pushDomAction: (domAction:
     }
     return;
   }
-  if (data.action === "system_stats") {
-            const cpuVal = document.getElementById("cpu-value");
-    const ramVal = document.getElementById("ram-value");
-    const cpuHud = document.getElementById("cpu-hud");
-    const ramHud = document.getElementById("ram-hud");
-    const cpuBar = document.getElementById("cpu-bar-fill") as HTMLDivElement | null;
-    const ramBar = document.getElementById("ram-bar-fill") as HTMLDivElement | null;
-
-    if (cpuVal && typeof data.cpu === "number") {
-      cpuVal.textContent = `${Math.round(data.cpu)}%`;
-      cpuHud?.classList.toggle("stat-critical", data.cpu > 90);
-      if (cpuBar) cpuBar.style.width = `${Math.min(100, data.cpu)}%`;
-    }
-    if (ramVal && typeof data.ram === "number") {
-      ramVal.textContent = `${Math.round(data.ram)}%`;
-      ramHud?.classList.toggle("stat-critical", data.ram > 90);
-      if (ramBar) ramBar.style.width = `${Math.min(100, data.ram)}%`;
-    }
-    return;
-  }
+  if (data.action === "system_stats") return; // le HUD CPU/RAM du coin a été retiré
 
   if (data.action === "module_ecran") {
     afficherEcranModule(data as Parameters<typeof afficherEcranModule>[0]);

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { fermerPleinEcran, ouvrirPleinEcran } from "./hud/plein_ecran";
 
 /**
  * JARVIS GLOBE 3D — Terre réaliste Three.js, pilotée par le backend (window.jarvisGlobe)
@@ -351,7 +352,11 @@ function show() {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
   const wasHidden = overlay.style.display === "none" || overlay.style.opacity !== "1";
   overlay.style.display = "flex";
-  if (orbCanvas) orbCanvas.classList.add("minimized");
+  if (wasHidden) {
+    // le globe sort du cylindre ; l'orbe ne se réduit qu'une fois le globe étendu par-dessus
+    overlay.style.transition = "none"; overlay.style.opacity = "1";
+    ouvrirPleinEcran("globe", overlay, ["JEUX ET 3D", "Globe"], () => { orbCanvas?.classList.add("minimized"); });
+  } else if (orbCanvas) orbCanvas.classList.add("minimized");
 
   // Masquer les brackets HUD pour l'intégration
   document.querySelectorAll(".globe-bracket").forEach(b => (b as HTMLElement).style.opacity = "0");
@@ -369,9 +374,6 @@ function show() {
 
 function hide() {
   if (showTimer) { clearTimeout(showTimer); showTimer = null; }
-  overlay.style.transition = "opacity 0.5s ease";
-  overlay.style.opacity = "0";
-  if (orbCanvas) orbCanvas.classList.remove("minimized");
 
   // Réafficher les brackets HUD
   document.querySelectorAll(".globe-bracket").forEach(b => (b as HTMLElement).style.opacity = "0.6");
@@ -380,12 +382,13 @@ function hide() {
   closeDetailedMap();
   flightTarget = null;
 
-  if (hideTimer) clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => {
+  if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+  // le globe se rétracte dans le cylindre (l'orbe reprend sa taille), puis disparaît
+  fermerPleinEcran("globe", overlay, () => {
+    overlay.style.transition = "none"; overlay.style.opacity = "0";
     overlay.style.display = "none";
     stopLoop();
-    hideTimer = null;
-  }, 520);
+  }, () => { orbCanvas?.classList.remove("minimized"); });
   clearGroups();
   notifyBackend(false);
 }

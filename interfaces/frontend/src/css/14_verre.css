@@ -310,8 +310,10 @@
 .keyboard-hud-container.deplace { cursor: grabbing; }
 #keyboard-input { cursor: text; user-select: text; -webkit-user-select: text; }
 #keyboard-toggle[aria-pressed="true"] { opacity: 0.22; box-shadow: none; }
-/* Écran de chargement : la ligne d'état n'apparaît que s'il y a un message (ex. connexion indisponible) */
-#boot-status-line:has(#boot-status-text:empty) { display: none; }
+/* Écran de chargement : tout est dessiné sur un canvas plein écran (hud/boot_anim.ts) ; grille et balayage CSS inutiles */
+#boot-overlay { background: transparent; }
+#boot-overlay::before, #boot-overlay::after { display: none; }
+#boot-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* Horloge « lignes » : le conteneur épouse le canvas 440 x 84 */
 #orb-clock-hud { width: 440px; height: 84px; top: 14px; }
 
@@ -409,3 +411,8 @@
 .me-valeur { font: 400 9px Orbitron, Consolas, monospace; letter-spacing: 1px; color: #bfeaff; }
 .me-off .me-valeur { color: rgba(150, 190, 220, 0.55); }
 .me-pied { padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.1); font: 400 8px Orbitron, Consolas, monospace; letter-spacing: 1.5px; color: rgba(0, 229, 255, 0.7); }
+
+/* Menu en roue (hud/menu_roue.ts) : l'ancien carrousel reste dans le DOM, caché, pour les actions de ses boutons */
+#hud-control-bar.carousel-container, #hud-control-bar, #carousel-arrow-wrap, #carousel-toggle-arrow { display: none !important; }
+#menu-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 55; pointer-events: none; }
+#menu-disque { position: fixed; z-index: 56; border-radius: 50%; cursor: pointer; display: none; }

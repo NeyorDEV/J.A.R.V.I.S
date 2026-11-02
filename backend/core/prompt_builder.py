@@ -233,7 +233,7 @@ def composer_prompt_systeme(souvenirs=""):
         "Utilise cette action quand l'utilisateur dit 'Tape', 'Ecris', 'Ecrit' ou 'Dicte' suivi d'un texte, ou s'il te demande d'ecrire a sa place. Tu corrigeras l'orthographe et la ponctuation du texte avant de generer le JSON. Le texte sera tape la ou se trouve son curseur actuel.\n\n"
         "INTERACTIONS DOM ET EXTENSION NAVIGATEUR (Contrôle du HUD et du Web via l'Extension Chrome) :\n"
         "Si l'utilisateur te demande de faire une action sur l'interface de JARVIS (HUD) ou sur un site web (comme YouTube, Google, etc.), génère le JSON dom_sequence.\n"
-        "Cette action pilote le curseur virtuel de JARVIS à l'écran grâce au DOM sans utiliser de capture d'écran.\n"
+        "Cette action agit directement sur l'interface (DOM) sans utiliser de capture d'écran.\n"
         '{"action": "dom_sequence", "steps": [{"action_type": "open_url/click/type/select/focus", "selector": "selecteur_css", "text": "texte_ou_url", "delay": 0.5}]}\n'
         "Sélecteurs CSS utiles :\n"
         "- Paramètres HUD : ouvrir = '#settings-button', fermer = '#settings-close-btn'\n"

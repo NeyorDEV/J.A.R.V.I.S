@@ -10,75 +10,18 @@ import { type JarvisMessage } from "./message_types";
 // La capture d'écran, seule branche asynchrone, est restée dans wsRef.current/connection.ts.
 
 export function handleAutopilotMessage(data: JarvisMessage): boolean {
-  // ── OS Autopilot & Virtual Cursor ──
-  if (data.action === "draw_virtual_cursor" && (data as any).x !== undefined && (data as any).y !== undefined) {
-    const cursor = document.getElementById("virtual-cursor");
-    if (cursor) {
-      const wasHidden = cursor.style.display === "none";
-      const animDuration = data.duration || 0.8;
-      
-      // Injecter la durée de transition dynamique
-      cursor.style.transition = `left ${animDuration}s cubic-bezier(0.25, 0.8, 0.25, 1), top ${animDuration}s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)`;
-                if (wasHidden) {
-        // Positionner initialement au centre pour un premier déplacement fluide
-        cursor.style.left = "50%";
-        cursor.style.top = "50%";
-        cursor.style.display = "block";
-        
-        // Attendre deux ticks du moteur de rendu pour appliquer le display: block
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            cursor.style.left = `${(data as any).x}%`;
-            cursor.style.top = `${(data as any).y}%`;
-          });
-        });
-      } else {
-        cursor.style.left = `${(data as any).x}%`;
-        cursor.style.top = `${(data as any).y}%`;
-      }
-      
-      const duration = animDuration * 1000;
-      
-      // Nettoyer les anciens timeouts de clic et de masquage
-      if ((cursor as any).vcClickTimeout) clearTimeout((cursor as any).vcClickTimeout);
-      if ((cursor as any).vcHideTimeout) clearTimeout((cursor as any).vcHideTimeout);
-      
-      (cursor as any).vcClickTimeout = setTimeout(() => {
-        cursor.classList.add("clicking");
-        
-        const wave = document.createElement("div");
-        wave.className = "vc-click-wave";
-        cursor.appendChild(wave);
-        
-        setTimeout(() => {
-          cursor.classList.remove("clicking");
-          wave.remove();
-        }, 600);
-      }, duration);
-      
-      // Masquer le curseur après 3 secondes d'inactivité
-      (cursor as any).vcHideTimeout = setTimeout(() => {
-        cursor.style.display = "none";
-      }, duration + 3000);
-    }
-    return true;
-          }
-
+  // ── OS Autopilot ──
   if (data.action === "os_agent_status") {
     const banner = document.getElementById("os-autopilot-banner");
     const logEl = document.getElementById("os-autopilot-log");
     if (banner && logEl) {
       if ((data as any).active) {
         banner.style.display = "flex";
+        document.body.classList.add("autopilot-actif");   // repère visuel : contour du HUD (css/07_autopilot_hud20.css)
         logEl.textContent = (data as any).log || "[JARVIS OS AUTOPILOT] ACTIF";
       } else {
         banner.style.display = "none";
-        // Cacher le curseur virtuel quand l'autopilote est terminé
-        const cursor = document.getElementById("virtual-cursor");
-        if (cursor) {
-          if ((cursor as any).vcHideTimeout) clearTimeout((cursor as any).vcHideTimeout);
-          cursor.style.display = "none";
-        }
+        document.body.classList.remove("autopilot-actif");
       }
     }
     return true;

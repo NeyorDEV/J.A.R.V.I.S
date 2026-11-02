@@ -2,15 +2,19 @@
 // Extrait de main.ts. Tout est encapsulé dans initCarouselDock() pour
 // conserver exactement l'ordre d'initialisation d'origine.
 
+import { masquerMenuRoue } from "../hud/menu_roue";
+
 // Contrôles de la flèche exposés aux vues 3D plein écran (renseignés par initCarouselDock)
 let _arrowControls: { hide: () => void; show: () => void } | null = null;
 
 export function hideCarouselArrow(): void {
   _arrowControls?.hide();
+  masquerMenuRoue(true);
 }
 
 export function showCarouselArrow(): void {
   _arrowControls?.show();
+  masquerMenuRoue(false);
 }
 
 // Redessine le dock (opacités/échelles) — utile quand l'état « allumé » d'un

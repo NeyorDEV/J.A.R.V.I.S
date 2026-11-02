@@ -38,7 +38,7 @@ import "./swarm_lounge";
 
 import "./css/index.css";
 import "./widgets.css";
-import { initBootOrbSphere, runBootSequence } from "./hud/boot";
+import { runBootSequence } from "./hud/boot";
 import { initCarouselActions } from "./hud/carousel_actions";
 import { initControlButtons, initPanelShortcuts } from "./hud/control_buttons";
 import { initVues3D } from "./hud/vues_3d";
@@ -57,6 +57,7 @@ import { initMisesAJour } from "./panels/mises_a_jour";
 import { initExtensionJeton } from "./panels/extension_jeton";
 import { initDiscordReglages } from "./panels/discord_reglages";
 import { initCylindreOuvert } from "./hud/cylindre_ouvert";
+import { initMenuRoue } from "./hud/menu_roue";
 import { initWeatherTempPanels } from "./panels/weather_temp_panels";
 import { connect } from "./ws/connection";
 
@@ -91,7 +92,6 @@ initHandTracking();
 initHADashboard(wsRef.current);
 initDynamicAmbientGlow();
 initMagneticButtons();
-initBootOrbSphere();
 runBootSequence();
 
 // ── Carrousel de conseils (extrait dans ui/tips.ts) ──
@@ -124,3 +124,4 @@ initMisesAJour();
 initExtensionJeton();
 initDiscordReglages();
 initCylindreOuvert();
+initMenuRoue();

@@ -21,34 +21,41 @@ export function initWidgets(ws: WebSocket | null) {
 }
 
 // ── Widget show/hide helpers ─────────────────────────────────────────────────
+/** Le widget s'enfonce dans le sol (animation CSS), puis disparaît ; une réouverture pendant l'animation l'annule. */
+function sombrerDansLeSol(el: HTMLElement): void {
+  if (!el.classList.contains("hud-revealed")) return;
+  el.classList.remove("hud-revealed"); el.classList.add("hud-sinking");
+  // minuterie plutôt que animationend : cet événement remonte des enfants et ne vient pas si les animations sont coupées
+  window.setTimeout(() => el.classList.remove("hud-sinking"), 480);
+}
 export function showCalendarWidget() {
   const el = document.getElementById("calendar-hud");
-  if (el) el.classList.add("hud-revealed");
+  if (el) { el.classList.remove("hud-sinking"); el.classList.add("hud-revealed"); }
 }
 
 export function hideCalendarWidget() {
   const el = document.getElementById("calendar-hud");
-  if (el) el.classList.remove("hud-revealed");
+  if (el) sombrerDansLeSol(el);
 }
 
 export function showWeatherHudWidget() {
   const el = document.getElementById("weather-hud");
-  if (el) el.classList.add("hud-revealed");
+  if (el) { el.classList.remove("hud-sinking"); el.classList.add("hud-revealed"); }
 }
 
 export function hideWeatherHudWidget() {
   const el = document.getElementById("weather-hud");
-  if (el) el.classList.remove("hud-revealed");
+  if (el) sombrerDansLeSol(el);
 }
 
 export function showMusicWidget() {
   const el = document.getElementById("music-hud");
-  if (el) el.classList.add("hud-revealed");
+  if (el) { el.classList.remove("hud-sinking"); el.classList.add("hud-revealed"); }
 }
 
 export function hideMusicWidget() {
   const el = document.getElementById("music-hud");
-  if (el) el.classList.remove("hud-revealed");
+  if (el) sombrerDansLeSol(el);
 }
 
 // ── MUSIC ─────────────────────────────────────────────────────────────────────

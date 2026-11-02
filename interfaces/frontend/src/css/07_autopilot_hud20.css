@@ -1,35 +1,7 @@
-/* ══ OS AUTOPILOT & VIRTUAL CURSOR STYLES ════════════════════════ */
-@keyframes vc-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes vc-spin-reverse {
-  0% { transform: rotate(360deg); }
-  100% { transform: rotate(0deg); }
-}
-
+/* ══ OS AUTOPILOT : bannière et repère visuel ════════════════════ */
 @keyframes vc-blink {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
-}
-
-@keyframes vc-click-pulse {
-  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
-}
-
-.vc-click-wave {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 40px;
-  height: 40px;
-  border: 2px solid #00e5ff;
-  border-radius: 50%;
-  box-shadow: 0 0 15px #00e5ff;
-  pointer-events: none;
-  animation: vc-click-pulse 0.6s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
 }
 
 
@@ -238,11 +210,11 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   2. MIC & STOP PANEL — Positioned bottom-right above CPU HUD, compact style
+   2. MIC & STOP PANEL — Positioned bottom-right, compact style
    ══════════════════════════════════════════════════════════════════════════════ */
 .bottom-controls-container {
   position: fixed !important;
-  bottom: 72px !important; /* Rapproché du CPU HUD (qui est à bottom: 20px) */
+  bottom: 20px !important;
   right: 20px !important;
   left: auto !important;
   transform: none !important;
@@ -667,3 +639,19 @@
 
 /* ── END HUD REDESIGN 2.0 ─────────────────────────────────────────────────── */
 
+/* Repère visuel de l'autopilote OS : un contour fin pulse autour du HUD tant que l'autopilote agit (avec la bannière du haut) */
+@keyframes autopilote-cadre {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+body.autopilot-actif::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  pointer-events: none;
+  border: 1px solid rgba(0, 229, 255, 0.6);
+  box-shadow: inset 0 0 36px rgba(0, 229, 255, 0.16);
+  animation: autopilote-cadre 2.4s ease-in-out infinite;
+}

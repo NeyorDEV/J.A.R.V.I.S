@@ -282,20 +282,6 @@ def resoudre_chemin_dossier(nom_dossier):
     print(f"[OS AGENT] Dossier '{nom_dossier}' introuvable. Fallback sur le Bureau : {fallback}")
     return fallback
 
-async def dessiner_curseur_sur_hud(x, y, duree=1.0):
-    """Envoie un signal WebSocket pour déplacer le curseur virtuel sur le HUD."""
-    send_action_to_frontend = getattr(builtins, "send_action_to_frontend", None)
-    if send_action_to_frontend:
-        sw, sh = pyautogui.size()
-        rx = int((x / sw) * 100)
-        ry = int((y / sh) * 100)
-        await send_action_to_frontend({
-            "action": "draw_virtual_cursor",
-            "x": rx,
-            "y": ry,
-            "duration": duree
-        })
-
 async def envoyer_log_hud(log_msg):
     """Envoie des logs de diagnostic au bandeau supérieur du HUD."""
     send_action_to_frontend = getattr(builtins, "send_action_to_frontend", None)
@@ -333,25 +319,9 @@ async def executer_sequence_actions(sequence):
                 if hwnd:
                     last_hwnd = hwnd
                     activer_fenetre(hwnd)
-                    # Déplacer le curseur virtuel au centre de la fenêtre ciblée pour illustrer visuellement l'activité de l'IA
-                    try:
-                        rect = win32gui.GetWindowRect(hwnd)
-                        cx = (rect[0] + rect[2]) // 2
-                        cy = (rect[1] + rect[3]) // 2
-                        await dessiner_curseur_sur_hud(cx, cy, duree=0.6)
-                    except Exception:
-                        pass
                     await asyncio.sleep(0.4)
             elif last_hwnd and action in ["type_text", "shortcut"]:
                 activer_fenetre(last_hwnd)
-                # Déplacer le curseur virtuel sur la fenêtre réactivée
-                try:
-                    rect = win32gui.GetWindowRect(last_hwnd)
-                    cx = (rect[0] + rect[2]) // 2
-                    cy = (rect[1] + rect[3]) // 2
-                    await dessiner_curseur_sur_hud(cx, cy, duree=0.4)
-                except Exception:
-                    pass
                 await asyncio.sleep(0.2)
                 
             # 1. LANCEMENT D'APPLICATION
@@ -399,19 +369,11 @@ async def executer_sequence_actions(sequence):
                     else:
                         print(f"[AUTOPILOT] ⛔ Nom d'application refusé (caractères suspects) : {app_to_launch!r}")
                 
-                # Attente et déplacement du curseur virtuel sur la nouvelle fenêtre
                 await asyncio.sleep(1.0)
                 hwnd = trouver_fenetre_par_titre(app)
                 if hwnd:
                     last_hwnd = hwnd
                     activer_fenetre(hwnd)
-                    try:
-                        rect = win32gui.GetWindowRect(hwnd)
-                        cx = (rect[0] + rect[2]) // 2
-                        cy = (rect[1] + rect[3]) // 2
-                        await dessiner_curseur_sur_hud(cx, cy, duree=0.8)
-                    except Exception:
-                        pass
                 
             # 2. SAISIE DE TEXTE (Sécurisée via Presse-Papier pour AZERTY)
             elif action == "type_text":
@@ -465,8 +427,7 @@ async def executer_sequence_actions(sequence):
                     await envoyer_log_hud(f"Déplacement & Clic sur ({x}, {y})")
                     original_mouse_pos = pyautogui.position()
                     
-                    await dessiner_curseur_sur_hud(x, y, duree=0.8)
-                    await asyncio.sleep(0.8)
+                    await asyncio.sleep(0.3)
                     
                     pyautogui.moveTo(x, y)
                     pyautogui.click()
@@ -559,7 +520,7 @@ async def lancer_autopilote(instruction):
         from core.web_bridge import demarrer_tache_fond
         demarrer_tache_fond(executer_sequence_actions(sequence))
         
-        return f"C'est parti{nom_espace()}, j'active l'autopilote OS. Regardez mon curseur virtuel à l'écran."
+        return f"C'est parti{nom_espace()}, j'active l'autopilote OS."
         
     except Exception as e:
         print(f"[OS AGENT ERROR] Impossible de planifier la tâche : {e}")

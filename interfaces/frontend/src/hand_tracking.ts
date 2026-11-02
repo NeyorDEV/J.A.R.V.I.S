@@ -464,13 +464,8 @@ function onHandResults(results: any) {
 
     }
 
-    // Si c'est la main principale (index 0), on gère le curseur virtuel HTML et Three.js
+    // Si c'est la main principale (index 0), on transmet sa position à Three.js
     if (numHands > 0) {
-      const virtCursor = document.getElementById("virtual-cursor");
-      if (virtCursor) {
-        virtCursor.style.left = `${cursorX[0]}px`;
-        virtCursor.style.top = `${cursorY[0]}px`;
-      }
       triggerMoveEvent(
         cursorX[0],
         cursorY[0],

@@ -32,15 +32,25 @@ export interface Orb {
   chercher(texte?: string, module?: [categorie: string, sous: string | null]): Promise<void>;
   /** Écran presque entièrement ouvert (les widgets attendent ce moment pour apparaître). */
   ecranOuvert(): boolean;
+  /** Mode courant de l'orbe : "veille", "ecoute", "reflexion", "parole" ou "ouvert" (le menu en roue ne s'ouvre qu'en veille). */
+  modeActuel(): string;
+  /** Dresse le cylindre (vide) pour le menu en roue ; il se referme dès que la voix ou un panneau reprend l'orbe. */
+  setMenu(actif: boolean): void;
+  /** Hauteur visée du cylindre en mode menu (0 à 1) : l'écran de chargement l'utilise pour faire monter une bande. */
+  setMenuHauteur(h: number): void;
+  /** Hauteur du cylindre, de 0 (disque de veille) à 1 (dressé). */
+  cylindreOuvert(): number;
   /** Position (pixels écran) où poser un élément pour qu'il occupe l'écran du cylindre. */
   emplacement(element: HTMLElement): { left: number; top: number };
+  /** Rectangle (pixels écran) de l'écran ouvert du cylindre : point de départ des vues qui s'étendent en grand. */
+  rectEcran(): { left: number; top: number; width: number; height: number };
   /** Mode économe : "auto" (30 images/s quand la fenêtre n'est pas active), "1" (toujours, résolution réduite), "0" (jamais). */
   setEco(mode: string): void;
   destroy(): void;
 }
 
 type Item = [string, string];
-type Mode = "veille" | "ecoute" | "reflexion" | "parole" | "ouvert";
+type Mode = "veille" | "ecoute" | "reflexion" | "parole" | "ouvert" | "menu";
 interface Cible { h: number; cards: number; panels: number; open: number; spec: number; fast: number; voice: number }
 interface Colonne { r: number; th: number; sp: number; ph: number; w: number }
 
@@ -52,6 +62,7 @@ export const TEINTES: Record<string, number> = { cyan: 0, default: 0, emerald: -
 const hash = (n: number): number => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
 const cl = (v: number, a: number, b: number): number => (v < a ? a : v > b ? b : v);
 const sm = (v: number): number => { v = cl(v, 0, 1); return v * v * (3 - 2 * v); };
+const lp = (a: number, b: number, k: number): number => a + (b - a) * k;
 const A = (c: string, a: number): string => `rgba(${c},${a})`;
 const sansAccent = (s: string): string => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -61,6 +72,7 @@ const CIBLES: Record<Mode, Cible> = {
   reflexion: { h: 1, cards: 1, panels: 1, open: 0, spec: 0, fast: 1, voice: 0 },
   parole: { h: 1, cards: 1, panels: 1, open: 0, spec: 0, fast: 0, voice: 1 },
   ouvert: { h: 1, cards: 0, panels: 0, open: 1, spec: 0, fast: 0, voice: 0.6 },
+  menu: { h: 1, cards: 0, panels: 0, open: 0, spec: 0, fast: 0, voice: 0 },   // cylindre dressé, vide : les cartes du menu (hud/menu_roue.ts) s'y posent
 };
 const MODE_DE_ETAT: Record<OrbState, Mode> = { idle: "veille", listening: "ecoute", thinking: "reflexion", speaking: "parole", searching: "ouvert" };
 
@@ -89,32 +101,46 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   let analyseData: Uint8Array<ArrayBuffer> | null = null;
   let mot: { texte: string; fin: number } | null = null;
 
-  // Recherche en deux temps : une roue pour les catégories, puis une pour les sous-catégories. La liste part avec son premier
-  // élément en haut de la roue et défile toujours dans le même sens ; plus la cible est loin, plus la roue dure.
-  // Tant que le backend n'a pas annoncé le module réellement exécuté (setModule), la roue dérive lentement ; à la
-  // confirmation (ou après ATTENTE s) elle part vers sa cible depuis sa position du moment : un changement de cible ne
-  // la fait donc jamais sauter. La cible provisoire est celle devinée d'après les mots de la phrase.
-  const NV = 7;           // éléments visibles à la fois
-  const ATTENTE = 0.45;   // attente maximale de la confirmation du backend (s)
-  const DERIVE = 2.5;     // vitesse de dérive avant confirmation (éléments/s)
-  const PAUSE = 0.35;     // arrêt sur l'élément trouvé (s)
+  // Recherche : les catégories forment un anneau de colonnes de NLIG cartes autour de l'axe du cylindre (3 colonnes pour 21 catégories).
+  // Chercher = faire tourner l'anneau (au moins un tour, toujours dans le même sens, à VITESSE rad/s en moyenne, vitesse relevée sur la
+  // vidéo de référence) jusqu'à amener de face la colonne de la catégorie trouvée ; les autres colonnes passent de profil puis de dos,
+  // vues à travers (texte en miroir). La catégorie trouvée s'étend ensuite comme un menu déroulant : ses sous-catégories apparaissent
+  // dessous, décalées et plus étroites, en pivotant l'une après l'autre ; le reste de la liste est repoussé ; le sélecteur saute de l'une à
+  // l'autre et s'arrête sur la bonne. Tant que le backend n'a pas annoncé le module réellement exécuté (setModule), l'anneau dérive
+  // lentement ; à la confirmation (ou après ATTENTE s) il part vers sa cible depuis sa position du moment : un changement de cible ne le
+  // fait donc jamais sauter. La cible provisoire est celle devinée d'après les mots de la phrase.
+  const NLIG = 8;                                 // cartes par colonne
+  const NCOL = Math.ceil(CATEGORIES.length / NLIG);
+  const PAS_COL = TAU / NCOL;
+  const ATTENTE = 0.45, DERIVE = 1.6, PAUSE = 0.3, VITESSE = 4.4;   // s ; rad/s (dérive) ; s ; rad/s (vitesse moyenne de l'anneau)
+  const SOUS_MAX = 6, DELAI_SOUS = 0.09, DUREE_SOUS = 0.38, SAUT = 0.11;   // sous-catégories visibles ; décalage et durée de leur apparition ; durée d'un saut du sélecteur (s)
   interface Phase { t0: number; p0: number; dist: number; duree: number; visee: number }
   let confirme = false;   // le backend a annoncé le module de la commande en cours
   let derniereTexte = "";
-  let r1: Phase | null = null, r2: Phase | null = null;   // plan de la roue des catégories, puis des sous-catégories
-  const arrivee = (n: number, p0: number, visee: number): number => { const d = ((visee - p0) % n + n) % n; return d < 2 ? d + n : d; };
-  const dureeRoue = (dist: number): number => Math.min(1.75, 0.63 + dist * 0.086);
-  const planifier = (n: number, p0: number, visee: number, t0: number): Phase => { const dist = arrivee(n, p0, visee); return { t0, p0, dist, duree: dureeRoue(dist), visee }; };
-  const position = (ph: Phase, tt: number): number => ph.p0 + ph.dist * (1 - Math.pow(1 - cl((tt - ph.t0) / ph.duree, 0, 1), 3));
-  /** Durée estimée de toute la recherche (sans le vol de la fiche), quand la cible est connue d'emblée. */
+  let r1: Phase | null = null;   // plan de rotation de l'anneau
+  let rhoCourant = 0, rho0Seq = 0;   // angle de l'anneau au repos, puis au début de la recherche
+  const angleCol = (col: number): number => -col * PAS_COL;   // angle d'anneau qui amène la colonne `col` de face
+  const planifier = (p0: number, col: number, t0: number, minDist: number): Phase => {
+    // chemin le plus court : jamais plus d'un demi-tour (minDist ne sert plus qu'à imposer un mouvement visible minimal, dans le même sens)
+    let dist = ((((angleCol(col) - p0 + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
+    if (Math.abs(dist) < minDist) dist = (dist < 0 ? -1 : 1) * minDist;
+    return { t0, p0, dist, duree: Math.max(0.85, dist / VITESSE), visee: col };
+  };
+  const position = (ph: Phase, tt: number): number => ph.p0 + ph.dist * sm((tt - ph.t0) / ph.duree);
+  const fenetreSous = (): { n: number; nVis: number; debut: number; tp: number } => {
+    const n = CATEGORIES[cibleCat].sous.length, nVis = Math.min(SOUS_MAX, n), debut = cl(cibleSous - 2, 0, n - nVis);
+    return { n, nVis, debut, tp: cibleSous - debut };
+  };
+  /** Durée estimée de la recherche complète (sans le vol de la fiche), quand la cible est connue d'emblée. */
   function sequence(): { T: number } {
-    const n1 = CATEGORIES.length, ns = CATEGORIES[cibleCat].sous.length;
-    const d1 = dureeRoue(arrivee(n1, (Math.min(n1, NV) - 1) / 2, cibleCat)), d2 = dureeRoue(arrivee(ns, (Math.min(ns, NV) - 1) / 2, cibleSous));
-    return { T: 0.12 + d1 + PAUSE + d2 + PAUSE };
+    const { nVis, tp } = fenetreSous(), ph = planifier(rhoCourant, Math.floor(cibleCat / NLIG), 0, 0);
+    return { T: 0.12 + ph.duree + PAUSE + 0.1 + (nVis - 1) * DELAI_SOUS + DUREE_SOUS + (tp + 1) * SAUT + PAUSE };
   }
   let demoTimers: ReturnType<typeof setTimeout>[] = [];
+  let menuActif = false;   // menu en roue ouvert (voir Orb.setMenu)
   let etatBackend: OrbState = "idle";
-  const raisonsOuvert = new Map<string, { el: HTMLElement | null; centre: boolean }>();
+  interface RectEcran { left: number; right: number; top: number; bottom: number; width: number; height: number }
+  const raisonsOuvert = new Map<string, { el: HTMLElement | null; centre: boolean; rect?: RectEcran }>();
   // Un élément « centré » se pose dans l'écran du cylindre : centré sur sa colonne, bas de l'écran au-dessus du socle
   const emplacementCentre = (el: HTMLElement): { left: number; top: number } => {
     const basPx = origY + (BY - 62) * echelle;
@@ -214,6 +240,70 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     g.restore();
   }
 
+  /** Carte en bande arrondie qui épouse le cylindre : angle `th` du centre (0 = de face), demi-ouverture `demi`, rayon `R`, profondeur
+   *  d'ellipse `dep`. De face elle est lue normalement ; de profil elle se comprime ; de dos (vue à travers) elle est plus sombre et son
+   *  texte est en miroir. `sel` (0 à 1) : mise en évidence. */
+  interface OptsBande { demi: number; R: number; dep: number; titre: string; sous: string; gi: number; sel: number; fs?: number }
+  const textures = new Map<string, HTMLCanvasElement>();
+  function textureCarte(o: OptsBande): HTMLCanvasElement {
+    const cle = `${o.gi}|${o.titre}|${o.sous}|${Math.round(o.demi * 100)}|${o.sel > 0.5 ? 1 : 0}|${o.fs ?? 0}`, dej = textures.get(cle);
+    if (dej) return dej;
+    const k = 3, wl = Math.max(40, Math.round(2 * o.demi * o.R)), hl = 28, cv = document.createElement("canvas");
+    cv.width = wl * k; cv.height = hl * k;
+    const x = cv.getContext("2d") as CanvasRenderingContext2D;
+    x.scale(k, k);
+    x.save(); x.translate(11 - 6, hl / 2 - hl * 0.29); x.scale((hl * 0.58) / 24, (hl * 0.58) / 24);
+    x.lineWidth = 1.4 / ((hl * 0.58) / 24); x.lineCap = "round"; x.lineJoin = "round"; x.strokeStyle = o.sel > 0.5 ? "#ffffff" : "#bfeaff"; x.stroke(icones[o.gi]); x.restore();
+    const lsx = x as unknown as { letterSpacing: string };
+    lsx.letterSpacing = "1px"; x.fillStyle = "#fff"; x.font = `600 ${o.fs ?? 9.5}px Orbitron,Consolas,monospace`; x.textBaseline = "middle"; x.textAlign = "left"; x.fillText(o.titre, 24, hl / 2 - hl * 0.12);
+    lsx.letterSpacing = "0.6px"; x.fillStyle = "rgba(130,225,255,.9)"; x.font = "5.5px Consolas,monospace"; x.fillText(o.sous, 24, hl / 2 + hl * 0.28);
+    textures.set(cle, cv);
+    return cv;
+  }
+  function bande(th: number, y: number, h: number, a: number, o: OptsBande): void {
+    const c = Math.cos(th), avant = c >= 0, N = 14, phiL = th - o.demi;
+    const al = a * (avant ? 0.4 + 0.6 * Math.pow(c, 0.55) : 0.5);
+    if (al < 0.012) return;
+    const pt = (phi: number): [number, number] => [CX + o.R * Math.sin(phi), o.dep * (Math.cos(phi) - c)];
+    const haut: [number, number][] = [], bas: [number, number][] = [];
+    for (let j = 0; j <= N; j++) { const [x, dy] = pt(phiL + (j / N) * 2 * o.demi); haut.push([x, y + dy]); bas.push([x, y + h + dy]); }
+    const cc = 5, xa = Math.min(haut[0][0], haut[N][0]), xb = Math.max(haut[0][0], haut[N][0]);
+    g.save(); g.globalAlpha = al;
+    g.beginPath(); g.moveTo(haut[0][0], haut[0][1] + cc); g.lineTo(haut[0][0] + (haut[1][0] > haut[0][0] ? 3 : -3), haut[0][1]);
+    for (let j = 1; j <= N; j++) g.lineTo(haut[j][0], haut[j][1]);
+    g.lineTo(bas[N][0], bas[N][1] - cc); g.lineTo(bas[N][0] - (bas[N][0] > bas[N - 1][0] ? 3 : -3), bas[N][1]);
+    for (let j = N - 1; j >= 0; j--) g.lineTo(bas[j][0], bas[j][1]);
+    g.closePath();
+    const s = o.sel, fg = g.createLinearGradient(xa, 0, Math.max(xb, xa + 1), 0);
+    if (avant) {
+      fg.addColorStop(0, `rgba(${10 + 16 * s},${40 + 60 * s},${150 + 105 * s},${0.5 + 0.28 * s})`); fg.addColorStop(1, `rgba(${4 + 4 * s},${18 + 28 * s},${80 + 110 * s},${0.34 + 0.26 * s})`);
+    } else { fg.addColorStop(0, "rgba(8,26,100,.7)"); fg.addColorStop(1, "rgba(4,14,66,.55)"); }
+    g.fillStyle = fg; g.fill();
+    g.strokeStyle = avant ? `rgba(${70 + 146 * s},${165 + 83 * s},255,${0.8 + 0.2 * s})` : "rgba(60,140,255,.55)"; g.lineWidth = 0.7 + 0.5 * s;
+    if (s > 0.5) { g.shadowColor = "#00e5ff"; g.shadowBlur = 14 * s; }
+    g.stroke(); g.shadowBlur = 0;
+    if (avant) {
+      g.strokeStyle = s > 0.5 ? "#fff" : "rgba(130,215,255,.95)"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(haut[0][0] + 4, haut[0][1]); for (let j = 1; j <= Math.floor(N * 0.55); j++) g.lineTo(haut[j][0], haut[j][1]); g.stroke();
+      g.strokeStyle = "rgba(0,229,255,.9)"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(haut[N][0] - 3, haut[N][1] + 5); g.lineTo(bas[N][0] - 3, bas[N][1] - 6); g.stroke();
+    }
+    // texte et icône : dessinés une fois sur une texture, puis plaqués sur la carte tranche par tranche selon l'angle de chaque tranche
+    // (ils épousent la courbure, se compriment vers le bord) ; invisibles dès que la tranche passe derrière : le dos de la carte est vide
+    if (h > 12) {
+      const tx = textureCarte(o), M = Math.max(10, Math.round((o.demi * 2 * o.R) / 2.2)), hSrc = tx.height;
+      g.save(); g.globalAlpha = a;
+      for (let j = 0; j < M; j++) {
+        const p0 = phiL + (j / M) * 2 * o.demi, p1 = phiL + ((j + 1) / M) * 2 * o.demi, pm = (p0 + p1) / 2, cm = Math.cos(pm);
+        if (cm <= 0.03) continue;
+        g.globalAlpha = a * sm((cm - 0.03) / 0.4) * (0.55 + 0.45 * cm);
+        const x0 = CX + o.R * Math.sin(p0), x1 = CX + o.R * Math.sin(p1);
+        g.drawImage(tx, (j / M) * tx.width, 0, tx.width / M, hSrc, Math.min(x0, x1), y + o.dep * (cm - c), Math.abs(x1 - x0) + 0.6, h);
+      }
+      g.restore();
+    }
+    g.restore();
+  }
+
   function chemin(x: number, y: number, w: number, h: number, c: number, tab: boolean): void {
     g.beginPath(); g.moveTo(x, y); g.lineTo(x + w - c, y); g.lineTo(x + w, y + c); g.lineTo(x + w, y + h); g.lineTo(x + c, y + h); g.lineTo(x, y + h - c);
     if (tab) { g.lineTo(x, y + h * 0.62); g.lineTo(x - 5, y + h * 0.62 - 5); g.lineTo(x - 5, y + h * 0.38 + 5); g.lineTo(x, y + h * 0.38); }
@@ -292,9 +382,25 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     }
   }
 
+  /** Apparition et disparition d'un panneau, comme dans la vidéo de référence : il sort du sol (une barre lumineuse monte, se déplie et
+   *  se met de face) et, à la disparition, se met de profil, s'aplatit et s'enfonce dans le sol en une barre qui s'éteint. `v` : 0 = dans
+   *  le sol, 1 = posé. */
+  function sol(cx: number, cy: number, v: number, dessiner: () => void): void {
+    if (v < 0.02) return;
+    const s = 1 - sm(v), fy = BY + 14;
+    if (s <= 0.002) { dessiner(); return; }
+    g.save(); g.translate(cx, cy + (fy - cy) * s * 0.92); g.scale(1 - 0.93 * s, 1 - 0.5 * s); g.translate(-cx, -cy); dessiner(); g.restore();
+    const b = Math.sin(Math.PI * s);
+    if (b > 0.05) {
+      g.save(); g.globalAlpha = 0.9 * b; g.fillStyle = "#cfeeff"; g.shadowColor = "#00e5ff"; g.shadowBlur = 14;
+      g.fillRect(cx - 1.5, fy - 12 - 30 * (1 - s), 3, 12 + 30 * (1 - s)); g.restore();
+      g.save(); g.globalAlpha = 0.5 * b; g.strokeStyle = "#8fe0ff"; g.lineWidth = 1.2; ell(cx, fy, 8 + 46 * s, 2 + 9 * s); g.stroke(); g.restore();
+    }
+  }
+
   function audioPanel(a: number, t: number): void {
     if (a < 0.02) return;
-    g.save(); const lx = PLX - (1 - a) * 40, ly = TOP0 + 34;
+    g.save(); const lx = PLX, ly = TOP0 + 34;
     fr(lx, ly, 215, 215, a); titre(lx, ly, 215, "ENTRÉE AUDIO · MICRO", a); g.globalAlpha = a;
     const gx = lx + 16, gy = ly + 30, gw = 183, gh = 76, niveau = cl(micNiveau + volume, 0, 1), amp = 2 + 8 * P.spec + 26 * niveau;
     g.strokeStyle = "rgba(80,170,255,.14)"; g.lineWidth = 0.5;
@@ -343,7 +449,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
 
   function rightPanels(a: number, t: number): void {
     if (a < 0.02) return;
-    g.save(); const s = (1 - a) * 60, rx = CX + RX + 95 + s, ry = TOP0 + 4;
+    g.save(); const rx = CX + RX + 95, ry = TOP0 + 4;
     fr(rx, ry, 270, 160, a, false); titre(rx, ry, 270, "ANALYSE DES FLUX · SYSTÈME", a); g.globalAlpha = a;
     radar(rx + 56, ry + 66, 34, a, t);
     for (let i = 0; i < 9; i++) { g.fillStyle = A("0,229,255", 0.85 * a); g.fillRect(rx + 112, ry + 30 + i * 6.2, 14 + hash(i + Math.floor(t * 1.4)) * 52, 1.4); g.fillRect(rx + 188, ry + 30 + i * 6.2, 6 + hash(i * 3 + Math.floor(t * 1.1)) * 40, 1.4); }
@@ -395,10 +501,15 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     (Object.keys(rt) as (keyof Cible)[]).forEach((k) => { P[k] += (cible[k] - P[k]) * ki(rt[k]); });
     // Taille de l'écran : celle des panneaux affichés, plus une marge (le cylindre ne doit pas faire le double du widget)
     if (mode === "ouvert") {
-      const rects = [...raisonsOuvert.values()].filter((r) => r.el !== null).map(({ el, centre }) => {
-        if (!centre) return (el as HTMLElement).getBoundingClientRect();
-        const p = emplacementCentre(el as HTMLElement), w = (el as HTMLElement).offsetWidth, h = (el as HTMLElement).offsetHeight;
-        return { left: p.left, right: p.left + w, top: p.top, bottom: p.top + h, width: w, height: h };
+      // Déplacer un widget ne change pas l'écran : on garde l'emplacement mesuré tant que sa taille ne bouge pas
+      const rects = [...raisonsOuvert.values()].filter((r) => r.el !== null).map((rr) => {
+        const el = rr.el as HTMLElement, w = el.offsetWidth, h = el.offsetHeight;
+        if (rr.rect && rr.rect.width === w && rr.rect.height === h) return rr.rect;
+        let r: RectEcran;
+        if (!rr.centre) { const b = el.getBoundingClientRect(); r = { left: b.left, right: b.right, top: b.top, bottom: b.bottom, width: b.width, height: b.height }; }
+        else { const p = emplacementCentre(el); r = { left: p.left, right: p.left + w, top: p.top, bottom: p.top + h, width: w, height: h }; }
+        if (r.width > 0 && r.height > 0 && P.open > 0.93) rr.rect = r;
+        return r;
       }).filter((r) => r.width > 0 && r.height > 0);
       if (rects.length) {
         const gauche = Math.min(...rects.map((r) => r.left)), droite = Math.max(...rects.map((r) => r.right));
@@ -411,30 +522,34 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     // L'ouverture ne commence qu'une fois le cylindre dressé (s'il était en veille, il monte d'abord)
     const h = P.h * HF, e = sm(P.open) * cl((P.h - 0.8) / 0.2, 0, 1);
     const ry0 = RX * 0.22, rxS = RX + (ecran.demi - RX) * sm(e / 0.55), ryS = ry0 * (1 - sm(e / 0.55)) + 2.2 * sm(e / 0.55), top = BY - h + (ecran.top - (BY - h)) * sm(e / 0.55), bas = BY + (ecran.bas - BY) * sm((e - 0.3) / 0.7);
-    const ch = 28, gap = (HF - 2 * ry0 - 46 - ch) / (NV - 1), cardsA = cl(1 - P.open * 3, 0, 1), y0 = top + ry0 + 22;
-    // Avancement de la roue de recherche (voir planifier)
-    let niveau = 0, ue = 0, locked = 0, pRoue = 0, tVol = Infinity;
-    const n1 = CATEGORIES.length, haut1 = (Math.min(n1, NV) - 1) / 2;
+    const ch = 28, gap = (HF - 2 * ry0 - 46 - ch) / (NLIG - 1), cardsA = cl(1 - P.open * 3, 0, 1), y0 = top + ry0 + 22;
+    // Avancement de la recherche (voir planifier) : rotation de l'anneau, puis menu déroulant des sous-catégories
+    let niveau = 0, locked1 = 0, locked2 = 0, rho = rhoCourant, expand = 0, tDeroule = Infinity, tVol = Infinity, saut = -1;
+    const colCible = Math.floor(cibleCat / NLIG), fen = fenetreSous();
     if (mode === "reflexion" || mode === "parole") {
-      if (!r1 && (confirme || tE >= ATTENTE)) r1 = planifier(n1, haut1 + DERIVE * tE, cibleCat, tE);
-      if (r1 && r1.visee !== cibleCat) { r1 = planifier(n1, position(r1, tE), cibleCat, tE); r2 = null; }
-      if (!r1) { niveau = 1; pRoue = haut1 + DERIVE * tE; }
+      if (!r1 && (confirme || tE >= ATTENTE)) r1 = planifier(rho0Seq + DERIVE * tE, colCible, tE, 0);
+      if (r1 && r1.visee !== colCible) r1 = planifier(position(r1, tE), colCible, tE, 0);
+      niveau = 1;
+      if (!r1) rho = rho0Seq + DERIVE * tE;
       else {
         const a1 = r1.t0 + r1.duree, a2 = a1 + PAUSE;
-        if (tE < a1) { niveau = 1; ue = (tE - r1.t0) / r1.duree; pRoue = position(r1, tE); }
-        else if (tE < a2) { niveau = 1; ue = 1; locked = cl((tE - a1) / 0.25, 0, 1); pRoue = position(r1, a1); }
-        else {
-          const ns = CATEGORIES[cibleCat].sous.length, hauts = (Math.min(ns, NV) - 1) / 2;
-          if (!r2) r2 = planifier(ns, hauts, cibleSous, a2);
-          else if (r2.visee !== cibleSous) r2 = planifier(ns, position(r2, tE), cibleSous, tE);
-          const a3 = r2.t0 + r2.duree;
-          niveau = 2; pRoue = position(r2, Math.min(tE, a3)); tVol = a3 + PAUSE;
-          if (tE < a3) ue = (tE - r2.t0) / r2.duree; else { ue = 1; locked = cl((tE - a3) / 0.25, 0, 1); }
+        rho = position(r1, tE);
+        if (tE >= a1) { rhoCourant = position(r1, a1); locked1 = cl((tE - a1) / 0.25, 0, 1); }
+        if (tE >= a2) {
+          niveau = 2; tDeroule = a2; expand = sm((tE - a2) / 0.35);
+          const a3 = a2 + 0.1 + (fen.nVis - 1) * DELAI_SOUS + DUREE_SOUS, a4 = a3 + (fen.tp + 1) * SAUT;
+          if (tE >= a3) saut = Math.min(fen.tp, Math.floor((tE - a3) / SAUT));
+          if (tE >= a4) locked2 = cl((tE - a4) / 0.25, 0, 1);
+          tVol = a4 + PAUSE;
         }
       }
-    } else if (P.voice > 0.5 && P.cards > 0.2) { niveau = 2; ue = 1; locked = 1; pRoue = cibleSous; }
+    } else if (P.voice > 0.5 && P.cards > 0.2) { niveau = 2; rho = angleCol(colCible); locked1 = 1; locked2 = 1; expand = 1; tDeroule = -10; saut = fen.tp; }
+    // Géométrie de la colonne de face : la catégorie trouvée est remontée vers le haut, ses sous-catégories s'insèrent dessous
+    const rs = cibleCat - colCible * NLIG, defil = Math.max(0, rs - 1) * gap * expand;
+    const yCat = (r: number): number => y0 + r * gap - defil + (r > rs ? expand * fen.nVis * gap : 0);
+    const ySous = (i: number): number => y0 + rs * gap - defil + (i + 1) * gap * expand;
     const flyU = mode === "reflexion" || mode === "parole" ? cl((tE - tVol) / 0.7, 0, 1) : 0;
-    perf.pRoue = pRoue; perf.niveau = niveau; perf.cat = CATEGORIES[cibleCat].nom; perf.sous = CATEGORIES[cibleCat].sous[cibleSous].nom;   // lus par les bancs de mesure
+    perf.pRoue = rho; perf.niveau = niveau; perf.cat = CATEGORIES[cibleCat].nom; perf.sous = CATEGORIES[cibleCat].sous[cibleSous].nom;   // lus par les bancs de mesure
     P.info += ((flyU >= 1 || (mot !== null && performance.now() < mot.fin) ? 1 : 0) - P.info) * ki(0.14);
     if (analyser && analyseData) {
       analyser.getByteFrequencyData(analyseData);
@@ -456,7 +571,10 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     if (P.voice > 0.3 && P.open < 0.3) for (let q = 0; q < 2; q++) {
       const u = (t * 0.35 + q / 2) % 1, rr = RX * (1.3 + u * 1.1); g.strokeStyle = A("0,229,255", (1 - u) * 0.22 * P.voice); g.lineWidth = 1.2; ell(CX, BY, rr, (ry0 * rr) / RX); g.stroke();
     }
-    audioPanel(P.panels * (1 - P.info), t); infoPanel(P.info * P.panels, t); rightPanels(P.panels, t);
+    const vAudio = P.panels * (1 - P.info), vInfo = P.info * P.panels;
+    sol(PLX + 107, TOP0 + 34 + 107, vAudio, () => audioPanel(vAudio, t));
+    sol(PLX + 107, TOP0 + 34 + 107, vInfo, () => infoPanel(vInfo, t));
+    sol(CX + RX + 95 + 135, TOP0 + 4 + 120, P.panels, () => rightPanels(P.panels, t));
 
     if (h > 6 || e > 0.01) {
       const fa = cl(h / 90, 0, 1);
@@ -477,31 +595,89 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       g.beginPath(); g.moveTo(CX - rxS, top); g.lineTo(CX - rxS, bas); g.moveTo(CX + rxS, top); g.lineTo(CX + rxS, bas); g.stroke(); g.shadowBlur = 0;
       const sc = [(t * 0.45) % 1, (t * 0.45 + 0.5) % 1]; if (P.fast > 0.3) sc.push((t * 1.8) % 1, (t * 1.8 + 0.4) % 1);
       if (e < 0.5) sc.forEach((u) => { const yy = top + u * (bas - top); g.strokeStyle = A("0,229,255", 0.3 * fa * (1 - e * 2) * Math.sin(u * Math.PI)); g.lineWidth = 1.4; ell(CX, yy, rxS, ryS); g.stroke(); });
-      // Roue : catégories puis sous-catégories. Le cadre de sélection part du haut de la roue et descend au milieu pendant que
-      // la liste défile ; la cible s'arrête dans le cadre.
+      // Anneau de colonnes de cartes en bandes arrondies, qui épousent le cylindre (voir planifier)
       if (niveau > 0 && P.cards > 0.05 && cardsA > 0.01) {
-        const liste = niveau === 1 ? CATEGORIES.map((k) => k.nom) : CATEGORIES[cibleCat].sous.map((k) => k.nom.toUpperCase());
-        const n = liste.length, haut = (Math.min(n, NV) - 1) / 2, demi = haut + 0.5, p = pRoue;
-        const cs = 1 - Math.pow(1 - Math.min(1, ue * 1.25), 3), yc = y0 + 3 * gap, ys = yc - haut * gap * (1 - cs);
-        const base = cl(P.cards / 0.4, 0, 1) * cardsA * cl(h / 200, 0, 1);
-        for (let i = 0; i < n; i++) {
-          let o = (((i - p) % n) + n) % n; if (o > n / 2) o -= n;
-          const ao = Math.abs(o), y = yc + o * gap, proche = Math.abs(y - ys) < gap / 2;
-          if (ao > demi + 0.01 || (flyU > 0 && proche)) continue;
-          const a = base * Math.max(0.15, 1 - ao * 0.25) * (locked > 0.5 && !proche ? 0.7 : 1);
-          if (a < 0.01) continue;
-          const sousTitre = niveau === 1 ? CATEGORIES[i].sous.slice(0, 2).map((k) => k.nom.toUpperCase()).join(" · ") : CATEGORIES[cibleCat].nom;
-          card(CX, y - (proche ? 3 : 0), (proche ? 206 : 186) * (1 - ao * 0.05), (proche ? ch * 1.12 : ch) * (1 - ao * 0.04), [liste[i], sousTitre], niveau === 1 ? i : cibleCat, proche, a, proche ? 22 : undefined);
+        const base = cl(P.cards / 0.4, 0, 1) * cardsA * cl(h / 200, 0, 1), psi = (1 - cl(P.cards, 0, 1)) * 1.4;
+        const R = RX * 0.9, DEP = ry0 * 0.9, hb = ch - 3, clipHaut = top + ry0 * 0.6 + 4, clipBas = BY - ry0 - 12;
+        const fondu = (yy: number): number => cl((yy + hb / 2 - clipHaut) / (gap * 0.8), 0, 1) * cl((clipBas - (yy + hb / 2)) / (gap * 0.8), 0, 1);
+        const thCol = colCible * PAS_COL + rho + psi, OFFSET_SOUS = 0.3;
+        const elements: { z: number; f: () => void }[] = [];
+        const retr = sm(flyU), milieu = (clipHaut + clipBas) / 2, ySel = flyU > 0 ? ySous(saut) : 0;
+        /** Rétraction à la sélection : tout ce qui est au-dessus se replie vers le haut du cylindre, tout ce qui est dessous vers le bas. */
+        const replie = (yy: number, hh: number, enColonne: boolean): [number, number] => {
+          if (retr <= 0) return [yy, hh];
+          const cible = enColonne ? ySel : milieu, haut = yy + hh / 2 < cible + hh / 2;
+          return [lp(yy, haut ? clipHaut : clipBas - 2, retr), hh * (1 - retr)];
+        };
+        const jit = (i: number): { dth: number; demi: number; dh: number } => ({ dth: (hash(i * 7.3) - 0.5) * 0.3, demi: 0.72 + hash(i * 3.1) * 0.3, dh: 0.82 + hash(i * 5.9) * 0.36 });
+        CATEGORIES.forEach((cat, i) => {
+          const col = Math.floor(i / NLIG), r = i - col * NLIG, jt = jit(i), th = col * PAS_COL + rho + psi + jt.dth, yy0 = col === colCible ? yCat(r) : y0 + r * gap;
+          const sel = col === colCible && r === rs ? locked1 * (1 - 0.45 * expand) : 0;
+          const hc = hb * jt.dh, [yy, hh] = replie(yy0 + (hb - hc) / 2, hc, col === colCible);
+          const a = base * fondu(yy) * (retr > 0 ? 1 - 0.3 * retr : 1);
+          if (a > 0.01) elements.push({ z: Math.cos(th), f: () => bande(th, yy, hh, a, { demi: jt.demi, R, dep: DEP, titre: cat.nom, sous: cat.sous.slice(0, 2).map((k) => k.nom.toUpperCase()).join(" · "), gi: i, sel }) });
+        });
+        for (let i = 0; i < fen.nVis; i++) {
+          const idx = fen.debut + i, p = 1 - Math.pow(1 - cl((tE - tDeroule - 0.1 - i * DELAI_SOUS) / DUREE_SOUS, 0, 1), 3);
+          if (p <= 0 || niveau < 2) continue;
+          const th = thCol + OFFSET_SOUS - (1 - p) * (Math.PI / 2), yy = ySous(i), choisi = i === saut;
+          if (flyU > 0 && choisi) continue;
+          const [yr, hr] = replie(yy, hb - 2, true), a = base * fondu(yr) * cl(p * 3, 0, 1) * (retr > 0 ? 1 - 0.3 * retr : 1);
+          elements.push({ z: Math.cos(th), f: () => bande(th, yr, hr, a, { demi: 0.7, R, dep: DEP, titre: CATEGORIES[cibleCat].sous[idx].nom.toUpperCase(), sous: CATEGORIES[cibleCat].nom, gi: cibleCat, sel: choisi ? 1 : 0, fs: 8.5 }) });
         }
-        if (flyU <= 0) {
-          const cw = 206 + 30 * (1 - locked), chh = ch * 1.12 + 14 * (1 - locked), bx = CX - cw / 2 - 4, by = ys - 3 - 4 - 7 * (1 - locked);
-          g.strokeStyle = A("255,255,255", 0.9 * base); g.lineWidth = 2; g.shadowColor = "#00e5ff"; g.shadowBlur = 10;
-          ([[bx, by, 1, 1], [bx + cw + 8, by, -1, 1], [bx, by + chh + 8, 1, -1], [bx + cw + 8, by + chh + 8, -1, -1]] as number[][]).forEach((q) => {
+        g.save(); g.beginPath(); g.rect(CX - RX - 6, clipHaut, 2 * RX + 12, clipBas - clipHaut); g.clip();
+        elements.sort((u, v) => u.z - v.z).forEach((el) => el.f());
+        g.restore();
+        // cadre de sélection : autour de la catégorie trouvée, puis de la sous-catégorie choisie
+        const cadreSur = (xc: number, yy: number, w: number, hh: number, aa: number): void => {
+          const bx = xc - w / 2 - 5, by = yy - 5, cw = w + 10, chh = hh + 10;
+          g.save(); g.globalAlpha = aa; g.strokeStyle = "#fff"; g.lineWidth = 2; g.shadowColor = "#00e5ff"; g.shadowBlur = 10;
+          ([[bx, by, 1, 1], [bx + cw, by, -1, 1], [bx, by + chh, 1, -1], [bx + cw, by + chh, -1, -1]] as number[][]).forEach((q) => {
             g.beginPath(); g.moveTo(q[0], q[1] + q[3] * 10); g.lineTo(q[0], q[1]); g.lineTo(q[0] + q[2] * 10, q[1]); g.stroke();
           });
-          g.shadowBlur = 0;
+          g.restore();
+        };
+        if (flyU <= 0) {
+          if (niveau === 1 && locked1 > 0) cadreSur(CX + R * Math.sin(jit(cibleCat).dth), yCat(rs), 2 * R * Math.sin(jit(cibleCat).demi), hb * jit(cibleCat).dh, locked1 * base);
+          else if (niveau >= 2 && saut >= 0) cadreSur(CX + R * Math.sin(OFFSET_SOUS), ySous(saut), 2 * R * Math.sin(0.7), hb - 2, base * (saut === fen.tp ? 0.5 + 0.5 * locked2 : 1));
         }
       }
+    }
+    // Fin de la purge : il ne reste qu'un marqueur vert en haut du cylindre, avec un trait et un viseur qui arrivent de la gauche ; une fois
+    // le module affiché, une onde lumineuse verte balaie l'écran de haut en bas toutes les 2 s
+    const enSeq = mode === "reflexion" || mode === "parole", mk = Math.max(enSeq ? sm((tE - tVol - 0.7) / 0.5) : 0, sm(e / 0.4)) * cl(h / 200, 0, 1);
+    if (mk > 0.02) {
+      const my = top + ry0 + 26, mx = CX + rxS * 0.55;
+      g.save(); g.globalAlpha = mk * (1 - sm((e - 0.55) / 0.3)); g.shadowColor = "#39ff14"; g.shadowBlur = 10; g.fillStyle = "#39ff14";
+      g.beginPath(); g.moveTo(mx - 6, my - 4); g.lineTo(mx + 6, my - 4); g.lineTo(mx, my + 5); g.closePath(); g.fill(); g.shadowBlur = 0;
+      g.strokeStyle = A("180,255,170", 0.8); g.lineWidth = 1;
+      const lx = CX - rxS - 30 + 40 * mk, ly = my + 40 * mk;
+      g.beginPath(); g.moveTo(CX - rxS - 30, my); g.lineTo(lx, ly); g.stroke();
+      g.beginPath(); g.arc(lx, ly, 3 + 9 * sm(mk), 0, TAU); g.stroke(); g.beginPath(); g.moveTo(lx - 4, ly); g.lineTo(lx + 4, ly); g.moveTo(lx, ly - 4); g.lineTo(lx, ly + 4); g.stroke();
+      g.restore();
+    }
+    if (e > 0.5) {
+      const u = (t % 2) / 2, sy = top + 8 + u * (bas - top - 16), gb = g.createLinearGradient(0, sy - 9, 0, sy + 9);
+      gb.addColorStop(0, "rgba(57,255,20,0)"); gb.addColorStop(0.5, `rgba(120,255,100,${0.3 * sm((e - 0.5) / 0.3)})`); gb.addColorStop(1, "rgba(57,255,20,0)");
+      g.fillStyle = gb; g.fillRect(CX - rxS + 6, sy - 9, 2 * rxS - 12, 18);
+    }
+    // Module affiché : jauge en pourcentage sous l'écran (change toutes les 500 ms), grand radar à droite et fiche du module empilée à gauche ;
+    // chacun sort du sol comme les panneaux
+    const vMod = sm((e - 0.55) / 0.35);
+    if (vMod > 0.02) {
+      const pc = Math.round(46 + 4 * Math.sin(Math.floor(t * 2) * 1.7)), gx = CX - RX - 112, gy = BY - 34;
+      sol(gx + 42, gy + 13, vMod, () => {
+        g.save(); g.strokeStyle = A("0,229,255", 0.8); g.lineWidth = 0.8; g.strokeRect(gx, gy, 84, 26);
+        g.fillStyle = A("200,240,255", 1); g.font = "600 13px Orbitron,Consolas,monospace"; g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(`${pc}%`, gx + 7, gy + 13);
+        g.fillStyle = A("57,255,20", 0.9); g.fillRect(gx + 46, gy + 11, 32 * pc / 100 * 2, 3); g.restore();
+      });
+      const rcx = CX + RX + 160, rcy = BY - 78;
+      sol(rcx, rcy, vMod, () => { g.save(); g.strokeStyle = A("0,229,255", 0.9); g.lineWidth = 1; g.beginPath(); g.arc(rcx, rcy, 66, 0, TAU); g.stroke(); radar(rcx, rcy, 62, 1, t); g.restore(); });
+      const fx = PLX + 24, fy = BY - 96;
+      sol(fx + 54, fy + 28, vMod, () => {
+        g.save(); g.globalAlpha = 0.5; g.strokeStyle = A("70,165,255", 0.9); g.lineWidth = 0.8; g.strokeRect(fx + 54 - 54 + 12, fy - 14, 108, 56); g.restore();
+        card(fx + 54, fy, 108, 56, [CATEGORIES[cibleCat].nom, CATEGORIES[cibleCat].sous[cibleSous].nom.toUpperCase()], cibleCat, true, 1, 8);
+      });
     }
     const fl = cl(h / 60, 0, 1), ouvH = sm(e / 0.55);
     if (h > 6 || e > 0.01) rings(top, rxS, ryS, fl, t, 1, ouvH);
@@ -522,8 +698,8 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       }
     }
     if (flyU > 0 && flyU < 1) {
-      const u = sm(flyU), sx = CX, sy = y0 + 3 * gap - 3, ex = PLX + 107, ey = TOP0 + 34;
-      const w2 = 206 + (215 - 206) * u, h2 = ch * 1.12 + (215 - ch * 1.12) * u, cx2 = sx + (ex - sx) * u, cy2 = sy + (ey - sy) * u;
+      const u = sm(flyU), sx = CX + RX * 0.9 * Math.sin(0.3), sy = ySous(fen.tp) - 2, ex = PLX + 107, ey = TOP0 + 34;
+      const w2 = 150 + (215 - 150) * u, h2 = ch + (215 - ch) * u, cx2 = sx + (ex - sx) * u, cy2 = sy + (ey - sy) * u;
       const tr = g.createLinearGradient(cx2, 0, sx, 0); tr.addColorStop(0, A("0,229,255", 0.35 * (1 - u))); tr.addColorStop(1, "rgba(0,229,255,0)");
       g.fillStyle = tr; g.fillRect(cx2, cy2 + h2 * 0.3, sx - cx2, h2 * 0.4 * (1 - u * 0.6));
       card(cx2, cy2, w2, h2, [CATEGORIES[cibleCat].sous[cibleSous].nom.toUpperCase(), CATEGORIES[cibleCat].nom], cibleCat, true, 1, 26);
@@ -582,10 +758,10 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   function appliquer(etat: OrbState): void {
     etatBackend = etat;
     if (rechercheForcee) return;
-    const prochain: Mode = raisonsOuvert.size > 0 ? "ouvert" : (MODE_DE_ETAT[etat] ?? "veille");
+    const prochain: Mode = raisonsOuvert.size > 0 ? "ouvert" : menuActif && etat === "idle" ? "menu" : (MODE_DE_ETAT[etat] ?? "veille");
     if (prochain === mode) return;
     // Réponse sans phase de réflexion (commande locale instantanée) : la recherche se joue quand même, pendant la parole
-    if (prochain === "reflexion" || (prochain === "parole" && mode !== "reflexion")) { tSeq = maintenant(); r1 = r2 = null; }
+    if (prochain === "reflexion" || (prochain === "parole" && mode !== "reflexion")) { tSeq = maintenant(); r1 = null; rho0Seq = rhoCourant; }
     mode = prochain; cible = CIBLES[prochain];
   }
 
@@ -638,14 +814,22 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       return new Promise((fin) => {
         if (texte) noteText(texte);
         if (module) setModule(module[0], module[1]);
-        confirme = true; r1 = r2 = null;   // cible connue d'emblée
+        confirme = true; r1 = null; rho0Seq = rhoCourant;   // cible connue d'emblée
         if (tempoVeille) { clearTimeout(tempoVeille); tempoVeille = null; }
         rechercheForcee = true; mode = "reflexion"; cible = CIBLES.reflexion; tSeq = maintenant();
         setTimeout(() => { rechercheForcee = false; fin(); }, (sequence().T + 0.7 + 0.3) * 1000);
       });
     },
     ecranOuvert(): boolean { return mode === "ouvert" && P.h > 0.97 && P.open > 0.93; },
+    modeActuel(): string { return mode; },
+    setMenu(actif: boolean): void { menuActif = actif; appliquer(etatBackend); },
+    setMenuHauteur(hh: number): void { CIBLES.menu.h = cl(hh, 0, 1); },
+    cylindreOuvert(): number { return cl(P.h, 0, 1); },
     emplacement: emplacementCentre,
+    rectEcran() {
+      const w = ecran.demi * 2 * echelle, top = origY + ecran.top * echelle;
+      return { left: largeur / 2 - w / 2, top, width: w, height: origY + ecran.bas * echelle - top };
+    },
     destroy(): void { if (tempoVeille) clearTimeout(tempoVeille); cancelAnimationFrame(raf); window.removeEventListener("resize", ajuster); demoTimers.forEach(clearTimeout); },
   };
 }

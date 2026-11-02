@@ -3,13 +3,26 @@
 // s'y posent. On observe leur classe plutôt que de modifier chaque panneau : ouverture ou fermeture,
 // quelle qu'en soit la cause (commande vocale, bouton, croix), le cylindre suit.
 import { orb } from "./orb_state";
+import { surveillerPleinEcran } from "./plein_ecran";
 
 const jetons = new Map<string, number>();    // dernière demande d'ouverture par raison : une fermeture annule celle en cours
 const attentes = new Map<string, number>();  // sondes « l'écran est-il ouvert ? »
 const suiveurs = new Map<string, ResizeObserver>();  // repositionnent un widget posé dans l'écran quand sa taille change
 let compteur = 0;
 
-const reinitialiserPosition = (el: HTMLElement): void => { Object.assign(el.style, { left: "", top: "", right: "", bottom: "" }); };
+const reinitialiserPosition = (el: HTMLElement): void => { Object.assign(el.style, { left: "", top: "", right: "", bottom: "", transform: "", zIndex: "", position: "" }); };
+
+/** Une nouvelle demande remplace l'affichage précédent : les autres widgets / panneaux ouverts se retirent. */
+function fermerAutres(raison: string, el: HTMLElement): void {
+  for (const s of SURVEILLES) {
+    const autre = s.raison === raison ? null : document.querySelector(s.selecteur) as HTMLElement | null;
+    if (!autre || autre === el || !s.visible(autre)) continue;
+    if (s.centre) {
+      autre.classList.remove("hud-revealed"); autre.classList.add("hud-sinking");
+      window.setTimeout(() => autre.classList.remove("hud-sinking"), 480);
+    } else { autre.classList.remove("visible"); autre.classList.add("hidden"); }
+  }
+}
 
 /**
  * Fait apparaître un élément à la façon de JARVIS : il reste invisible pendant la recherche de la fiche (défilement,
@@ -18,6 +31,7 @@ const reinitialiserPosition = (el: HTMLElement): void => { Object.assign(el.styl
  * `mot` impose le thème trouvé ; sans lui, la fiche suit la phrase prononcée.
  */
 export function ouvrirEcran(raison: string, el: HTMLElement, mot = "", centre = false, module?: [categorie: string, sous: string | null]): void {
+  fermerAutres(raison, el);
   const jeton = ++compteur;
   jetons.set(raison, jeton);
   el.style.visibility = "hidden";
@@ -57,30 +71,39 @@ export function fermerEcran(raison: string, el?: HTMLElement, centre = false): v
   const id = attentes.get(raison);
   if (id !== undefined) { clearInterval(id); attentes.delete(raison); }
   suiveurs.get(raison)?.disconnect(); suiveurs.delete(raison);
-  if (el) { el.style.visibility = ""; if (centre) reinitialiserPosition(el); }
+  if (el) {
+    el.style.visibility = "";
+    // un widget qui s'enfonce dans le sol le fait là où il est : sa position n'est rendue qu'à la fin de l'animation
+    // (widgets comme panneaux déplacés à la main : ils retrouvent leur place d'origine, donc le bas du cylindre, à la prochaine ouverture)
+    if (el.classList.contains("hud-sinking")) window.setTimeout(() => { if (!el.classList.contains("hud-revealed")) reinitialiserPosition(el); }, 500);
+    else window.setTimeout(() => { if (!jetons.has(raison)) reinitialiserPosition(el); }, centre ? 0 : 450);
+  }
   orb.setOuvert(raison, false);
 }
 
 // Éléments suivis par leur classe : ouverture ou fermeture, quelle qu'en soit la cause (voix, bouton, croix), l'écran suit.
 // mot : thème imposé à la recherche ("" = celui de la phrase) ; centre : posé au milieu de l'écran.
+// Les widgets (centre) se posent dans l'écran du cylindre ; les panneaux, eux, sortent du cylindre et s'étendent à leur taille (plein_ecran.ts).
 const SURVEILLES: { raison: string; selecteur: string; visible: (el: HTMLElement) => boolean; mot: string; centre: boolean; module?: [string, string | null] }[] = [
   { raison: "widget-meteo", selecteur: "#weather-hud", visible: (el) => el.classList.contains("hud-revealed"), mot: "", centre: true, module: ["MÉTÉO", null] },
   { raison: "widget-calendrier", selecteur: "#calendar-hud", visible: (el) => el.classList.contains("hud-revealed"), mot: "", centre: true, module: ["AGENDA", "Calendrier"] },
   { raison: "widget-musique", selecteur: "#music-hud", visible: (el) => el.classList.contains("hud-revealed"), mot: "", centre: true, module: ["MUSIQUE", null] },
   ...([
-    ["recette", "#recipe-modal"], ["courses", "#shopping-panel"], ["systeme", "#system-panel"], ["winget", "#winget-panel"],
-    ["desinstallation", "#uninstaller-panel"], ["antivirus", "#av-panel"], ["coffre", "#vault-panel"],
-  ] as [string, string][]).map(([raison, selecteur]) => ({
-    raison, selecteur, mot: "", centre: false,
+    ["recette", "#recipe-modal", "CUISINE", "Recettes"], ["courses", "#shopping-panel", "CUISINE", "Liste de courses"], ["systeme", "#system-panel", "SYSTÈME", null],
+    ["winget", "#winget-panel", "LOGICIELS", "Mises à jour"], ["desinstallation", "#uninstaller-panel", "LOGICIELS", "Désinstaller"],
+    ["antivirus", "#av-panel", "SÉCURITÉ", "Antivirus"], ["coffre", "#vault-panel", "SÉCURITÉ", "Coffre-fort"],
+  ] as [string, string, string, string | null][]).map(([raison, selecteur, cat, sous]) => ({
+    raison, selecteur, mot: "", centre: false, module: [cat, sous] as [string, string | null],
     visible: (el: HTMLElement) => el.classList.contains("visible") && !el.classList.contains("hidden"),
   })),
-  { raison: "domotique", selecteur: "#ha-panel", visible: (el) => !el.classList.contains("hidden"), mot: "lumière", centre: false },
+  { raison: "domotique", selecteur: "#ha-panel", visible: (el) => !el.classList.contains("hidden"), mot: "", centre: false, module: ["MAISON", "Lumières"] },
 ];
 
 export function initCylindreOuvert(): void {
   for (const { raison, selecteur, visible, mot, centre, module } of SURVEILLES) {
     const el = document.querySelector(selecteur) as HTMLElement | null;
     if (!el) continue;
+    if (!centre && module) { surveillerPleinEcran(selecteur, raison, module, { visible, avant: (e) => fermerAutres(raison, e) }); continue; }
     let actif = false;
     const maj = (): void => {
       const v = visible(el);
@@ -90,4 +113,7 @@ export function initCylindreOuvert(): void {
     new MutationObserver(maj).observe(el, { attributes: true, attributeFilter: ["class"] });
     maj();
   }
+  // Salon d'agents et éditeur de code : fenêtres affichées par d'autres modules, elles sortent aussi du cylindre
+  surveillerPleinEcran("#swarm-lounge-hud", "salon-agents", ["CRÉATION", "Projet"]);
+  surveillerPleinEcran("#code-editor-modal", "editeur-code", ["CRÉATION", "Éditeur"]);
 }

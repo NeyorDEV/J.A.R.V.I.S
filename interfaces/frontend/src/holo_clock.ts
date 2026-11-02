@@ -30,7 +30,13 @@ export function initHoloClock(): void {
     const d = new Date(), s = d.getSeconds() + d.getMilliseconds() / 1000;
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, LARGEUR, HAUTEUR);
     ls(9); g.font = "400 36px Orbitron,Consolas,monospace"; g.fillStyle = "#eaf8ff"; g.textAlign = "center"; g.textBaseline = "middle";
-    g.fillText(`${p2(d.getHours())}${Math.floor(s * 2) % 2 === 0 ? ":" : " "}${p2(d.getMinutes())}`, LARGEUR / 2 + 4, 34); ls(0);
+    // Les deux-points clignotent sans bouger l'heure : heures, deux-points et minutes sont posés à des places fixes
+    const hh = p2(d.getHours()), mm = p2(d.getMinutes()), largeurTexte = g.measureText(`${hh}:${mm}`).width, xh = LARGEUR / 2 + 4 - largeurTexte / 2;
+    g.textAlign = "left";
+    g.fillText(hh, xh, 34);
+    if (Math.floor(s * 2) % 2 === 0) g.fillText(":", xh + g.measureText(hh).width, 34);
+    g.fillText(mm, xh + g.measureText(`${hh}:`).width, 34); ls(0);
+    g.textAlign = "center";
     ([[24, 132, 1], [308, 416, -1]] as [number, number, number][]).forEach(([x0, x1, dir]) => {
       const bout = dir > 0 ? x1 : x0, debut = dir > 0 ? x0 : x1;
       g.strokeStyle = A("0,229,255", 0.5); g.lineWidth = 0.6; g.beginPath(); g.moveTo(x0, 34); g.lineTo(x1, 34); g.stroke();

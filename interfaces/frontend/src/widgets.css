@@ -24,9 +24,19 @@
 
 /* ── Widget reveal animation ─────────────────────────────────────────────── */
 @keyframes widget-reveal {
-  from { opacity: 0; transform: translateY(12px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
+  0%   { opacity: 0; transform: translateY(46px) scale(0.07, 0.5); filter: brightness(2.2); }
+  55%  { opacity: 1; transform: translateY(8px)  scale(0.9, 0.9);  filter: brightness(1.4); }
+  100% { opacity: 1; transform: translateY(0)    scale(1);         filter: none; }
 }
+@keyframes widget-sink {
+  0%   { opacity: 1; transform: translateY(0)    scale(1);         filter: none; }
+  45%  { opacity: 1; transform: translateY(8px)  scale(0.9, 0.9);  filter: brightness(1.4); }
+  100% { opacity: 0; transform: translateY(46px) scale(0.07, 0.5); filter: brightness(2.2); }
+}
+#calendar-hud, #weather-hud, #music-hud { transform-origin: 50% 100%; }
+#calendar-hud.hud-sinking { display: block; }
+#weather-hud.hud-sinking, #music-hud.hud-sinking { display: flex; }
+.hud-sinking { animation: widget-sink 0.45s cubic-bezier(0.55, 0, 0.7, 0.2) forwards; pointer-events: none; }
 
 /* ── Widgets cachés par défaut — s'affichent sur commande vocale ──────────── */
 #calendar-hud,
@@ -37,17 +47,17 @@
 
 #calendar-hud.hud-revealed {
   display: block;
-  animation: widget-reveal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: widget-reveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 #weather-hud.hud-revealed {
   display: flex;
-  animation: widget-reveal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: widget-reveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 #music-hud.hud-revealed {
   display: flex;
-  animation: widget-reveal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: widget-reveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ── Curseur drag sur les zones non-interactives des widgets ─────────────── */

@@ -57,6 +57,12 @@ from core.console_ui import installer_console
 # ── Banner affiché immédiatement avant les imports lourds ──────
 installer_console()
 
+# ── Démarrage en parallèle des imports : Vite (interface) et préchargement des bibliothèques lourdes ──
+from core.lancement import preparer_frontend, attendre_frontend
+from core.prechargement import lancer_prechargement
+preparer_frontend()
+lancer_prechargement()
+
 # Masquer l'avertissement de dépréciation de pkg_resources (pygame/setuptools) avant tout import
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
@@ -225,9 +231,7 @@ from core.ws_handler import gerer_connexion_ws
 from core.ecoute import boucle_ecoute
 from core.llm_chat import generer_salutation_demarrage
 from core.micro import surveiller_claps
-from core.lancement import (
-    afficher_statut_services, liberer_ports_occupes, lancer_frontend, ouvrir_interface,
-)
+from core.lancement import afficher_statut_services, ouvrir_interface
 from module.antivirus_live import boucle_surveillance_av
 from module.domotique_sim import broadcast_ha_stats, update_homepods_metadata_loop
 from module.system_stats import diffuser_stats_systeme
@@ -311,9 +315,8 @@ def main():
     import threading
     # Plus besoin de découverte TV avec le mode ADB Direct
 
-    liberer_ports_occupes()
-
-    frontend_process, FRONTEND_URL = lancer_frontend()
+    # Vite a été lancé au tout début (preparer_frontend) : on récupère simplement son résultat
+    frontend_process, FRONTEND_URL = attendre_frontend()
 
     # Lancer les services en arriere-plan
     threading.Thread(target=demarrer_ia, daemon=True).start()
