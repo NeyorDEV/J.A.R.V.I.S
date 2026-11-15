@@ -33,3 +33,31 @@ def consigner(evenement: str, **details) -> None:
     except Exception:
         pass
 
+def resume_confirmations(jours: int = 7) -> dict:
+    """Confirmations des `jours` derniers jours lues dans le journal : par jour (confirmées / annulées ou sans réponse)
+    et la dernière. Lecture seule ; renvoie des compteurs à zéro si le journal est absent ou illisible."""
+    import datetime
+    aujourdhui = datetime.date.today()
+    jour_de = {aujourdhui - datetime.timedelta(days=i): i for i in range(jours)}
+    par_jour = [{"j": "LMMJVSD"[(aujourdhui - datetime.timedelta(days=jours - 1 - i)).weekday()], "oui": 0, "non": 0} for i in range(jours)]
+    derniere = None
+    try:
+        with open(_LOG_PATH, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(0, f.tell() - 1_000_000))
+            lignes = f.read().decode("utf-8", errors="ignore").splitlines()
+        for ligne in lignes:
+            try:
+                e = json.loads(ligne)
+                if e.get("event") not in ("confirmation_resolue", "confirmation_timeout"):
+                    continue
+                confirme = bool(e.get("confirme")) if e["event"] == "confirmation_resolue" else None
+                derniere = {"message": e.get("message", ""), "confirme": confirme, "ts": e.get("ts", "")}
+                age = jour_de.get(datetime.datetime.strptime(e["ts"], "%Y-%m-%d %H:%M:%S").date())
+                if age is not None:
+                    par_jour[jours - 1 - age]["oui" if confirme else "non"] += 1
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return {"jours": par_jour, "derniere": derniere}

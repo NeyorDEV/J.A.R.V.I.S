@@ -34,6 +34,15 @@ HA_MCP_SSE_URL = f"{HA_URL}/mcp_server/sse" if HA_URL else ""
 _outils_cache: list | None = None
 
 
+def _carte_ha_injoignable() -> None:
+    """Carte d'erreur du HUD ; ne doit jamais faire échouer l'appel domotique."""
+    try:
+        from core.alertes_service import signaler_home_assistant_injoignable
+        signaler_home_assistant_injoignable()
+    except Exception:
+        pass
+
+
 def ha_mcp_configure() -> bool:
     """Home Assistant est-il configuré (URL réelle + token) ?"""
     return bool(HA_URL) and "votre_ip_ha" not in HA_URL.lower() and bool(HA_TOKEN)
@@ -70,6 +79,7 @@ async def lister_outils_ha(force_refresh: bool = False) -> list:
         return _outils_cache
     except Exception as e:
         print(f"[HA MCP] Erreur récupération des outils : {e}")
+        _carte_ha_injoignable()
         return []
 
 
@@ -90,6 +100,7 @@ async def appeler_outil_ha(nom_outil: str, arguments: dict) -> str:
                 return "\n".join(morceaux) if morceaux else "Commande exécutée."
     except Exception as e:
         print(f"[HA MCP] Erreur appel outil '{nom_outil}' : {e}")
+        _carte_ha_injoignable()
         return f"Une erreur est survenue lors de la communication avec Home Assistant."
 
 

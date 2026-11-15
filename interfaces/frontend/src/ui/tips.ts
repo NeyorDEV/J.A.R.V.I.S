@@ -5,12 +5,15 @@ const QUICK_TIPS = [
   "DEMANDEZ : 'LANCE LE SCAN ANTIVIRUS'",
   "DEMANDEZ : 'ALLUME LA LUMIERE DU SALON'",
   "DEMANDEZ : 'LANCE UNE PARTIE D'ECHECS'",
-  "DEMANDEZ : 'LANCE LE DESSIN DE JARVIS'",
+  "DEMANDEZ : 'AFFICHE LE CALENDRIER'",
+  "DEMANDEZ : 'MONTRE MOI LA METEO DEMAIN'",
   "CONSEIL : SURVOLEZ LES BOUTONS POUR L'ATTRACTION MAGNETIQUE",
   "SAISIE DIRECTE : CLIQUEZ SUR CLAVIER POUR LES COMMANDES TEXTE",
   "CONFIGURATION : COMMANDE 'METS LA VOIX D'HOMME / DE FEMME'"
 ];
 
+// L'astuce reste un petit panneau discret dans le coin haut droit (pliable en bouton « ? »), pas une notification au milieu
+// de l'écran : elle ne doit jamais gêner les pièces éclatées. Sa hauteur suit le nombre de lignes du texte.
 export function initDynamicUserTips() {
   const tipPanelEl = document.getElementById("user-tip");
   const tipTextEl = document.getElementById("user-tip-text");
@@ -21,12 +24,26 @@ export function initDynamicUserTips() {
   let collapseTimeout: number | null = null;
   let isCollapsed = false;
 
+  /** Hauteur du panneau déplié pour ce texte : mesurée sur une copie invisible de la largeur utile (le panneau fait 290 px de large). */
+  function ajusterHauteur(texte: string): void {
+    const mesure = document.createElement("div");
+    mesure.style.cssText = "position:fixed;left:-9999px;top:0;visibility:hidden;width:258px;";
+    const tete = document.createElement("div"); tete.className = "user-tip-header"; tete.textContent = "JARVIS // QUICK_TIP";
+    const corps = document.createElement("div"); corps.className = "user-tip-body"; corps.textContent = texte;
+    mesure.append(tete, corps);
+    document.body.appendChild(mesure);
+    const h = Math.max(52, 22 + mesure.offsetHeight);
+    mesure.remove();
+    tipPanelEl!.style.height = `${h}px`;
+  }
+
   function typeText(text: string, callback: () => void) {
     let charIndex = 0;
     tipTextEl!.textContent = "";
-    
+    ajusterHauteur(text);
+
     if (typingInterval) clearInterval(typingInterval);
-    
+
     typingInterval = window.setInterval(() => {
       if (charIndex < text.length) {
         tipTextEl!.textContent += text.charAt(charIndex);
@@ -59,7 +76,7 @@ export function initDynamicUserTips() {
 
     // Choisir le conseil suivant
     currentTipIndex = (currentTipIndex + 1) % QUICK_TIPS.length;
-    
+
     // Attendre la fin de l'expansion CSS (300ms) puis dactylographier
     setTimeout(() => {
       if (!isCollapsed) {

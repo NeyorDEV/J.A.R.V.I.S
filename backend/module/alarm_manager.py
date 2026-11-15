@@ -197,6 +197,7 @@ def ajouter_alarme(heure_texte: str, label: str = "Alarme") -> tuple[bool, str]:
             "sonne": False
         })
         _sauvegarder_alarmes(alarmes)
+    diffuser_alarmes_hud()
 
     # Formatage du message
     maintenant = datetime.now()
@@ -235,6 +236,7 @@ def annuler_alarme(heure_texte: str = "", label: str = "") -> tuple[bool, str]:
       mots_globaux = {"toutes", "tout", "tous", "all", "clear"}
       if (heure_texte and heure_texte.lower().strip() in mots_globaux) or (label and label.lower().strip() in mots_globaux):
         _sauvegarder_alarmes([])
+        diffuser_alarmes_hud()
         return True, f"Toutes vos alarmes ont été annulées ({len(alarmes)} alarmes supprimées){nom_virgule()}."
 
       nouvelles = []
@@ -259,8 +261,31 @@ def annuler_alarme(heure_texte: str = "", label: str = "") -> tuple[bool, str]:
         return False, f"Je n'ai pas trouvé d'alarme correspondant à '{desc}'."
 
       _sauvegarder_alarmes(nouvelles)
+    diffuser_alarmes_hud()
     noms = ", ".join(f"'{a['label']}' à {datetime.fromisoformat(a['heure']).strftime('%H:%M')}" for a in supprimees)
     return True, f"Alarme(s) annulée(s) : {noms}."
+
+
+def alarmes_pour_hud() -> list:
+    """Alarmes et minuteurs actifs, triés, pour les pièces éclatées du HUD : libellé, heure ISO, secondes restantes."""
+    maintenant = datetime.now()
+    sortie = []
+    for a in sorted((x for x in _charger_alarmes() if not x.get("sonne")), key=lambda x: x["heure"]):
+        try:
+            cible = datetime.fromisoformat(a["heure"])
+        except Exception:
+            continue
+        sortie.append({"label": a.get("label", "Alarme"), "heure": a["heure"], "restant": max(0, int((cible - maintenant).total_seconds()))})
+    return sortie
+
+
+def diffuser_alarmes_hud() -> None:
+    """Envoie la liste à tous les HUD (après un ajout, une annulation ou une sonnerie). Sans HUD : sans effet."""
+    try:
+        from core.web_bridge import diffuser_web_sync
+        diffuser_web_sync({"action": "alarmes_liste", "alarmes": alarmes_pour_hud()})
+    except Exception:
+        pass
 
 
 def lister_alarmes() -> str:
@@ -298,7 +323,7 @@ def _notifier_hud_alarme(label_alarme: str):
         if envoyer is None:
             from core.web_bridge import diffuser_web_sync as envoyer
         envoyer({"action": "ctx_card", "title": "ALARME", "text": label_alarme,
-                 "type": "alert", "icon": "⏰", "duration": 15000})
+                 "type": "alert", "priorite": "alarme", "icon": "⏰", "duration": 15000})
     except Exception as e:
         print(f"[ALARME] Notification HUD impossible : {e}")
 
@@ -342,6 +367,7 @@ def _surveiller_alarmes():
                         if not a.get("sonne") or datetime.fromisoformat(a["heure"]) > seuil
                     ]
                     _sauvegarder_alarmes(alarmes)
+                    diffuser_alarmes_hud()
 
             for label_alarme in a_sonner:
                 try:

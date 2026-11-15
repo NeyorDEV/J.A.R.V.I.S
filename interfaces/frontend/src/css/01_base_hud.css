@@ -29,11 +29,11 @@ body {
   transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Mode AR, globe : toute la scène du cylindre (socle, écran, panneaux) réduite d'un bloc dans le coin bas gauche, sans déformation */
 #orb-canvas.minimized {
-  transform: translate(-38%, 38%) scale(0.25);
+  transform: scale(0.3);
+  transform-origin: 0% 100%;
   z-index: 300;
-  /* Above everything when minimized */
-  /* No box shadow to keep it integrated */
 }
 
 /* Ã¢â€â‚¬Ã¢â€â‚¬ Status text Ã¢â‚¬â€ "listeningÃ¢â‚¬Â¦" / "thinkingÃ¢â‚¬Â¦" Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
@@ -512,52 +512,6 @@ body {
 @keyframes boot-fadein {
   from { opacity: 0; transform: translateY(-18px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Anneaux segmentés façon scanner HUD (même langage visuel que l'icône) :
-   rotation lente, vitesse/sens différents par anneau pour éviter tout
-   synchronisme mécanique. La sphère de points au centre tourne en vrai 3D
-   via JS (voir initBootOrbSphere dans main.ts), pas en CSS. */
-#boot-orb-ring-outer {
-  transform-origin: 100px 100px;
-  animation: boot-orb-spin 22s linear infinite;
-}
-
-#boot-orb-ring-dash {
-  transform-origin: 100px 100px;
-  animation: boot-orb-spin 30s linear infinite reverse;
-}
-
-#boot-orb-ring-inner {
-  transform-origin: 100px 100px;
-  animation: boot-orb-spin 16s linear infinite;
-}
-
-@keyframes boot-orb-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
-.boot-orb-ring {
-  stroke: #3ce1f5;
-  transition: stroke 0.6s ease;
-}
-
-#boot-logo-section.online .boot-orb-ring {
-  stroke: #22c55e;
-}
-
-.boot-orb-dot {
-  fill: rgba(170,255,250,0.95);
-  transition: fill 0.6s ease;
-}
-
-#boot-logo-section.online .boot-orb-dot {
-  fill: rgba(140,255,180,0.95);
-}
-
-#boot-logo-section.online .boot-orb-dot {
-  fill: rgba(140,255,180,0.95);
 }
 
 #boot-logo-text {

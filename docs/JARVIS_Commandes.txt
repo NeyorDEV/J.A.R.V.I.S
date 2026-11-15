@@ -123,6 +123,12 @@
   - Trace un itinéraire de [Ville A] à [Ville B] / Trajet de [A] à [B] -> Trace la route (grand cercle) entre deux villes et la cadre
   - Ferme la carte / Ferme le globe / Retour à JARVIS -> Ferme le globe et revient à l'interface principale
 
+[ Vue de Dieu (God's Eye View) ]
+  - Active la vue de Dieu / Lance la vue de Dieu / Ouvre la vue de Dieu -> Lance God's Eye View (globe 3D avec avions, bateaux, satellites, séismes, caméras publiques en direct) en plein écran. Pas encore installé : JARVIS demande s'il doit l'installer depuis la dernière release GitHub (oui / non, à la voix ou au clic) ; une nouvelle version existe : il propose la mise à jour
+  - Mets à jour la vue de Dieu -> Installe la dernière release si elle est plus récente que la version installée
+  - Va à Tokyo / Montre-moi Paris / Survole le Mont Blanc (vue de Dieu ouverte) -> Déplace la caméra sur ce lieu
+  - Ferme la vue de Dieu (ou la croix, ou Échap) -> Referme la vue et arrête son serveur local
+
 [ Télévision (Philips / Android TV) ]
   - Allume la télé / Éteins la télé -> Contrôle électrique de votre téléviseur par Wake-on-LAN et ADB
   - Lance [Netflix / YouTube / Disney+ / Prime Video / Deezer / Crunchyroll / Twitch / Apple TV] sur la télé -> Lancement d'applications
@@ -352,10 +358,6 @@
 [ Cortex Neuronal & Mémoire Avancée ]
   - Cherche dans mon cortex [sujet] / Trouve dans le cortex [sujet] -> Lance une recherche sémantique vectorielle dans vos souvenirs et met en surbrillance les nœuds correspondants
   - Lis ce souvenir / Raconte cette mémoire / Lis le souvenir -> Récite vocalement le contenu détaillé et la date du souvenir actuellement sélectionné dans le cortex 3D
-
-[ Protocole Démo & Orbe ]
-  - Démonstration / Lance la démo / Protocole de démo / Fais une démo -> Démarre le protocole de chorégraphie lumineuse 3D et de pulsations de l'Orbe de JARVIS
-  - Écrit le mot [MOT] / Écris le mot [MOT] / Orbe écrit le mot [MOT] -> L'Orbe Three.js se déforme et réorganise ses 2000 particules en 3D pour dessiner le mot dicté pendant 7 secondes
 
 [ Jeu d'Échecs Avancé ]
   - Lance la partie niveau [débutant (600 Elo) / novice (800 Elo) / moyen (1000 Elo) / intermédiaire (1400 Elo) / expert (1800 Elo) / maître (2000 Elo)] -> Configure précisément le Bot IA d'échecs

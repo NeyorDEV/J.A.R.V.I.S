@@ -8,7 +8,7 @@ import * as THREE from 'three';
 
 // ── Types & Configuration ─────────────────────────────────────
 
-interface DeviceNodeData {
+export interface DeviceNodeData {
   id: string;
   name: string;
   type: 'light' | 'plug' | 'sensor' | 'speaker';
@@ -16,7 +16,7 @@ interface DeviceNodeData {
   relPos: THREE.Vector3; // Position relative au centre de sa pièce
 }
 
-interface RoomData {
+export interface RoomData {
   id: string;
   name: string;
   level: number; // Y offset factor
@@ -25,7 +25,7 @@ interface RoomData {
   color: number;
 }
 
-const ROOMS: RoomData[] = [
+export const ROOMS: RoomData[] = [
   // Level 1: Premier Étage (Y = 0)
   { id: 'salon', name: 'SÉJOUR', level: 0, pos: new THREE.Vector3(0, 0, -0.5), size: new THREE.Vector3(5.0, 0.8, 5.0), color: 0x00e5ff },
   { id: 'cuisine', name: 'CUISINE', level: 0, pos: new THREE.Vector3(-1.25, 0, -1.75), size: new THREE.Vector3(2.5, 0.8, 2.5), color: 0x00e5ff },
@@ -43,7 +43,7 @@ const ROOMS: RoomData[] = [
   { id: 'toilettes', name: 'WC', level: 1, pos: new THREE.Vector3(-4.45, 2.5, -1.4), size: new THREE.Vector3(1.2, 0.8, 1.2), color: 0x00e5ff }
 ];
 
-const DEVICES: DeviceNodeData[] = [
+export const DEVICES: DeviceNodeData[] = [
   // Salon
   { id: 'light.salon', name: 'Salon Principal', type: 'light', room: 'salon', relPos: new THREE.Vector3(0, 0.3, 0) },
   { id: 'light.plafond', name: 'Plafond Salon', type: 'light', room: 'salon', relPos: new THREE.Vector3(-1.2, 0.3, -1.0) },

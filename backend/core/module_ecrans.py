@@ -99,16 +99,18 @@ def google_pret():
 
 
 def _agenda():
+    """Prochains événements. `jour` (AAAA-MM-JJ) permet au HUD de les ranger par jour du calendrier ; sans connexion Google, un message honnête (`message`)."""
     if not google_pret():
-        return None
+        return {"titre": "AGENDA", "sous_titre": "GOOGLE AGENDA", "lignes": [], "pied": None, "message": "Google Agenda n'est pas connecté."}
     from datetime import datetime, timezone
     from module import google_services as gs
     service = gs.service_agenda()
     if not service:
-        return None
-    items = service.events().list(calendarId="primary", timeMin=datetime.now(timezone.utc).isoformat(), maxResults=6,
+        return {"titre": "AGENDA", "sous_titre": "GOOGLE AGENDA", "lignes": [], "pied": None, "message": "Google Agenda est indisponible."}
+    items = service.events().list(calendarId="primary", timeMin=datetime.now(timezone.utc).isoformat(), maxResults=25,
                                   singleEvents=True, orderBy="startTime").execute().get("items", [])
-    lignes = [{"t": e.get("summary", "Sans titre"), "d": gs._date_lisible(e["start"].get("dateTime", e["start"].get("date"))), "v": None, "etat": None} for e in items]
+    debuts = [e["start"].get("dateTime", e["start"].get("date")) for e in items]
+    lignes = [{"t": e.get("summary", "Sans titre"), "d": gs._date_lisible(debut), "jour": debut[:10], "v": None, "etat": None} for e, debut in zip(items, debuts)]
     return {"titre": "AGENDA", "sous_titre": "PROCHAINS ÉVÉNEMENTS", "lignes": lignes or [{"t": "Aucun événement à venir", "d": None, "v": None, "etat": None}], "pied": None}
 
 

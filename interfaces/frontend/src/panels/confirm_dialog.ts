@@ -1,34 +1,16 @@
-import { wsRef } from "../ws_link";
+// Confirmation avant action destructrice (désinstallation, suppression...) : affichée en pièces éclatées autour du cylindre
+// (hud/pieces_alertes.ts). La réponse se donne en maintenant l'hexagone 1 s, ou à la voix (« oui » / « non », interceptée par le backend).
+import { afficherConfirmation, confirmationResolue, type HistoriqueConfirmation, type LigneConfirmation } from "../hud/pieces_alertes";
 
-// Popup de confirmation avant action destructrice (désinstallation, suppression...)
-const confirmDialogOverlay = document.getElementById("confirm-dialog-overlay") as HTMLDivElement;
-const confirmDialogMessage = document.getElementById("confirm-dialog-message") as HTMLDivElement;
-const confirmDialogConfirmBtn = document.getElementById("confirm-dialog-confirm") as HTMLButtonElement;
-const confirmDialogCancelBtn = document.getElementById("confirm-dialog-cancel") as HTMLButtonElement;
-let confirmDialogPendingId: string | null = null;
-
-export function showConfirmDialog(id: string, message: string) {
-  confirmDialogPendingId = id;
-  if (confirmDialogMessage) confirmDialogMessage.textContent = message;
-  confirmDialogOverlay?.classList.remove("hidden");
+export function showConfirmDialog(id: string, message: string, lignes?: LigneConfirmation[], duree?: number, historique?: HistoriqueConfirmation | null) {
+  afficherConfirmation(id, message, lignes, duree, historique);
 }
 
-// Confirmation résolue ailleurs (réponse vocale, autre fenêtre, délai écoulé) : le popup
-// restait affiché.
-export function closeConfirmDialog(id: string) {
-  if (confirmDialogPendingId !== id) return;
-  confirmDialogPendingId = null;
-  confirmDialogOverlay?.classList.add("hidden");
-}
-
-function answerConfirmDialog(confirmed: boolean) {
-  if (!confirmDialogPendingId) return;
-  wsRef.current?.send(JSON.stringify({ type: "confirm_response", id: confirmDialogPendingId, confirmed }));
-  confirmDialogPendingId = null;
-  confirmDialogOverlay?.classList.add("hidden");
+// Confirmation résolue ailleurs (réponse vocale, autre fenêtre, délai écoulé) : les pièces se referment.
+export function closeConfirmDialog(id: string, confirme?: boolean | null) {
+  confirmationResolue(id, confirme);
 }
 
 export function initConfirmDialog(): void {
-  confirmDialogConfirmBtn?.addEventListener("click", () => answerConfirmDialog(true));
-  confirmDialogCancelBtn?.addEventListener("click", () => answerConfirmDialog(false));
+  // Rien à brancher : les boutons vivent dans les pièces, créées à la demande.
 }

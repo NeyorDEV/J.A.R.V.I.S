@@ -66,11 +66,21 @@ def _texte_substantiel(texte: str) -> bool:
     lettres = sum(1 for c in texte if c.isalpha())
     if lettres < 3:
         return False
+    # Phrase coupée net (« active l », « montre la », « ouvre le ») : le modèle devine la suite et lance une action
+    # que personne n'a demandée. Vécu : « active l » a affiché la météo. Un fragment d'élision en fin de
+    # phrase (« l », « l' » ; pas « m6 » ni « plan b ») ou un article / une préposition seuls = phrase inachevée, pas une commande.
+    mots_bruts = texte.split()
+    dernier = re.sub(r"[.,;:!?…]+$", "", mots_bruts[-1].lower()) if len(mots_bruts) >= 2 else ""
+    if dernier and (dernier in _FINS_INACHEVEES or dernier.strip("'’") in _FRAGMENTS_ELISION):
+        return False
     # Acquiescement ou interjection seuls (« oui », « d'accord », « merci »…) : pas une
     # commande. Vécu : « Jarvis, oui. » a été classé « montre le calendrier ».
     mots = re.findall(r"[a-zà-ÿœ']+", texte.lower())
     return not mots or not all(m in _INTERJECTIONS for m in mots)
 
+
+_FRAGMENTS_ELISION = {"l", "d", "j", "m", "t", "s", "n"}   # « l'ar », « d'accord »… coupés avant la voyelle ; pas « b » ni « c » (« plan b », « vitamine c »)
+_FINS_INACHEVEES = {"le", "la", "les", "un", "une", "des", "de", "du", "au", "aux", "en", "et", "ou", "pour", "sur", "mon", "ma", "mes", "ce", "cette", "ces"}
 
 _INTERJECTIONS = {
     "oui", "ouais", "ouaip", "non", "nan", "ok", "okay", "d'accord", "dac", "merci", "beaucoup",
@@ -94,7 +104,7 @@ _ORDRE_RESOLVEURS = [
     "resoudre_dom_hud", "resoudre_developpement", "resoudre_uninstaller_localement", "resoudre_local_mode",
     "resoudre_lancer_enigme", "resoudre_os_autopilot", "resoudre_creation_plugin",
     "resoudre_generation_document", "resoudre_images_locales", "resoudre_modifier_image",
-    "resoudre_recipe", "resoudre_connexions_reseau",
+    "resoudre_recipe", "resoudre_connexions_reseau", "resoudre_vue_de_dieu",
     "resoudre_dev_swarm", "resoudre_lance_sandbox", "resoudre_creation_site_web",
     "resoudre_ouvrir_site_web", "resoudre_tv_localement", "resoudre_steam_jeux",
     "resoudre_navigateur", "resoudre_discord", "resoudre_skills",
@@ -116,7 +126,7 @@ _INTERDITS_INVITE = {
     "resoudre_lance_sandbox", "resoudre_creation_site_web", "resoudre_uninstaller_localement",
     "resoudre_local_mode", "resoudre_generation_document", "resoudre_modifier_image",
     "resoudre_memoire_locale", "resoudre_developpement", "resoudre_steam_jeux",
-    "resoudre_navigateur", "resoudre_discord", "resoudre_skills",
+    "resoudre_navigateur", "resoudre_discord", "resoudre_skills", "resoudre_vue_de_dieu",
 }
 # Fonctions builtins.resoudre_* qui ne sont pas des resolvers de commande
 _HORS_CHAINE = {"interpreter_chemin", "resoudre_echecs_localement",
@@ -262,7 +272,10 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
         # FUNCTION CALLING GEMINI : aucun resolver par mots-clés n'a compris la phrase.
         # Un modèle rapide la mappe sur une intention connue (→ phrase canonique) qu'on
         # repasse dans les resolvers. Tout échec suit le chemin historique (interroger_ia).
+        # Voix inconnue (invité) : pas de devinette. Une phrase mal transcrite (bruit, voix de la télé, conversation à côté) était mappée par le modèle sur une vraie commande :
+        # vécu le 13/11/2026, « il fait cause connor jarvis » lançait la recherche de l'artiste Connor sur Deezer. Les commandes par mots-clés restent disponibles.
         if (not reponse and shared._USE_LLM_INTENT and _texte_substantiel(texte_utilisateur)
+                and getattr(shared, "ACTIVE_SPEAKER", "guest") != "guest"
                 and (est_action_oriented(texte_utilisateur) or len(texte_utilisateur.split()) <= 12)):
             try:
                 from core.intent_dispatcher import resoudre_intention_llm

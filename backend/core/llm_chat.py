@@ -6,6 +6,7 @@ import builtins
 import json
 import re
 import threading
+import time
 from datetime import datetime
 
 import google.genai as genai
@@ -32,8 +33,12 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
     try:
         # --- ROUTAGE HYBRIDE INTELLIGENT (LOCAL-FIRST) ---
         force_local = getattr(builtins, "FORCE_LOCAL_MODE", False)
+        _t_net = time.monotonic()
         offline = not est_connecte_internet()
-        
+        _d_net = time.monotonic() - _t_net
+        if _d_net > 0.05:
+            print(f"[PERF] Test de connexion internet : {_d_net:.2f} s")
+
         # Déterminer si on utilise le cortex local par défaut (vitesse) ou si on élève vers le cloud
         utiliser_local = force_local or offline
         
@@ -109,7 +114,9 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
                 raise _ErreurQuotaApi("Tous les modèles Gemini sont en cooldown")
 
             print(f"[CERVEAU] Modèles Gemini disponibles : {modeles_disponibles}...")
+            _t_souv = time.monotonic()
             souvenirs = rechercher_souvenirs(texte)
+            print(f"[PERF] Recherche de souvenirs : {time.monotonic() - _t_souv:.2f} s")
             temp_hist = shared.historique + [types.Content(role="user", parts=[types.Part(text=texte)])]
             prompt_actuel = composer_prompt_systeme(souvenirs=souvenirs)
             last_err = None

@@ -56,6 +56,10 @@ from core.console_ui import installer_console
 
 # ── Banner affiché immédiatement avant les imports lourds ──────
 installer_console()
+import time as _time
+_T0 = _time.monotonic()
+# Sans ces lignes la console reste vide pendant tout le chargement (plusieurs secondes, davantage disque froid / antivirus) : les lignes de détail sont masquées.
+print("[DEMARRAGE] Chargement des bibliothèques (plusieurs secondes, davantage au premier lancement de la journée)...")
 
 # ── Démarrage en parallèle des imports : Vite (interface) et préchargement des bibliothèques lourdes ──
 from core.lancement import preparer_frontend, attendre_frontend
@@ -109,6 +113,7 @@ threading.Thread(target=speech.gestionnaire_parole_worker, daemon=True).start()
 from core.voice_init import initialiser_vad_biometrie, charger_options_config
 initialiser_vad_biometrie()
 charger_options_config()
+print(f"[DEMARRAGE] Reconnaissance vocale prête ({_time.monotonic() - _T0:.0f} s). Chargement des modules (mémoire, services, plugins)...")
 
 import module.file_manager
 builtins.interpreter_chemin = module.file_manager.interpreter_chemin
@@ -255,6 +260,23 @@ def demarrer_ia():
         except Exception as e:
             print(f"[DEEZER] Réparation au démarrage impossible : {e}")
     threading.Thread(target=_reparer_deezer, daemon=True).start()
+
+    # Préchauffage hors du chemin d'une question : base vectorielle (ouverture + modèle d'embedding) et test internet.
+    # Sans lui, la première question après le démarrage payait ~1,5 s de chargement + jusqu'à 1,6 s de test réseau.
+    def _prechauffer():
+        t0 = time.monotonic()
+        try:
+            from module.vector_memory import rechercher_souvenirs
+            rechercher_souvenirs("bonjour")
+            print(f"[PERF] Mémoire vectorielle préchauffée en {time.monotonic() - t0:.1f} s")
+        except Exception as e:
+            print(f"[PERF] Préchauffage de la mémoire vectorielle impossible : {e}")
+        try:
+            from core.web_bridge import preverifier_internet
+            preverifier_internet()
+        except Exception as e:
+            print(f"[PERF] Test internet de démarrage impossible : {e}")
+    threading.Thread(target=_prechauffer, daemon=True).start()
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

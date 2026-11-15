@@ -9,6 +9,7 @@ Seules les informations relatives au créateur (son identité, ses droits) reste
 """
 
 import builtins
+import re
 import json
 import os
 
@@ -48,7 +49,29 @@ def infos_createur():
     infos = _config().get("createur_infos", [])
     if isinstance(infos, str):
         infos = [infos]
-    return [str(i).strip() for i in infos if str(i).strip()]
+    infos = [str(i).strip() for i in infos if str(i).strip()]
+    age = _age_depuis_naissance(infos)
+    if age is None:
+        return infos
+    # L'âge est recalculé chaque jour depuis la date de naissance : la ligne « Age : N ans » écrite à la main est remplacée
+    return [f"Age : {age} ans" if re.match(r"(?i)^[aâ]ge\b", i) else i for i in infos] if any(re.match(r"(?i)^[aâ]ge\b", i) for i in infos) else [f"Age : {age} ans", *infos]
+
+
+_MOIS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"]
+
+
+def _age_depuis_naissance(infos):
+    """Âge en années d'après une ligne « Date de naissance : 23 Avril 2007 » (accents facultatifs), ou None."""
+    import unicodedata
+    from datetime import date
+    for ligne in infos:
+        t = "".join(c for c in unicodedata.normalize("NFD", ligne.lower()) if unicodedata.category(c) != "Mn")
+        m = re.search(r"naissance\s*:?\s*(\d{1,2})\s+([a-z]+)\s+(\d{4})", t)
+        if m and m.group(2) in _MOIS:
+            j, mois, an = int(m.group(1)), _MOIS.index(m.group(2)) + 1, int(m.group(3))
+            auj = date.today()
+            return auj.year - an - ((auj.month, auj.day) < (mois, j))
+    return None
 
 
 def profil_actif():

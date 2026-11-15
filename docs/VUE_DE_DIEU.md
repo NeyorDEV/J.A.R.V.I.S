@@ -1,0 +1,74 @@
+# Vue de Dieu (God's Eye View)
+
+[God's Eye View](https://github.com/bilawalsidhu/gods-eye-view) (licence MIT pour le code ; données et modèles 3D tiers sous leurs propres
+licences, parfois non commerciales : voir son `LICENSE` et `DATA_SOURCES.md`) est une appli web de globe 3D en direct : avions, bateaux,
+satellites, séismes, feux, caméras publiques, météo.
+
+**Elle n'est pas dans ce dépôt.** Chaque utilisateur l'installe s'il le veut, depuis la dernière release GitHub.
+
+## Ce que fait JARVIS
+
+| Vous dites | JARVIS |
+|---|---|
+| « active / lance / ouvre la vue de Dieu » | Installée : lance le serveur local et affiche l'appli en plein écran. Pas installée : demande « God's Eye View n'est pas installé sur cet ordinateur. Voulez-vous l'installer ? » (voix ou boutons OUI / NON du HUD), puis télécharge, installe, ouvre. |
+| (installée, release plus récente) | Propose la mise à jour une fois par version (« Une nouvelle version… est disponible. Voulez-vous la mettre à jour ? »). Vérification une fois par jour. |
+| « mets à jour la vue de Dieu » | Installe la dernière release si elle est plus récente, sans poser la question. |
+| « va à Tokyo », « montre-moi Paris » (vue ouverte) | Déplace la caméra (lien partageable `#v=2&lat=…&lon=…`). |
+| « ferme la vue de Dieu » (ou la croix, Échap) | Ferme la vue et arrête le serveur. Pendant une installation : l'annule. |
+
+## Où est quoi
+
+- `data/gods_eye_view/app/` : l'appli (release GitHub, sans ses GIF de démonstration et ses modèles de tickets) + `jarvis.vite.config.mjs`.
+- `data/gods_eye_view/node/` : Node.js 24 portable, seulement si l'ordinateur n'a pas Node 24.14+ ou 26 (zip officiel, somme de contrôle vérifiée ;
+  rien n'est installé dans Windows).
+- `data/gods_eye_view/version.json` : version installée, dernière vérification, version refusée.
+- `data/gods_eye_view.log` : sortie du serveur et de `npm ci`.
+- Tout `data/gods_eye_view/` est dans le `.gitignore` : jamais versionné.
+
+## L'appli n'est jamais modifiée
+
+Elle refuse d'être affichée dans une autre page (`X-Frame-Options: DENY`, `frame-ancestors 'none'`), sauf en mode `?embed=1` qui masque tout son
+HUD. `jarvis.vite.config.mjs` (écrit par `backend/module/vue_de_dieu.py` à chaque démarrage) enveloppe sa configuration Vite et n'autorise que les
+origines du HUD (`http://localhost:5173`, `http://127.0.0.1:5173`). Mise à jour d'une release = nouveau dossier ; rien à re-patcher.
+
+## Installation, en détail (`module/vue_de_dieu.installer`)
+
+1. Node 24.14+ (ou 26) du système, sinon Node 24 LTS portable téléchargé depuis nodejs.org.
+2. Release GitHub (`/releases/latest`, archive zip) téléchargée avec progression, extraite sans `docs/media`, `.github`, `changelog.d`, `pinokio`.
+3. `npm ci` (avec `PUPPETEER_SKIP_DOWNLOAD=1`) : 2 à 5 minutes.
+4. L'ancienne version n'est remplacée qu'à la fin : un échec ou une annulation (fermer l'écran d'installation) la laisse intacte.
+
+Prérequis : Windows 64 bits, accès à GitHub et nodejs.org, environ 500 Mo de disque.
+
+## Clés API
+
+God's Eye View enregistre ses clés dans SON `.env` (`data/gods_eye_view/app/.env`, non versionné), saisies dans son panneau « Power up ». JARVIS ne lui transmet aucune de ses clés (environnement filtré, `_environnement()`). Sur les cartes OpenAI et Gemini sans clé, le bouton « UTILISER LA CLÉ DE JARVIS » copie la clé du `.env` de JARVIS dans celui de l'appli (par son propre point d'entrée) ; ensuite les deux sont indépendants : changer l'une ne change pas l'autre. Le bouton vient d'un script ajouté à la page par `jarvis.vite.config.mjs` (l'appli n'est pas modifiée) ; il n'existe que dans le HUD de JARVIS.
+
+Clés ajoutées par JARVIS dans ce panneau (plugin `jarvisCles`) : **MÉTÉO-FRANCE** (`METEOFRANCE_API_KEY`, radar de pluie) et **WINDY WEBCAMS** (`WINDY_WEBCAMS_API_KEY`, caméras). Elles sont écrites dans le `.env` de l'appli (clé jusqu'à 4 096 caractères : le jeton Météo-France fait ~1 500, la limite d'origine est 512) ; `module/gev_cles.py` les relit côté Python, avec repli sur le `.env` de JARVIS. Après enregistrement, relancer la vue pour que le radar apparaisse.
+
+## Caméras françaises
+
+God's Eye View accepte un « pack de sources » (fichier JSON, `CCTV_SOURCES_FILE`) en plus de ses ~4 000 caméras intégrées. `module/gev_cameras_fr.py` écrit `data/gods_eye_view/cameras_france.json` avant chaque lancement du serveur (rafraîchi en tâche de fond au bout d'un jour ; sans réseau l'ancien est gardé) : aujourd'hui 15 caméras de la Métropole de Lyon (Licence Ouverte 2.0). `CCTV_FORCE_AUSTIN=1` est indispensable : sans lui l'appli ne charge QUE le pack personnalisé. Cadence de rechargement des images : l'appli la fixe par fournisseur (`src/data/cctvLod.js`, 5 minutes par défaut) ; `CADENCES_JARVIS` dans `_CONFIG_VITE` (vue_de_dieu.py) l'ajuste au service du fichier (Lyon : 60 s). Ajouter une source = une fonction `_source_xxx()` dans SOURCES. Seules des données dont la réutilisation est ouverte (ni Bison Futé, ni DIR, ni sociétés d'autoroute : pas de licence). Piste : Loire-Atlantique (5 webcams, images vivantes, coordonnées à fournir).
+
+**Windy** : avec `WINDY_WEBCAMS_API_KEY` (api.windy.com/keys, « Webcams API », gratuite), `module/windy_relais.py` ajoute les webcams d'une zone, actives ou non (une inactive est gardée : son image n'est servie qu'une fois qu'elle redevient active) (`CENTRES_WINDY`, 50 km autour de Saint-Étienne : 38 webcams) et sert leurs images par un relais local (127.0.0.1:8766), car l'API donne des adresses qui expirent en 10 à 15 minutes. Une seule liste est redemandée toutes les 8 minutes, jamais l'historique, jamais « toutes les webcams » (interdit par les conditions de Windy). Attribution « Webcams provided by windy.com » portée par le champ `credit`. Usage personnel : les conditions ne tranchent pas pour une appli locale, ne pas distribuer JARVIS avec une clé.
+
+## Tests (sans rien lancer sur le PC, sauf mention)
+
+- `scratch/outils_test/test_vue_de_dieu.py` : tous les flux avec des doublures (rien n'est téléchargé).
+- `scratch/outils_test/installer_vue_de_dieu_reel.py` : installation réelle (télécharge ~100 Mo) ; `--node` : Node portable.
+- `scratch/outils_test/capture_vue_de_dieu.py` : de bout en bout, appli installée, HUD sur le port 5199.
+- `scratch/outils_test/test_partage_cle_gev.py` : bouton de partage de clé de bout en bout, sur une copie de l'appli et le port 4189 (ne dérange pas une vue ouverte).
+- `scratch/outils_test/test_env_vue_de_dieu.py` : aucune clé de JARVIS dans l'environnement de l'appli.
+- Couches françaises par surcharge (plugins Vite de `_CONFIG_VITE`, appli intacte) : **Bike Share** (`jarvisVelosFrance` : 16 réseaux GBFS, relais `/api/gbfs` étendu à 7 hôtes) et **Transit** (`jarvisTransitFrance` : 50 réseaux GTFS-RT VehiclePositions de transport.data.gouv.fr, catalogue `module/gev_transit_fr_catalogue.json` généré par `scratch/outils_test/generer_catalogue_transit_fr.mjs` ; registre servi au navigateur complété, relais `/api/transit/vehicles/fr-…` propre au plugin, cache 15 s, https seulement, 8 Mo, 3 redirections). Pas de réseau pour Lyon (TCL) ni Saint-Étienne (STAS : flux sans positions). Tests : `test_gev_velos_fr_reel.py` (port 4191), `test_gev_transit_fr_reel.py` (port 4192).
+- **Radars** (`jarvisRadarsFrance`) : le calque « ALPR » de l'appli (États-Unis / Canada) lit aussi la liste officielle des radars de la Sécurité routière (fichier `data/gods_eye_view/radars_france.json`, `module/gev_radars_fr.py`, rafraîchi chaque semaine en tâche de fond ; OpenStreetMap / Overpass abandonné : serveurs publics saturés). **Départ** (`jarvisDepartFrance`) : la vue s'ouvre sur Saint-Étienne. Tests : `test_gev_radars_fr_reel.py` (port 4193), `test_gev_depart_france.py` (port 4195). **Après une mise à jour de l'appli** : `verifier_surcharges()` signale dans le journal (« Surcharge inactive ») toute surcharge dont la phrase d'accroche a disparu ; relancer les tests `test_gev_*_fr_reel.py`.
+- **Météo en Europe** (`jarvisMeteosat`, `jarvisEffis`) : **Satellite clouds** : produit « clouds-europe » (Meteosat Troisième Génération, infrarouge 10,5 µm, EUMETView `mtg_fd:ir105_hrfi`, 10 minutes, ~25 minutes de retard, 70°S-70°N) ajouté à côté de GOES et de la mosaïque mondiale, bouton « Europe », ouvert par défaut. **Lightning density** : produit « lightning-europe » (`mtg_fd:li_afa`, éclairs accumulés sur 5 minutes, ~15 minutes de retard), bouton « Europe ». Relais `/api/weather` de JARVIS devant celui de l'appli (hôte `view.eumetsat.int` seul, https, sans redirection, plafonds de taille, délai et débit) ; les produits NOAA restent à l'appli. **Fire Perimeters** : zones brûlées EFFIS (WFS `maps.effis.emergency.copernicus.eu`, couche `modis.ba.poly.month`, 30 jours, triées de la plus récente) ajoutées à la réponse de `/api/fire-perimeters` ; fiche en hectares ; légende : tout est « Not contained or unknown » (EFFIS ne donne pas de confinement) ; le libellé de source du calque reste « NIFC WFIGS ». Licences : EUMETSAT « Core » = CC BY 4.0 (Data Policy 2026, articles 4 à 6 : images de canal et produits dérivés), attribution « Contains modified EUMETSAT Meteosat data [année] » ; EFFIS = CC BY 4.0 (crédit, modifications indiquées) ; les deux dans les crédits de l'appli. **Rain radar : pas branché pour la France.** Météo-France exige un compte et un jeton (impossible sans le créateur). RainViewer : conditions lues (usage personnel et éducatif gratuit, mention « Weather data by RainViewer » obligatoire, zoom 7 au plus, 2 h d'historique) : permis pour un usage personnel, mais tuiles Web Mercator (reprojection par `sharp` et produit de plus sur la couche radar, légende en dBZ fausse) : non fait, à décider. EUMETSAT `mtg_fd:h40b` (précipitations estimées par satellite, licence « Core ») : testée, image en blocs et pas un radar : écartée. OPERA / EUMETNET : aucun service d'images sans compte trouvé. Non faits comme demandé : Blitzortung (interdit), qualité de l'air et cyclones de La Réunion (aucune source sûre). Tests : `scratch/outils_test/test_gev_meteo_fr_reel.py` (copie isolée, port 4195) et `capture_gev_meteo.py` (Playwright, port 4196, captures dans `scratch/captures/gev_meteo_*.png`). **Après une mise à jour de l'appli** : `verifier_surcharges()` signale les accroches perdues ; relancer les deux scripts.
+- **Radar de pluie France** (`module/gev_radar_fr.py`, produit « radar-france » de `jarvisMeteosat`) : API « Données radar » de Météo-France (`METEOFRANCE_API_KEY`, abonnement gratuit à l'API sur portail-api.meteofrance.fr), lame d'eau 500 m / 5 min en HDF5 ODIM, convertie en équivalent dBZ (Marshall-Palmer) et reprojetée (stéréographique polaire -> longitude / latitude 12°O-12°E, 40°N-52°N). Relais local 127.0.0.1:8767 (`JARVIS_RADAR_FR_PORT`) : `/frames`, `/render?time=&bbox=&size=` (PNG). 13 images gardées dans `data/gods_eye_view/radar_fr/`, l'historique se remplit à mesure. Le relais démarre et s'arrête avec la vue (`demarrer()` / `arreter()`), seulement si la clé existe. Crédit « Source : Météo-France » (Licence Ouverte 2.0).
+- **Couches ajoutées par JARVIS** (`module/gev_couches.js`, plugin `jarvisCouches`) : nouvelles couches sans modifier l'appli, par `window.__gevQaRegisterLayer` (ouvert par l'appli en mode développement, ce que fait le serveur de JARVIS). Une couche = une fonction qui renvoie `{ id, name, icon, source, updateInterval, init, enable, disable, update, destroy, getStats, getParams, setParams, getRowControls }`, rendue avec Cesium (`window.__CESIUM__`). Données : fichiers téléchargés par JARVIS en tâche de fond et servis sur `/__jarvis/<nom>.json` (503 tant qu'ils manquent). Première couche : **Fuel prices · France** (`module/gev_carburants_fr.py`, prix de ~9 500 stations, data.economie.gouv.fr). Pas dans les liens de partage.
+  Rangement dans le panneau : `PLACEMENT_COUCHES` (plugin `jarvisCouches` de `module/vue_de_dieu.py`) ajoute l'identifiant de chaque couche au bon groupe de `PANEL_GROUPS` (Movement, Events, Weather, Utilities…) ; une couche absente de cette liste tomberait dans « Other layers ».
+- **Couches de données ouvertes françaises** (`module/gev_donnees_fr.py`, `fabrique()` dans `module/gev_couches.js`) : recharge (IRVE ~120 Mo de CSV regroupés par station, 27 800 stations), crues (Vigicrues, niveau 1 à 4 par tronçon), séismes (EMSC FDSN, 30 jours), air (Open-Meteo CAMS Europe, ~100 villes, indice EAQI), drones (IGN WFS `TRANSPORTS.DRONES.RESTRICTIONS:carte_restriction_drones_lf`, ~90 000 polygones : demandés par fenêtre, BBOX en ordre longitude, latitude). Ajouter une couche à points = un spec de `fabrique()` (construire, fiche, boutons, légende) + un jeu de données dans `gev_donnees_fr.JEUX` + son nom dans la liste blanche du plugin.
+- **Vigilance Météo-France** (couche « Weather alerts · France », `alertesFrance()` dans `module/gev_couches.js`) : API `public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours` (clé abonnée à « Bulletin Vigilance » ; sans abonnement : 403). Domaines : code département (niveau 1 à 4 par phénomène 1 à 9), code + « 10 » = zone littorale, « FRA » = national (ignoré). Échéances J et J1. Contours dans `data/gods_eye_view/donnees/departements.json` (6 mois). Les API Météo des forêts et avalanche demandent chacune leur abonnement (même jeton).
+- **Français** (`module/gev_fr.json`, surcharges `MODIFS_FR` du plugin `jarvisCouches`, `tr()` de `module/gev_couches.js`) : catalogue de l'appli traduit (même format que es / ru / zh-CN : texte anglais = clé, trois formes de pluriel), langue par défaut depuis JARVIS. Une phrase ajoutée à l'appli par une mise à jour apparaît en anglais tant qu'elle n'est pas ajoutée à `gev_fr.json` (les clés devenues inutiles sont ignorées). Les couches de JARVIS ajoutent leurs phrases au dictionnaire `FR` ou à `MODELES` de `gev_couches.js`.
+- `scratch/outils_test/test_gev_cameras_fr.py` (sans réseau) et `test_gev_cameras_fr_reel.py` (copie isolée de l'appli, port 4190, vraies données de Lyon).
+- `scratch/outils_test/test_gev_radar_fr_reel.py` (vraie API Météo-France, relais sur 8777, copie isolée de l'appli sur 4197, captures) et `test_gev_cles_panneau.py` (panneau « Power up » sur une copie isolée, port 4198).
+- `scratch/outils_test/test_gev_carburants_fr.py` (copie isolée de l'appli, port 4199, vraies données : ligne dans le panneau, interrupteur, boutons, fiche au clic, captures).
+- `scratch/outils_test/test_gev_donnees_fr.py` (copie isolée, port 4200 : relais, drones IGN réels, 5 couches activées une à une avec captures, fiche d'une borne).

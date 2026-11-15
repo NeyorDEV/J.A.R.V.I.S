@@ -24,6 +24,7 @@ _PLUGINS = [
     "plugins.os_autopilot_resolver",
     "plugins.local_mode_resolver",
     "plugins.network_resolver",
+    "plugins.vue_de_dieu_resolver",
     "plugins.dev_swarm_resolver",
     "plugins.image_search_resolver",
     "plugins.uninstaller_resolver",

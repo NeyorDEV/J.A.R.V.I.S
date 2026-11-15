@@ -1,0 +1,802 @@
+[
+ {
+  "id": "fr-aleop-pays-de-la-loire",
+  "name": "Aléop - Pays de la Loire",
+  "operator": "Réseau interurbain Aléop - Pays de la Loire",
+  "region": "France",
+  "center": {
+   "lat": 47.3767,
+   "lon": -0.9958
+  },
+  "loadRadiusKm": 150,
+  "url": "https://proxy.transport.data.gouv.fr/resource/aleop-pdl-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Aléop - Pays de la Loire — transport.data.gouv.fr",
+  "vehicules": 88
+ },
+ {
+  "id": "fr-alesy",
+  "name": "Alesy",
+  "operator": "Réseau urbain Alesy",
+  "region": "France",
+  "center": {
+   "lat": 44.1267,
+   "lon": 4.0856
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/5a854ccb-ef82-4b04-8a35-a26c89bd69d6",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "Alesy — transport.data.gouv.fr",
+  "vehicules": 18
+ },
+ {
+  "id": "fr-ametis",
+  "name": "Ametis",
+  "operator": "Réseau urbain Ametis",
+  "region": "France",
+  "center": {
+   "lat": 49.8893,
+   "lon": 2.3006
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/ametis-amiens-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Ametis — transport.data.gouv.fr",
+  "vehicules": 76
+ },
+ {
+  "id": "fr-astuce",
+  "name": "Astuce",
+  "operator": "Réseau urbain Astuce",
+  "region": "France",
+  "center": {
+   "lat": 49.4394,
+   "lon": 1.0861
+  },
+  "loadRadiusKm": 24,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/f5127667-1005-4515-b8d9-a2169ee83097",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Astuce — transport.data.gouv.fr",
+  "vehicules": 194
+ },
+ {
+  "id": "fr-axo",
+  "name": "AXO",
+  "operator": "Réseau urbain AXO",
+  "region": "France",
+  "center": {
+   "lat": 49.2622,
+   "lon": 2.4735
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/973e9d73-3ab8-4e47-9516-cb06b25737d8",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "AXO — transport.data.gouv.fr",
+  "vehicules": 22
+ },
+ {
+  "id": "fr-azalys",
+  "name": "Azalys",
+  "operator": "Réseau urbain Azalys",
+  "region": "France",
+  "center": {
+   "lat": 47.5874,
+   "lon": 1.3255
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/7c58df8c-4c5b-4e2a-ad07-635345745db5",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "Azalys — transport.data.gouv.fr",
+  "vehicules": 24
+ },
+ {
+  "id": "fr-beemob",
+  "name": "beeMob",
+  "operator": "Réseau urbain beeMob",
+  "region": "France",
+  "center": {
+   "lat": 43.3399,
+   "lon": 3.2292
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/ed8b8b27-96bd-4e46-b6c7-56b27fd0eb14",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "beeMob — transport.data.gouv.fr",
+  "vehicules": 27
+ },
+ {
+  "id": "fr-bibus",
+  "name": "Bibus",
+  "operator": "Réseau urbain Bibus",
+  "region": "France",
+  "center": {
+   "lat": 48.3965,
+   "lon": -4.4845
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/bibus-brest-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Bibus — transport.data.gouv.fr",
+  "vehicules": 93
+ },
+ {
+  "id": "fr-cap-cotentin",
+  "name": "Cap Cotentin",
+  "operator": "Réseau urbain Cap Cotentin",
+  "region": "France",
+  "center": {
+   "lat": 49.635,
+   "lon": -1.6223
+  },
+  "loadRadiusKm": 34,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/c94af528-293f-406f-a96f-bf847bcb252a",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Cap Cotentin — transport.data.gouv.fr",
+  "vehicules": 50
+ },
+ {
+  "id": "fr-citea",
+  "name": "Citéa",
+  "operator": "Réseau urbain Citéa",
+  "region": "France",
+  "center": {
+   "lat": 44.933,
+   "lon": 4.9036
+  },
+  "loadRadiusKm": 24,
+  "url": "https://proxy.transport.data.gouv.fr/resource/citea-valence-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Citéa — transport.data.gouv.fr",
+  "vehicules": 76
+ },
+ {
+  "id": "fr-citibus",
+  "name": "Citibus",
+  "operator": "Réseau urbain Citibus",
+  "region": "France",
+  "center": {
+   "lat": 43.1838,
+   "lon": 3.0059
+  },
+  "loadRadiusKm": 48,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/1fc16ad0-4aef-402d-9faa-da04ddd61fd2",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Citibus — transport.data.gouv.fr",
+  "vehicules": 26
+ },
+ {
+  "id": "fr-corolis",
+  "name": "Corolis",
+  "operator": "Réseau urbain Corolis",
+  "region": "France",
+  "center": {
+   "lat": 49.4319,
+   "lon": 2.0891
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/5b42006f-d97b-4f58-9edd-82fd9022efff",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Corolis — transport.data.gouv.fr",
+  "vehicules": 19
+ },
+ {
+  "id": "fr-diviamobilites",
+  "name": "DiviaMobilités",
+  "operator": "Réseau urbain DiviaMobilités",
+  "region": "France",
+  "center": {
+   "lat": 47.3212,
+   "lon": 5.042
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/divia-dijon-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "DiviaMobilités — transport.data.gouv.fr",
+  "vehicules": 118
+ },
+ {
+  "id": "fr-dk-bus",
+  "name": "DK'BUS",
+  "operator": "Réseau urbain DK'BUS",
+  "region": "France",
+  "center": {
+   "lat": 51.0259,
+   "lon": 2.3687
+  },
+  "loadRadiusKm": 24,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/39f7ea92-6ad5-4a02-ad14-4019ce4a8ecb",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "DK'BUS — transport.data.gouv.fr",
+  "vehicules": 97
+ },
+ {
+  "id": "fr-envia",
+  "name": "Envia",
+  "operator": "Réseau urbain Envia",
+  "region": "France",
+  "center": {
+   "lat": 43.6752,
+   "lon": 4.6348
+  },
+  "loadRadiusKm": 43,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/8e45727d-487f-4a14-823b-d906d6ebaa43",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Envia — transport.data.gouv.fr",
+  "vehicules": 18
+ },
+ {
+  "id": "fr-fil-bleu",
+  "name": "Fil Bleu",
+  "operator": "Réseau urbain et périurbain Fil Bleu",
+  "region": "France",
+  "center": {
+   "lat": 47.3848,
+   "lon": 0.6939
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/02c21efd-d73c-43b5-b653-dc1048e0da94",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Fil Bleu — transport.data.gouv.fr",
+  "vehicules": 120
+ },
+ {
+  "id": "fr-filibus",
+  "name": "Filibus",
+  "operator": "Réseau Filibus",
+  "region": "France",
+  "center": {
+   "lat": 48.4437,
+   "lon": 1.4873
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/7e4b9d82-0863-4eaa-8051-a1dcf5e086f5",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Filibus — transport.data.gouv.fr",
+  "vehicules": 48
+ },
+ {
+  "id": "fr-fluo-grand-est-haut-rhin-68",
+  "name": "Fluo Grand-Est - Haut-Rhin (68)",
+  "operator": "Réseau interurbain Fluo Grand-Est - Haut-Rhin (68)",
+  "region": "France",
+  "center": {
+   "lat": 47.9604,
+   "lon": 7.3258
+  },
+  "loadRadiusKm": 68,
+  "url": "https://proxy.transport.data.gouv.fr/resource/fluo-haut-rhin-68-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Fluo Grand-Est - Haut-Rhin (68) — transport.data.gouv.fr",
+  "vehicules": 28
+ },
+ {
+  "id": "fr-irigo",
+  "name": "Irigo",
+  "operator": "Réseau urbain Irigo",
+  "region": "France",
+  "center": {
+   "lat": 47.4722,
+   "lon": -0.5538
+  },
+  "loadRadiusKm": 21,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/83582223-990a-452d-ba3d-49f2977d0292",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "Irigo — transport.data.gouv.fr",
+  "vehicules": 178
+ },
+ {
+  "id": "fr-kiceo",
+  "name": "Kicéo",
+  "operator": "Réseau urbain Kicéo",
+  "region": "France",
+  "center": {
+   "lat": 47.6562,
+   "lon": -2.7593
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/kiceo-vannes-gtfs-rt",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Kicéo — transport.data.gouv.fr",
+  "vehicules": 57
+ },
+ {
+  "id": "fr-le-bus",
+  "name": "Le Bus",
+  "operator": "Réseau urbain Le Bus",
+  "region": "France",
+  "center": {
+   "lat": 43.4324,
+   "lon": 6.7618
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/24e2ecf9-82a3-4bfc-bf86-db6ec81c480f",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Le Bus — transport.data.gouv.fr",
+  "vehicules": 23
+ },
+ {
+  "id": "fr-le-met",
+  "name": "Le Met'",
+  "operator": "Réseau urbain Le Met'",
+  "region": "France",
+  "center": {
+   "lat": 49.1116,
+   "lon": 6.1733
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/lemet-metz-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Le Met' — transport.data.gouv.fr",
+  "vehicules": 112
+ },
+ {
+  "id": "fr-lia",
+  "name": "LiA",
+  "operator": "Réseau urbain LiA",
+  "region": "France",
+  "center": {
+   "lat": 49.5025,
+   "lon": 0.1274
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/b12cc05c-940d-4f43-b607-163f4632814e",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "LiA — transport.data.gouv.fr",
+  "vehicules": 104
+ },
+ {
+  "id": "fr-lignes-d-azur",
+  "name": "Lignes d'Azur",
+  "operator": "Réseau urbain Lignes d'Azur",
+  "region": "France",
+  "center": {
+   "lat": 43.7067,
+   "lon": 7.2519
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/5f571595-aef1-480f-acde-b9315d9f5f3b",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Lignes d'Azur — transport.data.gouv.fr",
+  "vehicules": 234
+ },
+ {
+  "id": "fr-lila-presqu-ile",
+  "name": "Lila Presqu'ile",
+  "operator": "Réseau urbain et scolaire Lila Presqu'ile",
+  "region": "France",
+  "center": {
+   "lat": 47.2972,
+   "lon": -2.4149
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/lila-presquile-cap-atlantique-gtfs-rt-vehicle-position",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "Lila Presqu'ile — transport.data.gouv.fr",
+  "vehicules": 16
+ },
+ {
+  "id": "fr-lio-occitanie",
+  "name": "liO Occitanie",
+  "operator": "Réseau interurbain liO Occitanie",
+  "region": "France",
+  "center": {
+   "lat": 43.5931,
+   "lon": 2.2156
+  },
+  "loadRadiusKm": 150,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/3a40f4e7-3068-43d2-9cd1-7b33cb0c2fe5",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "liO Occitanie — transport.data.gouv.fr",
+  "vehicules": 154
+ },
+ {
+  "id": "fr-mat",
+  "name": "MAT",
+  "operator": "Réseau urbain MAT",
+  "region": "France",
+  "center": {
+   "lat": 48.6471,
+   "lon": -1.9906
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/mat-st-malo-gtfs-rt",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "MAT — transport.data.gouv.fr",
+  "vehicules": 20
+ },
+ {
+  "id": "fr-mistral",
+  "name": "Mistral",
+  "operator": "Réseau urbain Mistral",
+  "region": "France",
+  "center": {
+   "lat": 43.1233,
+   "lon": 5.9309
+  },
+  "loadRadiusKm": 22,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/9fe8291c-2fb2-4f89-b578-282ba05dd999",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Mistral — transport.data.gouv.fr",
+  "vehicules": 177
+ },
+ {
+  "id": "fr-mouveo",
+  "name": "Mouvéo",
+  "operator": "Réseau urbain Mouvéo",
+  "region": "France",
+  "center": {
+   "lat": 50.7391,
+   "lon": 2.2657
+  },
+  "loadRadiusKm": 25,
+  "url": "https://proxy.transport.data.gouv.fr/resource/mouveo-saint-omer-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Mouvéo — transport.data.gouv.fr",
+  "vehicules": 16
+ },
+ {
+  "id": "fr-orizo",
+  "name": "Orizo",
+  "operator": "Réseau urbain Orizo",
+  "region": "France",
+  "center": {
+   "lat": 43.9431,
+   "lon": 4.8228
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/74235bed-95fc-4fa8-ab25-bab7e3c6a6f1",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Orizo — transport.data.gouv.fr",
+  "vehicules": 75
+ },
+ {
+  "id": "fr-palmbus",
+  "name": "Palmbus",
+  "operator": "Réseau urbain Palmbus",
+  "region": "France",
+  "center": {
+   "lat": 43.5573,
+   "lon": 7.0061
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/palmbus-cannes-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Palmbus — transport.data.gouv.fr",
+  "vehicules": 79
+ },
+ {
+  "id": "fr-qub",
+  "name": "Qub",
+  "operator": "Réseau urbain Qub",
+  "region": "France",
+  "center": {
+   "lat": 47.992,
+   "lon": -4.0993
+  },
+  "loadRadiusKm": 77,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/6b7622db-c941-4d85-9856-c0315ddb78e1",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "Qub — transport.data.gouv.fr",
+  "vehicules": 31
+ },
+ {
+  "id": "fr-remi",
+  "name": "Rémi",
+  "operator": "Réseau interurbain Rémi",
+  "region": "France",
+  "center": {
+   "lat": 47.4286,
+   "lon": 1.6793
+  },
+  "loadRadiusKm": 150,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/abf87e83-dde3-4ecb-83ba-3e434ec90251",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "Rémi — transport.data.gouv.fr",
+  "vehicules": 89
+ },
+ {
+  "id": "fr-rtca",
+  "name": "RTCA",
+  "operator": "Réseau urbain RTCA",
+  "region": "France",
+  "center": {
+   "lat": 43.211,
+   "lon": 2.3536
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/rtca-carcassonne-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "RTCA — transport.data.gouv.fr",
+  "vehicules": 17
+ },
+ {
+  "id": "fr-ruban",
+  "name": "Ruban",
+  "operator": "Réseau urbain Ruban",
+  "region": "France",
+  "center": {
+   "lat": 45.6084,
+   "lon": 5.2294
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/120182b0-e338-4917-b2bb-ee37b60de1ba",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "Ruban — transport.data.gouv.fr",
+  "vehicules": 23
+ },
+ {
+  "id": "fr-rubis",
+  "name": "Rubis",
+  "operator": "Réseau urbain Rubis",
+  "region": "France",
+  "center": {
+   "lat": 46.2028,
+   "lon": 5.2255
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/rubis-bourg-en-bresse-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Rubis — transport.data.gouv.fr",
+  "vehicules": 30
+ },
+ {
+  "id": "fr-sete-agglopole-mobilite",
+  "name": "Sète Agglopole Mobilité",
+  "operator": "Réseau urbain Sète Agglopole Mobilité",
+  "region": "France",
+  "center": {
+   "lat": 43.4173,
+   "lon": 3.6985
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/b4b32f6f-26c8-4f4e-8253-5ce4d0462392",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Sète Agglopole Mobilité — transport.data.gouv.fr",
+  "vehicules": 46
+ },
+ {
+  "id": "fr-setram",
+  "name": "SETRAM",
+  "operator": "Réseau urbain SETRAM",
+  "region": "France",
+  "center": {
+   "lat": 47.9972,
+   "lon": 0.1956
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/setram-lemans-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "SETRAM — transport.data.gouv.fr",
+  "vehicules": 80
+ },
+ {
+  "id": "fr-sitac",
+  "name": "SITAC",
+  "operator": "Réseau urbain SITAC",
+  "region": "France",
+  "center": {
+   "lat": 50.9468,
+   "lon": 1.8624
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/a6086d6b-049b-4fe8-b52a-4bdcf863db83",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "SITAC — transport.data.gouv.fr",
+  "vehicules": 29
+ },
+ {
+  "id": "fr-star",
+  "name": "STAR",
+  "operator": "Réseau urbain STAR",
+  "region": "France",
+  "center": {
+   "lat": 48.1099,
+   "lon": -1.6764
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/star-rennes-integration-gtfs-rt-vehicle-position",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "STAR — transport.data.gouv.fr",
+  "vehicules": 173
+ },
+ {
+  "id": "fr-tam",
+  "name": "TaM",
+  "operator": "Réseau urbain TaM",
+  "region": "France",
+  "center": {
+   "lat": 43.6147,
+   "lon": 3.8727
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/19b807c6-d4fb-4720-90b5-74c1ccc13661",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "TaM — transport.data.gouv.fr",
+  "vehicules": 156
+ },
+ {
+  "id": "fr-tango",
+  "name": "Tango",
+  "operator": "Réseau urbain Tango",
+  "region": "France",
+  "center": {
+   "lat": 43.8323,
+   "lon": 4.361
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/78b3c0a0-6e4f-443d-88f1-325e534f67e6",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Tango — transport.data.gouv.fr",
+  "vehicules": 84
+ },
+ {
+  "id": "fr-tbm",
+  "name": "TBM",
+  "operator": "Réseau urbain et scolaire TBM",
+  "region": "France",
+  "center": {
+   "lat": 44.8403,
+   "lon": -0.5813
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/df0af5aa-7f1d-43b3-aa90-39469f8cc65e",
+  "license": "Licence Ouverte 1.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/licence-ouverte-open-licence/",
+  "attribution": "TBM — transport.data.gouv.fr",
+  "vehicules": 405
+ },
+ {
+  "id": "fr-tcat",
+  "name": "TCAT",
+  "operator": "Réseau urbain TCAT",
+  "region": "France",
+  "center": {
+   "lat": 48.2966,
+   "lon": 4.0732
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/tcat-troyes-gtfs-rt-vehicle-position",
+  "license": "ODbL 1.0",
+  "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "attribution": "TCAT — transport.data.gouv.fr",
+  "vehicules": 57
+ },
+ {
+  "id": "fr-tempo-bus",
+  "name": "Tempo Bus",
+  "operator": "Réseau urbain Tempo Bus",
+  "region": "France",
+  "center": {
+   "lat": 44.202,
+   "lon": 0.6255
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/37b144db-2013-49ff-9a24-b8396f19655d",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Tempo Bus — transport.data.gouv.fr",
+  "vehicules": 21
+ },
+ {
+  "id": "fr-tic",
+  "name": "TIC",
+  "operator": "Réseau urbain TIC",
+  "region": "France",
+  "center": {
+   "lat": 49.407,
+   "lon": 2.8051
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/8c90057e-c516-494b-9e08-67c6841876fe",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "TIC — transport.data.gouv.fr",
+  "vehicules": 16
+ },
+ {
+  "id": "fr-tlp",
+  "name": "TLP",
+  "operator": "Réseau urbain TLP",
+  "region": "France",
+  "center": {
+   "lat": 43.2333,
+   "lon": 0.073
+  },
+  "loadRadiusKm": 22,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/38611abb-fb76-4072-8be9-514fdbc4b13a",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "TLP — transport.data.gouv.fr",
+  "vehicules": 25
+ },
+ {
+  "id": "fr-transurbain",
+  "name": "Transurbain",
+  "operator": "Réseau urbain Transurbain",
+  "region": "France",
+  "center": {
+   "lat": 49.0198,
+   "lon": 1.1521
+  },
+  "loadRadiusKm": 20,
+  "url": "https://proxy.transport.data.gouv.fr/resource/transurbain-evreux-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Transurbain — transport.data.gouv.fr",
+  "vehicules": 19
+ },
+ {
+  "id": "fr-transvilles",
+  "name": "Transvilles",
+  "operator": "Réseau urbain Transvilles",
+  "region": "France",
+  "center": {
+   "lat": 50.3637,
+   "lon": 3.5156
+  },
+  "loadRadiusKm": 20,
+  "url": "https://www.data.gouv.fr/api/1/datasets/r/74975bc9-525c-4ecd-b6cb-d1ca08863ba8",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Transvilles — transport.data.gouv.fr",
+  "vehicules": 79
+ },
+ {
+  "id": "fr-zest",
+  "name": "Zest",
+  "operator": "Réseau urbain Zest",
+  "region": "France",
+  "center": {
+   "lat": 43.7726,
+   "lon": 7.4832
+  },
+  "loadRadiusKm": 33,
+  "url": "https://proxy.transport.data.gouv.fr/resource/zest-menton-riviera-gtfs-rt-vehicle-position",
+  "license": "Licence Ouverte 2.0",
+  "licenseUrl": "https://www.etalab.gouv.fr/wp-content/uploads/2017/04/ETALAB-Licence-Ouverte-v2.0.pdf",
+  "attribution": "Zest — transport.data.gouv.fr",
+  "vehicules": 19
+ }
+]

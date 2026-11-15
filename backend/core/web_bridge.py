@@ -81,20 +81,53 @@ async def send_action_to_frontend(action):
     _safe_ws_send(json.dumps(action))
 
 
-def est_connecte_internet():
-    """Détecte de manière ultra-rapide si une connexion internet est active et fonctionnelle."""
+_INTERNET_VALIDITE_OK = 30.0     # secondes pendant lesquelles un « connecté » est réutilisé sans refaire le test
+_INTERNET_VALIDITE_KO = 3.0      # un « hors ligne » est revérifié très vite (retour du réseau)
+_internet_cache = {"ok": None, "t": 0.0}
+
+
+def _tester_internet():
+    """Un vrai test : connexion TCP vers un DNS public (Google, puis Cloudflare). Peut durer jusqu'à ~1,6 s."""
     import socket
-    try:
-        # Tenter d'ouvrir une connexion TCP rapide vers le DNS public de Google
-        socket.create_connection(("8.8.8.8", 53), timeout=0.8)
-        return True
-    except Exception:
+    for hote in ("8.8.8.8", "1.1.1.1"):
         try:
-            # Fallback vers Cloudflare DNS
-            socket.create_connection(("1.1.1.1", 53), timeout=0.8)
+            socket.create_connection((hote, 53), timeout=0.8).close()
             return True
         except Exception:
-            return False
+            continue
+    return False
+
+
+def est_connecte_internet():
+    """Détecte si une connexion internet est active. Le résultat est gardé 30 s (3 s si hors ligne) : le test réel
+    bloquait chaque question jusqu'à 1,6 s ; un thread de fond (preverifier_internet) le tient à jour."""
+    c = _internet_cache
+    age = time.monotonic() - c["t"]
+    if c["ok"] is not None and age < (_INTERNET_VALIDITE_OK if c["ok"] else _INTERNET_VALIDITE_KO):
+        return c["ok"]
+    c["ok"], c["t"] = _tester_internet(), time.monotonic()
+    return c["ok"]
+
+
+_internet_thread = {"actif": False}
+
+
+def preverifier_internet():
+    """Premier test au démarrage, puis rafraîchissement toutes les 15 s dans un thread de fond : une question ne paie jamais le test."""
+    est_connecte_internet()
+    if _internet_thread["actif"]:
+        return
+    _internet_thread["actif"] = True
+    import threading
+
+    def _boucle():
+        while True:
+            time.sleep(15)
+            try:
+                _internet_cache["ok"], _internet_cache["t"] = _tester_internet(), time.monotonic()
+            except Exception:
+                pass
+    threading.Thread(target=_boucle, daemon=True).start()
 
 
 async def envoyer_commande_globe(**kwargs):

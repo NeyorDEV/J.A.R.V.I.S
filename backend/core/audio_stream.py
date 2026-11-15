@@ -5,6 +5,7 @@ Singleton diffusant les chunks audio 16 kHz int16 à tous les abonnés
 (boucle VAD, enregistrement biométrique…). Extrait de main2.py.
 """
 
+import json
 import os
 import time
 import threading
@@ -20,6 +21,22 @@ except ImportError:
     print("  -> Installation : pip install pipwin && pipwin install pyaudio")
 
 NIVEAU_MICRO = 0.0  # dernier niveau sonore capté (0 à 1), lu par la console
+_DERNIER_ENVOI_NIVEAU = 0.0
+
+
+def _envoyer_niveau_hud(niveau):
+    """Niveau du micro vers le HUD (onde du panneau « entrée audio »), une douzaine de fois par seconde ; 0 quand le micro est coupé."""
+    global _DERNIER_ENVOI_NIVEAU
+    maintenant = time.monotonic()
+    if maintenant - _DERNIER_ENVOI_NIVEAU < 0.08:
+        return
+    _DERNIER_ENVOI_NIVEAU = maintenant
+    try:
+        from core import shared
+        from core.web_bridge import _safe_ws_send
+        _safe_ws_send(json.dumps({"action": "mic_level", "level": 0.0 if getattr(shared, "MIC_MUTED", False) else round(niveau, 2)}))
+    except Exception:
+        pass
 
 
 def _filtre_anticrenelage():
@@ -271,6 +288,7 @@ class AudioStreamManager:
                 # Niveau du micro (0 à 1) pour l'affichage de la console
                 global NIVEAU_MICRO
                 NIVEAU_MICRO = min(1.0, float(np.abs(np.frombuffer(data_to_send, dtype=np.int16)).mean()) / 6000.0)
+                _envoyer_niveau_hud(NIVEAU_MICRO)
                 with self.subscribers_lock:
                     for q in self.subscribers:
                         q.put(data_to_send)

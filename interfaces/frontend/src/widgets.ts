@@ -3,6 +3,8 @@
  */
 
 import { construireVuesMeteo } from "./weather_vues";
+import { donnees } from "./hud/donnees_widgets";
+import { rafraichirPieces } from "./hud/eclate";
 
 export function initWidgets(ws: WebSocket | null) {
   // 1. Calendar is self-sufficient
@@ -195,6 +197,9 @@ export function updateMusicUI(data: MusiqueData) {
     if (pos) pos.textContent = "00:00";
   } else avancerProgression();
 
+  Object.assign(donnees.musique, { hors: horsLigne, joue, titre: data.title || "DEEZER", artiste: data.artist || "", pochette: cover, pos: musique.pos, dur: musique.dur, t0: musique.t0, volume: typeof data.volume === "number" ? data.volume : donnees.musique.volume });
+  rafraichirPieces("widget-musique");
+
   const vol = document.getElementById("music-vol") as HTMLInputElement | null;
   if (vol && !musique.glisse && typeof data.volume === "number") {
     vol.value = String(data.volume);
@@ -270,6 +275,8 @@ interface WeatherData {
 }
 
 export function updateWeatherUI(data: WeatherData, type: 'local' | 'monistrol') {
+  donnees.meteo[type] = data;
+  rafraichirPieces("widget-meteo");
   const container = document.getElementById("weather-hud");
   if (!container) return;
 

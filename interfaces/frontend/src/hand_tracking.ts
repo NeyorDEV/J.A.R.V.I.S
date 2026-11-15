@@ -93,7 +93,7 @@ export async function toggleHandTracking(active?: boolean): Promise<boolean> {
         isTrackingActive = true;
         document.body.classList.add("ar-mode-active");
         
-        // Minimiser l'orbe principal en bas à gauche de façon synchronisée
+        // Réduire le cylindre dans le coin bas gauche (classe « minimized », voir 01_base_hud.css)
         const orbCanvas = document.getElementById("orb-canvas");
         if (orbCanvas) orbCanvas.classList.add("minimized");
 
@@ -151,7 +151,7 @@ export async function toggleHandTracking(active?: boolean): Promise<boolean> {
       btn.innerHTML = `<span class="btn-icon">${icone("main")}</span> MODE AR`;
     }
     
-    // Restaurer l'orbe principal si le globe n'est pas affiché
+    // Rendre sa taille au cylindre si le globe n'est pas affiché
     const orbCanvas = document.getElementById("orb-canvas");
     const globeOverlay = document.getElementById("globe-overlay");
     const globeVisible = globeOverlay && globeOverlay.style.display !== "none" && globeOverlay.style.opacity === "1";

@@ -38,7 +38,7 @@ _RE_ALERTE = re.compile(r"⚠|\b(quota|avertissement|warning|indisponible|limite
                         re.I)
 # Étiquettes toujours affichées (actions notables)
 _ESSENTIELS = {"ALARME", "CONFIRMATION", "CONFIRM", "AUDIT", "AV LIVE", "AV", "UPDATE", "SERVICES",
-               "UNINSTALLER", "WINGET", "VOICE VAULT", "BIOMETRICS", "QUOTA"}
+               "UNINSTALLER", "WINGET", "VOICE VAULT", "BIOMETRICS", "QUOTA", "DEMARRAGE"}
 # Noms lisibles des resolvers locaux (« [DEBUG] Commande résolue par : … »)
 _RESOLVEURS = {
     "traiter_infos_systeme": "heure / système", "alarmes": "alarmes", "echecs": "échecs",
@@ -51,7 +51,7 @@ _RESOLVEURS = {
 _LIBELLES = {"BIOMETRICS": "VOIX", "SPEAKER": "VOIX", "AV LIVE": "ANTIVIR.", "AV": "ANTIVIR.",
              "VOICE VAULT": "COFFRE", "UNINSTALLER": "DÉSINST.", "CONFIRMATION": "CONFIRM.",
              "AUDIOSTREAMMANAGER": "AUDIO", "IA RELOAD": "IA", "DEEZER CDP": "DEEZER", "DEEZER UIA": "DEEZER",
-             "VECTOR DB": "MÉMOIRE", "MEMORY MANAGER": "MÉMOIRE"}
+             "VECTOR DB": "MÉMOIRE", "MEMORY MANAGER": "MÉMOIRE", "DEMARRAGE": "DÉMARR."}
 # Annonces de JARVIS sur la voix reconnue : pas la réponse à la question
 _RE_ANNONCE_VOIX = re.compile(r"^(voix inconnue détectée|voix de .{1,30} détectée)", re.I)
 # Couleurs : une pour l'utilisateur (doré), une pour JARVIS (cyan) ; modules et événements

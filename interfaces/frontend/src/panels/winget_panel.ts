@@ -6,6 +6,7 @@ import { wsRef } from "../ws_link";
 import { makePanelDraggable } from "../ui/draggable";
 import { closeUninstallerPanel } from "./uninstaller_panel";
 import { esc, icone, initiales } from "./pm_utils";
+import { rafraichirPieces } from "../hud/eclate";
 
 // ── Winget Upgrade DOM Refs ────────────────────────────────────────────────
 const wingetPanel = document.getElementById("winget-panel") as HTMLDivElement;
@@ -33,9 +34,18 @@ interface WingetUpgradeItem {
 }
 
 type EtatMaj = { etat: "attente" | "cours" | "ok" | "echec"; pct?: number };
+export type { WingetUpgradeItem, EtatMaj };
 
 let allWingetUpgrades: WingetUpgradeItem[] = [];
 const etats = new Map<string, EtatMaj>();   // identifiant winget → état de sa mise à jour
+let rechercheEnCours = false;                // vrai entre la demande de liste et sa réponse
+
+// Pièces éclatées (hud/pieces_tableaux.ts) : lecture de l'état et mêmes actions que les boutons du panneau
+const signaler = (): void => rafraichirPieces("winget");
+export const lireEtatWinget = () => ({ liste: allWingetUpgrades, etats, occupe: miseAJourEnCours(), recherche: rechercheEnCours });
+export const lancerMajWinget = (ids: string[]): void => runWingetUpgrade(ids);
+export const lancerMajWingetTout = (): void => wingetUpgradeAllBtn?.click();
+export const actualiserWinget = (): void => wingetRefreshBtn?.click();
 
 
 // ── Ouverture / fermeture ───────────────────────────────────────────────────
@@ -56,6 +66,7 @@ function synchroniserBoutonMenu(ouvert: boolean) {
 }
 
 function demanderListe() {
+  rechercheEnCours = true; signaler();
   if (wingetList) wingetList.innerHTML = '<div class="pm-vide">RECHERCHE DES MISES À JOUR…</div>';
   if (wingetResume) wingetResume.textContent = "Recherche des mises à jour…";
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -112,6 +123,7 @@ function detailLigne(item: WingetUpgradeItem): string {
 }
 
 function renderWingetUpgrades() {
+  rechercheEnCours = false; signaler();
   if (!wingetList) return;
   const n = allWingetUpgrades.length;
   if (wingetCountBadge) {
@@ -147,6 +159,7 @@ function renderWingetUpgrades() {
 
 /** Met à jour une seule ligne (sans reconstruire la liste ni perdre les cases cochées). */
 function rafraichirLigne(id: string) {
+  signaler();
   const item = allWingetUpgrades.find(i => i.id === id);
   const ligne = wingetList?.querySelector<HTMLElement>(`.pm-ligne[data-id="${CSS.escape(id)}"]`);
   if (!item || !ligne) return;

@@ -80,7 +80,35 @@ def _ressources():
     c = _console()
     if c and c.gpu:
         res["gpu"], res["vram"] = c.gpu
+    # Pièces éclatées du HUD : disque, durée depuis le démarrage, processus les plus gourmands en mémoire (relevé toutes les 6 s)
+    try:
+        import psutil
+        res["disque"] = psutil.disk_usage(os.environ.get("SystemDrive", "C:") + "\\").percent
+        res["uptime_s"] = int(time.time() - psutil.boot_time())
+        if time.time() - _cache_proc["t"] > 6:
+            lot = []
+            for p in psutil.process_iter(["name", "memory_info"]):
+                try:
+                    mi = p.info.get("memory_info")
+                    if mi and p.info.get("name"):
+                        lot.append((p.info["name"], mi.rss))
+                except Exception:
+                    continue
+            cumul = {}
+            for nom, rss in lot:
+                cumul[nom] = cumul.get(nom, 0) + rss
+            _cache_proc["t"] = time.time()
+            _cache_proc["top"] = [{"nom": n, "mo": round(v / 1048576)} for n, v in sorted(cumul.items(), key=lambda x: -x[1])[:3]]
+        res["processus"] = _cache_proc["top"]
+        temps = getattr(psutil, "sensors_temperatures", lambda: {})() or {}
+        mesures = [t.current for liste in temps.values() for t in liste if t.current]
+        res["temperature"] = round(max(mesures)) if mesures else None   # Windows n'expose pas ces capteurs : None
+    except Exception:
+        pass
     return res
+
+
+_cache_proc = {"t": 0.0, "top": []}
 
 
 def collecter_etat():

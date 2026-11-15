@@ -9,6 +9,7 @@ import { updateVoiceVaultUI } from "../panels/vault_panel";
 import { showTempPanel, showWeatherPanel } from "../panels/weather_temp_panels";
 import { afficherEcranModule } from "../panels/ecran_module";
 import { type JarvisMessage } from "./message_types";
+import { donneesOutils, signalerOutils, type AlarmeHud } from "../hud/donnees_outils";
 
 // Messages backend : coffre-fort, actions DOM, aide, minuteur, globe, sous-titres,
 // stats système, panneaux, recette, état de l'orbe (fin du gestionnaire de main.ts).
@@ -28,6 +29,12 @@ export function handleHudMessage(data: JarvisMessage, pushDomAction: (domAction:
     showHelpHUD();
     return;
   }
+  if (data.action === "alarmes_liste" && Array.isArray(data.alarmes)) {
+    donneesOutils.alarmes = data.alarmes as AlarmeHud[];
+    donneesOutils.alarmesRecues = performance.now();
+    signalerOutils("alarmes");
+    return;
+  }
   if (data.action === "timer_start") {
     startTimer(data.duration || 0);
     return;
@@ -44,10 +51,6 @@ export function handleHudMessage(data: JarvisMessage, pushDomAction: (domAction:
     removeTimer(data.duration || 60);
     return;
   }
-  if (data.action === "demo") {
-    orb.triggerDemo();
-    return;
-  }
   // ── Globe 3D Navigation ─────────────────────────────────────────
         if (data.action === "jarvis_globe") {
     if (typeof (window as any).jarvisGlobe === "function") {
@@ -57,6 +60,10 @@ export function handleHudMessage(data: JarvisMessage, pushDomAction: (domAction:
   }
   if (data.action === "set_volume" && typeof data.volume === "number") {
     orb.setVolume(data.volume);
+    return;
+  }
+  if (data.action === "mic_level" && typeof data.level === "number") {
+    orb.setMicLevel(data.level);
     return;
   }
   if (data.action === "jarvis_text" && typeof data.text === "string") {

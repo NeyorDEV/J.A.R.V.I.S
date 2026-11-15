@@ -72,7 +72,7 @@ def _recherche_musicale(t: str):
 
 
 async def _commandes_identite_hud(t):
-    """Aide, dossiers, explorateur 3D, carte domotique, cortex, orbe, démo."""
+    """Aide, dossiers, explorateur 3D, carte domotique, cortex."""
     # --- AIDE / CAPACITES (Priorite 0) ---
     _aide_questions = [
         "que peux-tu faire", "que peux tu faire", "que sais-tu faire", "que sais tu faire",
@@ -161,43 +161,6 @@ async def _commandes_identite_hud(t):
         module_catalogue.annoncer("JEUX ET 3D", "Cortex")
         _safe_ws_send(json.dumps({"action": "cortex_vocal_speak_request"}))
         return f"C'est entendu{nom_virgule()}. Lecture du souvenir actif..."
-
-    # --- TRANSFORMATION DE L'ORBE EN MOT ---
-    _mots_orbe = ["écrit le mot", "écris le mot", "ecris le mot", "écrit moi", "écris moi", "ecris moi", "écris-moi", "ecris-moi", "orbe écrit", "orbe ecris"]
-    word = ""
-    if any(m in t for m in _mots_orbe):
-        for prefix in _mots_orbe:
-            if prefix in t:
-                parts = t.split(prefix, 1)
-                if len(parts) > 1:
-                    word = parts[1].strip()
-                    if word.startswith("le mot "):
-                        word = word[7:].strip()
-                break
-    else:
-        # Forme naturelle "écris X" / "écrit X" (sans "le mot"/"moi") → orbe,
-        # uniquement si X est court : on évite de détourner une vraie dictée
-        # (mail, message, long texte) qui doit partir vers le cloud.
-        for prefix in ("écris ", "écrit ", "ecris ", "ecrit "):
-            if t.startswith(prefix):
-                candidat = t[len(prefix):].strip().rstrip(".?! ")
-                _mots_dictee = ("mail", "email", "e-mail", "message", "sms", "code",
-                                "document", "lettre", "texte", " dans ", " sur ", " à ")
-                if candidat and len(candidat.split()) <= 3 and len(candidat) <= 25 \
-                   and not any(a in candidat for a in _mots_dictee):
-                    word = candidat
-                break
-    if word:
-        module_catalogue.annoncer("JARVIS")
-        word = word.rstrip(".?! ")
-        _safe_ws_send(json.dumps({"action": "orb_write_word", "word": word}))
-        return f"Très bien{nom_espace()}, je reconfigure l'orbe pour dessiner le mot : {word}."
-
-    # --- DECLENCHEMENT PROTOCOLE DEMONSTRATION ORBE ---
-    if any(k in t for k in ["démonstration", "demonstration", "démo", "demo", "lance la démo", "lance une démo", "lance une démonstration", "lance la démonstration", "protocole de démo", "fais une démo", "fais une demo"]):
-        module_catalogue.annoncer("JARVIS")
-        _safe_ws_send(json.dumps({"action": "demo"}))
-        return f"Initialisation du protocole de démonstration visuelle{nom_virgule()}."
 
     # (« mets » n'ouvre pas de dossier : « mets en pause le téléchargement » y passait)
     prefixes_dossiers = ["ouvre le dossier ", "ouvre mon dossier ", "ouvre le répertoire ", "ouvre le repertoire ", "ouvre dossier ", "ouvre "]

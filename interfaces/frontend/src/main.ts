@@ -1,5 +1,5 @@
 /**
- * J.A.R.V.I.S — Interface Web avec Orbe Three.js
+ * J.A.R.V.I.S — Interface Web (HUD)
  *
  * Point d'entrée du HUD : n'orchestre plus que le démarrage. La logique vit dans
  *   hud/    — état partagé, orbe, menus, paramètres, clavier, aide, minuteur, carrousel...

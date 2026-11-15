@@ -4,6 +4,7 @@ import { appAddBtn, appAddNameEl, appAddPathEl, appDetectBtn, appDetectSelect, k
 import { orb } from "./orb_state";
 import { hudState } from "./state";
 import { type JarvisMessage } from "../ws/message_types";
+import { donneesOutils, signalerOutils } from "./donnees_outils";
 
 // Page paramètres : onglets, ouverture/fermeture, applications personnalisées,
 // sauvegarde, et messages settings_data / detected_apps (extraits de main.ts).
@@ -28,6 +29,9 @@ export function handleSettingsMessage(data: JarvisMessage): boolean {
 
   if (data.type === "settings_data" && data.data) {
     const settings = data.data as any;
+    // Voix, mot d'éveil et profils vocaux : lus par les pièces éclatées des réglages (hud/pieces_outils.ts)
+    donneesOutils.reglages = { voix: String(settings.voix_actuelle ?? ""), motEveil: String(settings.mot_eveil ?? ""), profils: Array.isArray(settings.profils_vocaux) ? settings.profils_vocaux : null };
+    signalerOutils("reglages");
     if (settings.user_name) settingsNameEl.value = settings.user_name;
     if (settings.user_age) settingsAgeEl.value = settings.user_age;
     
@@ -168,8 +172,16 @@ export function initSettingsNav(): void {
   });
 }
 
+// Les réglages s'ouvrent en pièces éclatées (hud/pieces_outils.ts) ; une page précise (clés API, applications, Discord, musique) garde
+// la page complète d'origine : la classe « reglages-classique » du body montre alors #settings-modal au lieu des pièces.
+export function ouvrirReglagesClassique(tab: string): void {
+  document.body.classList.add("reglages-classique");
+  switchSettingsTab(tab);
+}
+
 export function openSettingsModal(tab?: string) {
   if (!settingsModalEl) return;
+  document.body.classList.toggle("reglages-classique", !!tab);
 
   // Fermer le clavier visuel pour éviter la superposition
   if (hudState.keyboardEnabled) {
@@ -213,6 +225,7 @@ export function openSettingsModal(tab?: string) {
 export function closeSettingsModal() {
   if (!settingsModalEl) return;
   settingsModalEl.classList.remove("visible");
+  document.body.classList.remove("reglages-classique");
   // On purge tout style inline hérité : sans cela un display:flex résiduel
   // maintiendrait la modale affichée malgré le retrait de .visible.
   ["display", "opacity", "visibility"].forEach(p => settingsModalEl.style.removeProperty(p));

@@ -529,6 +529,13 @@
     </div>
   </div>
 
+  <!-- ══ VUE DE DIEU (God's Eye View, interfaces/gods_eye_view) : l'appli entière en plein écran, hud/vue_de_dieu.ts ══ -->
+  <div id="vue-de-dieu" style="display:none;">
+    <iframe id="vdd-cadre" title="God's Eye View" allow="microphone; fullscreen; clipboard-write; autoplay"></iframe>
+    <div class="vdd-attente" id="vdd-attente"><div class="vdd-anneau"></div><div class="vdd-texte" id="vdd-etat">LANCEMENT DE LA VUE DE DIEU…</div><div class="vdd-barre" id="vdd-barre"><i id="vdd-barre-i"></i></div><div class="vdd-notes" id="vdd-notes"></div></div>
+    <button type="button" class="vdd-fermer" id="vdd-fermer" aria-label="Fermer la vue de Dieu">✕ JARVIS</button>
+  </div>
+
   <!-- ══ VUES 3D (explorateur, maison, cortex, échecs, radar) ═══════════════ -->
   <!-- Ex-mode hologramme : les identifiants holo-* sont conservés car les vues les utilisent. -->
   <div id="holo-overlay" style="display:none;">
@@ -825,7 +832,7 @@
                 <option value="cyan">Bleu JARVIS (par défaut)</option>
                 <option value="emerald">Émeraude</option>
                 <option value="amber">Ambre</option>
-                <option value="red">Rouge Iron Man</option>
+                <option value="red">Rouge</option>
                 <option value="gold">Or</option>
                 <option value="anneaux">Violet</option>
               </select>

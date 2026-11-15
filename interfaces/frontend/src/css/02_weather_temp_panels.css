@@ -441,3 +441,7 @@
   text-align: right;
 }
 
+
+/* Sortie du sol des panneaux latéraux (hud/plein_ecran.ts, ouvrirDuSol) : pas de glissement latéral, invisible pendant la recherche */
+[data-sortie-sol] { transition: none !important; pointer-events: none !important; }
+[data-sortie-sol="attente"] { opacity: 0 !important; }

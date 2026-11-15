@@ -59,6 +59,7 @@ RESOLVEUR_VERS_CATEGORIE = {
     "alarmes": ("ALARMES", None),
     "resoudre_developpement": ("CRÉATION", "Code"),
     "resoudre_uninstaller_localement": ("LOGICIELS", "Désinstaller"),
+    "resoudre_vue_de_dieu": ("JEUX ET 3D", "Vue de Dieu"),
     "resoudre_local_mode": ("JARVIS", "Mode local"),
     "resoudre_lancer_enigme": ("ASSISTANT", None),
     "resoudre_os_autopilot": ("SYSTÈME", "Applications"),

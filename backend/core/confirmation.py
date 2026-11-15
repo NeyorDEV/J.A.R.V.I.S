@@ -36,12 +36,25 @@ def _correspond(t: str, mots: set) -> bool:
     return any(t == m or t.startswith(m + " ") for m in mots)
 
 
+def _historique():
+    """Résumé des confirmations passées (journal d'audit) pour le HUD ; None si illisible."""
+    try:
+        from core.audit_log import resume_confirmations
+        return resume_confirmations()
+    except Exception:
+        return None
+
+
 def confirmation_en_attente() -> bool:
     return _pending is not None
 
 
-async def demander_confirmation(websocket, message: str, timeout: float = 20.0) -> bool:
-    """Affiche un popup HUD et parle la question ; attend une réponse (clic ou voix)."""
+async def demander_confirmation(websocket, message: str, timeout: float = 20.0, details: list | None = None, question: bool = False) -> bool:
+    """Affiche la confirmation au HUD et parle la question ; attend une réponse (maintien de l'hexagone ou voix).
+
+    `details` : liste facultative [{"t": titre, "d": précision}] de ce qui sera supprimé, calculée avant l'action.
+    `question` : simple question oui / non qui n'a rien de destructif (installer une appli…) : le HUD l'affiche en bleu avec deux boutons
+    au lieu de l'hexagone à maintenir, et rien n'est inscrit au journal d'audit."""
     global _pending
 
     if _pending is not None and not _pending["future"].done():
@@ -58,8 +71,10 @@ async def demander_confirmation(websocket, message: str, timeout: float = 20.0) 
     if websocket is not None:
         destinataires.add(websocket)
 
+    resultat = None  # None tant que non résolue (délai écoulé) ; sert au message de fermeture
     try:
-        demande = json.dumps({"type": "confirm_request", "id": confirm_id, "message": message})
+        demande = json.dumps({"type": "confirm_request", "id": confirm_id, "message": message,
+                              "details": details or [], "timeout": timeout, "historique": None if question else _historique(), "question": bool(question)})
         for ws in destinataires:
             try:
                 await ws.send(demande)
@@ -72,23 +87,25 @@ async def demander_confirmation(websocket, message: str, timeout: float = 20.0) 
         shared.dernier_message = time.time()
         try:
             import builtins
-            builtins.parler(f"{message} Dites oui pour confirmer, ou non pour annuler.")
+            builtins.parler(f"{message} Répondez par oui ou par non." if question else f"{message} Dites oui pour confirmer, ou non pour annuler.")
         except Exception:
             pass
 
         try:
             resultat = await asyncio.wait_for(future, timeout=timeout)
         except asyncio.TimeoutError:
-            resultat = False
-            consigner("confirmation_timeout", message=message)
-            return resultat
-        consigner("confirmation_resolue", message=message, confirme=resultat)
+            resultat = None
+            if not question:
+                consigner("confirmation_timeout", message=message)
+            return False
+        if not question:
+            consigner("confirmation_resolue", message=message, confirme=resultat)
         return resultat
     finally:
         if _pending is not None and _pending["id"] == confirm_id:
             _pending = None
         # Ferme le popup sur tous les HUD (réponse vocale, autre fenêtre ou délai écoulé)
-        fermeture = json.dumps({"type": "confirm_closed", "id": confirm_id})
+        fermeture = json.dumps({"type": "confirm_closed", "id": confirm_id, "confirmed": resultat})
         for ws in destinataires:
             try:
                 await ws.send(fermeture)

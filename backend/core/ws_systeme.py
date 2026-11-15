@@ -139,7 +139,15 @@ async def ws_uninstall_program(websocket, data):
     install_location = data.get("install_location", "")
     uninstall_string = data.get("uninstall_string", "")
 
-    if not await demander_confirmation(websocket, f"Désinstaller {app_name} ?"):
+    # Ce qui sera retiré, calculé avant l'action (lecture seule) et montré dans la confirmation du HUD
+    details = [{"t": "Programme", "d": f"{app_name}" + (f" · {install_location}" if install_location else "")}]
+    try:
+        traces = await asyncio.to_thread(chercher_traces_fichiers, app_name, publisher, install_location)
+        if traces:
+            details.append({"t": "Données", "d": f"{len(traces)} dossier(s) : " + ", ".join(os.path.basename(t["path"]) for t in traces[:2])})
+    except Exception:
+        pass
+    if not await demander_confirmation(websocket, f"Désinstaller {app_name} ?", details=details):
         await websocket.send(json.dumps({
             "type": "uninstall_complete",
             "app_name": app_name,

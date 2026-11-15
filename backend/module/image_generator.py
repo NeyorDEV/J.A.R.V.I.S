@@ -12,7 +12,17 @@ def generer_image_ia(prompt):
     """
     try:
         print(f"[IMAGE] Génération pour : {prompt}")
-        
+
+        # 1. Cloudflare Workers AI (FLUX.1 schnell, palier gratuit) si le compte est renseigné dans le .env
+        from module.image_cloudflare import generer_image_flux
+        octets = generer_image_flux(prompt)
+        if octets:
+            mime = "image/png" if octets[:4] == b"\x89PNG" else "image/jpeg"
+            print("[IMAGE] Cloudflare FLUX")
+            return f"data:{mime};base64,{base64.b64encode(octets).decode('utf-8')}"
+
+        # 2. Repli : Pollinations (sans clé, limité)
+
         # Encodage du prompt pour l'URL
         prompt_enc = urllib.parse.quote(prompt)
         

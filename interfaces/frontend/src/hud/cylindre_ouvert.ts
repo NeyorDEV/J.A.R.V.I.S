@@ -4,7 +4,13 @@
 // quelle qu'en soit la cause (commande vocale, bouton, croix), le cylindre suit.
 import { orb } from "./orb_state";
 import { surveillerPleinEcran } from "./plein_ecran";
+import { fermerPieces, ouvrirPieces, type PieceDef } from "./eclate";
+import type { ContenuCylindre } from "../orb_cylindre";
+import { centreAgenda, centreMeteo, centreMusique, piecesAgenda, piecesMeteo, piecesMusique } from "./pieces_widgets";
+import { initOutilsEclates, piecesAide, piecesMaison, piecesMinuteurs, piecesReglages } from "./pieces_outils";
+import { piecesAntivirus, piecesDesinstall, piecesLogiciels, piecesSysteme } from "./pieces_tableaux";
 
+const DUREE_ENFONCEMENT = 500;               // animation widget-sink (widgets.css, 0,45 s) + marge
 const jetons = new Map<string, number>();    // dernière demande d'ouverture par raison : une fermeture annule celle en cours
 const attentes = new Map<string, number>();  // sondes « l'écran est-il ouvert ? »
 const suiveurs = new Map<string, ResizeObserver>();  // repositionnent un widget posé dans l'écran quand sa taille change
@@ -78,51 +84,61 @@ export function fermerEcran(raison: string, el?: HTMLElement, centre = false): v
     if (el.classList.contains("hud-sinking")) window.setTimeout(() => { if (!el.classList.contains("hud-revealed")) reinitialiserPosition(el); }, 500);
     else window.setTimeout(() => { if (!jetons.has(raison)) reinitialiserPosition(el); }, centre ? 0 : 450);
   }
-  orb.setOuvert(raison, false);
+  // Un widget posé dans l'écran s'enfonce d'abord (0,45 s) : le cylindre garde son écran jusque-là, sinon il se replierait sous lui
+  if (centre && el) window.setTimeout(() => { if (!jetons.has(raison)) orb.setOuvert(raison, false); }, DUREE_ENFONCEMENT);
+  else orb.setOuvert(raison, false);
 }
 
 // Éléments suivis par leur classe : ouverture ou fermeture, quelle qu'en soit la cause (voix, bouton, croix), l'écran suit.
 // mot : thème imposé à la recherche ("" = celui de la phrase) ; centre : posé au milieu de l'écran.
 // Les widgets (centre) se posent dans l'écran du cylindre ; les panneaux, eux, sortent du cylindre et s'étendent à leur taille (plein_ecran.ts).
-const SURVEILLES: { raison: string; selecteur: string; visible: (el: HTMLElement) => boolean; mot: string; centre: boolean; module?: [string, string | null] }[] = [
-  { raison: "widget-meteo", selecteur: "#weather-hud", visible: (el) => el.classList.contains("hud-revealed"), mot: "", centre: true, module: ["MÉTÉO", null] },
-  { raison: "widget-calendrier", selecteur: "#calendar-hud", visible: (el) => el.classList.contains("hud-revealed"), mot: "", centre: true, module: ["AGENDA", "Calendrier"] },
-  { raison: "widget-musique", selecteur: "#music-hud", visible: (el) => el.classList.contains("hud-revealed"), mot: "", centre: true, module: ["MUSIQUE", null] },
+const PIECES_TABLEAUX: Record<string, () => PieceDef[]> = { systeme: piecesSysteme, winget: piecesLogiciels, antivirus: piecesAntivirus, desinstallation: piecesDesinstall };
+const SURVEILLES: { raison: string; selecteur: string; visible: (el: HTMLElement) => boolean; mot: string; centre: boolean; module?: [string, string | null]; pieces?: () => PieceDef[]; contenu?: () => ContenuCylindre }[] = [
+  { raison: "widget-meteo", selecteur: "#weather-hud", visible: (el) => el.classList.contains("hud-revealed"), mot: "", centre: true, module: ["MÉTÉO", null], pieces: piecesMeteo, contenu: centreMeteo },
+  { raison: "widget-calendrier", selecteur: "#calendar-hud", visible: (el) => el.classList.contains("hud-revealed"), mot: "", centre: true, module: ["AGENDA", "Calendrier"], pieces: piecesAgenda, contenu: centreAgenda },
+  { raison: "widget-musique", selecteur: "#music-hud", visible: (el) => el.classList.contains("hud-revealed"), mot: "", centre: true, module: ["MUSIQUE", null], pieces: piecesMusique, contenu: centreMusique },
   ...([
     ["recette", "#recipe-modal", "CUISINE", "Recettes"], ["courses", "#shopping-panel", "CUISINE", "Liste de courses"], ["systeme", "#system-panel", "SYSTÈME", null],
     ["winget", "#winget-panel", "LOGICIELS", "Mises à jour"], ["desinstallation", "#uninstaller-panel", "LOGICIELS", "Désinstaller"],
     ["antivirus", "#av-panel", "SÉCURITÉ", "Antivirus"], ["coffre", "#vault-panel", "SÉCURITÉ", "Coffre-fort"],
   ] as [string, string, string, string | null][]).map(([raison, selecteur, cat, sous]) => ({
-    raison, selecteur, mot: "", centre: false, module: [cat, sous] as [string, string | null],
+    raison, selecteur, mot: "", centre: false, module: [cat, sous] as [string, string | null], pieces: PIECES_TABLEAUX[raison],
     visible: (el: HTMLElement) => el.classList.contains("visible") && !el.classList.contains("hidden"),
   })),
-  { raison: "domotique", selecteur: "#ha-panel", visible: (el) => !el.classList.contains("hidden"), mot: "", centre: false, module: ["MAISON", "Lumières"] },
+  { raison: "domotique", selecteur: "#ha-panel", visible: (el) => !el.classList.contains("hidden"), mot: "", centre: false, module: ["MAISON", "Lumières"], pieces: piecesMaison },
+  // Aide, minuteurs et réglages : pièces éclatées aussi (hud/pieces_outils.ts). Les anciens éléments restent dans le DOM pour porter l'état.
+  { raison: "aide", selecteur: "#help-overlay", visible: (el) => el.classList.contains("visible"), mot: "", centre: false, module: ["JARVIS", "Aide"], pieces: piecesAide },
+  { raison: "minuteur", selecteur: "#timer-hud", visible: (el) => el.style.display !== "none" && !el.classList.contains("hidden"), mot: "", centre: false, module: ["ALARMES", "Minuteur"], pieces: piecesMinuteurs },
+  // La page complète des réglages (« reglages-classique ») garde l'ancienne sortie du cylindre
+  { raison: "parametres", selecteur: "#settings-modal", visible: (el) => el.classList.contains("visible") && !document.body.classList.contains("reglages-classique"), mot: "", centre: false, module: ["JARVIS", "Paramètres"], pieces: piecesReglages },
 ];
 
 export function initCylindreOuvert(): void {
-  for (const { raison, selecteur, visible, mot, centre, module } of SURVEILLES) {
+  document.body.classList.add("hud-eclate");   // les anciennes boîtes des widgets centraux se masquent : leurs pièces éclatées les remplacent (eclate.ts)
+  for (const { raison, selecteur, visible, mot, centre, module, pieces, contenu } of SURVEILLES) {
     const el = document.querySelector(selecteur) as HTMLElement | null;
     if (!el) continue;
-    if (!centre && module) { surveillerPleinEcran(selecteur, raison, module, { visible, avant: (e) => fermerAutres(raison, e) }); continue; }
+    if (!centre && module && !pieces) { surveillerPleinEcran(selecteur, raison, module, { visible, avant: (e) => fermerAutres(raison, e) }); continue; }
     let actif = false;
     const maj = (): void => {
       const v = visible(el);
-      if (v && !actif) { actif = true; ouvrirEcran(raison, el, mot, centre, module); }
-      else if (!v && actif) { actif = false; fermerEcran(raison, el, centre); }
+      if (v && !actif) { actif = true; if (pieces) { fermerAutres(raison, el); ouvrirPieces(raison, pieces(), module, false, contenu); } else ouvrirEcran(raison, el, mot, centre, module); }
+      else if (!v && actif) { actif = false; if (pieces) fermerPieces(raison); else fermerEcran(raison, el, centre); }
     };
-    new MutationObserver(maj).observe(el, { attributes: true, attributeFilter: ["class"] });
+    new MutationObserver(maj).observe(el, { attributes: true, attributeFilter: ["class", "style"] });
+    if (raison === "parametres") new MutationObserver(maj).observe(document.body, { attributes: true, attributeFilter: ["class"] });   // bascule vers la page complète
     maj();
   }
+  initOutilsEclates();
+  // La page complète des réglages (clés API…) sort encore du cylindre, comme avant
+  surveillerPleinEcran("#settings-modal", "parametres-classique", ["JARVIS", "Paramètres"], { visible: (el) => el.classList.contains("visible") && document.body.classList.contains("reglages-classique") });
   // Salon d'agents et éditeur de code : fenêtres affichées par d'autres modules, elles sortent aussi du cylindre
   surveillerPleinEcran("#swarm-lounge-hud", "salon-agents", ["CRÉATION", "Projet"]);
   surveillerPleinEcran("#code-editor-modal", "editeur-code", ["CRÉATION", "Éditeur"]);
-  // Les paramètres : la roue cherche d'abord, puis la page sort du cylindre (avant, elle s'affichait aussitôt et cachait la recherche)
-  surveillerPleinEcran("#settings-modal", "parametres", ["JARVIS", "Paramètres"], { visible: (el) => el.classList.contains("visible") });
-  // Aide (liste des commandes), minuteur, créateur de site, atelier de projets, panneaux latéraux météo et capteurs : même chose
-  surveillerPleinEcran("#help-overlay", "aide", ["JARVIS", "Aide"], { visible: (el) => el.classList.contains("visible") });
-  surveillerPleinEcran("#timer-hud", "minuteur", ["ALARMES", "Minuteur"]);
+  // Aide (liste des commandes), minuteur, créateur de site, atelier de projets : même chose. Les panneaux latéraux météo et capteurs,
+  // posés sur les côtés du cylindre, sortent du sol (comme les panneaux de l'orbe) et s'y enfoncent : le cylindre ne s'étend pas pour eux.
   surveillerPleinEcran("#website-builder-hud", "createur-site", ["CRÉATION", "Site web"]);
   surveillerPleinEcran("#dev-swarm-hud", "atelier-projet", ["CRÉATION", "Projet"]);
-  surveillerPleinEcran("#weather-panel", "panneau-meteo", ["MÉTÉO", null], { visible: (el) => el.classList.contains("wp-visible") });
-  surveillerPleinEcran("#temp-panel", "panneau-capteurs", ["MAISON", "Capteurs"], { visible: (el) => el.classList.contains("tp-visible") });
+  surveillerPleinEcran("#weather-panel", "panneau-meteo", ["MÉTÉO", null], { visible: (el) => el.classList.contains("wp-visible"), sol: true });
+  surveillerPleinEcran("#temp-panel", "panneau-capteurs", ["MAISON", "Capteurs"], { visible: (el) => el.classList.contains("tp-visible"), sol: true });
 }

@@ -1,0 +1,83 @@
+/* Panneaux éclatés (hud/eclate.ts) : les widgets deviennent des pièces flottantes de part et d'autre du cylindre.
+   Même langage que le cylindre : fond noir, traits fins, brillance cyan, panneaux presque transparents, coins repères,
+   lumière qui court sur le bord, balayage de scan. Les pièces sortent du sol (plein_ecran.ts : jouerSol). */
+#eclate-couche { position: fixed; inset: 0; pointer-events: none; z-index: 65; }
+.ec-piece { position: absolute; pointer-events: auto; font: 11px Consolas, monospace; color: #8fd0ee; user-select: none; }
+.ec-in {
+  position: relative; box-sizing: border-box; overflow: hidden; transform-origin: 0 0;
+  background: linear-gradient(160deg, rgba(0, 40, 70, 0.5), rgba(0, 12, 28, 0.34));
+  border-top: 1px solid rgba(0, 229, 255, 0.6);
+  backdrop-filter: blur(3px);
+  padding: 12px 14px;
+}
+.ec-libre .ec-in { background: none; border-top: 0; backdrop-filter: none; padding: 0; overflow: visible; }
+.ec-libre .ec-in::before, .ec-libre .ec-in::after, .ec-libre .ec-lt, .ec-libre .ec-sc { display: none; }
+.ec-in::before, .ec-in::after { content: ""; position: absolute; width: 14px; height: 14px; border: 0 solid #bff3ff; z-index: 2; }
+.ec-in::before { left: 0; top: 0; border-width: 2px 0 0 2px; }
+.ec-in::after { right: 0; bottom: 0; border-width: 0 2px 2px 0; }
+.ec-cut .ec-in { clip-path: polygon(0 0, 100% 0, calc(100% - 22px) 100%, 0 100%); }
+.ec-cut .ec-in::after { display: none; }
+.ec-cut2 .ec-in { clip-path: polygon(18px 0, 100% 0, 100% 100%, 0 100%, 0 18px); }
+.ec-cut2 .ec-in::before { display: none; }
+.ec-lt { position: absolute; left: 0; top: -1px; height: 1px; width: 34px; background: #fff; box-shadow: 0 0 8px #00e5ff; animation: ec-lt 3.2s linear infinite; z-index: 3; }
+@keyframes ec-lt { 0% { left: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { left: calc(100% - 34px); opacity: 0; } }
+.ec-sc { position: absolute; left: 0; right: 0; height: 26px; top: -30px; background: linear-gradient(180deg, rgba(0, 229, 255, 0), rgba(0, 229, 255, 0.16), rgba(0, 229, 255, 0)); animation: ec-sc 3.6s linear infinite; pointer-events: none; }
+@keyframes ec-sc { to { top: 110%; } }
+.ec-tete { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; position: relative; z-index: 3; }
+.ec-lab { font: 600 8.5px Orbitron, Consolas, monospace; letter-spacing: 2px; color: rgba(127, 220, 255, 0.78); }
+.ec-x { background: none; border: 0; color: #5fa8c8; font-size: 12px; cursor: pointer; padding: 0 2px; }
+.ec-x:hover { color: #fff; }
+.ec-corps { position: relative; z-index: 1; }
+.ec-val { font: 600 13px Consolas, monospace; color: #e8fbff; letter-spacing: 1px; text-shadow: 0 0 8px rgba(0, 229, 255, 0.55); }
+.ec-gr { font: 600 34px Consolas, monospace; color: #00e5ff; text-shadow: 0 0 14px rgba(0, 229, 255, 0.85); line-height: 1; }
+.ec-mini { font: 8px Consolas, monospace; color: rgba(127, 220, 255, 0.55); line-height: 1.5; word-break: break-all; }
+.ec-ligne { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.ec-sub { color: #7fdcff; font-size: 10px; letter-spacing: 0.5px; }
+.ec-piece svg text { font-family: Consolas, monospace; }
+.ec-btn { cursor: pointer; }
+.ec-btn:hover { filter: brightness(1.4); }
+.ec-jour { text-align: center; padding: 5px 0; font: 9px Consolas, monospace; color: #8fd0ee; position: relative; opacity: 0; animation: ec-jin 0.4s ease-out forwards; }
+.ec-jour.ev::after { content: ""; position: absolute; left: 50%; bottom: 1px; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%; background: #ffd23a; box-shadow: 0 0 4px #ffd23a; }
+.ec-jour.auj { color: #fff; box-shadow: inset 0 0 0 1px #00e5ff; text-shadow: 0 0 6px #00e5ff; }
+.ec-jour.auj::before { content: ""; position: absolute; inset: 0; border: 1px solid #00e5ff; animation: ec-pls 1.8s ease-out infinite; }
+@keyframes ec-jin { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes ec-pls { from { transform: scale(1); opacity: 0.9; } to { transform: scale(1.9, 2.4); opacity: 0; } }
+/* Les anciennes boîtes des widgets centraux restent dans le DOM (elles portent l'état affiché / masqué) mais ne se voient plus */
+body.hud-eclate #weather-hud, body.hud-eclate #calendar-hud, body.hud-eclate #music-hud { display: none !important; }
+
+/* ── Outils éclatés (hud/pieces_outils.ts) : aide, minuteurs, maison, réglages ─────────────────────────────────────────── */
+/* Les anciens éléments restent dans le DOM (état affiché / masqué, champs des réglages) mais ne se voient plus.
+   La page complète des réglages (clés API, applications…) reste visible quand le body porte « reglages-classique ». */
+body.hud-eclate #help-overlay, body.hud-eclate #timer-hud, body.hud-eclate #ha-panel { display: none !important; }
+body.hud-eclate:not(.reglages-classique) #settings-modal { display: none !important; }
+.ec-defile { overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: rgba(0, 229, 255, 0.45) transparent; }
+.ec-li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 6px; cursor: pointer; border-left: 2px solid transparent; color: #8fd0ee; font-size: 10.5px; }
+.ec-li:hover { background: rgba(0, 229, 255, 0.1); }
+.ec-li.on { border-left-color: #fff; color: #fff; background: rgba(0, 229, 255, 0.14); }
+.ec-cmd { padding: 4px 6px; cursor: pointer; border-left: 2px solid transparent; color: #8fd0ee; font-size: 10.5px; line-height: 1.35; }
+.ec-cmd:hover, .ec-cmd.on { background: rgba(0, 229, 255, 0.12); border-left-color: #fff; color: #e8fbff; }
+.ec-piece mark { background: rgba(0, 229, 255, 0.4); color: #fff; }
+.ec-q { width: 100%; box-sizing: border-box; background: transparent; border: 0; border-bottom: 1px solid #00e5ff; outline: 0; color: #fff; font: 14px Consolas, monospace; padding: 4px 2px; box-shadow: none; height: auto; margin-top: 2px; }
+.ec-q::placeholder { color: rgba(127, 220, 255, 0.45); }
+.ec-bt { display: inline-block; border: 1px solid rgba(0, 229, 255, 0.55); padding: 5px 9px; margin: 0 5px 6px 0; font: 600 9px Orbitron, Consolas, monospace; letter-spacing: 1.1px; color: #bff3ff; cursor: pointer; white-space: nowrap; }
+.ec-bt:hover { background: rgba(0, 229, 255, 0.16); color: #fff; }
+.ec-bt.on, .ec-bt.fort { border-color: #fff; color: #fff; background: rgba(0, 229, 255, 0.14); box-shadow: 0 0 8px rgba(0, 229, 255, 0.35); }
+.ec-bt.danger { border-color: rgba(255, 90, 122, 0.7); color: #ff9db0; }
+.ec-seg { display: flex; gap: 2px; margin-top: 5px; }
+.ec-seg i { flex: 1; height: 8px; background: #00e5ff; box-shadow: 0 0 5px #00e5ff; transition: opacity 0.4s; }
+.ec-seg i.off { opacity: 0.14; box-shadow: none; }
+.ec-pt { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.ec-fil { flex: 1; height: 3px; background: rgba(0, 229, 255, 0.15); }
+.ec-fil i { display: block; height: 100%; background: #00e5ff; box-shadow: 0 0 6px #00e5ff; }
+.ec-tg { width: 38px; height: 18px; border: 1px solid #00e5ff; border-radius: 10px; position: relative; cursor: pointer; background: rgba(255, 255, 255, 0.03); flex: none; }
+.ec-tg i { position: absolute; left: 3px; top: 3px; width: 10px; height: 10px; border-radius: 50%; background: #5f8aa5; transition: 0.2s; }
+.ec-tg.on i { left: 23px; background: #fff; box-shadow: 0 0 8px #00e5ff; }
+.ec-sw { display: inline-block; width: 24px; height: 24px; border-radius: 50%; margin: 0 8px 8px 0; cursor: pointer; }
+.ec-sw.on { box-shadow: 0 0 0 2px #02050c, 0 0 0 3px #fff, 0 0 12px var(--col); }
+.ec-sw:hover { filter: brightness(1.25); }
+.room { cursor: pointer; }
+.room:hover rect { stroke-width: 2.2; }
+.ec-bt.pt { padding: 3px 7px; margin: 0 4px 5px 0; font-size: 8.5px; }
+.ec-sw { width: 22px; height: 22px; margin: 0 6px 8px 0; }
+.ec-jour { cursor: pointer; } .ec-jour:hover { color: #fff; background: rgba(0, 229, 255, 0.14); }
+.ec-jour.sel { color: #fff; background: rgba(0, 229, 255, 0.2); box-shadow: inset 0 0 0 1px #bff3ff, 0 0 8px rgba(0, 229, 255, 0.5); }

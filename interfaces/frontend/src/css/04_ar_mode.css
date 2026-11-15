@@ -95,22 +95,5 @@ body.ar-mode-active #hand-canvas {
   display: block;
 }
 
-/* Réduction de l'Orbe Three.js en bas à gauche en mode AR */
-#orb-canvas.minimized {
-  position: fixed !important;
-  bottom: 25px !important;
-  left: 25px !important;
-  width: 180px !important;
-  height: 180px !important;
-  border-radius: 50% !important;
-  border: 2px solid rgba(0, 229, 255, 0.45) !important;
-  background: rgba(0, 8, 20, 0.85) !important;
-  backdrop-filter: blur(8px) !important;
-  box-shadow: 0 0 35px rgba(0, 229, 255, 0.5), inset 0 0 15px rgba(0, 229, 255, 0.2) !important;
-  z-index: 120 !important;
-  transition: all 0.9s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  pointer-events: auto !important;
-}
-
 
 

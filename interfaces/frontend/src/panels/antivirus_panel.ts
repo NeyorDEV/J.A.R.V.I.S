@@ -6,6 +6,7 @@
 import { wsRef } from "../ws_link";
 import { makePanelDraggable } from "../ui/draggable";
 import { esc, formatNombre, icone } from "./pm_utils";
+import { rafraichirPieces } from "../hud/eclate";
 
 const avPanelEl = document.getElementById("av-panel") as HTMLDivElement;
 const avHeaderEl = document.getElementById("av-panel-header") as HTMLDivElement;
@@ -37,12 +38,26 @@ let debutAnalyse = 0;
 let minuterieDuree: number | null = null;
 let avTimerMasquage: number | null = null;   // masquage différé, annulable à la réouverture
 
+// Pièces éclatées (hud/pieces_tableaux.ts) : état lisible + mêmes actions que les boutons du panneau
+export const avEtat = {
+  pct: 0, texte: "", classe: "" as "" | "etat-sain" | "threat-detected", fichiers: 0, menaces: 0, etape: "",
+  cellules: [] as { suspect: boolean }[], lignes: [] as { t: string; c: string }[],
+};
+export const avDebut = (): number => debutAnalyse;
+export const avEnCours = (): boolean => avScanInProgress;
+export const avProtectionTempsReel = (): boolean => !!avLiveToggle?.checked;
+export const avMenaces = (): any[] => avThreatsList;
+export const basculerProtectionTempsReel = (): void => avLiveToggle?.click();
+export const annulerOuRelancerAnalyse = (): void => { if (avScanInProgress) cancelAvScan(); else openAntivirusPanel(); };
+const signaler = (): void => rafraichirPieces("antivirus");
+
 if (avPanelEl && avHeaderEl) {
   makePanelDraggable(avPanelEl, avHeaderEl);
 }
 
 // ── Affichage ───────────────────────────────────────────────────────────────
 function etat(texte: string, classe: "" | "etat-sain" | "threat-detected" = "") {
+  avEtat.texte = texte; avEtat.classe = classe; signaler();
   if (avStatusLabel) avStatusLabel.textContent = texte;
   avPanelEl?.classList.remove("etat-sain", "threat-detected");
   if (classe) avPanelEl?.classList.add(classe);
@@ -50,12 +65,14 @@ function etat(texte: string, classe: "" | "etat-sain" | "threat-detected" = "") 
 
 function progression(pct: number) {
   const p = Math.max(0, Math.min(100, Math.round(pct)));
+  avEtat.pct = p;
   if (avProgressFill) avProgressFill.style.width = `${p}%`;
   if (avProgressPct) avProgressPct.textContent = `${p}%`;
   if (avAnneau) avAnneau.setAttribute("stroke-dashoffset", String(CIRCONFERENCE * (1 - p / 100)));
 }
 
 function compterMenaces(n: number) {
+  avEtat.menaces = n; signaler();
   if (avThreatsCount) {
     avThreatsCount.textContent = String(n);
     avThreatsCount.style.color = n > 0 ? "#ff5a5f" : "";
@@ -63,6 +80,7 @@ function compterMenaces(n: number) {
 }
 
 function journal(texte: string, classe: "" | "menace" | "ok" = "") {
+  avEtat.lignes.push({ t: texte, c: classe }); if (avEtat.lignes.length > 60) avEtat.lignes.shift(); signaler();
   if (!avConsole) return;
   const ligne = document.createElement("div");
   if (classe) ligne.className = classe;
@@ -90,6 +108,7 @@ function arreterMinuterie() {
 function finAnalyse() {
   avScanInProgress = false;
   arreterMinuterie();
+  signaler();
   if (avCancelBtn) avCancelBtn.textContent = "Fermer";
 }
 
@@ -105,6 +124,7 @@ export function openAntivirusPanel() {
   void avPanelEl.offsetWidth; // reflow : relance l'animation d'ouverture
   avPanelEl.classList.add("visible");
 
+  avEtat.cellules = []; avEtat.lignes = []; avEtat.fichiers = 0; avEtat.etape = "";
   etat("Initialisation de l'analyse…");
   progression(0);
   compterMenaces(0);
@@ -123,6 +143,7 @@ export function openAntivirusPanel() {
   if (avCancelBtn) { avCancelBtn.textContent = "Annuler"; avCancelBtn.disabled = false; }
   avScanInProgress = true;
   demarrerMinuterie();
+  signaler();
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
     wsRef.current.send(JSON.stringify({ type: "av_scan_start" }));
   }
@@ -171,11 +192,10 @@ export function handleAntivirusWSMessage(data: any) {
 
   else if (data.type === "av_progress") {
     if (data.percent !== undefined) progression(data.percent);
-    if (data.step) etat(ETAPES[data.step] || "Analyse en cours", avThreatsList.length ? "threat-detected" : "");
+    if (data.step) { avEtat.etape = data.step; etat(ETAPES[data.step] || "Analyse en cours", avThreatsList.length ? "threat-detected" : ""); }
     if (data.threats_found !== undefined) compterMenaces(data.threats_found);
-    if (data.step === "files" && data.scanned !== undefined && avNbFichiers) {
-      avNbFichiers.textContent = formatNombre(data.scanned);
-    }
+    if (data.step === "files" && data.scanned !== undefined) { avEtat.fichiers = Number(data.scanned) || 0; if (avNbFichiers) avNbFichiers.textContent = formatNombre(data.scanned); }
+    if (data.message && data.step === "files") { avEtat.cellules.push({ suspect: false }); if (avEtat.cellules.length > 240) avEtat.cellules.shift(); }
     if (data.message) {
       if (avCurrentFile) avCurrentFile.textContent = data.message;
       const prefixe = data.step === "registry" ? "[REGISTRE]" : data.step === "processes" ? "[PROCESSUS]" : "[FICHIER]";
@@ -185,6 +205,7 @@ export function handleAntivirusWSMessage(data: any) {
 
   else if (data.type === "av_threat_detected" && data.threat) {
     avThreatsList.push(data.threat);
+    avEtat.cellules.push({ suspect: true });
     etat("Menace détectée — analyse en cours", "threat-detected");
     journal(`[DANGER] ${data.threat.class} : ${data.threat.name} (${data.threat.desc || ""})`, "menace");
   }

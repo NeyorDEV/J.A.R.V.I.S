@@ -3,9 +3,12 @@
 // y apparaît. Se referme par la croix, ou toute seule après un délai.
 import { fermerEcran, ouvrirEcran } from "../hud/cylindre_ouvert";
 import { esc } from "./pm_utils";
+import { donnees } from "../hud/donnees_widgets";
+import { piecesOuvertes, rafraichirPieces } from "../hud/eclate";
+import { showCalendarWidget } from "../widgets";
 
-interface LigneEcran { t: string; d?: string | null; v?: string | null; etat?: "on" | "off" | "alerte" | null }
-interface DonneesEcran { categorie?: string; sous?: string | null; titre?: string; sous_titre?: string; lignes?: LigneEcran[]; pied?: string | null }
+interface LigneEcran { t: string; d?: string | null; jour?: string | null; v?: string | null; etat?: "on" | "off" | "alerte" | null }
+interface DonneesEcran { categorie?: string; sous?: string | null; titre?: string; sous_titre?: string; lignes?: LigneEcran[]; pied?: string | null; message?: string }
 
 const RAISON = "ecran-module";
 const DELAI_FERMETURE_MS = 30_000;
@@ -47,6 +50,12 @@ function remplir(el: HTMLElement, d: DonneesEcran): void {
 }
 
 export function afficherEcranModule(d: DonneesEcran): void {
+  if (d.categorie === "AGENDA") {
+    // L'agenda se montre dans les pièces du calendrier (prochains rendez-vous, jours cliquables) : pas d'écran séparé qui répéterait la même chose
+    donnees.agenda = (d.lignes ?? []).filter((l) => l.jour); donnees.agendaMessage = d.message ?? null;
+    if (piecesOuvertes("widget-calendrier")) rafraichirPieces("widget-calendrier"); else showCalendarWidget();
+    return;
+  }
   const el = element();
   remplir(el, d);
   if (fermeture !== null) clearTimeout(fermeture);

@@ -1,0 +1,46 @@
+/* Style « fin » des pièces éclatées (classe `ec-fin` dans PieceDef.classe) : cadre biseauté, trait de 1 px, quadrillage discret,
+   repères d'angle, en-tête à trois carrés. Validé sur maquette (scratch/outils_test/maquette_*_riche.html, maquette_meteo_mix.html,
+   maquette_agenda_musique_fin.html). Les classes `fn-*` sont les briques de texte et de contrôles à utiliser dans le corps des pièces ;
+   les graphiques (anneaux, courbes, histogrammes) viennent de hud/fin_graph.ts. Aucune émoticône, texte en français clair. */
+.ec-piece.ec-fin { color: #9fdcff; }
+.ec-piece.ec-fin .ec-in {
+  padding: 8px 11px; backdrop-filter: none; border-top: 0;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  background:
+    linear-gradient(225deg, transparent calc(50% - 1px), rgba(111, 194, 255, 0.95) calc(50% - 1px), rgba(111, 194, 255, 0.95) calc(50% + 0.6px), transparent calc(50% + 0.6px)) top right / 14px 14px no-repeat,
+    linear-gradient(45deg, transparent calc(50% - 1px), rgba(111, 194, 255, 0.95) calc(50% - 1px), rgba(111, 194, 255, 0.95) calc(50% + 0.6px), transparent calc(50% + 0.6px)) bottom left / 14px 14px no-repeat,
+    repeating-linear-gradient(0deg, rgba(127, 220, 255, 0.045) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(90deg, rgba(127, 220, 255, 0.035) 0 1px, transparent 1px 6px),
+    linear-gradient(150deg, rgba(9, 42, 138, 0.9), rgba(4, 18, 76, 0.92));
+  box-shadow: inset 0 0 0 1px rgba(80, 160, 255, 0.75);
+}
+.ec-piece.ec-fin .ec-in::before, .ec-piece.ec-fin .ec-in::after { display: block; width: 9px; height: 9px; border-color: #e8fbff; }
+.ec-piece.ec-fin .ec-in::before { border-width: 1px 0 0 1px; }
+.ec-piece.ec-fin .ec-in::after { border-width: 0 1px 1px 0; }
+.ec-piece.ec-fin .ec-lt { top: 0; height: 1px; width: 26px; }
+.ec-piece.ec-fin .ec-sc { display: none; }
+.ec-piece.ec-fin .ec-tete { padding-bottom: 5px; border-bottom: 1px solid rgba(127, 220, 255, 0.2); margin-bottom: 7px; }
+.ec-piece.ec-fin .ec-lab { font: 500 7.5px Orbitron, Consolas, monospace; letter-spacing: 1.9px; color: #a9e3ff; }
+.ec-piece.ec-fin .ec-tete::after { content: ""; width: 13px; height: 2.5px; margin-left: 6px; flex: none; background: linear-gradient(90deg, #5fd0ff 2.5px, transparent 2.5px) 0 0 / 5px 2.5px repeat-x; }
+.ec-piece.ec-fin .ec-x { font-size: 9px; margin-left: auto; }
+.ec-piece.ec-fin svg text { font-family: Consolas, monospace; }
+
+.fn-txt { font-size: 9px; color: #bfe6ff; line-height: 1.45; } .fn-txt b { color: #fff; font-weight: 400; }
+.fn-petit { font-size: 7.5px; color: #7fb8dc; line-height: 1.4; }
+.fn-cap { font-size: 7px; color: #9fd8f8; margin: 2px 0; line-height: 1.3; letter-spacing: 0.5px; } .fn-cap b { color: #fff; font-weight: 400; }
+.fn-big { font: 300 22px Consolas, monospace; color: #2fd8ff; text-shadow: 0 0 7px rgba(47, 216, 255, 0.5); line-height: 1; }
+.fn-lgd { display: flex; align-items: center; gap: 5px; font-size: 8px; margin-bottom: 4px; }
+.fn-lgd i { width: 5px; height: 5px; flex: none; } .fn-lgd span { flex: 1; color: #9fd8f8; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .fn-lgd em { font-style: normal; color: #eaf9ff; white-space: nowrap; }
+.fn-li { display: flex; align-items: center; gap: 6px; padding: 3px; cursor: pointer; border-left: 1px solid transparent; font-size: 8.5px; }
+.fn-li:hover { background: rgba(0, 229, 255, 0.1); } .fn-li.sel { border-left-color: #fff; background: rgba(0, 229, 255, 0.12); }
+.fn-cb { width: 8px; height: 8px; border: 1px solid #2fd8ff; flex: none; } .fn-cb.on { background: #2fd8ff; box-shadow: 0 0 4px #2fd8ff; }
+.fn-btn { display: inline-block; border: 1px solid #2fd8ff; background: rgba(0, 229, 255, 0.1); color: #fff; padding: 5px 10px; font: 500 7.5px Orbitron, Consolas, monospace; letter-spacing: 1.5px; cursor: pointer; }
+.fn-btn:hover { background: rgba(0, 229, 255, 0.25); }
+.fn-btn.r { border-color: #ff5a7a; color: #ff9db0; background: rgba(255, 90, 122, 0.08); }
+.fn-btn.off { opacity: 0.35; pointer-events: none; }
+.fn-sep { border-top: 1px solid rgba(127, 220, 255, 0.2); margin-top: 7px; padding-top: 6px; }
+.fn-liste { overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(0, 229, 255, 0.45) transparent; }
+.fn-tm { position: absolute; cursor: pointer; border: 1px solid rgba(127, 220, 255, 0.4); padding: 3px 4px; overflow: hidden; font-size: 7px; color: #e8fbff; line-height: 1.3; box-sizing: border-box; }
+.fn-tm:hover { filter: brightness(1.4); } .fn-tm.sel { border-color: #fff; box-shadow: 0 0 6px rgba(47, 216, 255, 0.6); }
+.fn-pulse { animation: fn-pulse 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes fn-pulse { from { transform: scale(0.6); opacity: 0.9; } to { transform: scale(1.7); opacity: 0; } }

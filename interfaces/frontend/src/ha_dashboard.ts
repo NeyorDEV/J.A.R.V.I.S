@@ -5,8 +5,9 @@
 
 import { esc, icone } from "./panels/pm_utils";
 import { wsRef } from "./ws_link";
+import { signalerOutils } from "./hud/donnees_outils";
 
-interface HAEntity {
+export interface HAEntity {
   entity_id: string;
   state: string;
   attributes: {
@@ -32,6 +33,13 @@ function _ws(): WebSocket | null {
   return wsRef.current;
 }
 let _entities: HAEntity[] = [];
+
+// Lecture et commande pour les pièces éclatées de la maison (hud/pieces_outils.ts)
+export type EntiteHA = HAEntity;
+export const entitesHA = (): HAEntity[] => _entities;
+export function appelerServiceHA(domain: string, service: string, entity_id: string, service_data?: Record<string, unknown>): void {
+  callHAService(domain, service, entity_id, service_data);
+}
 let _activeCategory: string = "all";
 let _searchQuery: string = "";
 
@@ -149,6 +157,11 @@ export function initHADashboard(ws: WebSocket | null): void {
 }
 
 export function handleHAMessage(data: any): void {
+  traiterHAMessage(data);
+  if (typeof data?.type === "string" && data.type.startsWith("ha_")) signalerOutils("ha");
+}
+
+function traiterHAMessage(data: any): void {
   const panelStatus = document.querySelector(".ha-status-label");
 
   if (data.type === "ha_states") {

@@ -3,6 +3,10 @@
 import { makePanelDraggable } from "../ui/draggable";
 import { wsRef } from "../ws_link";
 import { esc, icone } from "./pm_utils";
+import { rafraichirPieces } from "../hud/eclate";
+
+/** Dernier état reçu et résultats de test : lus par les pièces éclatées (hud/pieces_tableaux.ts). */
+export const lireEtatSysteme = (): { etat: any; tests: typeof resultats } => ({ etat: dernier, tests: resultats });
 
 const ETATS: Record<string, [string, string]> = {
   actif: ["ok", "actif"], pret: ["ok", "prêt"], libre: ["ok", "libre"],
@@ -49,9 +53,9 @@ function ligneMoteur(m: any): string {
 }
 
 function dessiner(d: any): void {
+  if (d) { dernier = d; rafraichirPieces("systeme"); }
   const corps = document.getElementById("system-corps");
   if (!corps || !d) return;
-  dernier = d;
   const v = d.voix, s = d.services, r = d.ressources;
   const pb = pastille;
   const etatsVoix: Record<string, string> = {

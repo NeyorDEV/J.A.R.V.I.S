@@ -70,3 +70,6 @@ tools/installateur/build/
 
 # Skills : approbations propres à cette machine
 data/skills/_approbations.json
+
+# Vue de Dieu (God's Eye View) : installé à la demande dans data/gods_eye_view/, jamais versionné
+data/gods_eye_view/

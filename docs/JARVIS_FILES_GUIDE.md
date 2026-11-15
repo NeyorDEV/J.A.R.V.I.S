@@ -157,7 +157,7 @@ Interface utilisateur principale, de style "Iron Man HUD".
 *   **[ws_link.ts](file:///n:/JARVIS/interfaces/frontend/src/ws_link.ts)** : Couche réseau gérant l'état de la connexion WebSocket.
 
 ### 🔮 Modélisations et Composants 3D (Three.js)
-*   **[orb.ts](file:///n:/JARVIS/interfaces/frontend/src/orb.ts)** : L'orbe réactif central (Arc Reactor). Anime les points 3D selon les états (`listening` : pulsation lente, `thinking` : rotation rapide, `speaking` : ondes vocales). Incorpore également l'algorithme d'affichage de mots 3D par projection de pixels.
+*   **[orb_cylindre.ts](file:///n:/JARVIS/interfaces/frontend/src/orb_cylindre.ts)** : Le cylindre holographique central (canvas 2D). Il suit les états (veille, écoute, réflexion, parole), joue la roue de recherche de catégorie (catalogue dans **orb_themes.ts**), s'ouvre en écran pour les widgets et les panneaux, et affiche la fiche du module trouvé ; les panneaux latéraux sortent du sol.
 *   **[globe.ts](file:///n:/JARVIS/interfaces/frontend/src/globe.ts)** : Globe 3D réaliste (texture jour/nuit, nuages) lié à Leaflet 2D pour les navigations cartographiques vocales.
 *   **[chess_map.ts](file:///n:/JARVIS/interfaces/frontend/src/chess_map.ts)** : Implémentation du plateau d'échecs 3D holographique interactif et jouable en tactile ou par commande vocale.
 *   **[domotic_map.ts](file:///n:/JARVIS/interfaces/frontend/src/domotic_map.ts)** : Représentation 3D extrudée des pièces de l'habitat pour visualiser et commuter l'état des appareils Home Assistant connectés.

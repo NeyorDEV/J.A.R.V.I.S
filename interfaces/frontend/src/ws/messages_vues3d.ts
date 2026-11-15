@@ -3,7 +3,8 @@ import { handleHAMessage } from "../ha_dashboard";
 import { updateMusicUI, updateWeatherUI } from "../widgets";
 import { majPrevisions, type Previsions } from "../weather_vues";
 import { fermerVues3D, ouvrirVue3D, vue3DOuverte } from "../hud/vues_3d";
-import { orb } from "../hud/orb_state";
+import { allerVueDeDieu, erreurVueDeDieu, fermerVueDeDieu, notesVueDeDieu, ouvrirVueDeDieu, partageCleVueDeDieu, progresVueDeDieu, vueDeDieuPrete } from "../hud/vue_de_dieu";
+import { afficherQuestion, questionResolue } from "../hud/question_hud";
 import { closeConfirmDialog, showConfirmDialog } from "../panels/confirm_dialog";
 import { showImageHUD } from "../panels/image_panels";
 import { openShoppingPanel, setShoppingList } from "../panels/shopping_panel";
@@ -92,6 +93,15 @@ export function handleVues3DMessage(data: JarvisMessage): boolean {
     if (radar) radar.handleRadarUpdate((data as any).connections || []);
     return true;
   }
+  // ── Vue de Dieu (God's Eye View) : l'appli entière en plein écran, lancée par le backend ──
+  if (data.action === "vue_de_dieu_show") { ouvrirVueDeDieu(data.url || "http://127.0.0.1:4173/", !!(data as any).installation); return true; }
+  if (data.action === "vue_de_dieu_progres") { progresVueDeDieu((data as any).texte || "", (data as any).pct); return true; }
+  if (data.action === "vue_de_dieu_notes") { notesVueDeDieu((data as any).tag || "", (data as any).lignes || []); return true; }
+  if (data.action === "vue_de_dieu_pret") { vueDeDieuPrete(data.url || "http://127.0.0.1:4173/"); return true; }
+  if (data.action === "vue_de_dieu_erreur") { erreurVueDeDieu((data as any).texte || "L'installation a échoué."); return true; }
+  if (data.action === "vue_de_dieu_goto") { allerVueDeDieu(data.ancre || ""); return true; }
+  if (data.action === "vue_de_dieu_hide") { fermerVueDeDieu(); return true; }
+  if (data.action === "vue_de_dieu_partage") { partageCleVueDeDieu((data as any).fournisseur || "", !!(data as any).ok, (data as any).texte || ""); return true; }
   if (data.action === "network_radar_hide") {
     if (vue3DOuverte("radar")) fermerVues3D();
     return true;
@@ -169,23 +179,18 @@ export function handleVues3DMessage(data: JarvisMessage): boolean {
     return true;
   }
 
-  if (data.action === "orb_write_word" && (data as any).word) {
-    if (orb) {
-      orb.writeWord((data as any).word);
-    }
-    return true;
-  }
-
   if (data.action === "display_image" && data.url) {
     showImageHUD(data.url, data.prompt || "--");
     return true;
   }
   if (data.type === "confirm_request" && (data as any).id) {
-    showConfirmDialog((data as any).id, (data as any).message || "Confirmer cette action ?");
+    if ((data as any).question) afficherQuestion((data as any).id, (data as any).message || "Voulez-vous continuer ?", (data as any).details, (data as any).timeout);
+    else showConfirmDialog((data as any).id, (data as any).message || "Confirmer cette action ?", (data as any).details, (data as any).timeout, (data as any).historique);
     return true;
   }
   if (data.type === "confirm_closed" && (data as any).id) {
-    closeConfirmDialog((data as any).id);
+    closeConfirmDialog((data as any).id, (data as any).confirmed);
+    questionResolue((data as any).id, (data as any).confirmed);
     return true;
   }
   if (data.action === "ctx_card") {
@@ -194,7 +199,8 @@ export function handleVues3DMessage(data: JarvisMessage): boolean {
       content: data.text || "",
       type: data.type as any,
       duration: data.duration,
-      icon: data.icon
+      icon: data.icon,
+      priorite: (data as any).priorite
     });
     return true;
   }

@@ -70,9 +70,9 @@ export const CATEGORIES: Categorie[] = [
   { nom: "CUISINE", mots: r("recette|ingredient|plat|courses|liste de courses"), faibles: r("cuisine"),
     icone: "M3 2v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6a2 2 0 0 0 2 2h3zM21 15v7",
     sous: [s("Recettes", "recette|recettes|plat"), s("Liste de courses", "courses|liste|ajoute"), s("Ingrédients", "ingredient|ingredients"), s("Portions", "portion|portions|personnes"), s("Étapes", "etape|etapes|instructions")] },
-  { nom: "JEUX ET 3D", mots: r("echecs|echiquier|explorateur|maison 3d|cortex|radar|globe|terre|carte|3d|mains|geste"),
+  { nom: "JEUX ET 3D", mots: r("echecs|echiquier|explorateur|maison 3d|cortex|radar|globe|terre|carte|3d|mains|geste|vue de dieu|dieu"),
     icone: "M21 16V8l-9-5-9 5v8l9 5zM3.3 7 12 12l8.7-5M12 22V12",
-    sous: [s("Échecs", "echecs|echiquier"), s("Explorateur", "explorateur"), s("Maison 3D", "maison|3d"), s("Cortex", "cortex|cerveau"), s("Radar réseau", "radar"), s("Globe", "globe|terre|carte"), s("Gestes", "main|mains|geste|gestes")] },
+    sous: [s("Échecs", "echecs|echiquier"), s("Explorateur", "explorateur"), s("Maison 3D", "maison|3d"), s("Cortex", "cortex|cerveau"), s("Radar réseau", "radar"), s("Vue de Dieu", "vue de dieu|dieu|god|oeil"), s("Globe", "globe|terre|carte"), s("Gestes", "main|mains|geste|gestes")] },
   { nom: "JARVIS", mots: r("voix|micro|profil|parametre|parametres|reglage|reglages|config|theme|couleur|aide|mode local|hors ligne|sous-titre|sous-titres|paroles"),
     icone: "M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3",
     sous: [s("Voix", "voix"), s("Profil vocal", "profil|reconnais"), s("Thème", "theme|couleur"), s("Aide", "aide"), s("Mode local", "local|hors ligne|offline"), s("Sous-titres", "sous-titre|sous-titres|paroles"), s("Micro", "micro|ecoute"), s("Paramètres", "parametre|parametres|reglage|reglages|config")] },
@@ -97,6 +97,12 @@ export function choisir(texte: string): [categorie: number, sous: number] {
     if (p > record) { record = p; meilleure = i; }
   }
   return [meilleure, choisirSous(meilleure, texte)];
+}
+
+/** Mot de la phrase qui désigne la catégorie (null si aucun : module annoncé par le backend sans mot reconnu dans la phrase). */
+export function motReconnu(categorie: number, texte: string): string | null {
+  const m = texte.match(CATEGORIES[categorie].mots);
+  return m ? m[1] ?? m[0] : null;
 }
 
 /** Sous-catégorie d'une catégorie donnée pour la phrase : la première est le choix par défaut, une autre ne gagne que

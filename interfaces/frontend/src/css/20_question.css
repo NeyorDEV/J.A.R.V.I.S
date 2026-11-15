@@ -1,0 +1,12 @@
+/* Question oui / non non destructive (hud/question_hud.ts), pièces éclatées bleues (base : 15_eclate.css). */
+.qh-message { font: 600 13px/1.5 Consolas, monospace; color: #e8fbff; text-shadow: 0 0 8px rgba(0, 229, 255, 0.5); margin-bottom: 12px; }
+.qh-ligne { display: flex; flex-direction: column; gap: 2px; padding: 4px 0 4px 10px; margin-bottom: 6px; border-left: 2px solid rgba(0, 229, 255, 0.6); }
+.qh-ligne b { font: 600 11px Consolas, monospace; color: #bff3ff; }
+.qh-ligne span { font: 10px Consolas, monospace; color: #7fdcff; }
+.qh-boutons { display: flex; gap: 10px; margin: 4px 0 14px; }
+.qh-btn { flex: 1; padding: 12px 0; background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.7); color: #e8fbff; font: 700 13px Orbitron, Consolas, monospace; letter-spacing: 3px; cursor: pointer; transition: background 0.15s; }
+.qh-btn:hover:not(:disabled) { background: rgba(0, 229, 255, 0.28); box-shadow: 0 0 14px rgba(0, 229, 255, 0.45); }
+.qh-btn:disabled { opacity: 0.4; cursor: default; }
+.qh-non { border-color: rgba(127, 220, 255, 0.4); color: #8fd0ee; }
+.qh-delai { font: 10px Consolas, monospace; color: #bff3ff; margin-bottom: 6px; }
+.qh-aide { font: 9px/1.5 Consolas, monospace; color: rgba(127, 220, 255, 0.65); }

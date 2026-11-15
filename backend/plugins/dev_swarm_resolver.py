@@ -5,7 +5,7 @@ import re
 import asyncio
 import time
 import difflib
-from core.config import GEMINI_API_KEY, CHOSEN_MODEL
+from core.config import CHOSEN_MODEL
 from module.sandbox_executor import executer_fichier_sandbox
 from core.interlocuteur import nom_espace, nom_virgule
 
@@ -401,10 +401,7 @@ async def process_generated_images(code_text: str, project_dir: str) -> str:
     assets_dir = os.path.join(project_dir, "assets")
     os.makedirs(assets_dir, exist_ok=True)
 
-    api_openai = os.environ.get("OPENAI_API_KEY")
     api_grok = os.environ.get("XAI_API_KEY") or os.environ.get("GROK_API_KEY")
-    disable_imagen = False
-    disable_openai = False
 
     for match in matches:
         full_tag = match.group(0)
@@ -415,30 +412,21 @@ async def process_generated_images(code_text: str, project_dir: str) -> str:
 
         success = False
 
-        # 1. API OPENAI DALL-E NATIVE
-        if api_openai and not disable_openai and not success:
+        # 1. CLOUDFLARE WORKERS AI (FLUX.1 schnell, palier gratuit) si CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN sont dans le .env
+        # (DALL-E 3 et Imagen 3 ont été retirés par OpenAI et Google en 2026 : ces deux étapes n'existent plus)
+        if not success:
             try:
-                import openai
-                client_oa = openai.OpenAI(api_key=api_openai, timeout=15.0)
-                resp = await asyncio.to_thread(
-                    client_oa.images.generate,
-                    model="dall-e-3",
-                    prompt=img_prompt,
-                    n=1,
-                    size="1024x1024"
-                )
-                img_url = resp.data[0].url
-                img_resp = await asyncio.to_thread(requests.get, img_url, timeout=30)
-                img_resp.raise_for_status()
-                with open(filepath, 'wb') as f:
-                    f.write(img_resp.content)
-                success = True
-                print(f"[DEV SWARM IMAGE IA] OpenAI DALL-E -> {rel_path}")
+                from module.image_cloudflare import generer_image_flux
+                octets_cf = await asyncio.to_thread(generer_image_flux, img_prompt)
+                if octets_cf:
+                    with open(filepath, 'wb') as f:
+                        f.write(octets_cf)
+                    success = True
+                    print(f"[DEV SWARM IMAGE IA] Cloudflare FLUX -> {rel_path}")
             except Exception:
-                print(f"[DEV SWARM IMAGE IA] OpenAI DALL-E non activé ou non supporté par votre clé (Passage au modèle suivant)")
-                disable_openai = True
+                print("[DEV SWARM IMAGE IA] Cloudflare non disponible (Passage au modèle suivant)")
 
-        # 2. API GROK IMAGINE NATIVE
+        # 2. API GROK IMAGINE NATIVE (si XAI_API_KEY est renseignée)
         if api_grok and not success:
             try:
                 import openai
@@ -459,27 +447,7 @@ async def process_generated_images(code_text: str, project_dir: str) -> str:
             except Exception:
                 print(f"[DEV SWARM IMAGE IA] Grok Imagine non disponible (Passage au modèle suivant)")
 
-        # 3. API GEMINI IMAGEN 3.0 NATIVE
-        if GEMINI_API_KEY and not disable_imagen and not success:
-            try:
-                def call_imagen():
-                    return client.models.generate_images(
-                        model='imagen-3.0-generate-002',
-                        prompt=img_prompt
-                    )
-                resp = await asyncio.to_thread(call_imagen)
-                if resp and hasattr(resp, 'generated_images') and resp.generated_images:
-                    image_bytes = resp.generated_images[0].image.image_bytes
-                    with open(filepath, 'wb') as f:
-                        f.write(image_bytes)
-                    success = True
-                    print(f"[DEV SWARM IMAGE IA] Gemini Imagen 3.0 -> {rel_path}")
-            except Exception as e:
-                print(f"[DEV SWARM IMAGE IA] Gemini Imagen non disponible sur votre clé API (Passage au fallback)")
-                if "404" in str(e) or "not found" in str(e).lower() or "not supported" in str(e).lower():
-                    disable_imagen = True
-
-        # 4. FALLBACK HAUTE QUALITÉ FLUX (Pollinations API avec Retry & Headers Chrome)
+        # 3. FALLBACK FLUX (Pollinations) (Pollinations API avec Retry & Headers Chrome)
         if not success:
             safe_p = urllib.parse.quote(img_prompt)
             pollinations_url = f"https://image.pollinations.ai/prompt/{safe_p}?model=flux&width=1024&height=1024&nologo=true"

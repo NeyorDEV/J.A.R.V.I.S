@@ -99,6 +99,11 @@ class GestionnaireQuotas:
         self._hit_count[api_name] = self._hit_count.get(api_name, 0) + 1
         print(f"[QUOTA] ⚠ {api_name.upper()} quota atteint — cooldown {duration}s "
               f"(total: {self._hit_count[api_name]} fois)")
+        try:
+            from core.alertes_service import signaler_moteur_en_pause
+            signaler_moteur_en_pause(api_name, duration)
+        except Exception:
+            pass   # la carte du HUD est un plus : jamais d'erreur ici
 
     def pause_restante(self, api_name: str) -> int:
         """Secondes avant la reprise de l'API (0 si elle est disponible)."""

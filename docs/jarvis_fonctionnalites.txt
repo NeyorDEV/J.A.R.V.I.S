@@ -17,7 +17,7 @@ programmée dans le système J.A.R.V.I.S.
 ================================================================================
 2. COMPOSANTS HUD & INTERFACES 3D (frontend/src/)
 ================================================================================
-* Arc Reactor 3D : Orbe central en Three.js réactif aux états d'écoute, de calcul et de parole.
+* Cylindre holographique central (canvas 2D) : réactif aux états d'écoute, de calcul et de parole, avec une roue de recherche de catégorie et un écran qui s'ouvre pour les widgets.
 * Widgets d'information : Calendrier interactif, prévisions météo en direct et lecteur de musique (Deezer).
 * Cartes contextuelles (Cards HUD) : Notifications néon avec barre de progression de fermeture animée.
 * Visualiseur de fréquence : Barre de spectre audio dynamique en bas de l'écran.
@@ -126,11 +126,11 @@ programmée dans le système J.A.R.V.I.S.
 * Protection en temps réel : Moniteur résident activable à chaud pour bloquer l'écriture de scripts malveillants.
 
 ================================================================================
-18. MORPHING DE MOTS 3D ET ORIENTATION DE L'ORBE (frontend/src/orb.ts)
+18. CYLINDRE HOLOGRAPHIQUE ET ROUE DE RECHERCHE (frontend/src/orb_cylindre.ts, orb_themes.ts)
 ================================================================================
-* Rejection Sampling : Algorithme d'échantillonnage de pixels haute résolution pour projeter exactement 2000 points d'un mot dans le plan 3D Three.js.
-* Stabilisation de tracé : Figeage de la caméra en position (0, 0, 75) et annulation des rotations et forces de dérives/bruits de volume de l'orbe pendant l'écriture pour un rendu 100% stable et net de gauche à droite.
-* Masquage de lignes : Désactivation totale des lignes de liaison pendant le dessin du mot pour éviter les effets de toile d'araignée rigides.
+* Roue de recherche : la catégorie et la sous-catégorie sont devinées d'après la phrase, puis confirmées par le backend (module réellement exécuté).
+* Écran du cylindre : il s'ouvre pour les widgets et les panneaux, avec une fiche du module (phrase, mot reconnu, sous-catégories, rang, durée de recherche, étapes).
+* Panneaux latéraux : ils sortent du sol et s'y enfoncent ; l'onde « entrée audio » suit le niveau réel du micro.
 
 ================================================================================
 19. EXHAUSTIVITÉ DES COMMANDES SUGGÉRÉES (frontend/src/main.ts)

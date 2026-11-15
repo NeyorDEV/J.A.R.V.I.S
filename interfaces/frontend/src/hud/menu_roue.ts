@@ -42,7 +42,7 @@ const GROUPES: Groupe[] = [
   ] },
   { titre: "SYSTÈME", sous: "ÉTAT · COMMANDES · RÉGLAGES", ic: "reglages", entrees: [
     { id: "carousel-system-btn", titre: "ÉTAT", sous: "MOTEURS ET SERVICES", ic: "pouls" },
-    { id: "carousel-commands-btn", titre: "COMMANDES", sous: "LISTE VOCALE", ic: "liste" },
+    { id: "carousel-commands-btn", titre: "AIDE", sous: "PALETTE DE COMMANDES · CTRL+K", ic: "liste" },
     { id: "carousel-api-btn", titre: "API KEYS", sous: "CLÉS D'ACCÈS", ic: "cle" },
     { id: "clear-cache-btn", titre: "CACHE", sous: "VIDER ET RELANCER", ic: "rafraichir", module: ["JARVIS", "Paramètres"] },
     { id: "settings-button", titre: "PARAMS", sous: "RÉGLAGES GLOBAUX", ic: "reglages" },
@@ -74,6 +74,7 @@ export function initMenuRoue(): void {
   })) as Record<Icone, Path2D>;
 
   let ouvert = false, masque = false, groupe = -1, expand = 0, expandCible = 0, sel = 0, tNiv = 0, tExp = 0;
+  let vis = 0;                // visibilité des cartes du menu : retombe vite à 0 dès que le menu est fermé (sinon elles restent sous les cartes de la recherche de la roue)
   let largeur = 0, hauteur = 0, dpr = 1, s = 1, origX = 0, origY = 0, boucle = 0;
   let sx = -1, sy = -1;       // souris, dans le repère de l'orbe
   let zones: Zone[] = [];
@@ -156,7 +157,7 @@ export function initMenuRoue(): void {
     g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
     g.setTransform(dpr * s, 0, 0, dpr * s, dpr * origX, dpr * origY);
     zones = [];
-    const aff = sm((orb.cylindreOuvert() - 0.88) / 0.12);   // les cartes se posent quand le cylindre de l'orbe est dressé
+    const aff = sm((orb.cylindreOuvert() - 0.88) / 0.12) * vis;   // les cartes se posent quand le cylindre de l'orbe est dressé
     if (aff <= 0.005) return;
     // Géométrie de la recherche vocale : mêmes hauteur de carte, pas et départ de colonne
     const ch = 28, hb = ch - 3, gap = (HF - 2 * ry0 - 46 - ch) / 7;
@@ -191,6 +192,7 @@ export function initMenuRoue(): void {
   function image(ms: number): void {
     boucle = requestAnimationFrame(image);
     expand += (expandCible - expand) * 0.18;
+    vis += ((ouvert ? 1 : 0) - vis) * 0.4; if (!ouvert && vis < 0.01) vis = 0;
     if (expandCible === 0 && expand < 0.02) { expand = 0; groupe = -1; }
     if (ouvert && orb.modeActuel() !== "menu") fermer(false);   // la voix ou un panneau reprend la main
     if (ouvert && sx >= 0) {
@@ -198,12 +200,12 @@ export function initMenuRoue(): void {
       if (z) sel = z.id;
     }
     dessiner(ms / 1000);
-    if (!ouvert && orb.cylindreOuvert() < 0.02) { cancelAnimationFrame(boucle); boucle = 0; }
+    if (!ouvert && (orb.cylindreOuvert() < 0.02 || vis === 0)) { cancelAnimationFrame(boucle); boucle = 0; }
   }
 
   function ouvrir(): void {
     if (ouvert || masque) return;
-    ouvert = true; groupe = -1; expand = 0; expandCible = 0; sel = 0; tNiv = performance.now() / 1000 + 0.6;
+    ouvert = true; vis = 1; groupe = -1; expand = 0; expandCible = 0; sel = 0; tNiv = performance.now() / 1000 + 0.6;
     cv.style.pointerEvents = "auto"; disque.style.display = "none"; orb.setMenu(true);
     if (!boucle) boucle = requestAnimationFrame(image);
   }

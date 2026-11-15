@@ -13,6 +13,12 @@
 @import "./12_confirm_dialog.css";
 @import "./13_panneaux_modules.css";
 @import "./14_verre.css";
+@import "./15_eclate.css";
+@import "./16_alertes.css";
+@import "./17_fin.css";
+@import "./18_tableaux_fin.css";
+@import "./19_vue_de_dieu.css";
+@import "./20_question.css";
 /* ── SCROLLBARS CYBERPUNK UNIVERSELLES POUR TOUT JARVIS ── */
 *, *::before, *::after {
   scrollbar-width: thin !important;

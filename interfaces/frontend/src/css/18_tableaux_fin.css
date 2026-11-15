@@ -1,0 +1,12 @@
+/* Tableaux de gestion en style fin (hud/pieces_tableaux.ts) : système, logiciels, antivirus, désinstallateur.
+   Les briques communes (fn-*) viennent de 17_fin.css ; ici seulement ce qui est propre à ces tableaux. */
+body.hud-eclate #system-panel, body.hud-eclate #winget-panel, body.hud-eclate #av-panel, body.hud-eclate #uninstaller-panel { display: none !important; }
+.ec-fin .tf-vide { margin-top: 8px; line-height: 1.55; }
+.ec-fin .fn-btn { padding: 5px 9px; }
+.ec-fin .fn-btn.tf-pt { padding: 3px 6px; font-size: 6.5px; letter-spacing: 1px; }
+.ec-fin .tf-clic { cursor: pointer; }
+.ec-fin .tf-clic:hover { background: rgba(0, 229, 255, 0.1); }
+.ec-fin .tf-lig { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.6; }
+.ec-fin .tf-lig.menace { color: #ffd23a; }
+.ec-fin .tf-lig.ok { color: #4dff9b; }
+.ec-fin .fn-liste { scrollbar-gutter: stable; }

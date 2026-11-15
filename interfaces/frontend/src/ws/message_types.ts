@@ -4,12 +4,15 @@ export type JarvisMessage = {
   action?: string;
   muted?: boolean;
   volume?: number;
+  level?: number;
   id?: string;
   duration?: number;
+  alarmes?: unknown[];
   text?: string;
   type?: string;
   version?: string;
   url?: string;
+  ancre?: string;             // vue_de_dieu_goto : ancre de lien partageable de God's Eye View
   cpu?: number;
   ram?: number;
   prompt?: string;

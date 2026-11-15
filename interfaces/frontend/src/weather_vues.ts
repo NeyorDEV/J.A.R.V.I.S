@@ -5,6 +5,7 @@
  */
 
 import { esc } from "./panels/pm_utils";
+import { rafraichirPieces } from "./hud/eclate";
 
 interface Jour { date: string; jour: string; code: number; desc: string; tmax: number; tmin: number; pluie_pct: number | null; pluie_mm: number | null; vent: number | null }
 interface Heure { h: number; t: number; pluie_pct: number | null }
@@ -94,7 +95,11 @@ export function afficherVueMeteo(id: string): void {
 export function majPrevisions(p: Previsions, vue?: string): void {
   previsions = p;
   afficherVueMeteo(vue ?? vueCourante);
+  rafraichirPieces("widget-meteo");   // pièces éclatées de la météo (hud/pieces_widgets.ts)
 }
+
+/** Dernières prévisions reçues (lues par les pièces éclatées). */
+export const lirePrevisions = (): Previsions | null => previsions;
 
 /** Construit les onglets et les vues (une fois) ; renvoie la zone « aujourd'hui », qui reçoit les blocs météo du moment. */
 export function construireVuesMeteo(container: HTMLElement): HTMLElement {

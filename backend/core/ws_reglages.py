@@ -91,6 +91,24 @@ async def ws_get_settings(websocket, data):
     except: pass
     config_data["mic_list"] = mic_list
 
+    # Infos en lecture seule pour les pièces éclatées des réglages (voix, mot d'éveil, profils vocaux)
+    try:
+        import core.config as _cfg
+        config_data["voix_actuelle"] = getattr(_cfg, "VOIX_ACTUELLE", "")
+    except Exception:
+        config_data["voix_actuelle"] = ""
+    config_data["mot_eveil"] = getattr(shared, "WAKE_WORD", "jarvis")
+    profils = []
+    try:
+        _rep = os.path.join(shared.RACINE_PROJET, "backend", "core", "voiceprints")
+        for _nom in sorted(os.listdir(_rep)):
+            _dossier = os.path.join(_rep, _nom)
+            if os.path.isdir(_dossier):
+                profils.append({"nom": _nom, "echantillons": len([f for f in os.listdir(_dossier) if f.startswith("sample_") and f.endswith(".npy")])})
+    except Exception:
+        pass
+    config_data["profils_vocaux"] = profils
+
     await websocket.send(json.dumps({"type": "settings_data", "data": config_data}))
 
 

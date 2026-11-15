@@ -164,6 +164,18 @@ async def gerer_connexion_ws(websocket):
                     print(f"[WEB] Micro {'COUPE' if shared.MIC_MUTED else 'REACTIF'}")
                 elif data.get("type") == "globe_state":
                     shared.GLOBE_VISIBLE = bool(data.get("visible"))
+                elif data.get("type") == "vue_de_dieu_state":
+                    # La vue de Dieu (God's Eye View) est affichée ou fermée dans le HUD ; fermée, son serveur local s'arrête
+                    from module import vue_de_dieu
+                    await asyncio.to_thread(vue_de_dieu.signaler_hud, bool(data.get("ouverte")))
+                elif data.get("type") == "vue_de_dieu_partager_cle":
+                    # Bouton « utiliser la clé de JARVIS » dans les Paramètres de God's Eye View : copie la clé dans le .env de l'appli
+                    from module import vue_de_dieu
+                    fournisseur = str(data.get("fournisseur", ""))
+                    ok, texte = await asyncio.to_thread(vue_de_dieu.partager_cle, fournisseur)
+                    from core.audit_log import consigner
+                    consigner("partage_cle_gev", fournisseur=fournisseur, ok=ok)   # jamais la clé elle-même
+                    await websocket.send(json.dumps({"action": "vue_de_dieu_partage", "fournisseur": fournisseur, "ok": ok, "texte": texte}))
                 elif data.get("type") == "toggle_fullscreen":
                     if hasattr(shared, "_WEBVIEW_WINDOW") and shared._WEBVIEW_WINDOW:
                         shared._WEBVIEW_WINDOW.toggle_fullscreen()
@@ -182,6 +194,9 @@ async def gerer_connexion_ws(websocket):
                     await ws_get_system_status(websocket, data)
                 elif data.get("type") == "system_test":
                     _en_tache_de_fond(ws_system_test(websocket, data))  # requêtes réseau : sans bloquer la lecture
+                elif data.get("type") == "get_alarmes":
+                    from module.alarm_manager import alarmes_pour_hud
+                    await websocket.send(json.dumps({"action": "alarmes_liste", "alarmes": alarmes_pour_hud()}))
                 elif data.get("type") == "get_settings":
                     await ws_get_settings(websocket, data)
                 elif data.get("type") == "update_settings":

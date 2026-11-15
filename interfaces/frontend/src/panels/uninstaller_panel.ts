@@ -6,6 +6,7 @@ import { wsRef } from "../ws_link";
 import { makePanelDraggable } from "../ui/draggable";
 import { closeWingetPanel } from "./winget_panel";
 import { esc, formatDate, formatTaille, icone, initiales } from "./pm_utils";
+import { rafraichirPieces } from "../hud/eclate";
 
 // ── Uninstaller DOM Refs ───────────────────────────────────────────────────
 const uninstallerPanel = document.getElementById("uninstaller-panel") as HTMLDivElement;
@@ -44,6 +45,20 @@ let currentLeftovers: Array<{ type: string; path: string; desc: string; hive?: s
 let triActif: "nom" | "taille" | "date" = "nom";
 let programmeEnCours: Programme | null = null;
 
+// Pièces éclatées (hud/pieces_tableaux.ts) : état lisible + mêmes actions que le panneau. La désinstallation passe toujours
+// par triggerUninstall : le serveur demande la confirmation (voix + boîte du HUD) avant d'agir.
+export type { Programme };
+const signaler = (): void => rafraichirPieces("desinstallation");
+export const lireEtatDesinstall = () => ({
+  programmes: allInstalledPrograms, enCours: programmeEnCours, statut: uninstallerStatusMsg?.textContent || "",
+  traces: currentLeftovers, voletTraces: !!uninstallerLeftoversContainer && !uninstallerLeftoversContainer.classList.contains("hidden"),
+  etapes: [...(uninstallerEtapes?.querySelectorAll<HTMLElement>(".pm-etape") ?? [])].map(e => e.className.replace("pm-etape", "").trim()),
+  titreTraces: uninstallerTracesTitre?.textContent || "", nettoyable: !!uninstallerCleanBtn && !uninstallerCleanBtn.disabled,
+});
+export const desinstallerProgramme = (p: Programme): void => triggerUninstall(p);
+export const nettoyerTraces = (): void => uninstallerCleanBtn?.click();
+export const garderTraces = (): void => uninstallerSkipBtn?.click();
+
 
 // ── Ouverture / fermeture ───────────────────────────────────────────────────
 if (uninstallerPanel && uninstallerHeader) {
@@ -75,6 +90,8 @@ export function openUninstallerPanel() {
 
   fermerVolet();
   programmeEnCours = null;
+  allInstalledPrograms = [];
+  signaler();
   if (uninstallerAppsList) {
     uninstallerAppsList.innerHTML = '<div class="pm-vide">CHARGEMENT DE LA LISTE DES LOGICIELS…</div>';
   }
@@ -107,6 +124,7 @@ function programmesAffiches(): Programme[] {
 }
 
 function renderInstalledPrograms() {
+  signaler();
   if (!uninstallerAppsList) return;
   const programmes = programmesAffiches();
   if (programmes.length === 0) {
@@ -178,6 +196,7 @@ function triggerUninstall(prog: Programme) {
   uninstallerLeftoversContainer?.classList.add("hidden");
   etapes({ 1: "courante" });
   if (uninstallerStatusMsg) uninstallerStatusMsg.textContent = `Désinstallation de ${prog.name}…`;
+  signaler();
 
   if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
     wsRef.current.send(JSON.stringify({
@@ -192,6 +211,7 @@ function triggerUninstall(prog: Programme) {
 
 export function updateUninstallProgress(data: any) {
   if (uninstallerStatusMsg) uninstallerStatusMsg.textContent = data.message || "En cours…";
+  signaler();
   // Le serveur passe à la recherche de traces après la désinstallation
   if (/trace|résidu|residu|analyse/i.test(data.message || "")) etapes({ 1: "faite", 2: "courante" });
 }
@@ -210,6 +230,7 @@ export function showUninstallComplete(data: any) {
   else if (currentLeftovers.length) etapes({ 1: "faite", 2: "faite", 3: "courante" });
   else etapes({ 1: "faite", 2: "faite", 3: "faite" });
   renderLeftovers(echec);
+  signaler();
 }
 
 function afficherToutSelectionner(visible: boolean) {
@@ -257,6 +278,7 @@ export function showCleanComplete(data: any) {
   }
   if (uninstallerCleanBtn) uninstallerCleanBtn.disabled = true;
   if (uninstallerSkipBtn) uninstallerSkipBtn.textContent = "Fermer";
+  signaler();
 }
 
 uninstallerSelectAll?.addEventListener("change", () => {
