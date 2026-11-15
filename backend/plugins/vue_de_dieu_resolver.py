@@ -12,6 +12,7 @@ import builtins
 import json
 import re
 import unicodedata
+import uuid
 
 from core.interlocuteur import nom_virgule
 from module import vue_de_dieu as vdd
@@ -134,6 +135,61 @@ async def _proposer_mise_a_jour(release: dict) -> bool:
     return oui
 
 
+# ── Pilotage : couches, options, boutons de l'appli (l'ordre part au HUD, qui le relaie à gev_couches.js dans l'iframe) ──
+_ON = r"(?:active|activer|allume|allumer|affiche|afficher|montre|montrer|mets|mettre|ajoute|ajouter)"
+_OFF = r"(?:desactive|desactiver|eteins|eteindre|cache|cacher|masque|masquer|enleve|enlever|retire|retirer|supprime|supprimer|coupe|couper)"
+_COUCHE_ON = re.compile(rf"^(?:jarvis[ ,]+)?{_ON}(?:[- ]moi)?\s+(?:(?:les|la|le|une?|des)\s+|l')?(?P<c>couches?\s+)?(?P<nom>.+)$")
+_COUCHE_OFF = re.compile(rf"^(?:jarvis[ ,]+)?{_OFF}(?:[- ]moi)?\s+(?:(?:les|la|le|une?|des)\s+|l')?(?P<c>couches?\s+)?(?P<nom>.+)$")
+_TOUTES_OFF = re.compile(rf"^(?:jarvis[ ,]+)?{_OFF}\s+(?:toutes?\s+les\s+couches|tout)\b")
+_LISTE = re.compile(r"\b(quelles?|liste)\b.*\bcouches?\b.*\b(actives?|affichees?|allumees?)\b|\bcouches?\s+actives?\b")
+_CHOIX = re.compile(r"^(?:jarvis[ ,]+)?(?:clique(?:r)? sur|appuie sur|appuyer sur|selectionne|selectionner|choisis|choisir|passe (?:en|au|a)(?: mode| style)?|bascule (?:en|sur)|utilise)\s+(?:(?:les|la|le|une?)\s+|l')?(?P<nom>.+)$")
+_SYNONYMES = {"vision nocturne": "nvg", "thermique": "flir", "infrarouge": "flir", "ecran cathodique": "crt", "film noir": "noir", "noir et blanc": "noir", "dessin anime": "anime", "mode normal": "normal"}
+
+
+async def _ordre(cmd: dict, delai: float = 6.0):
+    """Envoie un ordre à la vue ouverte et attend sa réponse (ok, texte) ; None si la vue ne répond pas."""
+    ident = uuid.uuid4().hex[:8]
+    f = asyncio.get_running_loop().create_future()
+    vdd.retours[ident] = f
+    await _diffuser({"action": "vue_de_dieu_cmd", "id": ident, "cmd": cmd})
+    try:
+        return await asyncio.wait_for(f, delai)
+    except asyncio.TimeoutError:
+        vdd.retours.pop(ident, None)
+        return None
+
+
+async def _pilotage(t: str):
+    t = t.strip(" .!?")
+    if _LISTE.search(t):
+        r = await _ordre({"op": "liste"})
+        return r[1] if r else "La vue de Dieu ne répond pas."
+    if _TOUTES_OFF.match(t):
+        r = await _ordre({"op": "toutes_off"})
+        return r[1] if r else "La vue de Dieu ne répond pas."
+    for rx, etat in ((_COUCHE_ON, True), (_COUCHE_OFF, False)):
+        m = rx.match(t)
+        if m:
+            nom = m.group("nom").strip()
+            if _PAS_UN_LIEU.search(nom) and not m.group("c"):
+                return None   # « montre la météo » reste à son resolver
+            r = await _ordre({"op": "couche", "nom": nom, "etat": etat})
+            if r is None:
+                return "La vue de Dieu ne répond pas." if m.group("c") else None
+            if r[0] or m.group("c"):
+                return r[1]
+            return None   # pas une couche : on laisse les autres resolvers (« désactive le micro »)
+    m = _CHOIX.match(t)
+    if m:
+        nom = m.group("nom").strip()
+        nom = _SYNONYMES.get(nom, nom)
+        for op in ("option", "clic"):
+            r = await _ordre({"op": op, "nom": nom})
+            if r and r[0]:
+                return r[1]
+    return None
+
+
 async def resoudre_vue_de_dieu(cmd: str):
     t = _clean(cmd)
 
@@ -169,6 +225,11 @@ async def resoudre_vue_de_dieu(cmd: str):
         if release and await _proposer_mise_a_jour(release):
             return await _lancer_installation(release, True)
         return await _ouvrir_vue()
+
+    if vdd.ouverte and not vdd.installation_en_cours:
+        r = await _pilotage(t)
+        if r:
+            return r
 
     # Vue ouverte : « va à Tokyo » la dirige au lieu d'ouvrir le globe de JARVIS
     if vdd.ouverte and not vdd.installation_en_cours:

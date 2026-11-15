@@ -3,7 +3,7 @@ import { handleHAMessage } from "../ha_dashboard";
 import { updateMusicUI, updateWeatherUI } from "../widgets";
 import { majPrevisions, type Previsions } from "../weather_vues";
 import { fermerVues3D, ouvrirVue3D, vue3DOuverte } from "../hud/vues_3d";
-import { allerVueDeDieu, erreurVueDeDieu, fermerVueDeDieu, notesVueDeDieu, ouvrirVueDeDieu, partageCleVueDeDieu, progresVueDeDieu, vueDeDieuPrete } from "../hud/vue_de_dieu";
+import { allerVueDeDieu, commandeVueDeDieu, erreurVueDeDieu, fermerVueDeDieu, notesVueDeDieu, ouvrirVueDeDieu, partageCleVueDeDieu, progresVueDeDieu, vueDeDieuPrete } from "../hud/vue_de_dieu";
 import { afficherQuestion, questionResolue } from "../hud/question_hud";
 import { closeConfirmDialog, showConfirmDialog } from "../panels/confirm_dialog";
 import { showImageHUD } from "../panels/image_panels";
@@ -100,6 +100,7 @@ export function handleVues3DMessage(data: JarvisMessage): boolean {
   if (data.action === "vue_de_dieu_pret") { vueDeDieuPrete(data.url || "http://127.0.0.1:4173/"); return true; }
   if (data.action === "vue_de_dieu_erreur") { erreurVueDeDieu((data as any).texte || "L'installation a échoué."); return true; }
   if (data.action === "vue_de_dieu_goto") { allerVueDeDieu(data.ancre || ""); return true; }
+  if (data.action === "vue_de_dieu_cmd") { commandeVueDeDieu((data as any).id || "", (data as any).cmd || {}); return true; }
   if (data.action === "vue_de_dieu_hide") { fermerVueDeDieu(); return true; }
   if (data.action === "vue_de_dieu_partage") { partageCleVueDeDieu((data as any).fournisseur || "", !!(data as any).ok, (data as any).texte || ""); return true; }
   if (data.action === "network_radar_hide") {

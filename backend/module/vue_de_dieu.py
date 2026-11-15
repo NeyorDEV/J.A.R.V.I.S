@@ -47,6 +47,7 @@ _proc = None
 _verrou = threading.Lock()
 _annuler = threading.Event()
 ouverte = False              # le HUD affiche la vue (message vue_de_dieu_state) : sert à diriger « va à Tokyo » vers elle
+retours = {}                # ordres vocaux en attente de réponse de la vue : id -> Future (résolu par ws_handler)
 installation_en_cours = False
 
 
@@ -838,6 +839,8 @@ const MODIFS_FR = {
     ["const CATALOGS = Object.freeze({ es, ru, 'zh-CN': zhCN });", "const CATALOGS = Object.freeze({ es, ru, 'zh-CN': zhCN, fr });"],
   ],
   '/src/ui/layerPanel.js': PLACEMENT_COUCHES,
+  // villes du tiroir POSITION : New York, Paris et Tokyo en premier (avant : Austin, San Francisco, New York), les autres gardent leur ordre
+  '/src/cityPois.js': [[/\n\};\s*$/, (m) => m + "\nfor (const cle of ['nyc', 'paris', 'tokyo', ...Object.keys(CITY_POIS).filter((k) => !['nyc', 'paris', 'tokyo'].includes(k))]) { const ville = CITY_POIS[cle]; delete CITY_POIS[cle]; CITY_POIS[cle] = ville; }\n"]],
 };
 function jarvisCouches() {
   return {
@@ -1193,6 +1196,7 @@ _ACCROCHES = (
     ("src/data/layerState.js", "'weather-lightning': Object.freeze([", "foudre Meteosat (état partagé)"),
     ("src/data/dataCredits.js", "key: 'weather-noaa',", "crédits Meteosat et EFFIS"),
     ("src/ui/layerPanel.js", "ids: ['directions', 'radio'],", "couches ajoutées par JARVIS : rangement dans les catégories du panneau"),
+    ("src/cityPois.js", "export const CITY_POIS = {", "ordre des villes du tiroir POSITION"),
     ("src/i18n/locale.js", "export const LOCALES = Object.freeze(['en', 'es', 'ru', 'zh-CN']);", "français (liste des langues)"),
     ("src/i18n/locale.js", "for (const candidate of Array.isArray(languages) ? languages : []) {", "français par défaut"),
     ("src/i18n/index.js", "const CATALOGS = Object.freeze({ es, ru, 'zh-CN': zhCN });", "français (catalogue)"),

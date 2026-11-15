@@ -138,5 +138,16 @@ export function partageCleVueDeDieu(fournisseur: string, ok: boolean, texte: str
   cadre?.contentWindow?.postMessage({ jarvis: "partage-resultat", fournisseur, ok, texte }, "*");
 }
 
+/** Pilotage vocal : ordre du backend relayé à l'appli (gev_couches.js), dont la réponse repart au backend. */
+export function commandeVueDeDieu(id: string, cmd: Record<string, unknown>): void {
+  if (!cadre?.contentWindow) { try { wsRef.current?.send(JSON.stringify({ type: "vue_de_dieu_retour", id, ok: false, texte: "La vue de Dieu n'est pas prête." })); } catch { /* socket fermée */ } return; }
+  cadre.contentWindow.postMessage({ ...cmd, jarvis: "gev-cmd", id }, "*");
+}
+window.addEventListener("message", (e: MessageEvent) => {
+  const d = e.data as { jarvis?: string; id?: string; ok?: boolean; texte?: string } | null;
+  if (!cadre || e.source !== cadre.contentWindow || d?.jarvis !== "gev-retour") return;
+  try { wsRef.current?.send(JSON.stringify({ type: "vue_de_dieu_retour", id: d.id, ok: !!d.ok, texte: String(d.texte || "") })); } catch { /* socket fermée */ }
+});
+
 bouton?.addEventListener("click", fermerVueDeDieu);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && ouverte) fermerVueDeDieu(); });

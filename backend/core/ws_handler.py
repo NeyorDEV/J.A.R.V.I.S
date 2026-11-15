@@ -168,6 +168,12 @@ async def gerer_connexion_ws(websocket):
                     # La vue de Dieu (God's Eye View) est affichée ou fermée dans le HUD ; fermée, son serveur local s'arrête
                     from module import vue_de_dieu
                     await asyncio.to_thread(vue_de_dieu.signaler_hud, bool(data.get("ouverte")))
+                elif data.get("type") == "vue_de_dieu_retour":
+                    # Réponse de God's Eye View à un ordre vocal (couche, option, bouton)
+                    from module import vue_de_dieu
+                    f = vue_de_dieu.retours.pop(str(data.get("id", "")), None)
+                    if f and not f.done():
+                        f.set_result((bool(data.get("ok")), str(data.get("texte", ""))[:300]))
                 elif data.get("type") == "vue_de_dieu_partager_cle":
                     # Bouton « utiliser la clé de JARVIS » dans les Paramètres de God's Eye View : copie la clé dans le .env de l'appli
                     from module import vue_de_dieu

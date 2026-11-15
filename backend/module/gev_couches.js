@@ -538,5 +538,76 @@
     }
     console.warn("[JARVIS] Couches JARVIS : l'appli n'a pas ouvert son point d'entrée (window.__gevQaRegisterLayer).");
   }
+  // La rangée de villes du tiroir POSITION défile à l'horizontale mais sa barre est masquée : la molette ordinaire (verticale) la fait maintenant défiler aussi (comme Maj + molette ou un glissement à deux doigts).
+  document.addEventListener('wheel', (e) => {
+    const rangee = e.target?.closest?.('.location-pills, .poi-row-container');
+    if (!rangee || rangee.scrollWidth <= rangee.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    rangee.scrollLeft += e.deltaY; e.preventDefault();
+  }, { passive: false });
+  // Pilotage vocal : le HUD de JARVIS relaie {jarvis:'gev-cmd', id, op, ...} ; on agit sur l'interface comme le ferait un clic et on répond {jarvis:'gev-retour', id, ok, texte}.
+  const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const mots = (s) => norm(s).split(' ').filter((m) => m.length > 1 && !['le', 'la', 'les', 'de', 'des', 'du', 'un', 'une', 'en', 'au', 'aux', 'et', 'couche', 'layer'].includes(m));
+  function meilleur(requete, candidats) {   // candidats : [{el, textes:[...]}] ; score = mots de la requête retrouvés (égalité exacte préférée)
+    const q = norm(requete), qm = mots(requete); let best = null, bs = 0;
+    for (const c of candidats) {
+      for (const tx of c.textes) {
+        const n = norm(tx); if (!n) continue;
+        let s = n === q ? 100 : 0;
+        if (!s) { const hits = qm.filter((m) => n.split(' ').some((w) => w === m || (m.length > 3 && (w.startsWith(m) || m.startsWith(w) && w.length > 3)))).length; s = qm.length && hits === qm.length ? 10 + hits - n.length / 100 : 0; }
+        if (s > bs) { bs = s; best = c; }
+      }
+    }
+    return best;
+  }
+  const lignes = () => [...document.querySelectorAll('.data-toggle-row')].map((el) => ({ el, textes: [el.querySelector('.data-name')?.textContent, el.dataset.layerName, el.dataset.layerId] }));
+  const actif = (el) => !!el.querySelector('.data-toggle-btn')?.classList.contains('active');
+  const nomLigne = (el) => (el.querySelector('.data-name')?.textContent || el.dataset.layerId || '').trim();
+  const visible = (e) => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+  const boutons = () => [...document.querySelectorAll('button, [role=button], [role=tab], [role=switch], input[type=checkbox]')].filter((e) => visible(e) || e.classList.contains('style-btn')).map((el) => ({ el, textes: [el.getAttribute('aria-label'), el.title, el.textContent] }));
+  function executer(c) {
+    if (c.op === 'liste') {
+      const l = lignes().filter((x) => actif(x.el)).map((x) => nomLigne(x.el));
+      return { ok: true, texte: l.length ? `Couches actives : ${l.join(', ')}.` : 'Aucune couche active.' };
+    }
+    if (c.op === 'couche') {
+      const x = meilleur(c.nom, lignes());
+      if (!x) return { ok: false, texte: `Je ne trouve pas de couche « ${c.nom} ».` };
+      const nom = nomLigne(x.el);
+      if (actif(x.el) === c.etat) return { ok: true, texte: `La couche ${nom} est déjà ${c.etat ? 'active' : 'désactivée'}.` };
+      x.el.querySelector('.data-toggle-btn')?.click();
+      return { ok: true, texte: `Couche ${nom} ${c.etat ? 'activée' : 'désactivée'}.` };
+    }
+    if (c.op === 'toutes_off') {
+      let n = 0; for (const x of lignes()) if (actif(x.el)) { x.el.querySelector('.data-toggle-btn')?.click(); n++; }
+      return { ok: true, texte: n ? `${n} couches désactivées.` : 'Aucune couche n\'était active.' };
+    }
+    if (c.op === 'option') {   // pastille (carburant, jour…) d'une couche, ou d'une couche précise si c.couche
+      const portee = c.couche ? (meilleur(c.couche, lignes())?.el) : document;
+      if (!portee) return { ok: false, texte: `Je ne trouve pas de couche « ${c.couche} ».` };
+      const cand = [...portee.querySelectorAll('.data-toggle-controls button, .data-row-list button')].map((el) => ({ el, textes: [el.getAttribute('aria-label'), el.textContent] }));
+      const x = meilleur(c.nom, cand) || (/diesel/i.test(c.nom) ? meilleur('gazole', cand) : null);
+      if (!x) return { ok: false, texte: `Je ne trouve pas l'option « ${c.nom} ».` };
+      x.el.click(); return { ok: true, texte: `Option ${x.el.textContent.trim()} choisie.` };
+    }
+    if (c.op === 'clic') {   // n'importe quel bouton visible de l'interface : préréglages visuels, HUD, cockpit, radio, tiroirs…
+      const x = meilleur(c.nom, boutons());
+      if (!x) return { ok: false, texte: `Je ne trouve pas de commande « ${c.nom} » à l'écran.` };
+      x.el.click(); return { ok: true, texte: `${(x.el.getAttribute('aria-label') || x.el.textContent).trim().slice(0, 60)} : fait.` };
+    }
+    return { ok: false, texte: 'Commande inconnue.' };
+  }
+  window.addEventListener('message', (e) => {
+    const c = e.data; if (!c || c.jarvis !== 'gev-cmd') return;
+    let r; try { r = executer(c); } catch (err) { r = { ok: false, texte: 'La commande a échoué : ' + (err && err.message) }; }
+    try { e.source?.postMessage({ jarvis: 'gev-retour', id: c.id, ok: r.ok, texte: r.texte }, '*'); } catch { /* sans effet */ }
+  });
+  // Netteté de la carte Google 3D : l'appli garde l'erreur d'écran par défaut de Cesium (16 px), d'où une Terre floue vue de loin ; on la baisse (plus de tuiles chargées, plus de réseau / GPU).
+  setInterval(() => {
+    try {
+      const p = window.__godsEyeView?.viewer?.scene?.primitives, C = window.__CESIUM__;
+      if (!p || !C) return;
+      for (let i = 0; i < p.length; i++) { const t = p.get(i); if (t instanceof C.Cesium3DTileset && t.maximumScreenSpaceError > 6) { t.maximumScreenSpaceError = 6; t.dynamicScreenSpaceError = false; } }
+    } catch { /* sans effet */ }
+  }, 3000);
   demarrer();
 })();
