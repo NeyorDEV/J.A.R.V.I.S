@@ -9,13 +9,11 @@ Un petit serveur local (127.0.0.1) rend à la demande une image ou une tuile PNG
 Licence : Licence Ouverte Etalab 2.0, crédit « Source : Météo-France ». Test : scratch/outils_test/test_gev_radar_fr_reel.py.
 """
 
-import gzip
 import io
 import json
 import math
 import os
 import threading
-import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse

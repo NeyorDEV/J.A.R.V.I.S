@@ -14,7 +14,6 @@ Respect des conditions de Windy (api.windy.com/webcams/terms, account.windy.com/
 Clé : WINDY_WEBCAMS_API_KEY dans le .env (api.windy.com/keys, « Webcams API »). Test : scratch/outils_test/test_windy_relais.py.
 """
 
-import os
 import re
 import threading
 import time
