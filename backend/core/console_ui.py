@@ -120,7 +120,9 @@ class _Console:
         self.gpu = None                  # (utilisation %, VRAM %) échantillonné toutes les 5 s
         self.recents = deque(maxlen=40)  # (texte, instant) des alertes/erreurs affichées : anti-doublon
         self.live = None
-        self.fil = deque(maxlen=400)     # rangées du fil (mode tableau plein écran)
+        self.fil = deque(maxlen=2000)    # rangées du fil (mode tableau plein écran)
+        self.decalage = 0                # rangées remontées dans le fil (0 = on suit le plus récent) : Page haut / Page bas
+        self.nb_visibles = 0             # rangées affichées au dernier rendu (taille d'une page)
         self.tableau = False             # tableau de bord plein écran (sinon fil défilant + bandeau épinglé)
         self._suite_jarvis = False       # la dernière rangée affichée est une phrase de JARVIS
         self._derniere = ("", 0.0)       # (libellé, instant) de la dernière rangée : pas de répétition
@@ -324,6 +326,8 @@ class _Console:
         """Écrit une rangée du fil : défilement du terminal, ou mémorisation pour le tableau plein écran."""
         if self.tableau:
             self.fil.append(rangee if rangee is not None else "")
+            from core.defilement import apres_nouvelle_rangee
+            self.decalage = apres_nouvelle_rangee(self.decalage, len(self.fil))
         elif rangee is None:
             self.console.print()
         else:
@@ -335,12 +339,16 @@ class _Console:
         from rich.text import Text
         options = self.console.options.update(width=largeur)
         choisies, total = [], 0
-        for r in reversed(list(self.fil)):
+        rangees = list(self.fil)
+        if self.decalage:
+            rangees = rangees[:max(1, len(rangees) - self.decalage)]
+        for r in reversed(rangees):
             n = len(self.console.render_lines(r, options, pad=False)) if r != "" else 1
             if total + n > hauteur:
                 break
             choisies.append(r if r != "" else Text(""))
             total += n
+        self.nb_visibles = len(choisies)
         return Group(*reversed(choisies))
 
     # ── Bandeau d'état ──────────────────────────────────────────────────────
@@ -567,10 +575,10 @@ class _Console:
         lay["haut"].update(entete)
         lay["corps"].split_row(
             Layout(Panel(self._fil_visible(largeur_fil, hauteur_fil), box=box.ROUNDED, border_style="#3d8bff",
-                         padding=(1, 2), title="[bold #3d8bff]FIL DES ÉCHANGES[/]", title_align="left"), ratio=3),
+                         padding=(1, 2), title="[bold #3d8bff]FIL DES ÉCHANGES[/]" + (f"  [bold #ffd24a]· historique : {self.decalage} rangée(s) plus haut · Fin = retour[/]" if self.decalage else ""), title_align="left"), ratio=3),
             Layout(Group(*([p1, p2, p3] + self._panneaux_bas(p1, p2, p3))), ratio=2, minimum_size=38))
         rouet = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[int(time.time() * 8) % 10]
-        lay["bas"].update(Text(f" {rouet} {micro[0]}   ·   journal complet : data/jarvis_run.log   ·   Ctrl+C pour quitter",
+        lay["bas"].update(Text(f" {rouet} {micro[0]}   ·   journal : data/jarvis_run.log   ·   ↑/↓ : remonter le fil   ·   Ctrl+C : quitter",
                                style="grey50"))
         return lay
 
@@ -671,6 +679,12 @@ class _Console:
             self.live = Live(get_renderable=self._bandeau, console=self.console, refresh_per_second=4 if self.tableau else 2,
                              transient=True, screen=self.tableau, redirect_stdout=False, redirect_stderr=False)
             self.live.start()
+            if self.tableau:
+                try:   # diagnostic : l'écran alternatif est-il bien actif ?
+                    self._journaliser(f"[CONSOLE] tableau : legacy_windows={self.console.legacy_windows} alt_screen={self.console._is_alt_screen} taille={self.console.size}")
+                except Exception:
+                    pass
+                threading.Thread(target=self._touches, daemon=True, name="console-touches").start()
         threading.Thread(target=self._veille, daemon=True, name="console-veille").start()
         atexit.register(self.arreter)
 
@@ -685,6 +699,37 @@ class _Console:
                         self.console.print(r)
         except Exception:
             pass
+
+    def _touches(self):
+        """Page haut / Page bas / flèches / Début / Fin : remonter et redescendre dans le fil (Windows ; ailleurs, le terminal garde son propre historique)."""
+        try:
+            import msvcrt
+        except ImportError:
+            return
+        from core.defilement import decaler, nom_touche, nom_touche_vt
+        while self.live and self.tableau:
+            try:
+                if not msvcrt.kbhit():
+                    time.sleep(0.05)
+                    continue
+                premier = msvcrt.getwch()
+                if premier == "\x1b":   # entrée « terminal » : ESC [ 5 ~ (Page haut)… lue jusqu'à sa lettre finale
+                    sequence, limite = premier, time.time() + 0.05
+                    while time.time() < limite:
+                        if msvcrt.kbhit():
+                            c = msvcrt.getwch()
+                            sequence += c
+                            if c.isalpha() or c == "~":
+                                break
+                        else:
+                            time.sleep(0.002)
+                    touche = nom_touche_vt(sequence)
+                else:
+                    touche = nom_touche(premier, msvcrt.getwch() if premier in ("\x00", "\xe0") else "")
+                if touche:
+                    self.decalage = decaler(self.decalage, len(self.fil), self.nb_visibles, touche)
+            except Exception:
+                time.sleep(0.2)
 
     def _veille(self):
         dernier_sondage = dernier_gpu = dernier_alarme = 0

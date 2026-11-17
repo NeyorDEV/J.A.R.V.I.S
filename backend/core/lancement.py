@@ -125,9 +125,10 @@ def lancer_frontend(timeout_vite=6.0):
             print("[JARVIS] Démarrage de Vite (npm run dev)...")
             log_path = os.path.join(frontend_dir, "vite_output.log")
             with open(log_path, "w", encoding="utf-8") as f_log:
+                # stdin fermé : sans cela, Vite partage le clavier de la console et en lit les touches en même temps que JARVIS (Page haut / Page bas, Ctrl+C…)
                 frontend_process = subprocess.Popen(
                     ["npm", "run", "dev"], cwd=frontend_dir, shell=True,
-                    stdout=f_log, stderr=f_log
+                    stdin=subprocess.DEVNULL, stdout=f_log, stderr=f_log
                 )
             # Timeout augmenté légèrement à 6.0s au cas où le système ralentit
             vite_ok = _service_ecoute_sur(5173, timeout=timeout_vite)
