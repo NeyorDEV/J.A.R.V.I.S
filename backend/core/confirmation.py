@@ -62,7 +62,7 @@ async def demander_confirmation(websocket, message: str, timeout: float = 20.0, 
 
     confirm_id = uuid.uuid4().hex
     future = asyncio.get_running_loop().create_future()
-    _pending = {"id": confirm_id, "future": future}
+    _pending = {"id": confirm_id, "future": future, "strict": not question}
 
     # Popup sur tous les HUD connectés (une action déclenchée à la voix n'a pas de
     # websocket : sans diffusion, aucun popup ne s'affichait).
@@ -122,6 +122,49 @@ def resoudre_confirmation(confirm_id: str, confirmed: bool) -> bool:
     return True
 
 
+# --- interprétation stricte (actions destructrices) ---------------------------------------------------------------------------------------------------------
+# Une action destructrice n'est confirmée que par un accord NET : « oui mais mets Marie en copie », « oui, non, attends », « c'est bon ? » ne valident rien (dans le doute, on annule).
+_ACCORDS = frozenset({"oui", "ouais", "ouep", "ok", "okay", "yes", "confirme", "confirmer", "valide", "valider", "parfait", "carrement", "daccord", "envoie", "fais", "go", "absolument", "exactement", "evidemment", "certainement", "volontiers"})
+_ACCORDS_EXPRESSIONS = ("vas y", "allez y", "d accord", "bien sur", "c est bon", "tout a fait", "bien entendu", "je confirme")
+_NEGATIONS = frozenset({"non", "nan", "no", "nope", "pas", "ne", "n", "jamais", "rien", "aucun", "aucune", "annule", "annuler", "annulez", "arrete", "arreter", "stop", "cancel", "attends", "attend", "attendez"})
+_NEGATIONS_EXPRESSIONS = ("laisse tomber", "plus tard", "je sais pas", "surtout pas", "pas question")
+_RESTRICTIONS = frozenset({"mais", "sauf", "plutot", "avant", "apres", "si", "et", "puis", "aussi", "avec", "sans"})   # condition, report ou ajout : pas un accord sans réserve
+_INTERROGATIFS = frozenset({"quoi", "comment", "pourquoi", "lequel", "laquelle", "combien", "ou"})
+_INTERROGATIFS_EXPRESSIONS = ("qu est ce", "est ce")
+_VOCABULAIRE_STRICT = _ACCORDS | frozenset({"vas", "y", "allez", "d", "accord", "bien", "sur", "c", "est", "bon", "ca", "je", "tu", "peux", "le", "la", "les", "l", "maintenant", "tout", "a", "fait", "entendu",
+                                            "jarvis", "merci", "s", "il", "te", "vous", "plait", "stp", "svp", "confirme"})
+
+
+def interpreter_reponse(texte: str, strict: bool = True):
+    """Réponse vocale à une confirmation -> True (accord), False (refus) ou None (sans rapport : la phrase suit son cours).
+
+    Mode normal (simple question) : « oui »/« non » en début de phrase, le non l'emportant.
+    Mode strict (action destructrice) : tout refus, négation, condition, ajout (« et mets… »), question ou mot hors liste blanche vaut REFUS ; seul un accord net, éventuellement poli, vaut oui."""
+    t = " " + _normaliser_reponse(texte) + " "
+    t = t.replace(" pas de souci ", " ").replace(" pas de probleme ", " ").replace(" pas de soucis ", " ").replace(" pas de problemes ", " ")   # « oui pas de souci » : formule positive
+    mots = t.split()
+    if not mots:
+        return None
+    if not strict:
+        n = t.strip()
+        if _correspond(n, MOTS_NON):
+            return False
+        if _correspond(n, MOTS_OUI):
+            return True
+        return None
+    refus = any(m in _NEGATIONS for m in mots) or any(e in t for e in _NEGATIONS_EXPRESSIONS)
+    accord = any(m in _ACCORDS for m in mots) or any(e in t for e in _ACCORDS_EXPRESSIONS)
+    if refus:
+        return False
+    if not accord:
+        return None   # ni oui ni non : une autre phrase (« quelle heure est-il »)
+    if "?" in texte or any(m in _RESTRICTIONS or m in _INTERROGATIFS for m in mots) or any(e in t for e in _INTERROGATIFS_EXPRESSIONS):   # « c'est bon ? » : une question n'est pas un accord
+        return False
+    if any(m not in _VOCABULAIRE_STRICT for m in mots):
+        return False   # « oui, mets Marie en copie » : une demande n'est pas un oui
+    return True
+
+
 def resoudre_confirmation_vocale(texte: str) -> bool:
     """Tente de résoudre la confirmation en attente depuis une réponse vocale.
 
@@ -131,12 +174,16 @@ def resoudre_confirmation_vocale(texte: str) -> bool:
     """
     if _pending is None:
         return False
-    t = _normaliser_reponse(texte)
-    # Le non d'abord : « non, n'y va pas » ne doit pas être pris pour un oui
-    if _correspond(t, MOTS_NON):
-        resoudre_confirmation(_pending["id"], False)
-        return True
-    if _correspond(t, MOTS_OUI):
-        resoudre_confirmation(_pending["id"], True)
-        return True
-    return False
+    strict = bool(_pending.get("strict"))
+    decision = interpreter_reponse(texte, strict)
+    if decision is None:
+        return False
+    if strict and decision is False and not any(m in _NEGATIONS for m in _normaliser_reponse(texte).split()) \
+            and not any(e in " " + _normaliser_reponse(texte) + " " for e in _NEGATIONS_EXPRESSIONS):
+        try:   # un oui assorti d'une condition ou d'une demande : on annule et on le dit
+            import builtins
+            builtins.parler("Je n'ai pas entendu un oui net, j'annule.")
+        except Exception:
+            pass
+    resoudre_confirmation(_pending["id"], bool(decision))
+    return True
