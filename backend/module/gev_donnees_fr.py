@@ -273,8 +273,364 @@ def maj_vigilance() -> bool:
         return False
 
 
+# --- bulletins d'estimation du risque d'avalanche (BRA) -----------------------------------------------------------------------------------------------------------------
+URL_BRA = "https://files.data.gouv.fr/meteofrance/data/BULLETIN/BRA/"   # archive ouverte de Météo-France : {année}/{mois}/{jour}/xml/{massif}_{horodatage}.xml, sans clé
+URL_MASSIFS = "https://www.data.gouv.fr/api/1/datasets/archive-des-bulletins-avalanches/"   # la ressource « geojson » = contours des 36 massifs
+
+
+def _nom_cle(s: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", str(s)) if unicodedata.category(c) != "Mn").lower().replace("-", " ").replace("'", " ").replace("nn", "n").strip()   # « Embrunnais » (contours) / « Embrunais » (bulletin)
+
+
+def convertir_massifs(geo: dict) -> list:
+    """GeoJSON des massifs -> [code, nom, chaîne de montagnes, polygones simplifiés]."""
+    sortie = []
+    for f in (geo or {}).get("features", []):
+        p, g = f.get("properties") or {}, f.get("geometry") or {}
+        polys = g.get("coordinates", []) if g.get("type") == "MultiPolygon" else [g.get("coordinates", [])] if g.get("type") == "Polygon" else []
+        simples = [pl for pl in ([a for a in (_anneau(an, 0.002) for an in poly) if a] for poly in polys) if pl]
+        if p.get("title") and simples:
+            sortie.append([p.get("code"), str(p["title"]), str(p.get("mountain") or ""), simples])
+    return sortie
+
+
+def _massifs() -> list:
+    chemin = os.path.join(DOSSIER, "massifs.json")
+    if age("massifs") < 180 * 86400:
+        with open(chemin, encoding="utf-8") as f:
+            return json.load(f)
+    meta = requests.get(URL_MASSIFS, headers=ENTETES, timeout=60).json()
+    url = next(x["url"] for x in meta.get("resources", []) if x.get("format") == "geojson")
+    r = requests.get(url, headers=ENTETES, timeout=60)
+    r.raise_for_status()
+    m = convertir_massifs(r.json())
+    if len(m) < 30:
+        raise ValueError("massifs incomplets")
+    _ecrire("massifs", m)
+    return m
+
+
+def _liens(url: str) -> list:
+    import re
+    r = requests.get(url, headers=ENTETES, timeout=30)
+    return re.findall(r'href="([^"]+)"', r.text) if r.ok else []
+
+
+def _extraire_bulletin(xml: str) -> dict:
+    """XML d'un bulletin -> champs utiles (niveaux 1 à 5 ; altitude et niveau du versant haut quand le risque change avec l'altitude)."""
+    import xml.etree.ElementTree as ET
+    racine = ET.fromstring(xml.encode("utf-8"))
+    risque = racine.find("./CARTOUCHERISQUE/RISQUE")
+    a = risque.attrib if risque is not None else {}
+    entier = lambda v: int(v) if str(v).strip().isdigit() else None  # noqa: E731
+    resume = (racine.findtext("./CARTOUCHERISQUE/RESUME") or "").strip()
+    return {"r": entier(a.get("RISQUEMAXI")), "r2": entier(a.get("RISQUEMAXIJ2")), "r1": entier(a.get("RISQUE1")), "hautr": entier(a.get("RISQUE2")), "alt": a.get("ALTITUDE") or "",
+            "com": (a.get("COMMENTAIRE") or "").strip(), "resume": resume, "date": racine.attrib.get("DATEBULLETIN"), "fin": racine.attrib.get("DATEECHEANCE")}
+
+
+def maj_avalanche() -> bool:
+    """Dernier bulletin de chaque massif (dossier du jour ou, hors saison, du dernier jour publié dans les 10 derniers) + contours des massifs."""
+    try:
+        massifs = _massifs()
+        par_nom = {_nom_cle(m[1]): m for m in massifs}
+        bulletins, jour = {}, None
+        for recul in range(0, 10):
+            d = datetime.now(timezone.utc) - timedelta(days=recul)
+            base = f"{URL_BRA}{d.year}/{d.month:02d}/{d.day:02d}/xml/"
+            fichiers = [x for x in _liens(base) if x.lower().endswith(".xml")]
+            if fichiers:
+                jour = d.date().isoformat()
+                break
+        if jour:
+            from urllib.parse import unquote
+            derniers = {}
+            for chemin in fichiers:   # plusieurs versions possibles par massif : on garde l'horodatage le plus récent
+                nom = unquote(chemin.rsplit("/", 1)[-1])[:-4]
+                massif, _, stamp = nom.rpartition("_")
+                if _nom_cle(massif) in par_nom and stamp >= derniers.get(_nom_cle(massif), ("", ""))[0]:
+                    derniers[_nom_cle(massif)] = (stamp, chemin)
+            for cle, (_, chemin) in derniers.items():
+                try:
+                    r = requests.get("https://files.data.gouv.fr" + chemin, headers=ENTETES, timeout=30)
+                    r.raise_for_status()
+                    bulletins[cle] = _extraire_bulletin(r.text)
+                except Exception as e:  # noqa: BLE001 — un massif en échec n'empêche pas les autres
+                    print(f"[DONNEES FR] Avalanche {cle} : {type(e).__name__}")
+        sortie = [[m[0], m[1], m[2], m[3], bulletins.get(_nom_cle(m[1]))] for m in massifs]
+        if jour and not bulletins:
+            return False
+        _ecrire("avalanche", {"jour": jour, "massifs": sortie})
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"[DONNEES FR] Avalanche : {type(e).__name__}")
+        return False
+
+
+# --- électricité par région (RTE éco2mix temps réel, ODRÉ) --------------------------------------------------------------------------------------------------------------
+URL_ECO2MIX = "https://odre.opendatasoft.com/api/explore/v2.1/catalog/datasets/eco2mix-regional-tr/records"
+CENTRES_REGIONS = {"11": (48.69, 2.50), "24": (47.55, 1.68), "27": (47.28, 4.80), "28": (49.10, 0.20), "32": (50.05, 2.80), "44": (48.65, 5.90), "52": (47.50, -0.80),
+                   "53": (48.20, -2.90), "75": (44.80, 0.20), "76": (43.70, 2.30), "84": (45.40, 4.90), "93": (43.95, 6.00), "94": (42.15, 9.10)}
+
+
+def convertir_electricite(enregistrements) -> list:
+    """Enregistrements ODRÉ (du plus récent au plus ancien) -> dernière valeur complète de chaque région : [code, nom, lat, lon, heure ISO, consommation, nucléaire, éolien, solaire, hydraulique, thermique, bioénergies, échanges] (MW ; échanges < 0 = export)."""
+    vus, sortie = set(), []
+    for r in enregistrements:
+        code = str(r.get("code_insee_region") or "")
+        if code in vus or code not in CENTRES_REGIONS:
+            continue
+        v = [_f(r.get(k)) for k in ("consommation", "nucleaire", "eolien", "solaire", "hydraulique", "thermique", "bioenergies", "ech_physiques")]
+        if any(x is None for x in v[:7]):
+            continue
+        vus.add(code)
+        sortie.append([code, str(r.get("libelle_region") or ""), CENTRES_REGIONS[code][0], CENTRES_REGIONS[code][1], r.get("date_heure"), *[int(x) for x in v[:7]], int(v[7] or 0)])
+    return sortie
+
+
+def maj_electricite() -> bool:
+    try:
+        r = requests.get(URL_ECO2MIX, params={"limit": 100, "order_by": "date_heure desc", "where": "nucleaire is not null and consommation is not null"}, headers=ENTETES, timeout=60)
+        r.raise_for_status()
+        regions = convertir_electricite(r.json().get("results", []))
+        if len(regions) < 10:
+            return False
+        _ecrire("electricite", regions)
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"[DONNEES FR] Électricité : {type(e).__name__}")
+        return False
+
+
+# --- sécheresse : restrictions d'eau par département (VigiEau, beta.gouv.fr) ---------------------------------------------------------------------------------------------
+URL_VIGIEAU = "https://api.vigieau.beta.gouv.fr/api/departements"
+NIVEAUX_EAU = {"vigilance": 1, "alerte": 2, "alerte_renforcee": 3, "crise": 4}
+
+
+def convertir_secheresse(liste) -> dict:
+    """Réponse VigiEau -> {code département: [niveau global, superficielles, souterraines, eau potable]} (0 = aucune restriction, 4 = crise)."""
+    n = lambda v: NIVEAUX_EAU.get(v or "", 0)  # noqa: E731
+    return {str(d["code"]): [n(d.get("niveauGraviteMax")), n(d.get("niveauGraviteSupMax")), n(d.get("niveauGraviteSouMax")), n(d.get("niveauGraviteAepMax"))] for d in liste if d.get("code")}
+
+
+def maj_secheresse() -> bool:
+    try:
+        r = requests.get(URL_VIGIEAU, headers=ENTETES, timeout=60)
+        r.raise_for_status()
+        niveaux = convertir_secheresse(r.json())
+        if len(niveaux) < 90:
+            return False
+        _ecrire("secheresse", {"maj": datetime.now(timezone.utc).isoformat(timespec="minutes"), "niveaux": niveaux, "depts": _departements()})
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"[DONNEES FR] Sécheresse : {type(e).__name__}")
+        return False
+
+
+# --- événements routiers du réseau routier national (Bison Futé / DIR, DATEX II) ---------------------------------------------------------------------------------------------
+URL_TRAFIC = "https://tipi.bison-fute.gouv.fr/bison-fute-ouvert/publicationsDIR/Evenementiel-DIR/grt/RRN/content.xml"
+_D2 = "{http://datex2.eu/schema/2/2_0}"
+_XSI = "{http://www.w3.org/2001/XMLSchema-instance}type"
+CATEGORIES_TRAFIC = {   # type DATEX II -> (catégorie, libellé)
+    "Accident": ("incident", "Accident"), "AbnormalTraffic": ("incident", "Traffic jam"), "VehicleObstruction": ("incident", "Vehicle obstruction"), "GeneralObstruction": ("incident", "Obstruction"),
+    "AnimalPresenceObstruction": ("incident", "Animal on the road"), "EnvironmentalObstruction": ("incident", "Environmental obstruction"), "InfrastructureDamageObstruction": ("incident", "Infrastructure damage"),
+    "WeatherRelatedRoadConditions": ("incident", "Weather-related road conditions"), "NonWeatherRelatedRoadConditions": ("incident", "Road conditions"),
+    "MaintenanceWorks": ("travaux", "Maintenance works"), "ConstructionWorks": ("travaux", "Construction works"),
+    "RoadOrCarriagewayOrLaneManagement": ("restriction", "Road or lane restriction"), "ReroutingManagement": ("restriction", "Diversion"), "SpeedManagement": ("restriction", "Speed restriction"),
+}
+
+
+def convertir_trafic(xml: str, maintenant=None) -> list:
+    """DATEX II -> événements EN COURS (début passé, fin non passée) avec position : [catégorie, libellé, lat, lon, texte, gravité, début, fin, route]."""
+    import xml.etree.ElementTree as ET
+    maintenant = maintenant or datetime.now(timezone.utc)
+    sortie = []
+    racine = ET.fromstring(xml.encode("utf-8") if isinstance(xml, str) else xml)
+    for sit in racine.iter(_D2 + "situation"):
+        gravite = (sit.findtext(_D2 + "overallSeverity") or "").strip()
+        for rec in sit.iter(_D2 + "situationRecord"):
+            type_ = (rec.attrib.get(_XSI) or "").split(":")[-1]
+            if type_ not in CATEGORIES_TRAFIC:
+                continue
+            debut, fin = rec.findtext(".//" + _D2 + "overallStartTime"), rec.findtext(".//" + _D2 + "overallEndTime")
+            try:
+                if debut and datetime.fromisoformat(debut) > maintenant or fin and datetime.fromisoformat(fin) < maintenant:
+                    continue
+            except ValueError:
+                continue
+            lat, lon = rec.findtext(".//" + _D2 + "latitude"), rec.findtext(".//" + _D2 + "longitude")
+            if not lat or not lon:
+                continue
+            textes = [" ".join(v.text.split()) for v in rec.iter(_D2 + "value") if v.text and v.text.strip()]
+            route = rec.findtext(".//" + _D2 + "roadNumber") or ""
+            sortie.append([*CATEGORIES_TRAFIC[type_], round(float(lat), 5), round(float(lon), 5), " · ".join(dict.fromkeys(textes))[:240], gravite, debut, fin, route.strip()])
+    return sortie
+
+
+def maj_trafic() -> bool:
+    try:
+        r = requests.get(URL_TRAFIC, headers=ENTETES, timeout=90)
+        r.raise_for_status()
+        ev = convertir_trafic(r.content)
+        if not ev:
+            return False
+        _ecrire("trafic", ev)
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"[DONNEES FR] Trafic : {type(e).__name__}")
+        return False
+
+
+# --- sites Seveso (Géorisques, installations classées ; le filtre « statutSeveso » de l'API v1 ne fonctionne pas : on balaie les ~140 pages de 1 000 et on garde les sites Seveso ; les substances stockées viennent de l'API v2, jeton gratuit) --------------------------------
+URL_ICPE = "https://www.georisques.gouv.fr/api/v1/installations_classees"
+URL_ICPE_V2 = "https://www.georisques.gouv.fr/api/v2/installations_classees/"
+_seveso = {"fil": None, "essai": 0.0}
+NIVEAUX_SEVESO = {"seveso seuil haut": 2, "seveso seuil bas": 1}
+SECTEURS_NAF = {   # division de la nomenclature d'activités (NAF) -> secteur, pour dire à quoi sert le site
+    "01": "Agriculture", "02": "Sylviculture", "05": "Extraction de charbon", "06": "Extraction de pétrole et de gaz", "07": "Extraction de minerais métalliques", "08": "Autres industries extractives (carrières)",
+    "09": "Soutien aux industries extractives", "10": "Industries alimentaires", "11": "Fabrication de boissons", "13": "Textile", "16": "Travail du bois", "17": "Papier et carton", "18": "Imprimerie",
+    "19": "Cokéfaction et raffinage du pétrole", "20": "Industrie chimique", "21": "Industrie pharmaceutique", "22": "Caoutchouc et plastiques", "23": "Verre, ciment et autres minéraux non métalliques",
+    "24": "Métallurgie", "25": "Fabrication de produits métalliques", "26": "Produits électroniques", "27": "Équipements électriques", "28": "Machines et équipements", "29": "Automobile", "30": "Autres matériels de transport",
+    "32": "Autres industries manufacturières", "33": "Réparation et installation de machines", "35": "Production et distribution d'électricité, de gaz et de vapeur", "36": "Captage et distribution d'eau",
+    "37": "Collecte des eaux usées", "38": "Collecte et traitement des déchets", "39": "Dépollution", "46": "Commerce de gros", "47": "Commerce de détail", "49": "Transports terrestres et par conduites",
+    "50": "Transports par eau", "52": "Entreposage et services auxiliaires des transports", "64": "Services financiers", "68": "Activités immobilières", "84": "Administration publique",
+}
+
+
+def convertir_seveso(enregistrements) -> list:
+    """Installations classées -> sites Seveso en exploitation : [nom, commune, lat, lon, niveau (2 = seuil haut, 1 = seuil bas), régime, adresse, secteur, priorité nationale (0/1), directive IED (0/1), nombre d'inspections, date de la dernière inspection, service d'inspection, code AIOT, substances [[rubrique, nature, quantité], ...] (remplies par l'API v2 si un jeton est configuré)]."""
+    sortie = []
+    for r in enregistrements:
+        niveau = NIVEAUX_SEVESO.get(str(r.get("statutSeveso") or "").strip().lower())
+        lat, lon = _f(r.get("latitude")), _f(r.get("longitude"))
+        if niveau and lat is not None and lon is not None and not str(r.get("etatActivite") or "").lower().startswith(("cessation", "arrêt", "arret")):
+            insp = [str(i.get("dateInspection")) for i in (r.get("inspections") or []) if i.get("dateInspection")]
+            adresse = " ".join(x for x in (str(r.get("adresse1") or "").strip(), str(r.get("codePostal") or "").strip(), str(r.get("commune") or "").strip()) if x)
+            naf = str(r.get("codeNaf") or "").strip()[:2]
+            sortie.append([str(r.get("raisonSociale") or "").strip(), str(r.get("commune") or ""), round(lat, 5), round(lon, 5), niveau, str(r.get("regime") or ""), adresse,
+                           SECTEURS_NAF.get(naf, ("Code NAF " + naf) if naf else ""), 1 if r.get("prioriteNationale") else 0, 1 if r.get("ied") else 0, len(insp), max(insp) if insp else "", str(r.get("serviceAIOT") or ""), str(r.get("codeAIOT") or ""), []])
+    return sortie
+
+
+def resumer_rubriques(rubriques) -> list:
+    """Rubriques ICPE d'un site (API v2) -> substances dangereuses : les rubriques 4xxx (catégories de la directive Seveso) d'abord, sinon les premières ; [numéro, nature, quantité] (6 au plus)."""
+    ru = [r for r in (rubriques or []) if r.get("numeroRubrique")]
+    ru.sort(key=lambda r: (not str(r["numeroRubrique"]).startswith("4"), str(r["numeroRubrique"])))
+    vues, sortie = set(), []
+    for r in ru:
+        num = str(r["numeroRubrique"])
+        if num in vues:
+            continue
+        vues.add(num)
+        q = f'{_f(r.get("quantiteTotale"), 0):g} {r.get("unite") or ""}'.strip() if r.get("quantiteTotale") not in (None, "") else ""
+        sortie.append([num, str(r.get("nature") or "").strip()[:110], q])
+        if len(sortie) >= 6:
+            break
+    return sortie
+
+
+def _ajouter_substances(sites: list, cle: str) -> int:
+    """Une requête de détail (API v2, jeton Géorisques) par site, quelques-unes en parallèle ; un site en échec garde une liste vide. Renvoie le nombre de sites renseignés (-1 si le jeton est refusé)."""
+    from concurrent.futures import ThreadPoolExecutor
+    entetes = {**ENTETES, "Authorization": "Bearer " + cle}
+
+    def un(site):
+        if _etat["stop"].is_set() or not site[13]:
+            return 0
+        for essai in range(2):
+            try:
+                r = requests.get(URL_ICPE_V2 + site[13], headers=entetes, timeout=40)
+                if r.status_code == 401 or r.status_code == 403:
+                    return -1
+                r.raise_for_status()
+                site[14] = resumer_rubriques(r.json().get("rubriques"))
+                return 1 if site[14] else 0
+            except Exception:  # noqa: BLE001
+                time.sleep(2)
+        return 0
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        res = list(pool.map(un, sites))
+    return sum(1 for x in res if x == 1) if -1 not in res else -1
+
+
+def _balayer_seveso() -> None:
+    sites, page = [], 1
+    while not _etat["stop"].is_set():
+        for essai in range(3):
+            try:
+                r = requests.get(URL_ICPE, params={"page": page, "page_size": 1000}, headers=ENTETES, timeout=90)
+                r.raise_for_status()
+                d = r.json()
+                break
+            except Exception:  # noqa: BLE001
+                time.sleep(3 * (essai + 1))
+        else:
+            print("[DONNEES FR] Seveso : balayage abandonné (réseau)")
+            return
+        sites += convertir_seveso(d.get("data", []))
+        if page >= int(d.get("total_pages") or 0):
+            break
+        page += 1
+        time.sleep(0.2)
+    else:
+        return
+    if len(sites) > 100:   # quelques centaines attendues ; moins = réponse tronquée
+        from module import gev_cles
+        cle = gev_cles.lire("GEORISQUES_API_KEY")
+        if cle:   # substances stockées (rubriques ICPE) : API v2, jeton gratuit
+            n = _ajouter_substances(sites, cle)
+            print("[DONNEES FR] Seveso : jeton Géorisques refusé (401/403)" if n < 0 else f"[DONNEES FR] Seveso : substances renseignées pour {n} sites")
+        _ecrire("seveso", sites)
+
+
+def maj_seveso() -> bool:
+    """Lance le balayage en tâche de fond (4 à 6 minutes) pour ne pas retarder les autres jeux ; un essai par heure au plus."""
+    if (_seveso["fil"] is None or not _seveso["fil"].is_alive()) and time.time() - _seveso["essai"] > 3600:
+        _seveso["essai"] = time.time()
+        _seveso["fil"] = threading.Thread(target=_balayer_seveso, daemon=True, name="seveso-fr")
+        _seveso["fil"].start()
+    return True
+
+
+# --- qualité des eaux de baignade (ministère de la Santé, jeu « Qualité des sites de baignade », classement par site) ---------------------------------------------------------------------------
+URL_BAIGNADE_JEU = "https://www.data.gouv.fr/api/1/datasets/qualite-des-sites-de-baignade-1/"
+URL_BAIGNADE_CSV = "https://static.data.gouv.fr/resources/qualite-des-sites-de-baignade-1/20260709-081710/qualite-sites-baignade.csv"   # repli si l'API de data.gouv.fr ne répond pas
+
+
+def convertir_baignade(texte: str) -> list:
+    """CSV (séparateur « ; ») -> [nom, commune, département, lat, lon, 1 = eau de mer / 0 = eau douce, qualité] ; sans coordonnées valides : écarté."""
+    sortie = []
+    for r in csv.DictReader(texte.splitlines(), delimiter=";"):
+        lat, lon = _f(r.get("latitude")), _f(r.get("longitude"))
+        if lat is None or lon is None or not (-25 < lat < 52 and -64 < lon < 56):
+            continue
+        sortie.append([(r.get("nom_site") or "").strip().title(), r.get("libelle_geographique") or "", r.get("libelle_departement") or "", round(lat, 5), round(lon, 5), 1 if r.get("type_eau_norm") == "COTIERE" else 0, r.get("qualite") or ""])
+    return sortie
+
+
+def maj_baignade() -> bool:
+    try:
+        url = URL_BAIGNADE_CSV
+        try:
+            meta = requests.get(URL_BAIGNADE_JEU, headers=ENTETES, timeout=30).json()
+            url = next((x["url"] for x in meta.get("resources", []) if x.get("format") == "csv"), url)
+        except Exception:  # noqa: BLE001 — l'API de data.gouv.fr est parfois indisponible : on garde l'adresse connue
+            pass
+        r = requests.get(url, headers=ENTETES, timeout=90)
+        r.raise_for_status()
+        sites = convertir_baignade(r.content.decode("utf-8-sig"))
+        if len(sites) < 2000:
+            return False
+        _ecrire("baignade", sites)
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"[DONNEES FR] Baignade : {type(e).__name__}")
+        return False
+
+
 # nom -> (mise à jour, validité en secondes)
-JEUX = {"vigilance": (maj_vigilance, 900), "seismes": (maj_seismes, 600), "crues": (maj_crues, 1200), "air": (maj_air, 7200), "recharge": (maj_recharge, 7 * 86400)}
+JEUX = {"baignade": (maj_baignade, 7 * 86400), "seveso": (maj_seveso, 7 * 86400), "electricite": (maj_electricite, 900), "secheresse": (maj_secheresse, 3 * 3600), "trafic": (maj_trafic, 600), "avalanche": (maj_avalanche, 3600), "vigilance": (maj_vigilance, 900), "seismes": (maj_seismes, 600), "crues": (maj_crues, 1200), "air": (maj_air, 7200), "recharge": (maj_recharge, 7 * 86400)}
 
 
 def _boucle() -> None:

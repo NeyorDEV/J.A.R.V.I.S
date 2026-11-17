@@ -32,6 +32,31 @@
     'Weather alerts · France': 'Alertes météo · France', 'Wind': 'Vent', 'Rain / flood': 'Pluie / inondation', 'Thunderstorms': 'Orages', 'River floods': 'Crues', 'Snow / ice': 'Neige / verglas', 'Heatwave': 'Canicule', 'Extreme cold': 'Grand froid',
     'Avalanches': 'Avalanches', 'Waves / submersion': 'Vagues / submersion', 'All': 'Tous', 'Rain': 'Pluie', 'Storms': 'Orages', 'Floods': 'Crues', 'Snow/ice': 'Neige/verglas', 'Heat': 'Chaleur', 'Cold': 'Froid', 'Avalanche': 'Avalanche', 'Waves': 'Vagues',
     'Today': "Aujourd'hui", 'Tomorrow': 'Demain', 'All phenomena (highest level)': 'Tous les phénomènes (niveau le plus élevé)',
+    'Downloading the avalanche bulletins · a few seconds': "Téléchargement des bulletins d'avalanche · quelques secondes",
+    'Avalanche risk · France': "Risque d'avalanche · France", 'Low': 'Faible', 'Limited': 'Limité', 'Considerable': 'Marqué', 'High': 'Fort', 'Very high': 'Très fort', 'Low · 1/5': 'Faible · 1/5', 'Limited · 2/5': 'Limité · 2/5', 'Considerable · 3/5': 'Marqué · 3/5', 'High · 4/5': 'Fort · 4/5', 'Very high · 5/5': 'Très fort · 5/5',
+    'Range': 'Massif', 'Bulletin': 'Bulletin', 'None published for this massif today': "Aucun bulletin publié pour ce massif aujourd'hui", 'Below': 'En dessous', 'Note': 'Remarque',
+    "Source: Météo-France (bulletins d'estimation du risque d'avalanche)": "Source : Météo-France (bulletins d'estimation du risque d'avalanche)", 'No avalanche bulletin published recently (season: early November to early June)': "Aucun bulletin d'avalanche publié récemment (saison : début novembre à début juin)",
+    'Electricity · France': 'Électricité · France', 'Drought restrictions · France': 'Restrictions de sécheresse · France', 'Road events · France': 'Événements routiers · France',
+    'Mix': 'Mix', 'Balance': 'Bilan', 'Demand': 'Consommation', 'Export': 'Export', 'Import': 'Import', 'Exchanges': 'Échanges',
+    'Nuclear power': 'Nucléaire', 'Wind power': 'Éolien', 'Solar power': 'Solaire', 'Hydro power': 'Hydraulique', 'Thermal power': 'Thermique', 'Bioenergy': 'Bioénergies',
+    'All uses': 'Tous usages', 'Surface water': 'Eaux superficielles', 'Groundwater': 'Eaux souterraines', 'Drinking water': 'Eau potable', 'Alert': 'Alerte', 'Heightened alert': 'Alerte renforcée', 'Crisis': 'Crise', 'No restriction': 'Aucune restriction',
+    'Downloading the drought restrictions · a few seconds': 'Téléchargement des restrictions de sécheresse · quelques secondes',
+    'Incidents': 'Incidents', 'Restrictions': 'Restrictions', 'Roadworks': 'Travaux', 'Road': 'Route', 'Since': 'Depuis', 'Until': "Jusqu'à", 'no end date': 'sans date de fin', 'Severity': 'Gravité', 'Details': 'Détails',
+    'low': 'faible', 'medium': 'moyenne', 'high': 'élevée', 'highest': 'maximale', 'none': 'aucune',
+    'Accident': 'Accident', 'Traffic jam': 'Bouchon', 'Vehicle obstruction': 'Véhicule gênant', 'Obstruction': 'Obstacle', 'Animal on the road': 'Animal sur la route', 'Environmental obstruction': 'Obstacle naturel',
+    'Infrastructure damage': "Dégât à l'infrastructure", 'Weather-related road conditions': 'Conditions routières (météo)', 'Road conditions': 'Conditions routières', 'Maintenance works': "Travaux d'entretien",
+    'Construction works': 'Travaux de construction', 'Road or lane restriction': 'Restriction de voie ou de chaussée', 'Diversion': 'Déviation', 'Speed restriction': 'Limitation de vitesse',
+    'Source: Bison Futé, national road network (non-motorway) — not every road': "Source : Bison Futé, réseau routier national (hors autoroutes concédées) — pas toutes les routes",
+    'Seveso sites · France': 'Sites Seveso · France', 'High threshold': 'Seuil haut', 'Low threshold': 'Seuil bas', 'All sites': 'Tous les sites', 'High threshold only': 'Seuil haut seulement', 'Town': 'Commune', 'Seveso status': 'Statut Seveso', 'Regime': 'Régime', 'Seveso site': 'Site Seveso',
+    'Source: Géorisques (classified installations), refreshed weekly': 'Source : Géorisques (installations classées), actualisé chaque semaine',
+    'Bathing water · France': 'Eaux de baignade · France', 'Excellent': 'Excellente', 'Sufficient': 'Suffisante', 'Poor': 'Insuffisante', 'Not classified': 'Non classé', 'Sea': 'Mer', 'Fresh water': 'Eau douce', 'Water': 'Eau', 'Quality class': 'Classe de qualité', 'Bathing site': 'Site de baignade', 'Département': 'Département',
+    'Source: Ministère de la Santé (classification of the bathing sites, not a live reading)': 'Source : ministère de la Santé (classement des sites de baignade, pas une mesure en direct)',
+    'Downloading the data · a few seconds, up to several minutes the first time': "Téléchargement des données · quelques secondes, jusqu'à plusieurs minutes la première fois",
+    'Sector': 'Secteur', 'Address': 'Adresse', 'National priority': 'Priorité nationale', 'Industrial emissions (IED)': 'Émissions industrielles (IED)', 'Inspections': 'Inspections', 'Inspected by': 'Inspecté par', 'yes': 'oui', 'none published': 'aucune publiée',
+    'Seveso = stores or makes dangerous substances above regulatory thresholds. The substances are not in the open data. Source: Géorisques': "Seveso = stocke ou fabrique des substances dangereuses au-dessus de seuils réglementaires. Les substances ne figurent pas dans les données ouvertes. Source : Géorisques",
+    'Rubric': 'Rubrique',
+    'Rubrics = declared dangerous substances and activities (4xxx = Seveso substance categories). Source: Géorisques': 'Rubriques = substances dangereuses et activités déclarées (4xxx = catégories de substances de la directive Seveso). Source : Géorisques',
+    'Seveso = stores or makes dangerous substances above regulatory thresholds. Add a Géorisques token (Power up panel) to list them. Source: Géorisques': "Seveso = stocke ou fabrique des substances dangereuses au-dessus de seuils réglementaires. Ajoutez un jeton Géorisques (panneau Power up) pour les lister. Source : Géorisques",
     'Needs METEOFRANCE_API_KEY subscribed to the Vigilance API (Power up panel) · retrying': "Nécessite METEOFRANCE_API_KEY abonnée à l'API Vigilance (panneau Power up) · nouvel essai",
   };
   const MODELES = [
@@ -51,6 +76,25 @@
       (m) => m[1] + ' zones chargées. Rouge = vol interdit ; orange à jaune-vert = hauteur maximale (30, 50, 60, 100 m). La zone bleutée (bouton « + Zone de notification ») impose seulement une notification préalable pour les drones de plus de 900 g, sans limite de hauteur particulière. Hors de toute zone, la limite habituelle est de 120 m. Cliquez sur une zone pour le détail.'],
     [/^(?:(\d+) département\(s\) at yellow or above|No département above green) for (today|tomorrow)(?: \((.*)\))?\. Météo-France vigilance map(?:, updated (.*) UTC)?\. Click a département for its alerts\.$/,
       (m) => (m[1] ? m[1] + ' département(s) au jaune ou au-dessus' : 'Aucun département au-dessus du vert') + ' pour ' + (m[2] === 'today' ? "aujourd'hui" : 'demain') + (m[3] ? ' (' + tr(m[3]) + ')' : '') + '. Carte de vigilance Météo-France' + (m[4] ? ', mise à jour ' + m[4] + ' UTC' : '') + '. Cliquez sur un département pour ses alertes.'],
+    [/^(?:(\d+) massifs with a bulletin(?:, (\d+) at high risk or above)?|No bulletin loaded) for (today|tomorrow)\. Météo-France avalanche risk bulletins \(BRA\), European scale 1 to 5(?:, bulletins of (.*))?\. Click a massif for details\. Grey = no bulletin \(not covered or out of season\)\.$/,
+      (m) => (m[1] ? m[1] + ' massifs avec un bulletin' + (m[2] ? ', dont ' + m[2] + ' au risque fort ou plus' : '') : 'Aucun bulletin chargé') + ' pour ' + (m[3] === 'today' ? "aujourd'hui" : 'demain') + ". Bulletins d'estimation du risque d'avalanche de Météo-France (BRA), échelle européenne de 1 à 5" + (m[4] ? ', bulletins du ' + m[4] : '') + '. Cliquez sur un massif pour le détail. Gris = pas de bulletin (massif non couvert ou hors saison).'],
+    [/^(Bulletin) (.*) · valid until (.*) · Source: Météo-France$/, (m) => 'Bulletin du ' + m[2] + ' · valable jusqu\'au ' + m[3] + ' · Source : Météo-France'],
+    [/^Above (\d+) m$/, (m) => 'Au-dessus de ' + m[1] + ' m'],
+    [/^(\d+) regions, (.*)\. Real-time electricity by region \(RTE éco2mix\)\. Mix = colour of the main source, size = production; Balance = exports and imports; Demand = consumption\. Click a region for the full mix\.$/,
+      (m) => m[1] + ' régions, ' + (m[2] === 'no data' ? 'aucune donnée' : m[2]) + ". Électricité en temps réel par région (RTE éco2mix). Mix = couleur de la source principale, taille = production ; Bilan = exports et imports ; Consommation = demande. Cliquez sur une région pour le détail."],
+    [/^(export|import) (.*)$/, (m) => (m[1] === 'export' ? 'export ' : 'import ') + m[2]],
+    [/^Time \(UTC\): (.*) · Source: RTE éco2mix$/, (m) => 'Heure (UTC) : ' + m[1] + ' · Source : RTE éco2mix'],
+    [/^(\d+) départements under restriction \((.*)\)(?:, (\d+) in crisis)?\. Water-use restrictions decided by the préfets \(VigiEau\)\. Click a département for the level per use\.$/,
+      (m) => m[1] + ' départements sous restriction (' + tr(m[2].replace(/^./, (x) => x.toUpperCase())).toLowerCase() + ')' + (m[3] ? ', dont ' + m[3] + ' en crise' : '') + ". Restrictions d'usage de l'eau décidées par les préfets (VigiEau). Cliquez sur un département pour le niveau par usage."],
+    [/^Updated (.*) UTC · Source: VigiEau$/, (m) => 'Mis à jour ' + m[1] + ' UTC · Source : VigiEau'],
+    [/^(\d+) events in progress on the national road network \(DIR roads, not the concession motorways\)\. Incidents = accidents, jams, obstructions; restrictions = lane closures, diversions, speed limits\. Click a dot for details\.$/,
+      (m) => m[1] + " événements en cours sur le réseau routier national (routes des DIR, pas les autoroutes concédées). Incidents = accidents, bouchons, obstacles ; restrictions = fermetures de voie, déviations, limitations de vitesse. Cliquez sur un point pour le détail."],
+    [/^(\d+) Seveso sites \(industrial sites with major accident hazard\)\. Red = high threshold, orange = low threshold\. Click a site for details\.$/,
+      (m) => m[1] + " sites Seveso (sites industriels à risque d'accident majeur). Rouge = seuil haut, orange = seuil bas. Cliquez sur un site pour le détail."],
+    [/^(\d+) bathing sites\. Quality class of the official classification \(several seasons of sampling\), not a live measurement: check the sign at the site and the ARS before swimming\. Click a site for details\.$/,
+      (m) => m[1] + " sites de baignade. Classe de qualité du classement officiel (plusieurs saisons de prélèvements), pas une mesure en direct : vérifiez l'affichage sur place et l'ARS avant de vous baigner. Cliquez sur un site pour le détail."],
+    [/^(\d+) · last (.*)$/, (m) => m[1] + ' · dernière le ' + m[2]],
+    [/^Rubric (\\d+)$/, (m) => 'Rubrique ' + m[1]],
     [/^(Today|Tomorrow) · valid (.*) to (.*) UTC · Source: Météo-France$/, (m) => tr(m[1]) + ' · valide du ' + m[2] + ' au ' + m[3] + ' UTC · Source : Météo-France'],
     [/^Coast · (.*)$/, (m) => 'Côte · ' + tr(m[1])],
     [/^(.*) · (Good|Fair|Moderate|Poor|Very poor|Extremely poor)$/, (m) => m[1] + ' · ' + tr(m[2])],
@@ -262,7 +306,7 @@
         const moi = ++charge;
         try {
           const d = await jsonAvecAttente(spec.url, signal, () => actif && moi === charge);
-          if (!d || moi !== charge) { if (moi === charge && actif && !signal?.aborted) { erreur = spec.name + ' unavailable · retrying'; prevenir(); setTimeout(() => { if (actif && !donnees) this.update(null, {}); }, 20000); } return false; }
+          if (!d || moi !== charge) { if (moi === charge && actif && !signal?.aborted) { erreur = null; prevenir(); setTimeout(() => { if (actif && !donnees) this.update(null, {}); }, 8000); return true; } return false; }   // true : l'appli abandonne l'activation au bout de ~30 s si update() échoue ; le fichier peut ne pas être encore téléchargé
           donnees = d; derniere = Date.now(); erreur = null; reconstruire(); prevenir(); return true;
         } catch (e) { if (signal?.aborted) return false; erreur = String(e?.message || e); prevenir(); return false; }
       },
@@ -271,7 +315,7 @@
       getParams() { return { ...params }; },
       setParams(p) { const ok = spec.accepte(p || {}); if (!ok) return false; if (JSON.stringify(ok) !== JSON.stringify(Object.fromEntries(Object.keys(ok).map((k) => [k, params[k]])))) { Object.assign(params, ok); if (actif && donnees) reconstruire(); prevenir(); } return true; },
       setRowControlsListener(cb) { ecouteur = cb; },
-      getRowControls() { return { chips: spec.chips(params), legend: spec.legende(etat, params), info: spec.info(etat) }; },
+      getRowControls() { return { chips: spec.chips(params), legend: spec.legende(etat, params), info: donnees ? spec.info(etat) : 'Downloading the data · a few seconds, up to several minutes the first time' }; },
     };
   }
   const leg = (liste) => liste.map(([label, color, blurb]) => ({ label, color, blurb: blurb || label }));
@@ -517,12 +561,252 @@
     };
   }
 
+  // ---- risque d'avalanche : bulletins (BRA) de Météo-France par massif, échelle européenne 1 à 5 (archive ouverte, sans clé) -------------------------------------------------
+  const AVALANCHE = { 1: ['#2fd36b', 'Low · 1/5', 0.35], 2: ['#ffe14a', 'Limited · 2/5', 0.5], 3: ['#ff9a1f', 'Considerable · 3/5', 0.6], 4: ['#ff2b2b', 'High · 4/5', 0.65], 5: ['#8a0030', 'Very high · 5/5', 0.7] };
+  function avalancheFrance(Cesium, viewer) {
+    let primitive = null, lignes = null, donnees = null, actif = false, derniere = null, erreur = null, ecouteur = null, gestionnaire = null, charge = 0, etat = { massifs: 0, hauts: 0 };
+    const params = { jour: 'r' };
+    const prevenir = () => { try { ecouteur?.(); } catch { /* sans effet */ } };
+    const redessiner = () => { try { window.__godsEyeView?.requestRender?.(); } catch { /* sans effet */ } };
+    const niveau = (b) => (b ? b[params.jour] : null);
+    function effacer() { if (primitive) { viewer.scene.groundPrimitives.remove(primitive); primitive = null; } lignes?.removeAll(); }
+    function construire() {
+      effacer(); const instances = []; let massifs = 0, hauts = 0;
+      donnees.massifs.forEach(([, , , polys, b], k) => {
+        const n = niveau(b), [hexa, , alpha] = AVALANCHE[n] || ['#9aa7b2', '', 0.12];
+        if (n) massifs++; if (n >= 4) hauts++;
+        for (const poly of polys) {
+          const an = poly.map((a) => a.map(([x, y]) => Cesium.Cartesian3.fromDegrees(x, y)));
+          if (!an[0] || an[0].length < 3) continue;
+          instances.push(new Cesium.GeometryInstance({ geometry: new Cesium.PolygonGeometry({ polygonHierarchy: new Cesium.PolygonHierarchy(an[0], an.slice(1).map((h) => new Cesium.PolygonHierarchy(h))), perPositionHeight: false }),
+            attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(col(Cesium, hexa, alpha)) }, id: { jarvisCle: k } }));
+          lignes.add({ positions: Cesium.Cartesian3.fromDegreesArrayHeights(poly[0].flatMap(([x, y]) => [x, y, 30])), width: 2, material: Cesium.Material.fromType('Color', { color: col(Cesium, hexa, 0.9) }), id: { jarvisCle: k } });
+        }
+      });
+      if (instances.length) { primitive = new Cesium.GroundPrimitive({ geometryInstances: instances, appearance: new Cesium.PerInstanceColorAppearance({ translucent: true, closed: false }), classificationType: Cesium.ClassificationType.BOTH, asynchronous: true }); viewer.scene.groundPrimitives.add(primitive); }
+      etat = { massifs, hauts }; redessiner();
+    }
+    return {
+      id: 'avalanche-fr', name: 'Avalanche risk · France', icon: '🏔', source: 'Météo-France · BRA', updateInterval: 60 * 60000,
+      init() { lignes = viewer.scene.primitives.add(new Cesium.PolylineCollection()); lignes.show = false; },
+      enable() {
+        actif = true; lignes.show = true;
+        gestionnaire = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        gestionnaire.setInputAction((e) => {
+          const k = viewer.scene.pick(e.position)?.id?.jarvisCle;
+          if (k === undefined || !donnees) { document.querySelector('[data-jarvis-carte]')?.remove(); return; }
+          const [, nom, chaine, , b] = donnees.massifs[k], fmt = (s) => String(s || '').replace('T', ' ').slice(0, 16), lib = (n) => (AVALANCHE[n] ? AVALANCHE[n][1] : '—');
+          if (!b) { carte(nom, [['Range', chaine], ['Bulletin', 'None published for this massif today']], 'Source: Météo-France (bulletins d\'estimation du risque d\'avalanche)'); return; }
+          const f = [['Range', chaine], ['Today', lib(b.r)], ['Tomorrow', lib(b.r2)]];
+          if (b.alt && b.hautr) f.push(['Above ' + b.alt + ' m', lib(b.hautr)], ['Below', lib(b.r1)]);
+          for (const l of String(b.resume || '').split('\n').filter(Boolean).slice(0, 3)) { const i = l.indexOf(':'); f.push(i > 0 ? [l.slice(0, i).trim(), l.slice(i + 1).trim()] : ['Note', l]); }
+          carte(nom, f, 'Bulletin ' + fmt(b.date) + ' · valid until ' + fmt(b.fin) + ' · Source: Météo-France');
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        redessiner();
+      },
+      disable() { actif = false; charge++; effacer(); if (lignes) lignes.show = false; gestionnaire?.destroy(); gestionnaire = null; document.querySelector('[data-jarvis-carte]')?.remove(); redessiner(); },
+      async update(_v, { signal } = {}) {
+        if (!actif) return false;
+        const moi = ++charge;
+        try {
+          // Le fichier peut ne pas exister encore (premier lancement : JARVIS télécharge massifs et bulletins, ~30 s) : on ne fait pas échouer l'activation (l'appli l'abandonne au bout de ~30 s), on réessaie en tâche de fond.
+          const r = await fetch('/__jarvis/donnees/avalanche.json', { signal: delai(signal, 20000), cache: 'no-store' });
+          if (moi !== charge) return false;
+          if (r.status === 503) { erreur = null; prevenir(); setTimeout(() => { if (actif && !donnees && moi === charge) this.update(null, {}); }, 4000); return true; }
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const d = await r.json(); if (moi !== charge) return false;
+          donnees = d; derniere = Date.now(); erreur = d.jour ? null : 'No avalanche bulletin published recently (season: early November to early June)'; construire(); prevenir(); return true;
+        } catch (e) { if (signal?.aborted) return false; erreur = String(e?.message || e); prevenir(); return false; }
+      },
+      destroy() { this.disable(); if (lignes) viewer.scene.primitives.remove(lignes); lignes = null; },
+      getStats() { return { count: etat.massifs, lastUpdate: derniere, error: erreur }; },
+      getParams() { return { ...params }; },
+      setParams(p) {
+        if (!p) return false;
+        if (p.jour && ['r', 'r2'].includes(p.jour) && p.jour !== params.jour) { params.jour = p.jour; if (actif && donnees) construire(); prevenir(); }
+        return true;
+      },
+      setRowControlsListener(cb) { ecouteur = cb; },
+      getRowControls() {
+        return {
+          chips: chipsDe('jour', [['r', 'Today'], ['r2', 'Tomorrow']], params),
+          legend: leg(Object.values(AVALANCHE).map(([c, l]) => [l.split(' · ')[0], c, l])),
+          info: !donnees ? 'Downloading the avalanche bulletins · a few seconds' : (etat.massifs ? etat.massifs + ' massifs with a bulletin' + (etat.hauts ? ', ' + etat.hauts + ' at high risk or above' : '') : 'No bulletin loaded') + ' for ' + (params.jour === 'r' ? 'today' : 'tomorrow') + '. Météo-France avalanche risk bulletins (BRA), European scale 1 to 5' + (donnees?.jour ? ', bulletins of ' + donnees.jour : '') + '. Click a massif for details. Grey = no bulletin (not covered or out of season).',
+        };
+      },
+    };
+  }
+
+  // ---- électricité par région (RTE éco2mix) ---------------------------------------------------------------------------------------------------------------------------------
+  const SOURCES_ELEC = [['Nuclear power', '#b46bff', 6], ['Wind power', '#4de2c5', 7], ['Solar power', '#ffd23c', 8], ['Hydro power', '#4aa3ff', 9], ['Thermal power', '#ff6a3c', 10], ['Bioenergy', '#7dd957', 11]];   // [nom, couleur, colonne]
+  const gw = (mw) => (Math.abs(mw) >= 1000 ? (mw / 1000).toFixed(1) + ' GW' : Math.round(mw) + ' MW');
+  const electriciteFrance = (Cesium, viewer) => fabrique(Cesium, viewer, {
+    id: 'electricity-fr', name: 'Electricity · France', icon: '⚡', source: 'RTE · éco2mix · ODRÉ', updateInterval: 15 * 60000, url: '/__jarvis/donnees/electricite.json', params: { vue: 'mix' },
+    accepte: (p) => (['mix', 'bilan', 'conso'].includes(p.vue) ? { vue: p.vue } : null),
+    construire(d, { pts, lab, params, col: c }) {
+      d.forEach((r, k) => {
+        const prod = r[6] + r[7] + r[8] + r[9] + r[10] + r[11], ech = r[12];
+        let hexa, taille, texte;
+        if (params.vue === 'mix') { const [, h] = SOURCES_ELEC.reduce((m, s) => (r[s[2]] > m[0] ? [r[s[2]], s[1]] : m), [-1, '#888']); hexa = h; taille = 10 + 20 * Math.sqrt(prod / 14000); texte = gw(prod); }
+        else if (params.vue === 'bilan') { hexa = ech < 0 ? '#2de2d0' : '#ff9a3c'; taille = 10 + 20 * Math.sqrt(Math.abs(ech) / 10000); texte = (ech < 0 ? '→ ' : '← ') + gw(ech); }
+        else { hexa = '#4aa3ff'; taille = 10 + 20 * Math.sqrt(r[5] / 10500); texte = gw(r[5]); }
+        const position = Cesium.Cartesian3.fromDegrees(r[3], r[2], 20);
+        pts.add({ position, pixelSize: taille, color: c(hexa, 0.8), outlineColor: Cesium.Color.WHITE.withAlpha(0.85), outlineWidth: 1.5, disableDepthTestDistance: Infinity, id: { jarvisCle: k } });
+        lab.add({ position, text: texte, font: '600 13px Consolas, monospace', fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, -taille / 2 - 10), disableDepthTestDistance: Infinity, scale: 0.9, id: { jarvisCle: k } });
+      });
+      return { count: d.length, heure: d[0]?.[4] };
+    },
+    fiche: (k, d) => { const r = d[k]; return [r[1], [['Demand', gw(r[5])], ...SOURCES_ELEC.map(([n, , i]) => [n, gw(r[i])]), ['Exchanges', (r[12] < 0 ? 'export ' : 'import ') + gw(r[12])]], 'Time (UTC): ' + String(r[4]).replace('T', ' ').slice(0, 16) + ' · Source: RTE éco2mix']; },
+    chips: (p) => chipsDe('vue', [['mix', 'Mix'], ['bilan', 'Balance'], ['conso', 'Demand']], p),
+    legende: (e, p) => leg(p.vue === 'mix' ? SOURCES_ELEC.map(([n, c]) => [n, c]) : p.vue === 'bilan' ? [['Export', '#2de2d0'], ['Import', '#ff9a3c']] : [['Demand', '#4aa3ff']]),
+    info: (e) => (e.count || 0) + ' regions, ' + (e.heure ? String(e.heure).replace('T', ' ').slice(0, 16) + ' UTC' : 'no data') + '. Real-time electricity by region (RTE éco2mix). Mix = colour of the main source, size = production; Balance = exports and imports; Demand = consumption. Click a region for the full mix.',
+  });
+
+  // ---- sécheresse : restrictions d'eau (VigiEau) ----------------------------------------------------------------------------------------------------------------------------
+  const EAU = { 1: ['#ffe14a', 'Vigilance', 0.4], 2: ['#ff9a1f', 'Alert', 0.55], 3: ['#ff2b2b', 'Heightened alert', 0.6], 4: ['#8a0030', 'Crisis', 0.7] };
+  const EAU_TYPES = { all: ['All uses', 0], surface: ['Surface water', 1], ground: ['Groundwater', 2], drinking: ['Drinking water', 3] };
+  function secheresseFrance(Cesium, viewer) {
+    let primitive = null, lignes = null, donnees = null, actif = false, derniere = null, erreur = null, ecouteur = null, gestionnaire = null, charge = 0, etat = { depts: 0, crise: 0 };
+    const params = { eau: 'all' };
+    const prevenir = () => { try { ecouteur?.(); } catch { /* sans effet */ } };
+    const redessiner = () => { try { window.__godsEyeView?.requestRender?.(); } catch { /* sans effet */ } };
+    const niveau = (code) => (donnees.niveaux[code] || [0, 0, 0, 0])[EAU_TYPES[params.eau][1]];
+    function effacer() { if (primitive) { viewer.scene.groundPrimitives.remove(primitive); primitive = null; } lignes?.removeAll(); }
+    function construire() {
+      effacer(); const instances = []; let depts = 0, crise = 0;
+      donnees.depts.forEach(([code, , polys], k) => {
+        const n = niveau(code); if (!n) return; depts++; if (n === 4) crise++;
+        const [hexa, , alpha] = EAU[n];
+        for (const poly of polys) {
+          const an = poly.map((a) => a.map(([x, y]) => Cesium.Cartesian3.fromDegrees(x, y)));
+          if (!an[0] || an[0].length < 3) continue;
+          instances.push(new Cesium.GeometryInstance({ geometry: new Cesium.PolygonGeometry({ polygonHierarchy: new Cesium.PolygonHierarchy(an[0], an.slice(1).map((h) => new Cesium.PolygonHierarchy(h))), perPositionHeight: false }),
+            attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(col(Cesium, hexa, alpha)) }, id: { jarvisCle: k } }));
+          lignes.add({ positions: Cesium.Cartesian3.fromDegreesArrayHeights(poly[0].flatMap(([x, y]) => [x, y, 30])), width: 1.5, material: Cesium.Material.fromType('Color', { color: col(Cesium, hexa, 0.85) }), id: { jarvisCle: k } });
+        }
+      });
+      if (instances.length) { primitive = new Cesium.GroundPrimitive({ geometryInstances: instances, appearance: new Cesium.PerInstanceColorAppearance({ translucent: true, closed: false }), classificationType: Cesium.ClassificationType.BOTH, asynchronous: true }); viewer.scene.groundPrimitives.add(primitive); }
+      etat = { depts, crise }; redessiner();
+    }
+    return {
+      id: 'drought-fr', name: 'Drought restrictions · France', icon: '💧', source: 'VigiEau · beta.gouv.fr', updateInterval: 3 * 3600000,
+      init() { lignes = viewer.scene.primitives.add(new Cesium.PolylineCollection()); lignes.show = false; },
+      enable() {
+        actif = true; lignes.show = true;
+        gestionnaire = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        gestionnaire.setInputAction((e) => {
+          const k = viewer.scene.pick(e.position)?.id?.jarvisCle;
+          if (k === undefined || !donnees) { document.querySelector('[data-jarvis-carte]')?.remove(); return; }
+          const [code, nom] = donnees.depts[k], v = donnees.niveaux[code] || [0, 0, 0, 0], lib = (n) => (EAU[n] ? EAU[n][1] : 'No restriction');
+          carte(nom + ' (' + code + ')', [['All uses', lib(v[0])], ['Surface water', lib(v[1])], ['Groundwater', lib(v[2])], ['Drinking water', lib(v[3])]], 'Updated ' + String(donnees.maj || '').replace('T', ' ').slice(0, 16) + ' UTC · Source: VigiEau');
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        redessiner();
+      },
+      disable() { actif = false; charge++; effacer(); if (lignes) lignes.show = false; gestionnaire?.destroy(); gestionnaire = null; document.querySelector('[data-jarvis-carte]')?.remove(); redessiner(); },
+      async update(_v, { signal } = {}) {
+        if (!actif) return false;
+        const moi = ++charge;
+        try {
+          const r = await fetch('/__jarvis/donnees/secheresse.json', { signal: delai(signal, 20000), cache: 'no-store' });
+          if (moi !== charge) return false;
+          if (r.status === 503) { erreur = null; prevenir(); setTimeout(() => { if (actif && !donnees && moi === charge) this.update(null, {}); }, 4000); return true; }   // fichier pas encore téléchargé : on ne fait pas échouer l'activation
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const d = await r.json(); if (moi !== charge) return false;
+          donnees = d; derniere = Date.now(); erreur = null; construire(); prevenir(); return true;
+        } catch (e) { if (signal?.aborted) return false; erreur = String(e?.message || e); prevenir(); return false; }
+      },
+      destroy() { this.disable(); if (lignes) viewer.scene.primitives.remove(lignes); lignes = null; },
+      getStats() { return { count: etat.depts, lastUpdate: derniere, error: erreur }; },
+      getParams() { return { ...params }; },
+      setParams(p) {
+        if (!p) return false;
+        if (p.eau && Object.hasOwn(EAU_TYPES, p.eau) && p.eau !== params.eau) { params.eau = p.eau; if (actif && donnees) construire(); prevenir(); }
+        return true;
+      },
+      setRowControlsListener(cb) { ecouteur = cb; },
+      getRowControls() {
+        return {
+          chips: Object.entries(EAU_TYPES).map(([v, [l]]) => ({ id: 'eau-' + v, label: l, active: params.eau === v, params: { eau: v }, title: l })),
+          legend: leg(Object.values(EAU).map(([c, l]) => [l, c])),
+          info: !donnees ? 'Downloading the drought restrictions · a few seconds' : etat.depts + ' départements under restriction (' + EAU_TYPES[params.eau][0].toLowerCase() + ')' + (etat.crise ? ', ' + etat.crise + ' in crisis' : '') + '. Water-use restrictions decided by the préfets (VigiEau). Click a département for the level per use.',
+        };
+      },
+    };
+  }
+
+  // ---- événements routiers du réseau national (Bison Futé / DIR) --------------------------------------------------------------------------------------------------------------
+  const TRAFIC = { incident: ['#ff4d4d', 'Incidents'], restriction: ['#ffb13c', 'Restrictions'], travaux: ['#4aa3ff', 'Roadworks'] };
+  const traficFrance = (Cesium, viewer) => fabrique(Cesium, viewer, {
+    id: 'road-traffic-fr', name: 'Road events · France', icon: '🚧', source: 'Bison Futé · DIR · data.gouv.fr', updateInterval: 10 * 60000, url: '/__jarvis/donnees/trafic.json', params: { cat: 'incident' },
+    accepte: (p) => (['incident', 'restriction', 'travaux', 'all'].includes(p.cat) ? { cat: p.cat } : null),
+    construire(d, { pts, params, col: c }) {
+      let n = 0;
+      d.forEach((e, k) => {
+        if (params.cat !== 'all' && e[0] !== params.cat) return; n++;
+        pts.add({ position: Cesium.Cartesian3.fromDegrees(e[3], e[2], 15), pixelSize: e[0] === 'incident' ? 9 : 6, color: c(TRAFIC[e[0]][0], 0.9), outlineColor: Cesium.Color.WHITE.withAlpha(0.8), outlineWidth: 1, disableDepthTestDistance: Infinity,
+          scaleByDistance: new Cesium.NearFarScalar(2e4, 1.4, 6e6, 0.4), id: { jarvisCle: k } });
+      });
+      return { count: n };
+    },
+    fiche: (k, d) => { const e = d[k], fmt = (s) => String(s || '').replace('T', ' ').slice(0, 16); return [e[1], [['Road', e[8] || '—'], ['Since', fmt(e[6])], ['Until', e[7] ? fmt(e[7]) : 'no end date'], ['Severity', e[5] || '—'], ['Details', e[4] || '—']], 'Source: Bison Futé, national road network (non-motorway) — not every road']; },
+    chips: (p) => chipsDe('cat', [['incident', 'Incidents'], ['restriction', 'Restrictions'], ['travaux', 'Roadworks'], ['all', 'All']], p),
+    legende: () => leg(Object.values(TRAFIC).map(([c, l]) => [l, c])),
+    info: (e) => (e.count || 0) + ' events in progress on the national road network (DIR roads, not the concession motorways). Incidents = accidents, jams, obstructions; restrictions = lane closures, diversions, speed limits. Click a dot for details.',
+  });
+
+  // ---- sites Seveso (Géorisques) ---------------------------------------------------------------------------------------------------------------------------------------------
+  const SEVESO = { 2: ['#ff3b3b', 'High threshold'], 1: ['#ffa53c', 'Low threshold'] };
+  const sevesoFrance = (Cesium, viewer) => fabrique(Cesium, viewer, {
+    id: 'seveso-fr', name: 'Seveso sites · France', icon: '🏭', source: 'Géorisques · BRGM', updateInterval: 24 * 3600000, url: '/__jarvis/donnees/seveso.json', params: { niveau: 'all' },
+    accepte: (p) => (['all', 'haut'].includes(p.niveau) ? { niveau: p.niveau } : null),
+    construire(d, { pts, params, col: c }) {
+      let n = 0;
+      d.forEach((s, k) => {
+        if (params.niveau === 'haut' && s[4] < 2) return; n++;
+        pts.add({ position: Cesium.Cartesian3.fromDegrees(s[3], s[2], 15), pixelSize: s[4] === 2 ? 9 : 7, color: c(SEVESO[s[4]][0], 0.9), outlineColor: Cesium.Color.WHITE.withAlpha(0.85), outlineWidth: 1, disableDepthTestDistance: Infinity,
+          scaleByDistance: new Cesium.NearFarScalar(2e4, 1.5, 6e6, 0.4), id: { jarvisCle: k } });
+      });
+      return { count: n };
+    },
+    fiche: (k, d) => {
+      const s = d[k], f = [['Sector', s[7] || '—'], ['Seveso status', SEVESO[s[4]][1]], ['Address', s[6] || s[1] || '—'], ['Regime', s[5] || '—']];
+      if (s[8]) f.push(['National priority', 'yes']); if (s[9]) f.push(['Industrial emissions (IED)', 'yes']);
+      if (s[10] !== undefined) f.push(['Inspections', s[10] ? s[10] + ' · last ' + s[11] : 'none published'], ['Inspected by', s[12] || '—']);
+      for (const [num, nature, qte] of (s[14] || []).slice(0, 4)) f.push(['Rubric ' + num, (nature || '—') + (qte ? ' · ' + qte : '')]);   // rubriques ICPE : substances et activités déclarées (API v2)
+      return [s[0] || 'Seveso site', f, s[14] && s[14].length ? 'Rubrics = declared dangerous substances and activities (4xxx = Seveso substance categories). Source: Géorisques' : 'Seveso = stores or makes dangerous substances above regulatory thresholds. Add a Géorisques token (Power up panel) to list them. Source: Géorisques'];
+    },
+    chips: (p) => chipsDe('niveau', [['all', 'All sites'], ['haut', 'High threshold only']], p),
+    legende: () => leg(Object.values(SEVESO).map(([c, l]) => [l, c])),
+    info: (e) => (e.count || 0) + ' Seveso sites (industrial sites with major accident hazard). Red = high threshold, orange = low threshold. Click a site for details.',
+  });
+
+  // ---- qualité des eaux de baignade (ministère de la Santé) ----------------------------------------------------------------------------------------------------------------
+  const BAIGNADE = { Excellent: ['#2de2d0', 'Excellent'], Bon: ['#7dff5a', 'Good'], Suffisant: ['#ffe14a', 'Sufficient'], Insuffisant: ['#ff3b3b', 'Poor'], 'Non classé': ['#9aa7b2', 'Not classified'] };
+  const baignadeFrance = (Cesium, viewer) => fabrique(Cesium, viewer, {
+    id: 'bathing-water-fr', name: 'Bathing water · France', icon: '🏊', source: 'Ministère de la Santé · data.gouv.fr', updateInterval: 24 * 3600000, url: '/__jarvis/donnees/baignade.json', params: { eau: 'all' },
+    accepte: (p) => (['all', 'mer', 'douce'].includes(p.eau) ? { eau: p.eau } : null),
+    construire(d, { pts, params, col: c }) {
+      let n = 0;
+      d.forEach((s, k) => {
+        if ((params.eau === 'mer' && !s[5]) || (params.eau === 'douce' && s[5])) return; n++;
+        const [hexa] = BAIGNADE[s[6]] || BAIGNADE['Non classé'];
+        pts.add({ position: Cesium.Cartesian3.fromDegrees(s[4], s[3], 10), pixelSize: s[6] === 'Insuffisant' ? 8 : 6, color: c(hexa, 0.9), outlineColor: Cesium.Color.WHITE.withAlpha(0.8), outlineWidth: 1, disableDepthTestDistance: Infinity,
+          scaleByDistance: new Cesium.NearFarScalar(2e4, 1.5, 6e6, 0.4), id: { jarvisCle: k } });
+      });
+      return { count: n };
+    },
+    fiche: (k, d) => { const s = d[k]; return [s[0] || 'Bathing site', [['Town', s[1] || '—'], ['Département', s[2] || '—'], ['Water', s[5] ? 'Sea' : 'Fresh water'], ['Quality class', (BAIGNADE[s[6]] || BAIGNADE['Non classé'])[1]]], 'Source: Ministère de la Santé (classification of the bathing sites, not a live reading)']; },
+    chips: (p) => chipsDe('eau', [['all', 'All'], ['mer', 'Sea'], ['douce', 'Fresh water']], p),
+    legende: () => leg(Object.values(BAIGNADE).map(([c, l]) => [l, c])),
+    info: (e) => (e.count || 0) + ' bathing sites. Quality class of the official classification (several seasons of sampling), not a live measurement: check the sign at the site and the ARS before swimming. Click a site for details.',
+  });
+
   async function demarrer() {
     for (let i = 0; i < 240; i++) {   // l'appli met plusieurs secondes à démarrer ; 2 minutes au plus
       const g = window.__godsEyeView;
       if (g?.dataManager && g.viewer && window.__CESIUM__ && typeof window.__gevQaRegisterLayer === 'function') {
         try {
-          for (const creer of [carburantsFrance, rechargeFrance, cruesFrance, seismesFrance, airFrance, dronesFrance, alertesFrance]) {   // une couche qui plante ne doit pas empêcher les autres
+          for (const creer of [carburantsFrance, rechargeFrance, cruesFrance, seismesFrance, airFrance, dronesFrance, alertesFrance, avalancheFrance, electriciteFrance, secheresseFrance, traficFrance, sevesoFrance, baignadeFrance]) {   // une couche qui plante ne doit pas empêcher les autres
             try { window.__gevQaRegisterLayer(g.dataManager, habiller(creer(window.__CESIUM__, g.viewer))); } catch (e) { if (/not authorized|finalized/i.test(String(e && e.message))) throw e; if (!/Duplicate/.test(String(e && e.message))) console.warn('[JARVIS] Couche non ajoutée : ' + (e && e.message)); }
           }
           try {   // fait apparaître la ligne dans le panneau des couches (la liste est montée une seule fois au démarrage)
@@ -547,7 +831,7 @@
   // Pilotage vocal : le HUD de JARVIS relaie {jarvis:'gev-cmd', id, op, ...} ; on agit sur l'interface comme le ferait un clic et on répond {jarvis:'gev-retour', id, ok, texte}.
   const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
   const mots = (s) => norm(s).split(' ').filter((m) => m.length > 1 && !['le', 'la', 'les', 'de', 'des', 'du', 'un', 'une', 'en', 'au', 'aux', 'et', 'couche', 'layer'].includes(m));
-  function meilleur(requete, candidats) {   // candidats : [{el, textes:[...]}] ; score = mots de la requête retrouvés (égalité exacte préférée)
+  function meilleur(requete, candidats, souple) {   // candidats : [{el, textes:[...]}] ; score = mots de la requête retrouvés (égalité exacte préférée)
     const q = norm(requete), qm = mots(requete); let best = null, bs = 0;
     for (const c of candidats) {
       for (const tx of c.textes) {
@@ -557,9 +841,25 @@
         if (s > bs) { bs = s; best = c; }
       }
     }
+    if (!best && souple) {   // « scan seveso » : on ignore les mots inconnus (scan) et on garde la couche qui retrouve le plus de mots significatifs (4 lettres ou plus)
+      let meilleurs = 0;
+      for (const c of candidats) {
+        for (const tx of c.textes) {
+          const n = norm(tx); if (!n) continue;
+          const hits = qm.filter((m) => m.length > 3 && n.split(' ').some((w) => w === m || w.startsWith(m) || (w.length > 3 && m.startsWith(w)))).length;
+          if (hits > meilleurs) { meilleurs = hits; best = c; }
+        }
+      }
+    }
     return best;
   }
-  const lignes = () => [...document.querySelectorAll('.data-toggle-row')].map((el) => ({ el, textes: [el.querySelector('.data-name')?.textContent, el.dataset.layerName, el.dataset.layerId] }));
+  // mots courants qu'on dit à la voix pour désigner une couche de JARVIS (les noms des lignes sont anglais ou longs : « Événements routiers · France »)
+  const ALIAS = { 'traffic': ['trafic', 'trafic routier', 'bouchons', 'embouteillages', 'circulation'], 'road-traffic-fr': ['accidents', 'travaux routiers', 'evenements routiers', 'incidents routiers'], 'electricity-fr': ['electricite', 'courant', 'energie', 'production electrique'],
+    'drought-fr': ['secheresse', 'restrictions eau', 'restrictions de sechresse'], 'seveso-fr': ['seveso', 'usines', 'industries', 'sites industriels', 'sites a risque'], 'bathing-water-fr': ['baignade', 'baignades', 'plages', 'eaux de baignade'],
+    'avalanche-fr': ['avalanches', 'risque avalanche', 'neige'], 'weather-alerts-fr': ['vigilance', 'alertes meteo', 'vigilance meteo'], 'fuel-prices-fr': ['carburants', 'essence', 'prix carburants', 'prix essence', 'diesel', 'gazole'],
+    'ev-chargers-fr': ['bornes', 'bornes de recharge', 'recharge electrique'], 'flood-vigilance-fr': ['crues', 'inondations', 'vigicrues'], 'earthquakes-fr': ['seismes', 'tremblements de terre'], 'air-quality-fr': ['pollution', 'qualite de lair'],
+    'drone-zones-fr': ['drones', 'zones de drones'] };
+  const lignes = () => [...document.querySelectorAll('.data-toggle-row')].map((el) => ({ el, textes: [el.querySelector('.data-name')?.textContent, el.dataset.layerName, el.dataset.layerId, ...(ALIAS[el.dataset.layerId] || [])] }));
   const actif = (el) => !!el.querySelector('.data-toggle-btn')?.classList.contains('active');
   const nomLigne = (el) => (el.querySelector('.data-name')?.textContent || el.dataset.layerId || '').trim();
   const visible = (e) => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
@@ -570,11 +870,15 @@
       return { ok: true, texte: l.length ? `Couches actives : ${l.join(', ')}.` : 'Aucune couche active.' };
     }
     if (c.op === 'couche') {
-      const x = meilleur(c.nom, lignes());
+      const x = meilleur(c.nom, lignes(), c.souple);
       if (!x) return { ok: false, texte: `Je ne trouve pas de couche « ${c.nom} ».` };
       const nom = nomLigne(x.el);
       if (actif(x.el) === c.etat) return { ok: true, texte: `La couche ${nom} est déjà ${c.etat ? 'active' : 'désactivée'}.` };
       x.el.querySelector('.data-toggle-btn')?.click();
+      if (c.etat) {   // « les bouchons » : si le mot dit est aussi une pastille de la couche (Bouchons), on la choisit
+        const q = norm(c.nom), pastille = [...x.el.querySelectorAll('.data-toggle-chip, .data-toggle-controls button')].find((b) => norm(b.textContent) === q);
+        if (pastille) setTimeout(() => pastille.click(), 400);
+      }
       return { ok: true, texte: `Couche ${nom} ${c.etat ? 'activée' : 'désactivée'}.` };
     }
     if (c.op === 'toutes_off') {

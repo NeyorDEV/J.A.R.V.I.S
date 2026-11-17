@@ -820,11 +820,11 @@ const DONNEES_DIR = process.env.JARVIS_DONNEES_DIR || '';
 // Rangement des couches de JARVIS dans les catégories du panneau de l'appli (sans lui, elles tomberaient dans « Other layers ») : la liste PANEL_GROUPS de src/ui/layerPanel.js reçoit leurs identifiants.
 // Chaque remplacement est indépendant ; verifier_surcharges() surveille la phrase la plus fragile.
 const PLACEMENT_COUCHES = [
-  ["'bikeshare',", "'bikeshare', 'fuel-prices-fr', 'ev-chargers-fr',"],
+  ["'bikeshare',", "'bikeshare', 'fuel-prices-fr', 'ev-chargers-fr', 'road-traffic-fr', 'bathing-water-fr',"],
   ["'earthquakes',", "'earthquakes', 'earthquakes-fr',"],
   [/('air-quality',)(\s*'wind',)/, (m, a, b) => `${a} 'air-quality-fr',${b}`],
-  [/('weather-cyclones',)(\s*\],\s*\},\s*\{\s*label: msg\('Utilities'\))/, (m, a, b) => `${a} 'flood-vigilance-fr', 'weather-alerts-fr',${b}`],
-  ["ids: ['directions', 'radio'],", "ids: ['directions', 'radio', 'drone-zones-fr'],"],
+  [/('weather-cyclones',)(\s*\],\s*\},\s*\{\s*label: msg\('Utilities'\))/, (m, a, b) => `${a} 'flood-vigilance-fr', 'weather-alerts-fr', 'avalanche-fr', 'drought-fr',${b}`],
+  ["ids: ['directions', 'radio'],", "ids: ['directions', 'radio', 'drone-zones-fr', 'electricity-fr', 'seveso-fr'],"],
 ];
 // Français : langue ajoutée à la liste de l'appli (src/i18n/locale.js, index.js) et choisie PAR DÉFAUT à la place de la langue du navigateur ; le choix du sélecteur de langue (stocké) ou ?lang= reste prioritaire.
 // Le catalogue (src/i18n/locales/fr.json) est écrit dans l'appli par `_ecrire_config` à chaque lancement.
@@ -862,7 +862,7 @@ function jarvisCouches() {
       });
       // jeux de données téléchargés par module/gev_donnees_fr.py (liste blanche de noms, aucun chemin venant de la page)
       server.middlewares.use('/__jarvis/donnees', (req, res) => {
-        const nom = /^\/(recharge|crues|seismes|air|vigilance)\.json$/.exec((req.url || '').split('?')[0])?.[1];
+        const nom = /^\/(recharge|crues|seismes|air|vigilance|avalanche|electricite|secheresse|trafic|seveso|baignade)\.json$/.exec((req.url || '').split('?')[0])?.[1];
         if (req.method !== 'GET' || !nom || !DONNEES_DIR) { res.statusCode = nom ? 405 : 404; return res.end(); }
         try { const corps = fs.readFileSync(path.join(DONNEES_DIR, nom + '.json')); res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Cache-Control', 'no-store'); res.end(corps); }
         catch { res.statusCode = 503; res.setHeader('Retry-After', '3'); res.end(); }
@@ -921,6 +921,7 @@ function jarvisCouches() {
 const CLES_JARVIS = [
   { id: 'meteofrance', title: 'MÉTÉO-FRANCE', unlocks: 'Rain radar over France (free "Données radar" API key). Restart the view after saving.', getUrl: 'https://portail-api.meteofrance.fr/', envVars: ['METEOFRANCE_API_KEY'], tier: 'free', clientExposed: false },
   { id: 'windy', title: 'WINDY WEBCAMS', unlocks: 'Live webcams in the French camera pack (free Webcams API key). Restart the view after saving.', getUrl: 'https://api.windy.com/keys', envVars: ['WINDY_WEBCAMS_API_KEY'], tier: 'free', clientExposed: false },
+  { id: 'georisques', title: 'GÉORISQUES', unlocks: 'Substances stored on the Seveso sites (free Géorisques API v2 token). Restart the view after saving.', getUrl: 'https://www.georisques.gouv.fr/inscription', envVars: ['GEORISQUES_API_KEY'], tier: 'free', clientExposed: false },
 ];
 function jarvisCles() {
   const DIR = path.dirname(fileURLToPath(import.meta.url)), FICHIER = path.join(DIR, '.env'), noms = new Set(CLES_JARVIS.flatMap((c) => c.envVars));

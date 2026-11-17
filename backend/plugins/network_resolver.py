@@ -101,6 +101,12 @@ async def resoudre_connexions_reseau(cmd: str):
     import re as _re
     if not ("radar" in t or _re.search(r"\b(connexions? (reseau|actives?|du pc|de l'ordinateur)|trafic( reseau)?|carte (du )?reseau|qui est connecte)\b", t)):
         return None
+    # « ouvre la vue de Dieu avec le trafic routier » parle des couches de la Vue de Dieu (resolver suivant), pas du réseau informatique
+    if _re.search(r"\b(vue de dieux?|oeil de dieu|god'?s? ?eye|vue divine)\b|\btrafic (routier|des routes|des rues)\b|\bcirculation\b", t):
+        return None
+    from module import vue_de_dieu as _vdd
+    if _vdd.ouverte and "reseau" not in t and "radar" not in t and "connexion" not in t:
+        return None   # vue ouverte : « montre le trafic » vise ses couches
 
     mots_hide = ["cache", "ferme", "stop", "arrete", "desactive", "masque", "quitte", "coupe", "eteins"]
     if any(m in t for m in mots_hide):

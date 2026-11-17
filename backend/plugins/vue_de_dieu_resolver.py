@@ -159,6 +159,37 @@ async def _ordre(cmd: dict, delai: float = 6.0):
         return None
 
 
+_AVEC = re.compile(r"\bavec\s+(?P<c>.+)$")
+
+
+def _couches_demandees(t: str) -> list:
+    """« … la vue de Dieu avec les bouchons et le trafic activés » -> ["bouchons", "trafic"]."""
+    m = _AVEC.search(t.strip(" .!?"))
+    if not m:
+        return []
+    noms = []
+    for morceau in re.split(r"\s+et\s+|\s*,\s*", m.group("c")):
+        morceau = re.sub(r"\s+(?:activee?s?|allumee?s?|affichee?s?|ouverte?s?|d'ouverte?s?|en direct|visibles?)$", "", morceau.strip())
+        morceau = re.sub(r"^(?:les|la|le|l'|une?|des|couches?)\s+", "", morceau).strip()
+        morceau = re.sub(r"^(?:couches?)\s+", "", morceau).strip()
+        if morceau:
+            noms.append(morceau)
+    return noms[:4]
+
+
+async def _activer_apres_ouverture(noms: list) -> None:
+    """Attend que la vue et son panneau de couches soient prêts (jusqu'à ~2 minutes) puis active chaque couche demandée."""
+    await asyncio.sleep(8)
+    for nom in noms:
+        for _ in range(25):
+            r = await _ordre({"op": "couche", "nom": nom, "etat": True, "souple": True}, 5.0)
+            if r and r[0]:
+                break
+            await asyncio.sleep(4)
+        else:
+            await _parler(f"Je n'ai pas réussi à activer {nom}{nom_virgule()}.")
+
+
 async def _pilotage(t: str):
     t = t.strip(" .!?")
     if _LISTE.search(t):
@@ -224,7 +255,14 @@ async def resoudre_vue_de_dieu(cmd: str):
         release = await asyncio.to_thread(vdd.mise_a_jour_disponible)
         if release and await _proposer_mise_a_jour(release):
             return await _lancer_installation(release, True)
-        return await _ouvrir_vue()
+        reponse = await _ouvrir_vue()
+        noms = _couches_demandees(t) if reponse.startswith("J'active la vue") else []
+        if noms:   # « lance la vue de Dieu avec les bouchons activés » : les couches s'allument une fois la vue prête
+            tache = asyncio.create_task(_activer_apres_ouverture(noms))
+            _taches.add(tache)
+            tache.add_done_callback(_taches.discard)
+            return reponse + " J'activerai : " + ", ".join(noms) + "."
+        return reponse
 
     if vdd.ouverte and not vdd.installation_en_cours:
         r = await _pilotage(t)
