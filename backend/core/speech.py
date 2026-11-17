@@ -259,6 +259,12 @@ def parler(texte, print_console=True, orbe=True):
             return
         STOP_PARLER = False
     if not texte or not texte.strip(): return
+    try:   # prénom de l'interlocuteur dans la première phrase après un changement de personne (core/nommer.py)
+        import core.shared as _shared
+        from core import nommer
+        texte = nommer.appliquer(_shared, texte)
+    except Exception:
+        pass
     if print_console:
         try:
             print(f"[DIT] {texte}")  # « [DIT] » : phrase prononcée (core/console_ui)
@@ -271,6 +277,11 @@ def parler(texte, print_console=True, orbe=True):
             except Exception:
                 safe_text = "".join(c for c in texte if ord(c) < 128)
                 print(f"[DIT] {safe_text}")
+    try:   # « répète » : mémoire de ce qui vient d'être dit (core/repeter.py)
+        from core.repeter import noter
+        noter(texte)
+    except Exception:
+        pass
     if not orbe:
         _SANS_ORBE.add(texte)
     parole_queue.put(texte)

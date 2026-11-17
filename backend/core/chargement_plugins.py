@@ -6,6 +6,10 @@ import core.shared as shared
 
 # Ordre d'import d'origine conservé.
 _PLUGINS = [
+    "plugins.repetition_resolver",
+    "plugins.quota_stt_resolver",
+    "plugins.cout_llm_resolver",
+    "plugins.musique_resolver",
     "plugins.tv_resolver",
     "plugins.steam_resolver",
     "plugins.navigateur_resolver",

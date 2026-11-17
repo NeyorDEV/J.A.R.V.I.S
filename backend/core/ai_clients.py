@@ -8,6 +8,12 @@ from openai import OpenAI
 
 import core.shared as shared
 
+try:   # compte les jetons et le coût de TOUS les appels Gemini (core/mesure_gemini.py) ; un échec de mesure ne doit jamais empêcher le démarrage
+    from core.mesure_gemini import installer as _installer_mesure_gemini
+    _installer_mesure_gemini()
+except Exception:
+    pass
+
 
 try:
     import anthropic as _anthropic_lib

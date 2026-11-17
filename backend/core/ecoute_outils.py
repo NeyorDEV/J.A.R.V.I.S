@@ -36,6 +36,23 @@ def normaliser_mot_eveil(texte):
     return _VARIANTES_MOT_EVEIL.sub(shared.WAKE_WORD, texte)
 
 
+def _noter_stt(service, raw_audio_bytes, sample_rate, ok=True, code=None):
+    """Compte l'appel (Groq / Google) dans core/usage_stt ; ne doit JAMAIS gêner la reconnaissance."""
+    try:
+        from core.usage_stt import compteur
+        for alerte in compteur().noter(service, len(raw_audio_bytes) / 2 / float(sample_rate or 16000), ok, code):
+            print(f"[STT QUOTA] {alerte}")
+    except Exception:
+        pass
+
+
+def _code_erreur(e):
+    code = getattr(e, "status_code", None)
+    if code is None and " 429" in " " + str(e):
+        code = 429   # « Error code: 429 » : trop de requêtes
+    return code
+
+
 def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, prompt=None):
     """
     Transcrit un segment audio brut (PCM 16-bit mono) via Groq Whisper.
@@ -73,22 +90,12 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, p
             )
 
             elapsed = time.time() - t0
+            _noter_stt("groq", raw_audio_bytes, sample_rate)
             texte = transcription.strip().lower() if isinstance(transcription, str) else str(transcription).strip().lower()
             
             # Filtrer les hallucinations Whisper courantes sur le silence/bruit
-            texte_clean = texte.rstrip('.!? ')
-            hallucinations = {
-                "merci", "merci beaucoup", "merci à tous", "je vous remercie",
-                "bonjour", "you", "thank you", "subtitles", "sous-titres",
-                "sous-titres par amara.org", "sous-titres réalisés par la communauté d'amara.org",
-                "subtitles by amara.org",
-                "sous-titrage société radio-canada", "sous-titrage société radio canada",
-                "sous-titres société radio-canada", "sous-titres société radio canada",
-                "sous-titres par la société radio-canada", "société radio-canada", "radio-canada",
-                "sous-titrage st' 501", "sous-titrage st 501", "sous-titres st' 501", "sous-titres st 501",
-                "sous-titrage", "sous-titres par"
-            }
-            if texte_clean in hallucinations:
+            from core.hallucinations import est_hallucination
+            if est_hallucination(texte):
                 if shared.jarvis_actif or (shared.WAKE_WORD in texte):
                     print(f"[STT] Groq Whisper : Hallucination potentielle détectée ('{texte}'), repli sur Google.")
                 return None
@@ -101,15 +108,18 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, p
                 if shared.jarvis_actif:
                     print(f"[STT] Groq Whisper : réponse vide, fallback Google.")
         except Exception as e:
+            _noter_stt("groq", raw_audio_bytes, sample_rate, False, _code_erreur(e))
             if shared.jarvis_actif:
                 print(f"[STT] Groq Whisper erreur : {e} — fallback Google.")
     
     # --- TENTATIVE 2 : Google STT (fallback fiable) ---
+    from core.hallucinations import est_hallucination
     if recognizer:
         try:
             audio_data = sr.AudioData(raw_audio_bytes, sample_rate, 2)
+            _noter_stt("google", raw_audio_bytes, sample_rate)
             texte = recognizer.recognize_google(audio_data, language="fr-FR").lower().strip()
-            if texte:
+            if texte and not est_hallucination(texte):   # même filtre que pour Whisper
                 if shared.jarvis_actif or (shared.WAKE_WORD in texte):
                     print(f"[STT] Google STT (fallback) : {texte}")
                 return texte

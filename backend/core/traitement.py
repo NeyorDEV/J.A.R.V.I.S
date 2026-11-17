@@ -101,7 +101,7 @@ _INTERJECTIONS = {
 # répond à toute phrase ressemblant à un ancien échange) reste en tout dernier.
 _ORDRE_RESOLVEURS = [
     # Commandes précises (phrases ou mots-clés explicites)
-    "resoudre_dom_hud", "resoudre_developpement", "resoudre_uninstaller_localement", "resoudre_local_mode",
+    "resoudre_repetition", "resoudre_quota_stt", "resoudre_cout_llm", "resoudre_musique", "resoudre_dom_hud", "resoudre_developpement", "resoudre_uninstaller_localement", "resoudre_local_mode",
     "resoudre_lancer_enigme", "resoudre_os_autopilot", "resoudre_creation_plugin",
     "resoudre_generation_document", "resoudre_images_locales", "resoudre_modifier_image",
     "resoudre_recipe", "resoudre_connexions_reseau", "resoudre_vue_de_dieu",
@@ -126,7 +126,7 @@ _INTERDITS_INVITE = {
     "resoudre_lance_sandbox", "resoudre_creation_site_web", "resoudre_uninstaller_localement",
     "resoudre_local_mode", "resoudre_generation_document", "resoudre_modifier_image",
     "resoudre_memoire_locale", "resoudre_developpement", "resoudre_steam_jeux",
-    "resoudre_navigateur", "resoudre_discord", "resoudre_skills", "resoudre_vue_de_dieu",
+    "resoudre_navigateur", "resoudre_discord", "resoudre_skills", "resoudre_vue_de_dieu", "resoudre_repetition", "resoudre_musique",
 }
 # Fonctions builtins.resoudre_* qui ne sont pas des resolvers de commande
 _HORS_CHAINE = {"interpreter_chemin", "resoudre_echecs_localement",
@@ -232,6 +232,11 @@ async def gerer_reponse_ia(texte_utilisateur, from_voice=False, de_confiance=Fal
 
 async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confiance=False):
     shared.dernier_message = time.time()
+    try:   # « répète » : une nouvelle commande ouvre un nouveau tour de parole (core/repeter.py)
+        from core.repeter import nouveau_tour
+        nouveau_tour()
+    except Exception:
+        pass
     shared._derniere_reponse_streamed = False
     shared.phrases_streamed = []
 
