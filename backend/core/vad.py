@@ -147,6 +147,50 @@ class SpeakerBiometrics:
         self.dim = self.extractor.dim
         self.modele = os.path.basename(self.model_path)
         self._adapter_au_modele()
+        self._enrichir_empreintes_courtes()
+
+    def _regenerer_courts(self, dossier, base):
+        """(Re)crée les extraits courts d'1 s de l'enregistrement `base` (ex. « sample_1 ») : supprime les anciens (`sample_1.court_N.npy`) puis les recalcule depuis `sample_1.wav` s'il existe.
+        Un profil enregistré avec des phrases de 4 s reconnaissait mal les commandes d'1 s (voir core/voix_extraits.py) ; ces extraits complètent le profil SANS baisser le seuil."""
+        import wave
+        from core.voix_extraits import extraits_courts
+        for f in os.listdir(dossier):
+            if f.startswith(base + ".court_") and f.endswith(".npy"):
+                os.remove(os.path.join(dossier, f))
+        wav = os.path.join(dossier, base + ".wav")
+        if not os.path.exists(wav):
+            return 0
+        try:
+            with wave.open(wav, "rb") as w:
+                pcm, rate = w.readframes(w.getnframes()), w.getframerate()
+        except Exception as e:
+            print(f"[BIOMETRICS] Audio illisible {wav} : {e}")
+            return 0
+        n = 0
+        for k, segment in enumerate(extraits_courts(pcm, rate), 1):
+            emb = self.get_embedding(segment, rate)
+            if emb is not None:
+                np.save(os.path.join(dossier, f"{base}.court_{k}.npy"), emb)
+                n += 1
+        return n
+
+    def _enrichir_empreintes_courtes(self):
+        """Ajoute les extraits courts aux enregistrements d'enrôlement qui n'en ont pas encore (une seule fois par enregistrement ; sans l'audio conservé, rien n'est fait)."""
+        total = 0
+        try:
+            for profil in os.listdir(self.voiceprints_dir):
+                dossier = os.path.join(self.voiceprints_dir, profil)
+                if not os.path.isdir(dossier):
+                    continue
+                for f in sorted(os.listdir(dossier)):
+                    if f.startswith("sample_") and f.endswith(".wav"):
+                        base = f[:-4]
+                        if not any(x.startswith(base + ".court_") for x in os.listdir(dossier)):
+                            total += self._regenerer_courts(dossier, base)
+        except Exception as e:
+            print(f"[BIOMETRICS] Extraits courts non ajoutés : {e}")
+        if total:
+            print(f"[BIOMETRICS] {total} extrait(s) court(s) d'une seconde ajouté(s) aux profils (reconnaissance des commandes brèves).")
 
     def _adapter_au_modele(self):
         """Après un changement de modèle, recalcule les empreintes depuis l'audio d'enrôlement
@@ -253,6 +297,10 @@ class SpeakerBiometrics:
         elif os.path.exists(wav):
             os.remove(wav)  # audio d'une ancienne empreinte, qui ne correspond plus
         print(f"[BIOMETRICS] Empreinte sauvegardée dans : {chosen_file}")
+        try:   # les extraits courts de l'ancien échantillon ne correspondent plus : on les remplace par ceux du nouveau
+            self._regenerer_courts(user_dir, os.path.basename(chosen_file)[:-4])
+        except Exception as e:
+            print(f"[BIOMETRICS] Extraits courts non mis à jour : {e}")
         
     def load_voiceprints(self):
         import re

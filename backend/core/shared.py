@@ -48,6 +48,9 @@ ACTIVE_SPEAKER = "neyor"
 # Globe 3D affiché ? (signalé par le frontend, message « globe_state ») — sert au zoom vocal
 GLOBE_VISIBLE = False
 SPEAKER_ANNOUNCED = None
+LOCUTEUR_PRECEDENT = None   # profil de la voix de la phrase d'avant, invités compris (core/nommer.py)
+NOMME_LE = {}               # profil -> date (AAAA-MM-JJ) où JARVIS l'a nommé dans une réponse
+NOM_A_DIRE = None           # (prénom, profil, instant) armé pour la prochaine phrase de JARVIS
 DERNIER_LOCUTEUR = None   # (profil, instant) de la dernière voix reconnue (core/ecoute.py)
 ETAT_HUD = None            # dernier état envoyé au HUD : idle / listening / thinking / speaking
 MUSIQUE_EN_COURS = None    # {"title", "artist", "status"} du morceau Deezer (weather_music_service)

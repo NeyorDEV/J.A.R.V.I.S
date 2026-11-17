@@ -23,7 +23,7 @@ from core.micro import choisir_microphone
 from core.speech import parler
 from core.traitement import epurer_commande, gerer_reponse_ia
 from core.web_bridge import envoyer_carte_contextuelle, _safe_ws_send, envoyer_etat_hud
-from core.interlocuteur import CREATEUR, nom_createur, nom_espace, nom_virgule
+from core.interlocuteur import CREATEUR, nom_espace, nom_virgule
 
 
 # Ordres d'interruption de la parole (texte sans accents, mots entiers). « arrête » seul n'est
@@ -346,15 +346,13 @@ def boucle_ecoute():
                                         else:
                                             print(f"🎙  [SPEAKER] Utilisateur inconnu (max Similarité: {score:.2f}). Mode invité activé.")
                                             
-                                    # Annonce vocale unique si changement de locuteur dans la session
-                                    if shared.SPEAKER_ANNOUNCED != shared.ACTIVE_SPEAKER:
-                                        shared.SPEAKER_ANNOUNCED = shared.ACTIVE_SPEAKER
-                                        if shared.ACTIVE_SPEAKER == "guest":
-                                            parler("Voix inconnue détectée, connexion en mode invité restreint.")
-                                        elif shared.ACTIVE_SPEAKER == CREATEUR:
-                                            parler(f"Voix de {nom_createur()} détectée, toutes les permissions sont accordées.")
-                                        else:
-                                            parler(f"Voix de {shared.ACTIVE_SPEAKER.capitalize()} détectée, connexion sécurisée établie.")
+                                    # Plus d'annonce « Voix de X détectée » (à trois dans une pièce, JARVIS ne faisait que la répéter) : le prénom est dit dans la PREMIÈRE phrase de
+                                    # la réponse quand la personne change ou au premier échange de la journée (core/nommer.py, appliqué par speech.parler)
+                                    try:
+                                        from core import nommer
+                                        nommer.armer(shared, shared.ACTIVE_SPEAKER)
+                                    except Exception as en:
+                                        print(f"[SPEAKER] Prénom non armé : {en}")
                                 except Exception as eb:
                                     print(f"❌  [SPEAKER] Erreur lors de l'identification : {eb}")
                             
