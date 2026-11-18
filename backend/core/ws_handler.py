@@ -17,7 +17,7 @@ from core.traitement import gerer_reponse_ia
 from core.web_bridge import diffuser_echecs, demarrer_tache_fond, envoyer_etat_hud
 from core.extension_bridge import deconnecter as ext_deconnecter, jeton as ext_jeton, traiter_message_extension
 from core.mises_a_jour import ws_check_update, ws_open_release
-from core.ws_assistant import ws_get_setup_state, ws_setup_test_key
+from core.ws_assistant import ws_get_setup_state, ws_setup_check_local, ws_setup_test_key
 from core.ws_etat_systeme import ws_get_system_status, ws_system_test
 from core.ws_reglages import ws_get_settings, ws_update_settings
 from core.ws_securite import (
@@ -193,6 +193,8 @@ async def gerer_connexion_ws(websocket):
                     await websocket.send(json.dumps({"type": "extension_token", "token": ext_jeton()}))
                 elif data.get("type") == "get_setup_state":
                     await ws_get_setup_state(websocket, data)
+                elif data.get("type") == "setup_check_local":
+                    _en_tache_de_fond(ws_setup_check_local(websocket, data))  # nvidia-smi / Ollama : sans bloquer la lecture
                 elif data.get("type") == "setup_test_key":
                     _en_tache_de_fond(ws_setup_test_key(websocket, data))  # requête réseau : sans bloquer la lecture
                 elif data.get("type") == "get_system_status":

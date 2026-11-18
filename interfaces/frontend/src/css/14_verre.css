@@ -195,11 +195,12 @@
 
 /* ── Assistant de premier lancement ───────────────────────────────────────── */
 .wz-etapes { display: flex; align-items: center; padding: 14px 24px 8px; position: relative; z-index: 2; }
-.wz-etape { display: flex; align-items: center; gap: 9px; font-family: 'Consolas', monospace; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: #55707f; white-space: nowrap; }
-.wz-etape b { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: 1px solid #55707f; border-radius: 50%; font-weight: 400; }
+.wz-etape { display: flex; align-items: center; gap: 6px; font-family: 'Consolas', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #55707f; white-space: nowrap; }
+.wz-etape b { width: 20px; height: 20px; flex: none; display: flex; align-items: center; justify-content: center; border: 1px solid #55707f; border-radius: 50%; font-weight: 400; }
 .wz-etape.on { color: var(--pm-a); } .wz-etape.on b { border-color: var(--pm-a); box-shadow: 0 0 10px var(--pm-a); background: color-mix(in srgb, var(--pm-a) 14%, transparent); }
 .wz-etape.fait { color: #3ddc97; } .wz-etape.fait b { border-color: #3ddc97; background: rgba(61, 220, 151, 0.14); }
-.wz-trait { flex: 1; height: 1px; background: rgba(255, 255, 255, 0.1); margin: 0 12px; min-width: 14px; }
+.wz-trait { flex: 1; height: 1px; background: rgba(255, 255, 255, 0.1); margin: 0 7px; min-width: 8px; }
+.wz-corps .pm-detail { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }   /* les explications des étapes « Hors ligne » et « Services » passent à la ligne au lieu d'être coupées */
 .wz-corps { padding: 6px 28px 14px; min-height: 340px; position: relative; z-index: 2; }
 .wz-corps h3 { font-family: 'Orbitron', sans-serif; font-size: 15px; letter-spacing: 3px; margin: 8px 0 6px; font-weight: 700; text-transform: uppercase; color: #e6f6ff; }
 .wz-intro { color: #7d95a6; margin: 0 0 14px; line-height: 1.5; font-size: 13px; }

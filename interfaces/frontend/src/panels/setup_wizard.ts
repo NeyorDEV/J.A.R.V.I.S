@@ -12,7 +12,19 @@ const MOTEURS: { id: Moteur; nom: string; env: string; role: string; lien: strin
   { id: "groq", nom: "Groq", env: "GROQ_API_KEY", role: "SECOURS", lien: "https://console.groq.com/keys", aide: "gratuit" },
   { id: "mistral", nom: "Mistral", env: "MISTRAL_API_KEY", role: "SECOURS", lien: "https://console.mistral.ai/api-keys", aide: "" },
 ];
-const NOMS_ETAPES = ["Profil", "Clé IA", "Micro", "Voix", "Terminé"];
+const NOMS_ETAPES = ["Profil", "Clé IA", "Micro", "Voix", "Hors ligne", "Services", "Terminé"];
+const ETAPE_FINALE = NOMS_ETAPES.length;
+interface Local { ollama_installe: boolean; ollama_actif: boolean; modele: string; modele_present: boolean; gpu: string | null; vram_go: number | null }
+// Services facultatifs : texte seul, rien n'est configuré ici (backend : core/ws_assistant.py n'en sait rien)
+const SERVICES: { nom: string; detail: string }[] = [
+  { nom: "Musique : Spotify ou Deezer", detail: "Installez l'application Windows : JARVIS la pilote, sans clé. Un lien de playlist se règle dans Paramètres › Musique." },
+  { nom: "Google : Gmail, Agenda, Drive", detail: "Demande un fichier config/credentials.json créé dans Google Cloud (OAuth « application de bureau »), puis une connexion à la première utilisation." },
+  { nom: "Maison connectée : Home Assistant", detail: "Renseignez HA_URL et HA_TOKEN dans le fichier .env du dossier d'installation, puis redémarrez JARVIS." },
+  { nom: "Autres clés d'IA et de recherche", detail: "OpenAI, SerpAPI, YouTube, Claude, Grok : Paramètres › Clés API." },
+  { nom: "Vue de Dieu : globe en direct", detail: "Dites « active la vue de Dieu » : JARVIS propose de l'installer (téléchargement depuis GitHub, une seule fois)." },
+  { nom: "Liste des commandes", detail: "Dites « Jarvis, que peux-tu faire » pour afficher tout ce que JARVIS sait faire." },
+];
+const COMMANDE_MODELE = (modele: string) => `ollama pull ${modele}`;
 
 const etat = {
   etape: 1,
@@ -25,6 +37,8 @@ const etat = {
   testMicro: null as Test | null,
   niveau: 0,
   empreinte: "aucune" as "aucune" | "lancee" | "passee",
+  local: null as Local | "en_cours" | null,
+  copie: false,
 };
 let minuteurNiveau: number | undefined;
 
@@ -55,6 +69,17 @@ function resultat(t: Test | "en_cours" | undefined | null): string {
   if (t === "en_cours") return `<div class="wz-resultat">Test en cours…</div>`;
   const duree = t.duree ? ` · ${String(t.duree).replace(".", ",")} s` : "";
   return `<div class="wz-resultat ${t.ok ? "ok" : "ko"}">${esc(t.ok ? "Fonctionne" : "Échec")} · ${esc(t.detail)}${esc(duree)}</div>`;
+}
+
+/** Ligne d'état : pastille « ok » / « à faire » / « option » (ou l'étiquette donnée), nom, détail. */
+function ligne(ok: boolean, texte: string, detail: string, avertir = false, etiquette = ""): string {
+  const pastille = ok ? "ok" : etiquette || (avertir ? "à faire" : "option");
+  return `<div class="pm-ligne"><span class="sys-pastille ${ok ? "ok" : avertir ? "warn" : ""}">${esc(pastille)}</span><div class="pm-texte"><div class="pm-nom">${esc(texte)}</div><div class="pm-detail">${esc(detail)}</div></div></div>`;
+}
+
+function verifierLocal(): void {
+  etat.local = "en_cours";
+  envoyer({ type: "setup_check_local" });
 }
 
 function dessiner(): void {
@@ -117,10 +142,31 @@ function dessiner(): void {
       ${etat.empreinte === "lancee" ? `<div class="wz-resultat ok">Enregistrement lancé : suivez les instructions de JARVIS à voix haute. Revenez ici quand il a terminé.</div>`
         : `<div style="margin-top:6px"><button class="pm-bouton plein" data-wz="empreinte">${icone("micro")} Commencer l'enregistrement</button></div>`}`;
     bas.innerHTML = pied(true, "Continuer", { passer: true });
+  } else if (e === 5) {
+    if (etat.local === null) verifierLocal();
+    const l = etat.local && etat.local !== "en_cours" ? etat.local : null;
+    const modele = l?.modele || "qwen3:4b-instruct";
+    const ollama = !l ? ligne(false, "Ollama", "Vérification en cours…", false, "…")
+      : l.ollama_actif ? ligne(true, "Ollama", "Installé et lancé")
+      : l.ollama_installe ? ligne(false, "Ollama", "Installé mais pas lancé : ouvrez Ollama depuis le menu Démarrer, puis vérifiez à nouveau.", true)
+      : ligne(false, "Ollama", "Absent : installez-le depuis ollama.com/download (gratuit, quelques minutes).", true);
+    const mod = !l ? "" : l.modele_present ? ligne(true, `Modèle ${modele}`, "Présent · 2,5 Go · environ 4 Go de VRAM pendant les réponses")
+      : ligne(false, `Modèle ${modele}`, "Absent : 2,5 Go à télécharger. Dans un terminal Windows, tapez la commande ci-dessous (Ollama doit être lancé).", true);
+    const gpu = !l ? "" : l.gpu ? ligne(true, "Carte graphique NVIDIA", `${l.gpu} · ${l.vram_go} Go · transcription vocale et modèle hors ligne rapides`)
+      : ligne(false, "Carte graphique NVIDIA", "Aucune détectée : le modèle hors ligne tournera sur le processeur (plus lent) et la transcription vocale passera par Groq, qui demande une clé (étape 2).", false, "option");
+    corps.innerHTML = `<h3>Et sans internet ?</h3>
+      <p class="wz-intro">Si Internet ou les services d'IA tombent en panne, JARVIS peut continuer à répondre avec un petit modèle installé sur ce PC. <b>Facultatif</b> : sans lui, JARVIS ne répond plus aux questions quand les services en ligne sont indisponibles.</p>
+      ${ollama}${mod}${gpu}
+      ${l && !l.modele_present ? `<div class="wz-cle" style="grid-template-columns:1fr auto"><input class="wz-champ" readonly value="${esc(COMMANDE_MODELE(modele))}"><button class="pm-bouton petit" data-wz="copier">${etat.copie ? "Copié" : "Copier"}</button></div>` : ""}
+      <div style="margin-top:12px"><button class="pm-bouton petit" data-wz="verifier-local" ${etat.local === "en_cours" ? "disabled" : ""}>Vérifier à nouveau</button></div>`;
+    bas.innerHTML = pied(true, "Continuer", { passer: true });
+  } else if (e === 6) {
+    corps.innerHTML = `<h3>Services facultatifs</h3>
+      <p class="wz-intro">Rien d'obligatoire ici : chaque service s'ajoute plus tard, au moment où vous en avez besoin. Voici où ils se règlent.</p>
+      ${SERVICES.map((s) => ligne(false, s.nom, s.detail, false, "option")).join("")}`;
+    bas.innerHTML = pied(true, "Continuer");
   } else {
     const ia = motsCles();
-    const ligne = (ok: boolean, texte: string, detail: string, avertir = false) =>
-      `<div class="pm-ligne"><span class="sys-pastille ${ok ? "ok" : avertir ? "warn" : ""}">${ok ? "ok" : avertir ? "à faire" : "option"}</span><div class="pm-texte"><div class="pm-nom">${esc(texte)}</div><div class="pm-detail">${esc(detail)}</div></div></div>`;
     const micro = etat.micros.find((m) => m.index === etat.micro);
     corps.innerHTML = `<h3>JARVIS est prêt</h3>
       <p class="wz-intro">Voici l'état de votre installation. Tout reste modifiable à tout moment depuis les Paramètres.</p>
@@ -128,6 +174,12 @@ function dessiner(): void {
       ${ligne(!!etat.testMicro && etat.testMicro.ok, "Micro", etat.testMicro?.ok ? `${micro ? micro.name : "micro par défaut"} · signal reçu` : "Non testé", !(etat.testMicro && etat.testMicro.ok))}
       ${ligne(true, "Voix de JARVIS", etat.voix === "homme" ? "Henri · fr-FR" : "Denise · fr-FR")}
       ${ligne(etat.empreinte === "lancee", "Empreinte vocale", etat.empreinte === "lancee" ? "Enregistrement lancé" : "Passée : à refaire en disant « enregistre ma voix »", etat.empreinte !== "lancee")}
+      ${(() => {
+        const l = etat.local && etat.local !== "en_cours" ? etat.local : null;
+        if (!l) return ligne(false, "Mode hors ligne", "Non vérifié : Ollama et le modèle se préparent plus tard (étape « Hors ligne »)", false, "option");
+        return l.ollama_actif && l.modele_present ? ligne(true, "Mode hors ligne", `Ollama · ${l.modele} prêt`)
+          : ligne(false, "Mode hors ligne", l.ollama_installe ? `Modèle ${l.modele} à télécharger : ollama pull ${l.modele}` : "Ollama absent : facultatif, voir ollama.com/download", false, "option");
+      })()}
       <p class="wz-intro" style="margin-top:14px">Dites <b style="color:var(--pm-a)">« Jarvis »</b>, suivi de votre demande, ou écrivez-la dans la barre en haut à gauche.</p>`;
     bas.innerHTML = pied(true, "Lancer JARVIS");
   }
@@ -177,7 +229,7 @@ function enregistrerCles(): void {
 function suivant(): void {
   if (etat.etape === 1) envoyer({ type: "update_settings", settings: { user_name: etat.nom.trim(), voix_jarvis: etat.voix } });
   if (etat.etape === 2) enregistrerCles();
-  if (etat.etape >= 5) {
+  if (etat.etape >= ETAPE_FINALE) {
     terminer();
     return;
   }
@@ -191,6 +243,14 @@ export function handleSetupMessage(data: any): boolean {
     etat.voix = data.voix === "femme" ? "femme" : "homme";
     // Le panneau d'introduction (boot) doit avoir disparu avant l'ouverture
     if (data.besoin) window.setTimeout(ouvrir, 3500);
+    return true;
+  }
+  if (data.type === "setup_local_result") {
+    etat.local = {
+      ollama_installe: !!data.ollama_installe, ollama_actif: !!data.ollama_actif, modele: String(data.modele || "qwen3:4b-instruct"),
+      modele_present: !!data.modele_present, gpu: data.gpu ? String(data.gpu) : null, vram_go: data.vram_go ?? null,
+    };
+    if (etat.etape === 5) dessiner();
     return true;
   }
   if (data.type === "setup_key_result") {
@@ -240,6 +300,12 @@ export function initSetupWizard(): void {
         if (etat.etape === 4) etat.empreinte = "passee";
         suivant();
       }
+    } else if (wz === "verifier-local") {
+      verifierLocal();
+      dessiner();
+    } else if (wz === "copier") {
+      const modele = etat.local && etat.local !== "en_cours" ? etat.local.modele : "qwen3:4b-instruct";
+      navigator.clipboard?.writeText(COMMANDE_MODELE(modele)).then(() => { etat.copie = true; if (etat.etape === 5) dessiner(); }).catch(() => { /* presse-papiers refusé : la commande reste sélectionnable */ });
     } else if (wz === "exemple") {
       envoyer({ type: "update_settings", settings: { voix_jarvis: etat.voix } });
       envoyer({ type: "system_test", cible: "voix" });

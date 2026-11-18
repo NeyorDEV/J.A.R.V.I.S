@@ -3,6 +3,7 @@
 Messages (frontend -> backend) :
   {"type": "get_setup_state"}                                  -> {"type": "setup_state", ...}
   {"type": "setup_test_key", "moteur": "gemini|groq|mistral", "cle": "..."} -> {"type": "setup_key_result", ...}
+  {"type": "setup_check_local"}                                -> {"type": "setup_local_result", ...}  (Ollama, modèle de secours, GPU NVIDIA)
 
 L'enregistrement (clés dans .env, prénom, voix, micro) passe par « update_settings » (core/ws_reglages.py).
 Une clé n'est jamais renvoyée au frontend ni écrite dans les journaux.
@@ -87,6 +88,42 @@ def _tester_cle(moteur, cle):
             return True, "clé valide (quota momentanément atteint)", time.time() - t0
         return False, f"{type(e).__name__} : connexion impossible ?", time.time() - t0
     return False, "moteur inconnu", 0.0
+
+
+def verifier_local():
+    """Mode hors ligne : Ollama installé / lancé, modèle de secours présent, carte graphique NVIDIA. Lecture seule, rien n'est installé ni lancé."""
+    import shutil
+    import subprocess
+    import urllib.request
+
+    modele = shared.OLLAMA_MODELS[0]
+    res = {"type": "setup_local_result", "modele": modele, "ollama_installe": False, "ollama_actif": False,
+           "modele_present": False, "gpu": None, "vram_go": None}
+    defaut = os.path.join(os.getenv("LOCALAPPDATA", ""), "Programs", "Ollama", "ollama.exe")
+    res["ollama_installe"] = bool(shutil.which("ollama")) or os.path.isfile(defaut)
+    try:
+        with urllib.request.urlopen(f"{shared.OLLAMA_URL}/api/tags", timeout=1.5) as r:   # adresse locale fixe : jamais d'URL venue du réseau
+            noms = [m.get("name", "") for m in json.loads(r.read().decode("utf-8")).get("models", [])]
+        res["ollama_actif"] = res["ollama_installe"] = True
+        res["modele_present"] = any(n == modele or n.startswith(modele + ":") for n in noms)
+    except Exception:
+        pass
+    smi = shutil.which("nvidia-smi")
+    if smi:
+        try:
+            sortie = subprocess.run([smi, "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"], capture_output=True, text=True,
+                                    timeout=4, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout.strip().splitlines()
+            nom, _, mem = sortie[0].partition(",")
+            vram = round(int(mem.strip()) / 1024)   # avant d'écrire quoi que ce soit : une sortie illisible ne laisse pas un résultat à moitié rempli
+            res["gpu"], res["vram_go"] = nom.strip(), vram
+        except Exception:
+            pass
+    return res
+
+
+async def ws_setup_check_local(websocket, data=None):
+    res = await asyncio.get_running_loop().run_in_executor(None, verifier_local)
+    await websocket.send(json.dumps(res, ensure_ascii=False))
 
 
 async def ws_setup_test_key(websocket, data):
