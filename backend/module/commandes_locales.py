@@ -137,6 +137,10 @@ async def _commandes_competences_systeme(t):
         if match:
             nom = match.group(1).strip()
             desc = match.group(2).strip()
+            # Le code est écrit par l'IA et tourne ensuite avec vos droits : le contrôle automatique n'est qu'un filet, la confirmation est la barrière
+            from core.confirmation import demander_confirmation
+            if not await demander_confirmation(None, f"Créer et installer la compétence « {nom} » ? Son code, écrit par l'IA, tournera avec vos droits."):
+                return f"Création annulée{nom_virgule()}."
             res = await asyncio.to_thread(fabriquer_competence, nom, desc)
             return res
         else:

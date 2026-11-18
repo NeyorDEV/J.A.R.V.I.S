@@ -158,4 +158,6 @@ def compteur() -> CompteurLLM:
         except (OSError, ValueError):
             pass
         _compteur = CompteurLLM(FICHIER, cfg.get("prix_llm") if isinstance(cfg.get("prix_llm"), dict) else None, cfg.get("plafond_llm_eur_jour", PLAFOND_EUR_JOUR), cfg.get("usd_en_eur", USD_EN_EUR))
+        import atexit
+        atexit.register(_compteur.enregistrer)   # l'écriture n'a lieu qu'au plus toutes les 30 s : sans cela, les derniers coûts avant la fermeture se perdaient
     return _compteur

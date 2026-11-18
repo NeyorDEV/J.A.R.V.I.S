@@ -117,8 +117,14 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
             _t_souv = time.monotonic()
             souvenirs = rechercher_souvenirs(texte)
             print(f"[PERF] Recherche de souvenirs : {time.monotonic() - _t_souv:.2f} s")
-            temp_hist = shared.historique + [types.Content(role="user", parts=[types.Part(text=texte)])]
+            # Plafonné comme pour les autres moteurs (Groq / Claude / Mistral : 30 entrées) : sans limite, l'historique de session envoyé (et facturé) à chaque question grossissait de 2 entrées par échange
+            recent = shared.historique[-4:] if getattr(shared, "ACTIVE_SPEAKER", "") == "guest" else shared.historique[-60:]   # un invité ne reçoit pas les échanges du créateur
+            if recent and getattr(recent[0], "role", "") == "model":
+                recent = recent[1:]   # Gemini veut un premier message « user »
+            temp_hist = recent + [types.Content(role="user", parts=[types.Part(text=texte)])]
+            _t_prompt = time.monotonic()
             prompt_actuel = composer_prompt_systeme(souvenirs=souvenirs)
+            print(f"[PERF] Construction du prompt système : {time.monotonic() - _t_prompt:.2f} s")
             last_err = None
             for model_name in modeles_disponibles:
                 try:
@@ -127,6 +133,7 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
                     _need_search = besoin_recherche_web(texte)
                     _tools = [types.Tool(google_search=types.GoogleSearch())] if (_need_search and "3.1-flash-lite" not in model_name) else []
 
+                    _t_stream = time.monotonic()
                     # 1. Création du stream avec un timeout adapté (plus long si recherche Google Search active)
                     response_stream = await asyncio.wait_for(
                         shared.client.aio.models.generate_content_stream(
@@ -155,7 +162,9 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
                         except StopAsyncIteration:
                             break
                         
-                        chunk_text = chunk.text
+                        if not full_text:
+                            print(f"[PERF] Gemini {model_name} : premier morceau en {time.monotonic() - _t_stream:.2f} s")
+                        chunk_text = chunk.text or ""   # un dernier morceau ne portant que les métadonnées donne .text = None
                         full_text += chunk_text
                         sentence_buffer += chunk_text
                         
@@ -177,7 +186,10 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
                                 shared.phrases_streamed.append(sentence_buffer.strip())
                                 sentence_buffer = ""
 
-                    if update_hist:
+                    if not full_text.strip() and not get_stop_parler():
+                        # Réponse vide (filtre de sécurité…) : jamais dans l'historique (Gemini rejette ensuite les parts vides : tous les appels suivants échouaient en 400) ni renvoyée comme un succès muet
+                        raise Exception("réponse Gemini vide")
+                    if update_hist and full_text.strip():
                         shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
                         shared.historique.append(types.Content(role="model", parts=[types.Part(text=full_text)]))
                         _archiver_echange(texte, full_text)
@@ -241,12 +253,23 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
             except Exception as e:
                 print(f"[CERVEAU] Gemini erreur ({formater_erreur_courte(e)}). Bascule sur les autres moteurs.")
 
+        grok_tente = False
+        if cerveau == "GROK" and shared.grok_client:
+            # Une question réservée à Grok (X, actualité) l'essaie AVANT Groq / Claude / Mistral, qui répondraient sans y avoir accès
+            grok_tente = True
+            try:
+                return await _appeler_grok()
+            except _ErreurQuotaApi as e:
+                print(f"[CERVEAU] Grok quota ({formater_erreur_courte(e)}). Bascule sur les autres moteurs.")
+            except Exception as e:
+                print(f"[CERVEAU] Grok erreur ({formater_erreur_courte(e)}). Bascule sur les autres moteurs.")
+
         rep_registre = await _essayer_registre()
         if rep_registre:
             return rep_registre
 
         # ── ROUTING DYNAMIQUE avec gestion quota ─────────────────────────────
-        if cerveau == "GROK" and shared.grok_client:
+        if cerveau == "GROK" and shared.grok_client and not grok_tente:
             try:
                 return await _appeler_grok()
             except _ErreurQuotaApi as e:

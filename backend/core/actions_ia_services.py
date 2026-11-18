@@ -246,6 +246,8 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         task_desc = data.get("task", "")
         if not task_desc:
             parler(f"Désolé{nom_espace()}, je n'ai pas compris la tâche à effectuer.")
+        elif not await demander_confirmation(None, f"Lancer l'agent navigateur, dans votre profil Opera GX (sessions ouvertes), pour : {task_desc[:120]} ?"):
+            parler(f"Agent annulé{nom_virgule()}.")
         else:
             result = await run_visual_agent(task_desc)
             parler(result)

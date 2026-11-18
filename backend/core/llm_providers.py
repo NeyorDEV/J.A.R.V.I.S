@@ -36,11 +36,9 @@ async def interroger_grok(texte, update_hist=True):
         
         messages.append({"role": "user", "content": texte})
         
-        completion = shared.grok_client.chat.completions.create(
-            model="grok-4.6",
-            messages=messages,
-            temperature=0.7,
-        )
+        # Hors de la boucle asyncio et avec un délai : l'appel synchrone gelait le WebSocket, le HUD et le micro pendant toute la réponse (600 s si l'API pend)
+        completion = await asyncio.wait_for(asyncio.to_thread(
+            shared.grok_client.chat.completions.create, model="grok-4.6", messages=messages, temperature=0.7), timeout=25)
         
         rep = completion.choices[0].message.content
         
@@ -216,6 +214,8 @@ async def _lire_flux_en_parlant(flux, extraire_texte, nom, skip_local=False, del
 
 
 def _memoriser_echange(texte, reponse):
+    if not reponse or not reponse.strip():
+        return   # une part de texte vide fait rejeter tous les appels Gemini suivants
     shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
     shared.historique.append(types.Content(role="model", parts=[types.Part(text=reponse)]))
     _archiver_echange(texte, reponse)

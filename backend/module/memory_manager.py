@@ -80,12 +80,15 @@ def oublier_memoire(cle):
             return True
         return False
 
+MAX_FAITS_PROMPT = 40   # faits envoyés à chaque question (13 aujourd'hui, ~600 jetons)
+
+
 def composer_contexte_memoire():
     memoire = relire_memoire()
     if not memoire:
         return ""
     lignes = ["MEMOIRE PERSISTANTE :"]
-    for cle, data in memoire.items():
+    for cle, data in list(memoire.items())[-MAX_FAITS_PROMPT:]:   # les plus récemment ajoutés : le prompt ne grossit plus avec la mémoire
         lignes.append(f"  - {cle} : {data['valeur']} (note le {data['timestamp']})")
     return "\n".join(lignes)
 

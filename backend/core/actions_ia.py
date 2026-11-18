@@ -29,6 +29,22 @@ from module.memory_manager import noter_en_memoire, relire_memoire, oublier_memo
 from core.interlocuteur import nom_createur, nom_espace, nom_ou_utilisateur, nom_virgule
 
 
+def _chemin_ia(data):
+    """Dossier demandé par l'IA (« downloads », « C:\\… ») ; None si absent, « null » ou vide : on prend alors le dossier ouvert."""
+    chemin = str(data.get("chemin") or "").strip()
+    return None if chemin.lower() in ("", "null", "none") else chemin
+
+
+async def _tri_confirme(data):
+    """Un tri déplace TOUS les fichiers du dossier : confirmation au-delà de 20 (le dossier vient de l'IA)."""
+    from module.file_manager import apercu_tri
+    cible, n = apercu_tri(_chemin_ia(data))
+    if cible is None or n <= 20:
+        return True   # invalide ou interdit : les fonctions de tri refusent elles-mêmes
+    from core.confirmation import demander_confirmation
+    return await demander_confirmation(None, f"Trier {n} fichiers dans « {os.path.basename(cible) or cible} » ?")
+
+
 async def executer_action(action, data, block, texte_utilisateur, reponse_propre):
     """Exécute une action JSON produite par le LLM (même ordre de priorité que la chaîne d'origine)."""
     module_catalogue.annoncer_pour_action(action)
@@ -37,6 +53,10 @@ async def executer_action(action, data, block, texte_utilisateur, reponse_propre
     if await executer_actions_services(action, data, block, texte_utilisateur, reponse_propre):
         return
     # Envoi par défaut au frontend pour les actions personnalisées/inconnues
+    # Pas de pilotage du HUD ni du navigateur par ce relais : un bloc {"type": "dom_action", "action": "click"…} d'un invité contournait la réserve de dom_sequence
+    if data.get("type") == "dom_action" or action in ("dom_action", "click", "type", "focus", "select", "add_class", "remove_class"):
+        print(f"[ACTION] Relais HUD refusé : {action or data.get('type')}")
+        return
     if "action" in data or "type" in data:
         _safe_ws_send(block)
 
@@ -207,15 +227,24 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
             parler(f"Le dossier contient {nb_fichiers} fichiers et {nb_dossiers} sous-dossiers{nom_virgule()}.")
     elif action == "classer_par_type":
         parler(f"Je trie vos fichiers par type{nom_virgule()}. Un instant.")
-        ok, msg = classer_par_type()
+        if not await _tri_confirme(data):
+            parler(f"D'accord{nom_virgule()}, je ne trie rien.")
+            return True
+        ok, msg = classer_par_type(_chemin_ia(data))
         parler(msg if ok else f"Probleme lors du tri : {msg}")
     elif action == "classer_par_date":
         parler(f"Je trie vos fichiers par date{nom_virgule()}. Un instant.")
-        ok, msg = classer_par_date()
+        if not await _tri_confirme(data):
+            parler(f"D'accord{nom_virgule()}, je ne trie rien.")
+            return True
+        ok, msg = classer_par_date(_chemin_ia(data))
         parler(msg if ok else f"Probleme lors du tri : {msg}")
     elif action == "trier_complet":
         parler(f"Je trie vos fichiers par type puis par date dans chaque categorie{nom_virgule()}.")
-        ok, msg = classer_par_type_et_date()
+        if not await _tri_confirme(data):
+            parler(f"D'accord{nom_virgule()}, je ne trie rien.")
+            return True
+        ok, msg = classer_par_type_et_date(_chemin_ia(data))
         parler(msg if ok else f"Probleme lors du tri : {msg}")
     elif action == "creer_dossier":
         nom     = data.get("nom", "Nouveau Dossier")
@@ -265,7 +294,7 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
         type_msg = "le dossier" if type_demande == "dossier" else ("le fichier" if type_demande == "fichier" else "l'élément")
         parler(f"Recherche de {type_msg} '{nom_final}' en cours...")
 
-        resultats, err = rechercher_fichier(nom_final, scan_global=True, type_cible=type_demande)
+        resultats, err = await asyncio.to_thread(rechercher_fichier, nom_final, True, type_demande)   # hors de la boucle : un disque entier se parcourt en minutes et gelait le HUD et la voix
         if err:
             parler(err)
         elif not resultats:
@@ -297,8 +326,13 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
         # n'importe quel futur serveur MCP (server_name différent).
         instruction = data.get("instruction", "")
         if instruction:
-            resultat = await executer_action_mcp("github", instruction)
-            parler(resultat)
+            # Le serveur MCP GitHub expose des outils qui écrivent (créer, pousser, fusionner, supprimer) : l'IA choisit l'outil, donc on confirme avant
+            from core.confirmation import demander_confirmation
+            if not await demander_confirmation(None, f"Envoyer à GitHub : {instruction[:120]} ?"):
+                parler(f"D'accord{nom_virgule()}, je n'envoie rien à GitHub.")
+            else:
+                resultat = await executer_action_mcp("github", instruction)
+                parler(resultat)
     elif action == "dom_sequence":
         steps = data.get("steps", [])
         if hasattr(builtins, "send_web_action"):
@@ -309,6 +343,9 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
 
                 # Si c'est une ouverture d'URL, on le fait localement via le navigateur par défaut
                 if action_type == "open_url" and text:
+                    if not str(text).lower().startswith(("http://", "https://")):
+                        print(f"[ACTION] open_url refusé (schéma non http/https) : {str(text)[:60]}")
+                        continue
                     import webbrowser
                     webbrowser.open(text, new=2)
                     await asyncio.sleep(5.0)  # Laisser le temps au navigateur de charger le site

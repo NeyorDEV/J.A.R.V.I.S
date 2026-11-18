@@ -14,6 +14,28 @@ partagé entre ces modules est dans backend/core/shared.py.
 import os
 import sys
 
+# Chronomètre des nettoyages de sortie (atexit) : la fermeture de JARVIS traînait ~8 s (journal du 17/11) sans qu'on sache qui. Le nom des nettoyages
+# encore en cours est écrit dans le journal quand la sortie est forcée (voir le bas du fichier).
+import atexit as _atexit
+_nettoyages_en_cours = []
+_atexit_register_origine = _atexit.register
+
+
+def _atexit_register_chrono(fonction, *args, **kwargs):
+    nom = f"{getattr(fonction, '__module__', '?')}.{getattr(fonction, '__qualname__', repr(fonction))}"
+
+    def _suivi(*a, **k):
+        _nettoyages_en_cours.append(nom)
+        try:
+            return fonction(*a, **k)
+        finally:
+            _nettoyages_en_cours.remove(nom)
+    _atexit_register_origine(_suivi, *args, **kwargs)
+    return fonction
+
+
+_atexit.register = _atexit_register_chrono
+
 # Injection des dossiers backend/ et tools/ dans le path pour conserver les imports existants
 _backend_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend')
 _tools_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tools')
@@ -278,6 +300,14 @@ def demarrer_ia():
             print(f"[PERF] Test internet de démarrage impossible : {e}")
     threading.Thread(target=_prechauffer, daemon=True).start()
 
+    def _prechauffer_stt():   # modèle de transcription local (core/stt_local.py) : Groq répond tant qu'il n'est pas prêt
+        try:
+            from core import stt_local
+            stt_local.prechauffer()
+        except Exception as e:
+            print(f"[STT] Préchauffage local impossible : {e}")
+    threading.Thread(target=_prechauffer_stt, daemon=True).start()
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -332,6 +362,8 @@ def main():
     # Initialisation Système d'Alarmes
     set_parler_callback(parler)
     demarrer_daemon_alarmes()
+    from module.routines import demarrer_daemon_routines
+    demarrer_daemon_routines()
 
     # Lancement de la découverte TV en arrière-plan (non-bloquant)
     import threading
@@ -350,4 +382,30 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        # Sortie immédiate : on lance les nettoyages enregistrés (console, serveur de la vue…) puis on quitte sans la finalisation de Python,
+        # qui attendait les bibliothèques audio / GPU (PortAudio, CUDA, WebView2) et faisait traîner la fenêtre après la fermeture de la console.
+        import threading as _th_arret
+        import time as _t_arret
+        _debut = _t_arret.monotonic()
+        try:   # la console d'abord : elle rend le terminal (écran alternatif) et ne doit jamais être coupée par le plafond ci-dessous
+            from core import console_ui as _cu
+            if _cu._CONSOLE:
+                _cu._CONSOLE.arreter()
+        except Exception:
+            pass
+        _reste = _th_arret.Thread(target=_atexit._run_exitfuncs, daemon=True, name="nettoyages-sortie")
+        _reste.start()
+        _reste.join(2.0)   # plafond : au-delà, la sortie est forcée
+        try:
+            if _reste.is_alive():
+                print(f"[ARRET] Nettoyage encore en cours après 2 s, sortie forcée : {_nettoyages_en_cours}")
+            else:
+                print(f"[ARRET] Nettoyages terminés en {_t_arret.monotonic() - _debut:.1f} s : sortie.")
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+        os._exit(0)
