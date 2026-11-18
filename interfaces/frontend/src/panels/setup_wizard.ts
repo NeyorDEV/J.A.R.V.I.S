@@ -12,7 +12,7 @@ const MOTEURS: { id: Moteur; nom: string; env: string; role: string; lien: strin
   { id: "groq", nom: "Groq", env: "GROQ_API_KEY", role: "SECOURS", lien: "https://console.groq.com/keys", aide: "gratuit" },
   { id: "mistral", nom: "Mistral", env: "MISTRAL_API_KEY", role: "SECOURS", lien: "https://console.mistral.ai/api-keys", aide: "" },
 ];
-const NOMS_ETAPES = ["Profil", "Clé IA", "Micro", "Voix", "Hors ligne", "Services", "Terminé"];
+const NOMS_ETAPES = ["Profil", "Clé IA", "Micro et voix", "Options", "Terminé"];
 const ETAPE_FINALE = NOMS_ETAPES.length;
 interface Local { ollama_installe: boolean; ollama_actif: boolean; modele: string; modele_present: boolean; gpu: string | null; vram_go: number | null }
 // Services facultatifs : texte seul, rien n'est configuré ici (backend : core/ws_assistant.py n'en sait rien)
@@ -39,6 +39,7 @@ const etat = {
   empreinte: "aucune" as "aucune" | "lancee" | "passee",
   local: null as Local | "en_cours" | null,
   copie: false,
+  services: false,
 };
 let minuteurNiveau: number | undefined;
 
@@ -125,24 +126,22 @@ function dessiner(): void {
       <div class="wz-cle"><div class="wz-cle-nom">Claude · Grok<span class="wz-badge opt">OPTIONNEL</span><small>À ajouter plus tard dans les Paramètres</small></div></div>`;
     bas.innerHTML = pied(true, "Continuer", { actif: motsCles().length > 0, passer: true, info: "Vos clés restent sur ce PC (fichier .env)" });
   } else if (e === 3) {
-    corps.innerHTML = `<h3>Réglons le micro</h3>
+    corps.innerHTML = `<h3>Micro et voix</h3>
       <p class="wz-intro">Parlez normalement : la barre doit bouger. JARVIS écoute le mot « Jarvis » en permanence, sans rien enregistrer.</p>
       <div class="wz-etiq">Micro utilisé</div>
       <select class="wz-champ" id="wz-micro">${etat.micros.length ? "" : '<option value="">Micro par défaut de Windows</option>'}
         ${etat.micros.map((m) => `<option value="${m.index}" ${etat.micro === m.index ? "selected" : ""}>${esc(m.name)}</option>`).join("")}</select>
       <div class="wz-etiq">Niveau en direct</div>
       <div class="wz-niveau"><i id="wz-niveau" style="width:${Math.round(etat.niveau * 100)}%"></i></div>
-      <div style="margin-top:12px"><button class="pm-bouton petit" data-wz="test-micro">${icone("micro")} Tester le micro</button></div>
-      ${resultat(etat.testMicro)}`;
+      <div style="margin-top:10px"><button class="pm-bouton petit" data-wz="test-micro">${icone("micro")} Tester le micro</button></div>
+      ${resultat(etat.testMicro)}
+      <div class="wz-etiq" style="margin-top:16px">Empreinte vocale · facultatif</div>
+      <p class="wz-intro" style="margin:4px 0 8px">JARVIS vous reconnaît et refuse les actions sensibles aux autres voix. Il vous guide à voix haute : vous répétez quelques phrases d'une voix normale. L'empreinte reste sur ce PC.</p>
+      ${etat.empreinte === "lancee" ? `<div class="wz-resultat ok">Enregistrement lancé : suivez les instructions de JARVIS à voix haute. Revenez ici quand il a terminé.</div>`
+        : `<button class="pm-bouton petit" data-wz="empreinte">${icone("micro")} Commencer l'enregistrement</button>`}`;
     bas.innerHTML = pied(true, "Continuer", { passer: true });
     minuteurNiveau = window.setInterval(() => envoyer({ type: "get_system_status" }), 600);
   } else if (e === 4) {
-    corps.innerHTML = `<h3>Que JARVIS reconnaisse votre voix</h3>
-      <p class="wz-intro">Avec une empreinte vocale, JARVIS vous reconnaît et refuse les actions sensibles aux autres voix. JARVIS vous guidera à voix haute : vous répéterez quelques phrases d'une voix normale. L'empreinte reste sur ce PC.</p>
-      ${etat.empreinte === "lancee" ? `<div class="wz-resultat ok">Enregistrement lancé : suivez les instructions de JARVIS à voix haute. Revenez ici quand il a terminé.</div>`
-        : `<div style="margin-top:6px"><button class="pm-bouton plein" data-wz="empreinte">${icone("micro")} Commencer l'enregistrement</button></div>`}`;
-    bas.innerHTML = pied(true, "Continuer", { passer: true });
-  } else if (e === 5) {
     if (etat.local === null) verifierLocal();
     const l = etat.local && etat.local !== "en_cours" ? etat.local : null;
     const modele = l?.modele || "qwen3:4b-instruct";
@@ -154,17 +153,16 @@ function dessiner(): void {
       : ligne(false, `Modèle ${modele}`, "Absent : 2,5 Go à télécharger. Dans un terminal Windows, tapez la commande ci-dessous (Ollama doit être lancé).", true);
     const gpu = !l ? "" : l.gpu ? ligne(true, "Carte graphique NVIDIA", `${l.gpu} · ${l.vram_go} Go · transcription vocale et modèle hors ligne rapides`)
       : ligne(false, "Carte graphique NVIDIA", "Aucune détectée : le modèle hors ligne tournera sur le processeur (plus lent) et la transcription vocale passera par Groq, qui demande une clé (étape 2).", false, "option");
-    corps.innerHTML = `<h3>Et sans internet ?</h3>
-      <p class="wz-intro">Si Internet ou les services d'IA tombent en panne, JARVIS peut continuer à répondre avec un petit modèle installé sur ce PC. <b>Facultatif</b> : sans lui, JARVIS ne répond plus aux questions quand les services en ligne sont indisponibles.</p>
+    corps.innerHTML = `<h3>Options facultatives</h3>
+      <p class="wz-intro">Rien d'obligatoire sur cette page : tout peut se faire plus tard.</p>
+      <div class="wz-etiq">Sans internet</div>
+      <p class="wz-intro" style="margin:4px 0 8px">Si Internet ou les services d'IA tombent en panne, JARVIS peut continuer à répondre avec un petit modèle installé sur ce PC. Sans lui, il ne répond plus aux questions quand les services en ligne sont indisponibles.</p>
       ${ollama}${mod}${gpu}
       ${l && !l.modele_present ? `<div class="wz-cle" style="grid-template-columns:1fr auto"><input class="wz-champ" readonly value="${esc(COMMANDE_MODELE(modele))}"><button class="pm-bouton petit" data-wz="copier">${etat.copie ? "Copié" : "Copier"}</button></div>` : ""}
-      <div style="margin-top:12px"><button class="pm-bouton petit" data-wz="verifier-local" ${etat.local === "en_cours" ? "disabled" : ""}>Vérifier à nouveau</button></div>`;
+      <div style="margin-top:10px;display:flex;gap:8px"><button class="pm-bouton petit" data-wz="verifier-local" ${etat.local === "en_cours" ? "disabled" : ""}>Vérifier à nouveau</button>
+        <button class="pm-bouton petit" data-wz="services">${etat.services ? "Masquer les autres services" : "Voir les autres services"}</button></div>
+      ${etat.services ? `<div class="wz-etiq" style="margin-top:14px">Autres services : où les régler</div>${SERVICES.map((s) => ligne(false, s.nom, s.detail, false, "option")).join("")}` : ""}`;
     bas.innerHTML = pied(true, "Continuer", { passer: true });
-  } else if (e === 6) {
-    corps.innerHTML = `<h3>Services facultatifs</h3>
-      <p class="wz-intro">Rien d'obligatoire ici : chaque service s'ajoute plus tard, au moment où vous en avez besoin. Voici où ils se règlent.</p>
-      ${SERVICES.map((s) => ligne(false, s.nom, s.detail, false, "option")).join("")}`;
-    bas.innerHTML = pied(true, "Continuer");
   } else {
     const ia = motsCles();
     const micro = etat.micros.find((m) => m.index === etat.micro);
@@ -176,7 +174,7 @@ function dessiner(): void {
       ${ligne(etat.empreinte === "lancee", "Empreinte vocale", etat.empreinte === "lancee" ? "Enregistrement lancé" : "Passée : à refaire en disant « enregistre ma voix »", etat.empreinte !== "lancee")}
       ${(() => {
         const l = etat.local && etat.local !== "en_cours" ? etat.local : null;
-        if (!l) return ligne(false, "Mode hors ligne", "Non vérifié : Ollama et le modèle se préparent plus tard (étape « Hors ligne »)", false, "option");
+        if (!l) return ligne(false, "Mode hors ligne", "Non vérifié : Ollama et le modèle se préparent plus tard (page « Options »)", false, "option");
         return l.ollama_actif && l.modele_present ? ligne(true, "Mode hors ligne", `Ollama · ${l.modele} prêt`)
           : ligne(false, "Mode hors ligne", l.ollama_installe ? `Modèle ${l.modele} à télécharger : ollama pull ${l.modele}` : "Ollama absent : facultatif, voir ollama.com/download", false, "option");
       })()}
@@ -250,7 +248,7 @@ export function handleSetupMessage(data: any): boolean {
       ollama_installe: !!data.ollama_installe, ollama_actif: !!data.ollama_actif, modele: String(data.modele || "qwen3:4b-instruct"),
       modele_present: !!data.modele_present, gpu: data.gpu ? String(data.gpu) : null, vram_go: data.vram_go ?? null,
     };
-    if (etat.etape === 5) dessiner();
+    if (etat.etape === 4) dessiner();
     return true;
   }
   if (data.type === "setup_key_result") {
@@ -297,15 +295,18 @@ export function initSetupWizard(): void {
         etat.etape += 1;
         dessiner();
       } else {
-        if (etat.etape === 4) etat.empreinte = "passee";
+        if (etat.etape === 3 && etat.empreinte === "aucune") etat.empreinte = "passee";
         suivant();
       }
+    } else if (wz === "services") {
+      etat.services = !etat.services;
+      dessiner();
     } else if (wz === "verifier-local") {
       verifierLocal();
       dessiner();
     } else if (wz === "copier") {
       const modele = etat.local && etat.local !== "en_cours" ? etat.local.modele : "qwen3:4b-instruct";
-      navigator.clipboard?.writeText(COMMANDE_MODELE(modele)).then(() => { etat.copie = true; if (etat.etape === 5) dessiner(); }).catch(() => { /* presse-papiers refusé : la commande reste sélectionnable */ });
+      navigator.clipboard?.writeText(COMMANDE_MODELE(modele)).then(() => { etat.copie = true; if (etat.etape === 4) dessiner(); }).catch(() => { /* presse-papiers refusé : la commande reste sélectionnable */ });
     } else if (wz === "exemple") {
       envoyer({ type: "update_settings", settings: { voix_jarvis: etat.voix } });
       envoyer({ type: "system_test", cible: "voix" });
