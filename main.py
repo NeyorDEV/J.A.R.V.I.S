@@ -364,6 +364,11 @@ def main():
     demarrer_daemon_alarmes()
     from module.routines import demarrer_daemon_routines
     demarrer_daemon_routines()
+    try:
+        from core.api_locale import demarrer as demarrer_api_locale
+        demarrer_api_locale()   # désactivée sans réglage + jeton (core/api_locale.py)
+    except Exception as e:
+        print(f"[API] Non démarrée : {e}")
 
     # Lancement de la découverte TV en arrière-plan (non-bloquant)
     import threading
