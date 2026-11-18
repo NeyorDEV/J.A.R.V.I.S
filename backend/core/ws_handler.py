@@ -55,15 +55,14 @@ def _origine_autorisee(websocket) -> bool:
         return True  # client natif (pywebview) : pas d'Origin
 
     o = origine.lower().strip()
-    if o == "null" or o.startswith("file://"):
-        return True
+    # « null » et file:// sont refusés : une iframe sandbox d'un site distant envoie « Origin: null ».
     # Extension JARVIS (Chrome / Opera) : son origine « chrome-extension://<id> » était
     # refusée, si bien qu'elle ne se connectait jamais.
     if o.startswith("chrome-extension://"):
         return True
-    # Hôtes locaux uniquement (le WebSocket n'écoute plus que sur localhost)
+    # Le HUD n'est servi que sur le port 5173 (Vite ou dist/) : les autres ports locaux (Vue de Dieu 4173, serveurs de dev) ne sont pas le HUD
     import re as _re_o
-    return bool(_re_o.match(r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$", o))
+    return bool(_re_o.match(r"^https?://(localhost|127\.0\.0\.1|\[::1\]):5173$", o))
 
 
 def _origine_extension(websocket) -> bool:
@@ -339,7 +338,7 @@ async def gerer_connexion_ws(websocket):
                                     }
                                 })
                                 parler(remark)
-                            asyncio.create_task(play_first_move_delayed())
+                            demarrer_tache_fond(play_first_move_delayed())   # référence gardée : une tâche sans référence peut être supprimée avant la fin (JARVIS ne jouait jamais le premier coup)
                     elif action == "stop":
                         shared.CHESS_GAME = None
                         shared.CHESS_GAME_ACTIVE = False

@@ -19,11 +19,31 @@ except ImportError:
     _WEBVIEW_OK = False
 
 
+def ip_blocable(ip: str):
+    """(True, "") si `ip` est une adresse IPv4 PUBLIQUE valide ; sinon (False, raison). Bloquer la box, le DNS ou 127.0.0.1 coupait le réseau en un clic sur le radar."""
+    import ipaddress
+    try:
+        a = ipaddress.IPv4Address(ip)
+    except ValueError:
+        return False, "adresse invalide"
+    if a.is_private or a.is_loopback or a.is_link_local or a.is_multicast or a.is_unspecified or a.is_reserved:
+        return False, "adresse locale ou réservée (box, réseau, ordinateur)"
+    return True, ""
+
+
 async def ws_block_ip(websocket, data):
     """Message WS « block_ip » : bloque une IP via le pare-feu Windows (entrant + sortant)."""
     import re as _re, subprocess as _sp
-    _ip = data.get("ip", "").strip()
-    if _re.match(r'^\d{1,3}(\.\d{1,3}){3}$', _ip):
+    _ip = str(data.get("ip", "")).strip()
+    _ok_ip, _raison = ip_blocable(_ip)
+    if not _ok_ip:
+        print(f"[RADAR] Blocage de {_ip!r} refusé : {_raison}")
+        await websocket.send(json.dumps({"action": "ctx_card", "type": "alert", "icon": "⚠", "title": "Blocage refusé", "text": f"{_ip} : {_raison}."}))
+        return
+    from core.confirmation import demander_confirmation
+    if not await demander_confirmation(websocket, f"Bloquer {_ip} dans le pare-feu (entrant et sortant) ?"):
+        return
+    if True:
         _rule = f"JARVIS_BLOCK_{_ip.replace('.', '_')}"
         try:
             echecs = []

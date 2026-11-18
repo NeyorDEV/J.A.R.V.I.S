@@ -322,6 +322,20 @@ def supprimer_cle_registre_recursive(hive, path):
         print(f"[UNINSTALLER] Clé de registre non effacée {hive}\\{path} : {e}")
         return False
 
+def _dossier_protege(chemin):
+    """Dossiers personnels (Documents, Bureau…), profil utilisateur, racines de disque et leurs parents : jamais supprimés par le nettoyage de résidus."""
+    from core.dossiers import dossiers_personnels
+    cible = os.path.normcase(os.path.abspath(chemin))
+    proteges = [os.environ.get("USERPROFILE", ""), *dossiers_personnels()]
+    for p in proteges:
+        if not p:
+            continue
+        p = os.path.normcase(os.path.abspath(p))
+        if cible == p or p.startswith(cible + os.sep):   # le dossier lui-même, ou un parent
+            return True
+    return os.path.dirname(cible) == cible or len(cible) <= 3   # racine d'un disque
+
+
 def effacer_trace(item):
     """Efface une trace résiduelle (dossier ou clé de registre)."""
     item_type = item.get("type")
@@ -330,6 +344,8 @@ def effacer_trace(item):
     if item_type == "folder":
         if not path or len(path) <= 4:
             return False, "Chemin invalide ou trop court pour suppression sécurisée."
+        if _dossier_protege(path):
+            return False, "Dossier personnel ou racine : jamais supprimé comme « résidu »."
         try:
             if os.path.exists(path):
                 shutil.rmtree(path)

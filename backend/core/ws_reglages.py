@@ -4,7 +4,7 @@ import json
 import os
 
 import core.shared as shared
-from core.ai_clients import cle_utilisable, relire_clients_ia, _ecrire_env
+from core.ai_clients import CLES_ENV_AUTORISEES, cle_utilisable, relire_clients_ia, _ecrire_env
 
 
 # Sentinelle renvoyée à la place des vraies clés API : l'interface affiche que la
@@ -34,9 +34,7 @@ async def ws_get_settings(websocket, data):
     # (Auparavant un simple message suffisait à toutes les voler.)
     config_data["api_keys"] = {
         nom: _masquer_cle(os.getenv(nom, ""))
-        for nom in ("GEMINI_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY",
-                    "YOUTUBE_API_KEY", "XAI_API_KEY", "SERPAPI_API_KEY",
-                    "ANTHROPIC_API_KEY", "MISTRAL_API_KEY", "DISCORD_BOT_TOKEN")
+        for nom in CLES_ENV_AUTORISEES
     }
     config_data["maj_auto"] = config_data.get("maj_auto", True)  # vérification des mises à jour au lancement
     # Discord : les adresses de webhook sont des secrets, jamais renvoyées en clair

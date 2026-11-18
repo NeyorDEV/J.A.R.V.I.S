@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { feature } from 'topojson-client';
+import { esc } from './panels/pm_utils';
 
 interface RadarConnection {
   ip: string;
@@ -170,10 +171,11 @@ export class NetworkRadar {
     if (searchInput) {
       searchInput.value = '';
       this._searchQuery = '';
-      searchInput.addEventListener('input', () => {
+      // oninput (et non addEventListener) : chaque ouverture du radar ajoutait un écouteur de plus, une frappe reconstruisait la liste N fois
+      searchInput.oninput = () => {
         this._searchQuery = searchInput.value.toLowerCase().trim();
         this._refreshActiveList();
-      });
+      };
     }
 
     // Exposition globale pour les boutons inline HTML
@@ -182,9 +184,12 @@ export class NetworkRadar {
     this._setupMouseRotation();
   }
 
+  private _timerFrontieres: number | null = null;
+
   public deactivate(): void {
     if (!this.active) return;
     this.active = false;
+    if (this._timerFrontieres !== null) { clearInterval(this._timerFrontieres); this._timerFrontieres = null; }
 
     this.scene.traverse(child => {
       if (['domotic_group', 'cortex_group'].includes(child.name)) child.visible = true;
@@ -251,7 +256,7 @@ export class NetworkRadar {
       el.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(0,229,255,0.3);font-size:10px;letter-spacing:1px;">AUCUNE IP BLOQUÉE</div>`;
       return;
     }
-    el.innerHTML = this._blockedIps.map(ip => `
+    el.innerHTML = this._blockedIps.filter(ip => /^[0-9a-fA-F:.]+$/.test(ip)).map(ip => `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid rgba(255,46,77,0.1);">
         <span style="color:#ff2e4d;font-size:11px;font-weight:bold;">⊘ ${ip}</span>
         <button onclick="(function(){var ws=window._jarvisWs;if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'unblock_ip',ip:'${ip}'}))})()"
@@ -444,12 +449,17 @@ export class NetworkRadar {
       doAdd(_countryBorderPoints);
     } else {
       // Différé : attendre que le chargement TopoJSON se termine
-      const check = setInterval(() => {
-        if (_bordersReady) {
+      let essais = 0;
+      if (this._timerFrontieres !== null) clearInterval(this._timerFrontieres);
+      // Arrêté à la désactivation et après 25 s : un TopoJSON injoignable laissait un timer à 5 Hz éternel, un de plus à chaque ouverture
+      const check = window.setInterval(() => {
+        if (_bordersReady || ++essais > 125) {
           clearInterval(check);
-          if (_countryBorderPoints && this.active) doAdd(_countryBorderPoints);
+          this._timerFrontieres = null;
+          if (_bordersReady && _countryBorderPoints && this.active) doAdd(_countryBorderPoints);
         }
       }, 200);
+      this._timerFrontieres = check;
     }
   }
 
@@ -648,7 +658,7 @@ export class NetworkRadar {
     });
 
     if (sorted.length === 0 && q) {
-      listEl.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(0,229,255,0.3);font-size:10px;letter-spacing:1px;">AUCUN RÉSULTAT POUR "${q.toUpperCase()}"</div>`;
+      listEl.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(0,229,255,0.3);font-size:10px;letter-spacing:1px;">AUCUN RÉSULTAT POUR "${esc(q.toUpperCase())}"</div>`;
       return;
     }
 
@@ -657,12 +667,15 @@ export class NetworkRadar {
       const colorHex = '#' + (RISK_COLOR[c.risk] ?? RISK_COLOR.normal).toString(16).padStart(6, '0');
       const dot      = `<span style="color:${colorHex};font-size:10px;flex-shrink:0">●</span>`;
       const dur      = this._fmtDuration(c.duration_s ?? 0);
-      const proc     = c.process.replace(/\.exe$/i, '');
-      const svc      = c.service ? ` <span class="radar-svc">${c.service}</span>` : '';
-      const host     = c.hostname ? `<span class="radar-host">${c.hostname}</span>` : '';
+      // Tout ce qui vient du réseau est échappé : le nom d'hôte (DNS inverse), le processus, le service, la ville… sont choisis par un serveur distant ou un programme local,
+      // et le HUD a le WebSocket complet (block_ip, confirm_response). Avant : un PTR « <img onerror=…> » exécutait du JS dans le HUD.
+      const proc     = esc(c.process.replace(/\.exe$/i, ''));
+      const svc      = c.service ? ` <span class="radar-svc">${esc(c.service)}</span>` : '';
+      const host     = c.hostname ? `<span class="radar-host">${esc(c.hostname)}</span>` : '';
       const loc      = c.city
-        ? `${flag} ${c.city}, ${c.cc}`
-        : `${flag} ${c.country}`;
+        ? `${esc(flag)} ${esc(c.city)}, ${esc(c.cc)}`
+        : `${esc(flag)} ${esc(c.country)}`;
+      const ipSure   = /^[0-9a-fA-F:.]+$/.test(c.ip) ? c.ip : '';   // l'IP part dans un attribut onclick : seulement chiffres, lettres hexa, « : » et « . »
 
       let badges = '';
       if (c.is_new)    badges += `<span class="radar-badge-new">NEW</span>`;
@@ -682,15 +695,15 @@ export class NetworkRadar {
           `</div>` +
           `<div class="rcr-right">` +
             `<span class="radar-port">:${c.port}${svc}</span>` +
-            `<button class="radar-block-btn" title="Bloquer ${c.ip} via pare-feu" ` +
+            `<button class="radar-block-btn" title="Bloquer ${esc(ipSure)} via pare-feu" ` +
               `onclick="event.stopPropagation();(function(){var ws=window._jarvisWs;` +
-              `if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'block_ip',ip:'${c.ip}'}))})()">⊘</button>` +
+              `if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'block_ip',ip:'${ipSure}'}))})()">⊘</button>` +
           `</div>` +
         `</div>` +
         // Ligne 2 : IP + hostname + localisation + durée
         `<div class="rcr-bot">` +
           `<div class="rcr-left">` +
-            `<span class="radar-ip">${c.ip}${host ? ' / ' : ''}${host}</span>` +
+            `<span class="radar-ip">${esc(c.ip)}${host ? ' / ' : ''}${host}</span>` +
           `</div>` +
           `<div class="rcr-right">` +
             `<span class="radar-loc">${loc}</span>` +

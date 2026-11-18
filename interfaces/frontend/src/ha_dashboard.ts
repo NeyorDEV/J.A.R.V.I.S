@@ -365,7 +365,7 @@ function buildCardHTML(entity: HAEntity): string {
         </div>
       </div>
       <div class="ha-entity-middle">
-        <span class="ha-entity-state">${formattedState}</span>
+        <span class="ha-entity-state">${esc(formattedState)}</span>
         <div class="ha-entity-control">
           ${bottomControls}
         </div>
@@ -603,7 +603,7 @@ function createFloatingWidget(entity: HAEntity, pos: PinnedPosition): void {
       </div>
     </div>
     <div class="ha-entity-middle">
-      <span class="ha-entity-state">${formattedState}</span>
+      <span class="ha-entity-state">${esc(formattedState)}</span>
       <div class="ha-entity-control">
         ${bottomControls}
       </div>
@@ -647,7 +647,10 @@ function makeFloatingWidgetDraggable(el: HTMLElement, entity_id: string): void {
     e.preventDefault();
   });
   
+  // Écouteurs document retirés quand le widget disparaît (renderPinnedWidgets les recrée à chaque message ha_states : 2 écouteurs de plus par widget et par rafraîchissement)
+  const ctl = new AbortController();
   document.addEventListener("mousemove", (e: MouseEvent) => {
+    if (!el.isConnected) { ctl.abort(); return; }
     if (isWidgetDragging) {
       let newLeft = e.clientX - startX;
       let newTop = e.clientY - startY;
@@ -661,9 +664,10 @@ function makeFloatingWidgetDraggable(el: HTMLElement, entity_id: string): void {
       el.style.left = newLeft + "px";
       el.style.top = newTop + "px";
     }
-  });
+  }, { signal: ctl.signal });
   
   document.addEventListener("mouseup", () => {
+    if (!el.isConnected) { ctl.abort(); return; }
     if (isWidgetDragging) {
       isWidgetDragging = false;
       el.style.cursor = "grab";
@@ -676,7 +680,7 @@ function makeFloatingWidgetDraggable(el: HTMLElement, entity_id: string): void {
       };
       savePinnedPositions(positions);
     }
-  });
+  }, { signal: ctl.signal });
 }
 
 function unpinEntity(entity_id: string): void {

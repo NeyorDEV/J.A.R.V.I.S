@@ -19,6 +19,22 @@ from plugins.list_manager import _relire_listes, _ecrire_listes
 _RACINE_PROJET = shared.RACINE_PROJET
 
 
+_DOSSIERS_SENSIBLES = {".git", "config", "data", "voiceprints", "venv", ".venv", "node_modules", "__pycache__"}
+_SUFFIXES_SENSIBLES = {".bat", ".cmd", ".ps1", ".pickle", ".pem", ".key", ".log"}
+_FICHIERS_SENSIBLES = {"jarvis_config.json", "jarvis_audit.log"}
+
+
+def _chemin_sensible(relatif: str) -> bool:
+    """Secrets et fichiers exécutés au lancement (.env, config/, data/, .git/, *.bat…) : jamais lus ni écrits par le HUD.
+    Les réglages masquent les clés API sur le WebSocket ; read_file(".env") les renvoyait pourtant en clair."""
+    parties = [p.lower() for p in relatif.replace("/", os.sep).split(os.sep) if p]
+    if not parties:
+        return False
+    nom = parties[-1]
+    return (any(p in _DOSSIERS_SENSIBLES for p in parties[:-1]) or nom.startswith(".env") or nom in _FICHIERS_SENSIBLES
+            or os.path.splitext(nom)[1] in _SUFFIXES_SENSIBLES or nom in _DOSSIERS_SENSIBLES)
+
+
 def _chemin_projet_valide(chemin: str):
     """Résout `chemin` et vérifie qu'il reste DANS le dossier du projet.
 
@@ -31,6 +47,8 @@ def _chemin_projet_valide(chemin: str):
     try:
         absolu = os.path.abspath(os.path.join(_RACINE_PROJET, chemin))
         if os.path.commonpath([absolu, _RACINE_PROJET]) != _RACINE_PROJET:
+            return None
+        if _chemin_sensible(os.path.relpath(absolu, _RACINE_PROJET)):
             return None
         return absolu
     except Exception:
@@ -131,18 +149,35 @@ async def ws_update_shopping_list(websocket, data):
         await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
 
 
+_TRACES_TROUVEES = set()   # (type, chemin) des traces résiduelles trouvées par l'analyse : la seule liste de ce que clean_leftovers a le droit d'effacer
+
+
+def _memoriser_traces(traces):
+    for t in traces or []:
+        if isinstance(t, dict):
+            _TRACES_TROUVEES.add((t.get("type"), t.get("path")))
+
+
 async def ws_uninstall_program(websocket, data):
     """Message WS « uninstall_program » : désinstallation (avec confirmation) puis scan des résidus."""
-    from module.uninstaller_helper import executer_desinstallation, chercher_traces_fichiers, chercher_traces_registre
+    from module.uninstaller_helper import executer_desinstallation, chercher_traces_fichiers, chercher_traces_registre, inventaire_logiciels
     app_name = data.get("name", "")
-    publisher = data.get("publisher", "")
-    install_location = data.get("install_location", "")
-    uninstall_string = data.get("uninstall_string", "")
+    # La commande de désinstallation n'est JAMAIS prise dans le message du HUD (elle partait dans un shell) : on la relit dans le Registre, par le nom.
+    inventaire = await asyncio.to_thread(inventaire_logiciels)
+    programme = next((p for p in inventaire if p["name"] == app_name and p.get("uninstall_string")), None)
+    if programme is None:
+        await websocket.send(json.dumps({"type": "uninstall_complete", "app_name": app_name, "success": False,
+                                         "message": "Programme introuvable dans la liste des logiciels installés.", "leftovers": []}))
+        return
+    publisher = programme["publisher"]
+    install_location = programme["install_location"]
+    uninstall_string = programme["uninstall_string"]
 
     # Ce qui sera retiré, calculé avant l'action (lecture seule) et montré dans la confirmation du HUD
     details = [{"t": "Programme", "d": f"{app_name}" + (f" · {install_location}" if install_location else "")}]
     try:
         traces = await asyncio.to_thread(chercher_traces_fichiers, app_name, publisher, install_location)
+        _memoriser_traces(traces)
         if traces:
             details.append({"t": "Données", "d": f"{len(traces)} dossier(s) : " + ", ".join(os.path.basename(t["path"]) for t in traces[:2])})
     except Exception:
@@ -184,6 +219,7 @@ async def ws_uninstall_program(websocket, data):
     leftovers_files = await asyncio.to_thread(chercher_traces_fichiers, app_name, publisher, install_location)
     leftovers_reg = await asyncio.to_thread(chercher_traces_registre, app_name, publisher)
     all_leftovers = leftovers_files + leftovers_reg
+    _memoriser_traces(all_leftovers)   # seules ces traces pourront être effacées ensuite (clean_leftovers)
     print(f"[UNINSTALLER] Scan fini, {len(all_leftovers)} traces trouvées.")
     await websocket.send(json.dumps({
         "type": "uninstall_complete",
@@ -197,8 +233,16 @@ async def ws_clean_leftovers(websocket, data):
     """Message WS « clean_leftovers » : suppression (avec confirmation) des résidus de désinstallation."""
     from module.uninstaller_helper import effacer_trace
     items_to_clean = data.get("items", [])
+    # Seules les traces trouvées par l'analyse (_memoriser_traces) s'effacent : le HUD envoyait un chemin quelconque (« C:\Users\x\Documents ») et rmtree l'exécutait.
+    inconnues = [i for i in items_to_clean if not isinstance(i, dict) or (i.get("type"), i.get("path")) not in _TRACES_TROUVEES]
+    if inconnues:
+        print(f"[UNINSTALLER] ⛔ {len(inconnues)} trace(s) refusée(s) : absentes de l'analyse.")
+        items_to_clean = [i for i in items_to_clean if i not in inconnues]
+    details = [{"t": "Registre" if i.get("type") == "registry" else "Dossier", "d": str(i.get("path"))} for i in items_to_clean[:8]]
+    if len(items_to_clean) > 8:
+        details.append({"t": "…", "d": f"et {len(items_to_clean) - 8} autres"})
 
-    if items_to_clean and not await demander_confirmation(websocket, f"Supprimer définitivement {len(items_to_clean)} traces résiduelles ?"):
+    if items_to_clean and not await demander_confirmation(websocket, f"Supprimer définitivement {len(items_to_clean)} traces résiduelles ?", details=details):
         await websocket.send(json.dumps({
             "type": "clean_complete",
             "cleaned_count": 0,
@@ -323,8 +367,15 @@ async def ws_set_location(websocket, data):
         shared.CLIENT_LOCATION["lat"] = _cfg["latitude"]
         shared.CLIENT_LOCATION["lon"] = _cfg["longitude"]
     else:
-        shared.CLIENT_LOCATION["lat"] = data.get("lat")
-        shared.CLIENT_LOCATION["lon"] = data.get("lon")
+        try:   # le HUD envoie des nombres : tout le reste est refusé (la valeur part telle quelle dans l'URL de Nominatim / des API météo)
+            lat, lon = float(data.get("lat")), float(data.get("lon"))
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                raise ValueError("hors limites")
+        except (TypeError, ValueError):
+            print("[WEB] set_location refusé : coordonnées invalides.")
+            return
+        shared.CLIENT_LOCATION["lat"] = lat
+        shared.CLIENT_LOCATION["lon"] = lon
     asyncio.ensure_future(update_client_city())
     # Forcer un broadcast immédiat après mise à jour
     asyncio.ensure_future(asyncio.sleep(1)).add_done_callback(lambda _: asyncio.ensure_future(broadcast_weather_stats_once()))

@@ -81,8 +81,13 @@ const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 async function executeSingleAction(step) {
   const actionType = step.action_type || step.action;
   const { selector, text } = step;
+  if (actionType !== "open_url" && !selector) return;   // étape sans sélecteur : rien à viser (levait un TypeError et laissait la séquence en attente)
 
   if (actionType === "open_url" && text) {
+    if (!/^https?:\/\//i.test(String(text))) {   // jamais « javascript: », « data: » ni « file: » (étape produite par l'IA après lecture d'une page)
+      console.warn("[JARVIS] open_url refusé (schéma non http/https)");
+      return;
+    }
     console.log(`[JARVIS] Navigation vers : ${text}`);
     window.location.href = text;
     // Laisser le temps à la page de charger
@@ -207,18 +212,15 @@ async function executeSingleAction(step) {
     element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
     await wait(50);
     element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-    element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-    
-    // Fallback pour les boutons de soumission (contourne les sécurités isTrusted)
+    // UN seul clic : element.click() envoie déjà « click » et soumet le formulaire d'un bouton submit. Avant, un MouseEvent « click » simulé PUIS element.click()
+    // PUIS requestSubmit() : « Commander » envoyé deux fois, et un bouton bascule (like, case, accordéon) revenait à son état initial.
+    try { element.click(); } catch(e) {}
     if ((element.type === "submit" || element.tagName === "BUTTON") && element.form) {
-      try { element.form.requestSubmit(); } catch(e) { element.form.submit(); }
       console.log(`[JARVIS] Formulaire soumis sur : ${selector}`);
       return true; // Signale qu'une navigation est en cours
-    } else {
-      try { element.click(); } catch(e) {}
-      if (element.tagName === "A" && element.href) {
-        return true; // Signale qu'une navigation est en cours (lien cliqué)
-      }
+    }
+    if (element.tagName === "A" && element.href) {
+      return true; // Signale qu'une navigation est en cours (lien cliqué)
     }
     
     console.log(`[JARVIS] Clic effectué sur : ${selector}`);
@@ -292,6 +294,15 @@ chrome.runtime.onMessage.addListener(async (message) => {
     if (attente && !frais) await chrome.storage.local.remove("jarvis_pending_sequence"); // périmée : on l'oublie
     
     if (steps && steps.length > 0) {
+      // La liste « sites interdits » des options vaut aussi à la reprise (elle n'était vérifiée que dans background.js, avant l'envoi) :
+      // une séquence [open_url banque, click, type…] se rejouait sur le site interdit après la navigation.
+      const reglages = await chrome.storage.local.get("sites_interdits");
+      const interdits = String(reglages.sites_interdits || "").split(/\r?\n/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+      const hote = location.hostname.toLowerCase();
+      if (interdits.some((x) => hote === x || hote.endsWith("." + x))) {
+        await chrome.storage.local.remove("jarvis_pending_sequence");
+        return;
+      }
       console.log("[JARVIS] Reprise de la séquence depuis le stockage global...");
       await wait(2500); // Attendre que le nouveau DOM soit vraiment stable
       

@@ -60,6 +60,12 @@ class HandTracker {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
       });
+      this._stream = stream;   // gardé : Camera.start() rouvre son propre flux, l'ancien restait allumé (voyant caméra) après la fermeture de la vue
+      if (!this.app._running) {   // la vue a été fermée pendant l'invite d'autorisation : on libère la caméra tout de suite
+        stream.getTracks().forEach(t => t.stop());
+        this._stream = null;
+        return;
+      }
       this.video.srcObject = stream;
       await new Promise((resolve) => {
         this.video.onloadedmetadata = () => { this.video.play(); resolve(); };
@@ -97,6 +103,7 @@ class HandTracker {
   }
 
   stop() {
+    if (this._stream) { this._stream.getTracks().forEach(t => t.stop()); this._stream = null; }
     if (this._camera) { try { this._camera.stop(); } catch {} this._camera = null; }
     if (this.video && this.video.srcObject) {
       this.video.srcObject.getTracks().forEach(t => t.stop());

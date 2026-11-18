@@ -6,6 +6,7 @@
    ============================================================ */
 
 import * as THREE from 'three';
+import { esc } from './panels/pm_utils';
 
 // ── Types & Configuration ─────────────────────────────────────
 
@@ -833,15 +834,16 @@ export class CortexMap {
           }
 
           // Plus de troncature du tout ! On affiche l'intégralité du texte
-          const userPreview = node.data.user;
-          const assistantPreview = node.data.assistant || '';
+          // Échappés : une réponse mémorisée (issue d'une page web résumée) contenant « <img onerror=…> » s'exécutait au survol du nœud, dans le HUD qui a le WebSocket complet
+          const userPreview = esc(node.data.user);
+          const assistantPreview = esc(node.data.assistant || '');
 
           this.tooltip.innerHTML = `
             <div style="font-family: 'Courier New', monospace; font-size: 11.5px; font-weight: bold; letter-spacing: 2px; opacity: 0.7; margin-bottom: 8px; color: ${accentColor}; text-transform: uppercase;">
-              ▣ ${typeStr} &nbsp;·&nbsp; ${node.data.timestamp}
+              ▣ ${typeStr} &nbsp;·&nbsp; ${esc(node.data.timestamp)}
             </div>
             <div style="font-family: 'Courier New', monospace; font-weight: bold; font-size: 15px; color: #ffffff; margin-bottom: 12px; letter-spacing: 0.5px; border-bottom: 1.5px solid rgba(255, 255, 255, 0.15); padding-bottom: 8px; word-break: break-all;">
-              ${titre}
+              ${esc(titre)}
             </div>
             <div style="font-size: 14.5px; font-weight: 500; color: #e0faff; line-height: 1.6; margin-bottom: 8px; word-break: break-word;">
               ${userPreview}

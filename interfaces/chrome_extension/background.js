@@ -121,6 +121,7 @@ async function connecter() {
   }
   definirEtat("connexion");
   socket = new WebSocket("ws://localhost:8765");
+  const cetteConnexion = socket;   // l'onclose d'un ANCIEN socket (jeton changé) ne doit pas couper le ping ni relancer la connexion du nouveau
 
   socket.onopen = () => {
     socket.send(JSON.stringify({ type: "extension_hello", token: jeton }));
@@ -156,6 +157,7 @@ async function connecter() {
   };
 
   socket.onclose = () => {
+    if (socket !== cetteConnexion) return;
     clearInterval(pingTimer);
     if (etat === "connexion") definirEtat("refuse"); // fermée avant « extension_ok » : jeton refusé ou JARVIS éteint
     else if (etat === "connecte") definirEtat("connexion");

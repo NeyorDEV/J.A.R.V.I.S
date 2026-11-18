@@ -52,8 +52,20 @@ _API_PLACEHOLDERS = frozenset({"VOTRE_CLE_ICI", "Votre ID", "votre_id",
                                 "VOTRE_TOKEN_ICI", "votre_token_ici", ""})
 
 
+# Seules ces variables s'écrivent par les réglages du HUD (ce sont celles du panneau « Clés API »). Sans liste, un message update_settings pouvait créer
+# n'importe quelle variable (PATH, PYTHONPATH…) dans .env et os.environ, et une valeur à plusieurs lignes ajoutait des lignes au fichier.
+CLES_ENV_AUTORISEES = ("GEMINI_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY", "YOUTUBE_API_KEY", "XAI_API_KEY", "SERPAPI_API_KEY",
+                       "ANTHROPIC_API_KEY", "MISTRAL_API_KEY", "DISCORD_BOT_TOKEN")
+
+
 def _ecrire_env(data: dict) -> None:
     """Écrit dans le fichier .env et dans os.environ immédiatement."""
+    refuses = [k for k, v in data.items() if k not in CLES_ENV_AUTORISEES or not isinstance(v, str) or any(c in v for c in "\r\n\0")]
+    if refuses:
+        print(f"[CONFIG ENV] Refusé (nom hors liste ou valeur invalide) : {refuses}")
+        data = {k: v for k, v in data.items() if k not in refuses}
+    if not data:
+        return
     env_path = os.path.join(shared.RACINE_PROJET, ".env")
     lines = []
     existing_keys = {}
