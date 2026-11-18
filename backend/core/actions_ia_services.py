@@ -234,14 +234,22 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
             for d in research_data:
                 if injection.niveau_max(injection.marquer(f"web {d['url']}", d["content"])) >= injection.ELEVE:
                     d["content"] = "[contenu écarté : formules d'injection détectées]"
-            context = "\n\n".join([f"Source: {d['url']}\nContenu: " + injection.entourer(d["content"], d["url"]) for d in research_data])
+            from core import citations
+            context, urls_sources = citations.sources_numerotees(research_data, injection.entourer)
             prompt_synthese = (
                 f"Voici les résultats de ma recherche approfondie sur '{query}' :\n\n"
                 f"{context}\n\n"
-                f"En tant que JARVIS, fais une synthèse élégante, précise et complète de ces informations pour {nom_ou_utilisateur()}."
+                f"En tant que JARVIS, fais une synthèse élégante, précise et complète de ces informations pour {nom_ou_utilisateur()}. "
+                + citations.consigne_citation(len(urls_sources))
             )
             synthese = await interroger_ia(prompt_synthese, update_hist=False, skip_local=True)
             if synthese:
+                try:
+                    from core.web_bridge import envoyer_carte_contextuelle
+                    await envoyer_carte_contextuelle("Sources", citations.liste_sources(urls_sources, citations.numeros_utilises(synthese, len(urls_sources))), duree=20000)
+                except Exception as e:
+                    print(f"[SOURCES] Carte non envoyée : {e}")
+                synthese = citations.pour_la_voix(synthese)
                 print("\n[BROWSER] --- SOURCES CONSULTÉES ---")
                 for d in research_data:
                     print(f" > {d['url']}")
