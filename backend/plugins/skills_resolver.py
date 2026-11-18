@@ -12,6 +12,8 @@ from module import skills
 
 _RE_LISTE = re.compile(r"\b(mes|les|quels|quelles|liste|lister)\b.*\bskills?\b|\bskills?\b.*\b(disponibles|installes)\b")
 _RE_APPROUVER = re.compile(r"\b(autorise|approuve|valide)\b.*\bskills?\b")
+_RE_IMPORT = re.compile(r"\b(importe|installe|telecharge|ajoute)\b.*\bskill\b")
+_RE_URL = re.compile(r"https?://\S+")
 _RE_LANCER = re.compile(r"\b(lance|execute|utilise|demarre|active)\b.*\bskills?\b")
 
 
@@ -34,10 +36,33 @@ async def _lancer(nom, arguments):
     return texte if ok else f"Le skill {nom} a échoué : {texte}."
 
 
+async def _importer(url):
+    from module import skills_import
+    try:
+        skills_import.decouper_url(url)
+    except ValueError as e:
+        return f"{e}"
+    if not await demander_confirmation(None, f"Télécharger le skill {url} depuis GitHub ? Il ne sera pas approuvé : il ne tournera qu'après relecture."):
+        return f"Import annulé{nom_virgule()}."
+    try:
+        nom, fichiers, ignores, a_script = await asyncio.to_thread(
+            skills_import.importer, url, skills.DOSSIER_SKILLS, skills_import.get_json_reseau, skills_import.get_texte_reseau)
+    except Exception as e:
+        consigner("skill_import_echec", url=url[:200], erreur=str(e)[:120])
+        return f"Import impossible : {e}."
+    consigner("skill_importe", skill=nom, url=url[:200], fichiers=len(fichiers), ignores=len(ignores))
+    suite = "Relisez-le puis dites « autorise le skill " + nom.replace("-", " ") + " »." if a_script else "Il n'a pas de script à lancer : c'est une simple fiche d'instructions."
+    return f"Skill {nom.replace('-', ' ')} importé, {len(fichiers)} fichiers, non approuvé. {suite}"
+
+
 async def resoudre_skills(texte):
     t = skills.normaliser(texte)
     if not t:
         return None
+
+    m_url = _RE_URL.search(texte)
+    if _RE_IMPORT.search(t) and m_url:
+        return await _importer(m_url.group(0).rstrip(".,;)"))
 
     if _RE_LISTE.search(t) and not skills.trouver_par_nom(t):
         dispo = skills.lister()
