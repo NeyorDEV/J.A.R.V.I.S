@@ -10,7 +10,7 @@ import re
 import threading
 import time
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta
 
 FICHIER = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "routines.json")
 _VERROU = threading.RLock()
@@ -101,7 +101,39 @@ def intervalle_de(t: str):
     return n * (60 if m.group(2).startswith("heure") else 1)
 
 
-def analyser(texte: str):
+_MOIS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"]
+_UNE_FOIS = re.compile(r"\b(?:dans\s+(\d{1,3}|une|deux|trois|quatre|cinq|six|huit|dix|douze)\s*(minutes?|heures?)|(apres-demain|apres demain|demain)|le\s+(\d{1,2})(?:er)?\s+(" + "|".join(_MOIS) + r"))\b")
+_AUTRE_OUTIL = re.compile(r"\b(?:rappel\w*|minuteur|timer|alarme|reveil|chrono\w*)\b")   # déjà gérés par module/alarmes_local.py
+
+
+def une_fois_de(t: str, maintenant: datetime):
+    """(datetime, texte_sans_la_date) pour « dans 2 heures », « demain à 8 h », « le 3 décembre à 9 h » ; None sinon. Une date sans heure : None (on demande)."""
+    m = _UNE_FOIS.search(t)
+    if not m or _AUTRE_OUTIL.search(t):
+        return None
+    reste = _UNE_FOIS.sub(" ", t, count=1)
+    if m.group(1):
+        n = m.group(1)
+        n = int(n) if n.isdigit() else _NOMBRES[n]
+        return maintenant + timedelta(minutes=n * (60 if m.group(2).startswith("heure") else 1)), reste
+    hm = heure_de(t)
+    if hm is None:
+        return "heure", reste
+    reste = _HEURE.sub(" ", reste, count=1)
+    if m.group(3):
+        jour = maintenant.date() + timedelta(days=1 if m.group(3) == "demain" else 2)
+    else:
+        mois = _MOIS.index(m.group(5)) + 1
+        try:
+            jour = maintenant.date().replace(month=mois, day=int(m.group(4)))
+            if datetime.combine(jour, datetime.min.time()).replace(hour=hm[0], minute=hm[1]) < maintenant:
+                jour = jour.replace(year=jour.year + 1)
+        except ValueError:
+            return "heure", reste   # 31 février
+    return datetime.combine(jour, datetime.min.time()).replace(hour=hm[0], minute=hm[1]), reste
+
+
+def analyser(texte: str, maintenant=None):
     """Phrase de création -> ('ok', routine) | ('heure', None) | ('interdit', commande) | ('commande', None) | None si ce n'est pas une création de routine."""
     t = norm(texte)
     pas = intervalle_de(t)
@@ -122,7 +154,24 @@ def analyser(texte: str):
         return ("ok", {"commande": commande, "chaque_min": pas})
     jours = jours_de(t)
     if jours is None:
-        return None
+        quand = une_fois_de(t, maintenant or datetime.now())
+        if quand is None:
+            return None
+        date, reste = quand
+        commande = re.sub(r"\s+", " ", re.sub(r"\b(?:jarvis|s'il te plait|stp|a|vers)\b", " ", reste)).strip(" ,.;:!?-")
+        commande = re.sub(r"^(?:(?:programme|planifie|ajoute|cree)\s+)?(?:(?:une|ma|la)\s+)?(?:nouvelle\s+)?(?:routine\s*(?:ou|:)?\s*)?", "", commande).strip(" ,.;:!?-")
+        premier = re.split(r"[ \-]", commande)[0] if commande else ""
+        if interdite(commande):
+            return ("interdit", commande)
+        if not ("routine" in t or premier in _IMPERATIFS):
+            return None
+        if date == "heure":
+            return ("heure", None)
+        if len(commande.split()) < 2:
+            return ("commande", None)
+        if date < (maintenant or datetime.now()):
+            return ("passe", None)
+        return ("ok", {"commande": commande, "une_fois": date.timestamp()})
     commande = commande_de(t)
     premier = re.split(r"[ \-]", commande)[0] if commande else ""   # « donne-moi » -> « donne »
     hm = heure_de(t)
@@ -140,6 +189,8 @@ def analyser(texte: str):
 
 
 def decrire(r: dict) -> str:
+    if r.get("une_fois"):
+        return f"le {datetime.fromtimestamp(r['une_fois']).strftime('%d/%m à %H h %M')}, une seule fois : {r['commande']}"
     if r.get("chaque_min"):
         n = r["chaque_min"]
         return f"toutes les {n // 60} heures : {r['commande']}" if n % 60 == 0 and n > 60 else (f"toutes les heures : {r['commande']}" if n == 60 else f"toutes les {n} minutes : {r['commande']}")
@@ -158,6 +209,8 @@ def decrire(r: dict) -> str:
 
 def a_lancer(r: dict, maintenant: datetime) -> bool:
     """La routine doit-elle partir maintenant ? Jour voulu, heure passée (de moins de RATTRAPAGE_MIN minutes), pas déjà lancée aujourd'hui."""
+    if r.get("une_fois"):   # une seule fois : échue ; « en retard » est jugé par le démon (voir _surveiller)
+        return maintenant.timestamp() >= r["une_fois"]
     if r.get("chaque_min"):   # à intervalle : depuis le dernier lancement (ou la création), sans rattrapage en rafale
         return maintenant.timestamp() - r.get("derniere_ts", 0) >= r["chaque_min"] * 60
     if maintenant.weekday() not in (r.get("jours") or _TOUS) or r.get("derniere") == maintenant.date().isoformat():
@@ -234,6 +287,8 @@ def _resoudre(texte: str):
         return f"À quelle heure{nom_virgule()} ? Dites par exemple : tous les jours à 8 heures, donne-moi la météo."
     if statut == "commande":
         return f"Que dois-je faire{nom_virgule()} ? Dites par exemple : tous les jours à 8 heures, donne-moi la météo."
+    if statut == "passe":
+        return f"Cette date est déjà passée{nom_virgule()}."
     if statut == "trop_court":
         return f"Pas moins de {INTERVALLE_MIN} minutes entre deux lancements{nom_virgule()}."
     if statut == "interdit":
@@ -270,8 +325,16 @@ def _surveiller():
                 if not d["actif"]:
                     continue
                 maintenant, change = datetime.now(), False
-                for r in d["routines"]:
-                    if a_lancer(r, maintenant):
+                for r in list(d["routines"]):
+                    if a_lancer(r, maintenant) and r.get("une_fois"):
+                        d["routines"].remove(r)   # une seule fois : retirée avant le lancement, jamais deux fois
+                        change = True
+                        if maintenant.timestamp() - r["une_fois"] > RATTRAPAGE_MIN * 60 or interdite(r["commande"]):
+                            print(f"[ROUTINE] Échéance manquée ou refusée, abandonnée : {r['commande']}")   # JARVIS éteint à l'heure dite : pas de lancement tardif
+                            continue
+                        print(f"[ROUTINE] {r['commande']} (une fois)")
+                        _lancer(r["commande"])
+                    elif a_lancer(r, maintenant):
                         r["derniere_ts"] = maintenant.timestamp()
                         r["derniere"] = maintenant.date().isoformat()   # marqué avant : une routine ne part jamais deux fois le même jour
                         change = True

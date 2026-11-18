@@ -125,3 +125,28 @@ def test_a_lancer_intervalle():
 def test_veille():
     st, r = R.analyser("surveille les prix des gpu toutes les 6 heures")
     assert st == "ok" and r["chaque_min"] == 360 and r["commande"] == "recherche les dernieres nouvelles sur prix des gpu"
+
+
+def test_une_seule_fois():
+    from datetime import datetime
+    now = datetime(2026, 11, 18, 10, 0)
+    st, r = R.analyser("dans 2 heures donne-moi la météo", now)
+    assert st == "ok" and datetime.fromtimestamp(r["une_fois"]) == datetime(2026, 11, 18, 12, 0) and r["commande"] == "donne-moi la meteo"
+    st, r = R.analyser("demain à 8 heures lance la musique", now)
+    assert st == "ok" and datetime.fromtimestamp(r["une_fois"]) == datetime(2026, 11, 19, 8, 0)
+    st, r = R.analyser("le 3 décembre à 9 h 30 annonce la météo", now)
+    assert st == "ok" and datetime.fromtimestamp(r["une_fois"]) == datetime(2026, 12, 3, 9, 30)
+    st, r = R.analyser("le 3 mars à 9 heures dis bonjour", now)
+    assert datetime.fromtimestamp(r["une_fois"]) == datetime(2027, 3, 3, 9, 0)   # date passée cette année : l'an prochain
+    assert R.analyser("demain lance la musique", now)[0] == "heure"
+    assert R.analyser("le 31 février à 9 h dis bonjour", now)[0] == "heure"
+    assert R.analyser("demain à 8 heures éteins le pc", now)[0] == "interdit"
+    assert R.analyser("dans 10 minutes rappelle-moi d'appeler Paul", now) is None   # alarmes_local s'en charge
+    assert R.analyser("je pars demain à 8 heures", now) is None
+
+
+def test_a_lancer_une_fois_et_decrire():
+    from datetime import datetime
+    r = {"commande": "dis bonjour", "une_fois": datetime(2026, 11, 18, 12, 0).timestamp()}
+    assert not R.a_lancer(r, datetime(2026, 11, 18, 11, 59)) and R.a_lancer(r, datetime(2026, 11, 18, 12, 0))
+    assert R.decrire(r) == "le 18/11 à 12 h 00, une seule fois : dis bonjour"
