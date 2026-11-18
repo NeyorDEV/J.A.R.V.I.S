@@ -29,7 +29,8 @@ async def resoudre_local_mode(cmd):
     ]
     
     # 1. ESSAI D'ACTIVATION
-    if any(m in t for m in mots_activation) or t == "mode local" or t == "mode offline":
+    # (« desactive le mode local » contient « active le mode local » : sans ce garde-fou, la désactivation ré-activait le mode et rechargeait le modèle)
+    if not any(m in t for m in mots_desactivation) and (any(m in t for m in mots_activation) or t == "mode local" or t == "mode offline"):
         print("[LOCAL RESOLVER] Commande d'activation du Mode Local détectée")
         builtins.FORCE_LOCAL_MODE = True
         # Modèle local chargé tout de suite : la 1re question n'attend pas ~30 s de chargement

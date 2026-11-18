@@ -80,9 +80,12 @@ MODELS_LIST = [
 ]
 # Ollama (LLMs locaux — fallback 100% offline)
 OLLAMA_URL = "http://127.0.0.1:11434"
-# Mesuré sur RTX 4070 Super (12 Go) : gemma4:12b = meilleur français, 1re phrase ~2 s ;
-# gemma4 (e4b) en secours = ~1 s, chargement 14 s au lieu de 45 s
-OLLAMA_MODELS = ["gemma4:12b", "gemma4:latest"]
+# Secours hors ligne (RTX 4070 Super, 12 Go) : qwen3:4b-instruct, 2,5 Go de poids, ~4 Go de VRAM avec le contexte de 10 240 jetons,
+# chargement ~17 s à froid puis 1er jeton en 0,05 s (mesuré le 18/11/2026 avec le vrai prompt de ~6 400 jetons). Le gemma4 12b de l'utilisateur
+# (huihui_ai/gemma-4-abliterated) reste à lui : JARVIS n'y touche pas. gemma4:e4b pèse 6,6 Go : trop pour un secours.
+OLLAMA_MODELS = ["qwen3:4b-instruct"]
+# Le prompt système seul fait ~6 400 jetons : le contexte par défaut d'Ollama (4 096) le refuse (HTTP 400) ; en deçà de la taille réelle, Ollama coupe le DÉBUT du prompt.
+OLLAMA_NUM_CTX = 10240
 
 # ── WebSocket / interface ────────────────────────────────────────────────────
 WS_LOOP = None

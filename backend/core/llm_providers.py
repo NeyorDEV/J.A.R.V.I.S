@@ -58,9 +58,9 @@ async def interroger_grok(texte, update_hist=True):
         return None
 
 
-# Ollama (local, sur la carte graphique) : le 1er appel charge le modèle en mémoire vidéo (~8 Go) ;
+# Ollama (local, sur la carte graphique) : le 1er appel charge le modèle en mémoire vidéo (~4 Go) ;
 # 26 à 45 s mesurés à froid, d'où le délai large. Le modèle est libéré après 10 min sans usage
-# (1 h en mode local forcé) : avant (keep_alive=-1) un seul secours gardait 8 Go de VRAM occupés
+# (1 h en mode local forcé) : avant (keep_alive=-1) un seul secours gardait plusieurs Go de VRAM occupés
 # jusqu'au redémarrage.
 DELAI_OLLAMA = 120.0
 
@@ -75,7 +75,7 @@ def prechauffer_ollama():
     def _charger():
         try:
             requests.post(f"{shared.OLLAMA_URL}/api/generate",
-                          json={"model": shared.OLLAMA_MODELS[0], "keep_alive": _garder_ollama()},
+                          json={"model": shared.OLLAMA_MODELS[0], "keep_alive": _garder_ollama(), "options": {"num_ctx": shared.OLLAMA_NUM_CTX}},   # même contexte que la requête de chat, sinon Ollama recharge le modèle
                           timeout=DELAI_OLLAMA)
             print(f"[OLLAMA] {shared.OLLAMA_MODELS[0]} chargé en mémoire vidéo.")
         except Exception as e:
@@ -107,6 +107,7 @@ async def interroger_ollama(texte, update_hist=True, skip_local=False):
                         "stream": True,
                         "think": False,  # pas de « réflexion » préalable : la voix doit démarrer vite
                         "keep_alive": _garder_ollama(),
+                        "options": {"num_ctx": shared.OLLAMA_NUM_CTX},
                     },
                     stream=True,
                     timeout=DELAI_OLLAMA
