@@ -48,6 +48,13 @@ async def _tri_confirme(data):
 async def executer_action(action, data, block, texte_utilisateur, reponse_propre):
     """Exécute une action JSON produite par le LLM (même ordre de priorité que la chaîne d'origine)."""
     module_catalogue.annoncer_pour_action(action)
+    from core import injection
+    if injection.doit_confirmer(action):
+        # Du contenu externe (page web, fichier, résultat de recherche) a été lu pendant cette commande : son texte a pu influencer l'action. On demande.
+        from core.confirmation import demander_confirmation
+        if not await demander_confirmation(None, f"J'ai lu du contenu externe (web ou fichier) avant cette action « {action} ». Je l'exécute ?"):
+            parler(f"D'accord{nom_virgule()}, je ne l'exécute pas.")
+            return
     if await _actions_systeme(action, data, block, texte_utilisateur, reponse_propre):
         return
     if await executer_actions_services(action, data, block, texte_utilisateur, reponse_propre):
@@ -203,10 +210,13 @@ async def _actions_systeme(action, data, block, texte_utilisateur, reponse_propr
             if texte_fichier is None:
                 parler(err_ou_chemin)
             else:
+                from core import injection
+                if injection.niveau_max(injection.marquer(f"fichier {nom}", texte_fichier)) >= injection.ELEVE:
+                    parler(f"Attention{nom_virgule()} : ce fichier contient des formules qui ressemblent à des ordres adressés à une IA. Je les ignore.")
                 prompt_analyse = (
                     f"URGENT : Tu es JARVIS, l'assistant personnel de {nom_createur()}. Tu réponds à {nom_ou_utilisateur()}.\n"
                     f"Tu viens d'extraire le contenu du fichier '{nom}'.\n"
-                    f"Voici ce contenu :\n\n{texte_fichier}\n\n"
+                    f"Voici ce contenu :\n\n{injection.entourer(texte_fichier, 'fichier ' + nom)}\n\n"
                     f"L'utilisateur demande : {question}\n"
                     f"Analyse ce contenu et réponds directement en restant dans ton personnage de JARVIS (poli, efficace, un peu sarcastique)."
                 )

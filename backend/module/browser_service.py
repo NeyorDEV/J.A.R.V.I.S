@@ -39,6 +39,11 @@ class AutonomousBrowser:
 
     async def get_page_content(self, url: str) -> str:
         """Navigue vers une URL et extrait le texte structuré."""
+        from core.injection import url_publique
+        ok_url, raison = url_publique(url)
+        if not ok_url:
+            print(f"[BROWSER] URL refusée ({raison}) : {url[:80]}")
+            return ""
         await self.start()
         page = await self.context.new_page()
         try:

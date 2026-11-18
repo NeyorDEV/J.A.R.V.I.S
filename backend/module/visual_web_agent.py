@@ -548,6 +548,11 @@ class VisualWebAgent:
                 url = step.get("url", "")
                 if not url.startswith("http"):
                     url = "https://" + url
+                from core.injection import url_publique
+                ok_url, raison = url_publique(url)
+                if not ok_url:   # l'URL vient de l'IA : jamais une adresse locale, privée ou de métadonnées cloud
+                    print(f"[VISUAL_AGENT] ⛔ URL refusée ({raison}) : {url[:80]}")
+                    return False
                 
                 # S'assurer que l'onglet est bien au premier plan
                 try:

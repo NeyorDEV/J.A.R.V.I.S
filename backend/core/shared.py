@@ -100,6 +100,7 @@ CURRENT_VERSION = "10.0.0"
 # ── Divers ───────────────────────────────────────────────────────────────────
 _plugins_prets = threading.Event()  # levé quand tous les plugins sont importés
 browser_agent = None                # AutonomousBrowser, créé au démarrage
+contenu_externe = False             # du contenu externe (web, fichier) a été lu pendant la commande en cours (core/injection.py)
 psutil = None                       # module psutil (importé au démarrage s'il est installé)
 CLIENT_LOCATION = None              # dict partagé avec module.weather_music_service
 CHESS_GAME = None

@@ -291,6 +291,8 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
         # Remis à zéro ICI, sous le verrou : avant, une 2e commande arrivée pendant la réponse de la 1re effaçait son état de dédoublonnage (elle reparlait sa réponse depuis le début)
         shared._derniere_reponse_streamed = False
         shared.phrases_streamed = []
+        from core import injection
+        injection.reinitialiser()   # nouvelle commande : aucun contenu externe lu pour l'instant
         shared.is_thinking = True
         reponse = None
         

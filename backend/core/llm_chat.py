@@ -132,6 +132,9 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
                     # Google Search uniquement si la question semble nécessiter des infos en temps réel
                     _need_search = besoin_recherche_web(texte)
                     _tools = [types.Tool(google_search=types.GoogleSearch())] if (_need_search and "3.1-flash-lite" not in model_name) else []
+                    if _tools:
+                        from core import injection
+                        injection.marquer("recherche Google (Gemini)")   # le web a pu influencer la réponse : les actions à effet demanderont confirmation
 
                     _t_stream = time.monotonic()
                     # 1. Création du stream avec un timeout adapté (plus long si recherche Google Search active)

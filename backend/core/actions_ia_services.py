@@ -197,6 +197,8 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         query = data.get("query", "")
         parler(f"Je cherche sur internet : {query}.")
         result = resume_recherche_web(query)
+        from core import injection
+        injection.marquer("recherche web", result)
         parler(result)
     elif action == "recherche_images":
         query = data.get("query", "")
@@ -228,7 +230,11 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
             parler(f"Je suis désolé{nom_espace()}, mais je n'ai pas pu accéder aux sites web pour le moment.")
         else:
             # On prépare un prompt pour que l'IA synthétise les résultats
-            context = "\n\n".join([f"Source: {d['url']}\nContenu: {d['content']}" for d in research_data])
+            from core import injection
+            for d in research_data:
+                if injection.niveau_max(injection.marquer(f"web {d['url']}", d["content"])) >= injection.ELEVE:
+                    d["content"] = "[contenu écarté : formules d'injection détectées]"
+            context = "\n\n".join([f"Source: {d['url']}\nContenu: " + injection.entourer(d["content"], d["url"]) for d in research_data])
             prompt_synthese = (
                 f"Voici les résultats de ma recherche approfondie sur '{query}' :\n\n"
                 f"{context}\n\n"
