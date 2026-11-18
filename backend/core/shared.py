@@ -20,6 +20,7 @@ RACINE_PROJET = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 # ── Traitement des commandes ─────────────────────────────────────────────────
 traiter_lock = asyncio.Lock()
 historique = []                     # remplacé au démarrage par l'historique récent
+resume_session = ""                # résumé des échanges sortis de la fenêtre (core/compression.py)
 _derniere_reponse_streamed = False
 phrases_streamed = []
 is_thinking = False

@@ -121,6 +121,9 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
             recent = shared.historique[-4:] if getattr(shared, "ACTIVE_SPEAKER", "") == "guest" else shared.historique[-60:]   # un invité ne reçoit pas les échanges du créateur
             if recent and getattr(recent[0], "role", "") == "model":
                 recent = recent[1:]   # Gemini veut un premier message « user »
+            if getattr(shared, "resume_session", "") and getattr(shared, "ACTIVE_SPEAKER", "") != "guest":
+                recent = [types.Content(role="user", parts=[types.Part(text="[Résumé de la conversation précédente] " + shared.resume_session)]),
+                          types.Content(role="model", parts=[types.Part(text="Bien noté.")])] + list(recent)
             temp_hist = recent + [types.Content(role="user", parts=[types.Part(text=texte)])]
             _t_prompt = time.monotonic()
             prompt_actuel = composer_prompt_systeme(souvenirs=souvenirs)
@@ -197,6 +200,8 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
                         shared.historique.append(types.Content(role="model", parts=[types.Part(text=full_text)]))
                         _archiver_echange(texte, full_text)
                         ajouter_souvenir(texte, full_text)
+                        from core import compression
+                        asyncio.ensure_future(compression.compresser_en_fond())   # résumé des vieux échanges, en arrière-plan
                     
                     if not skip_local and '{' not in full_text and sentence_buffer.strip() and not get_stop_parler():
                         shared._derniere_reponse_streamed = True
