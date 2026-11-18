@@ -58,7 +58,7 @@ jobs:
   tests:
     name: Tests (pytest)
     # Tests des parties pures (confirmation vocale, filtre d'hallucinations, « répète », conversions des données de la Vue de Dieu, analyse des commandes) :
-    # aucune dépendance de l'application, seulement pytest et requests. Les tests qui ouvrent un navigateur ou touchent au PC restent dans scratch/outils_test (voir tests/README.md).
+    # aucune dépendance de l'application, seulement pytest, requests et defusedxml (analyse XML des données de la Vue de Dieu) ; les fichiers qui importent le reste de l'appli s'ignorent d'eux-mêmes (pytest.skip). Les tests qui ouvrent un navigateur ou touchent au PC restent dans scratch/outils_test (voir tests/README.md).
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -70,7 +70,7 @@ jobs:
 
       - name: Tests
         run: |
-          python -m pip install --quiet pytest==9.2.0 requests==2.34.2
+          python -m pip install --quiet pytest==9.2.0 requests==2.34.2 defusedxml==0.7.1
           python -m pytest tests -q
 
   frontend:
