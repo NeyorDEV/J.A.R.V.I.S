@@ -38,7 +38,8 @@ _MODULES_INTERDITS = {
 
 _APPELS_INTERDITS = {
     "eval", "exec", "compile", "__import__", "breakpoint",
-    "system", "popen", "spawn", "spawnl", "spawnv", "execv", "execve",
+    "system", "popen", "spawn", "spawnl", "spawnle", "spawnlp", "spawnlpe", "spawnv", "spawnve", "spawnvp", "spawnvpe",
+    "execl", "execle", "execlp", "execlpe", "execv", "execve", "execvp", "execvpe",
     "rmtree", "unlink", "rmdir", "removedirs", "chmod", "chown",
     "kill", "killpg", "startfile",
     # Écriture / déplacement de fichiers (pathlib, os) et accès indirects aux fonctions
@@ -77,11 +78,15 @@ def scanner_appels_dangereux(code: str, autoriser_builtins: bool = False):
         elif isinstance(noeud, ast.ImportFrom):
             if (noeud.module or "").split(".")[0] in _MODULES_INTERDITS:
                 return False, f"import interdit : {noeud.module}"
+            # « from os import system as run » : le nom change à l'appel, il faut l'arrêter à l'import
+            for alias in noeud.names:
+                if alias.name in _APPELS_INTERDITS:
+                    return False, f"import interdit : {alias.name} (depuis {noeud.module})"
         elif isinstance(noeud, ast.Name) and noeud.id in _NOMS_INTERDITS:
             return False, f"nom interdit : {noeud.id} (ligne {getattr(noeud, 'lineno', '?')})"
-        elif isinstance(noeud, ast.Attribute) and (noeud.attr.startswith("__") or noeud.attr in _NOMS_INTERDITS):
-            # __class__, __subclasses__, __globals__…, builtins.getattr / builtins.eval :
-            # remontée vers les fonctions interdites
+        elif isinstance(noeud, ast.Attribute) and (noeud.attr.startswith("__") or noeud.attr in _NOMS_INTERDITS or noeud.attr in _APPELS_INTERDITS):
+            # __class__, __subclasses__, __globals__…, builtins.getattr / builtins.eval : remontée vers les fonctions interdites.
+            # Aussi sans appel (« f = os.system » puis « f(...) ») : la référence seule est refusée.
             return False, f"attribut interdit : {noeud.attr} (ligne {getattr(noeud, 'lineno', '?')})"
         elif isinstance(noeud, ast.Call):
             f = noeud.func

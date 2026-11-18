@@ -34,6 +34,16 @@ FICHIER_VERSION = os.path.join(DATA, "version.json")
 VITE = os.path.join(DOSSIER, "node_modules", "vite", "bin", "vite.js")
 CONFIG_JARVIS = "jarvis.vite.config.mjs"
 JOURNAL = os.path.join(RACINE, "data", "gods_eye_view.log")
+JOURNAL_MAX = 5_000_000   # octets : au-delà, il est vidé à l'ouverture (il atteignait 3 Mo en une semaine, sans limite)
+
+
+def _ouvrir_journal():
+    try:
+        if os.path.getsize(JOURNAL) > JOURNAL_MAX:
+            os.remove(JOURNAL)
+    except OSError:
+        pass
+    return open(JOURNAL, "ab")
 DEPOT = "bilawalsidhu/gods-eye-view"
 API = f"https://api.github.com/repos/{DEPOT}"
 UA = {"User-Agent": "JARVIS-Assistant/1.0 (personal use)", "Accept": "application/vnd.github+json"}
@@ -1324,7 +1334,7 @@ def _npm_ci(node: str, dossier: str, progres) -> None:
     env = _environnement({"PUPPETEER_SKIP_DOWNLOAD": "1", "PATH": os.path.dirname(node) + os.pathsep + os.environ.get("PATH", "")})
     progres("INSTALLATION DES DÉPENDANCES · 2 À 5 MINUTES", None)
     os.makedirs(os.path.dirname(JOURNAL), exist_ok=True)
-    with open(JOURNAL, "ab") as journal:
+    with _ouvrir_journal() as journal:
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         p = subprocess.Popen([node, npm, "ci", "--no-audit", "--no-fund"], cwd=dossier, env=env, stdout=journal, stderr=subprocess.STDOUT,
                              stdin=subprocess.DEVNULL, creationflags=flags)
@@ -1584,7 +1594,7 @@ def demarrer():
             _ecrire_config(DOSSIER)
             verifier_surcharges()
             os.makedirs(os.path.dirname(JOURNAL), exist_ok=True)
-            journal = open(JOURNAL, "ab")
+            journal = _ouvrir_journal()
             flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
             _proc = subprocess.Popen([node, VITE, "--config", CONFIG_JARVIS, "--strictPort"], cwd=DOSSIER, env=env, stdout=journal,
                                      stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, creationflags=flags)

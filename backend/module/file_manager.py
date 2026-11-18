@@ -70,10 +70,7 @@ def afficher_dossier(chemin):
         return False, f"Dossier introuvable : {chemin_resolu}"
     dossier_courant = chemin_resolu
     # Utilisation de Popen pour ne pas bloquer
-    if chemin_resolu.startswith("shell:"):
-        subprocess.Popen(f'explorer "{chemin_resolu}"', shell=True)
-    else:
-        subprocess.Popen(['explorer', chemin_resolu])
+    subprocess.Popen(['explorer', chemin_resolu])   # sans shell : « shell:… » est compris par explorer lui-même
     return True, chemin_resolu
 
 def disposer_fenetres_dossiers():
@@ -115,10 +112,42 @@ def enumerer_dossier(chemin=None):
             dossiers.append(item.name)
     return {"chemin": cible, "fichiers": fichiers, "dossiers": dossiers}, None
 
+def _tri_interdit(cible):
+    """Raison pour laquelle on ne trie JAMAIS ce dossier (système, programmes, racine de disque, profil), ou None. Le dossier à trier vient de l'IA :
+    {"chemin": "C:\\Windows"} rangeait les fichiers de Windows dans des sous-dossiers « Images », « Documents »…"""
+    p = os.path.normcase(os.path.abspath(cible))
+    if os.path.dirname(p) == p:
+        return "la racine d'un disque"
+    for nom in ("SystemRoot", "ProgramFiles", "ProgramFiles(x86)", "ProgramData", "APPDATA", "LOCALAPPDATA"):
+        d = os.environ.get(nom)
+        if d:
+            d = os.path.normcase(os.path.abspath(d))
+            if p == d or p.startswith(d + os.sep):
+                return "un dossier système ou de programmes"
+    profil = os.environ.get("USERPROFILE")
+    if profil and p == os.path.normcase(os.path.abspath(profil)):
+        return "le dossier du profil utilisateur"
+    return None
+
+
+def apercu_tri(chemin=None):
+    """(dossier, nombre de fichiers du niveau supérieur) que le tri déplacerait ; (None, 0) si invalide ou interdit."""
+    cible = interpreter_chemin(chemin) or dossier_courant
+    if not cible or not os.path.isdir(cible) or _tri_interdit(cible):
+        return None, 0
+    try:
+        return cible, sum(1 for e in os.scandir(cible) if e.is_file())
+    except OSError:
+        return None, 0
+
+
 def classer_par_type(chemin=None):
     cible = interpreter_chemin(chemin) or dossier_courant
     if not cible or not os.path.exists(cible):
         return False, "Aucun dossier ouvert ou invalide."
+    raison = _tri_interdit(cible)
+    if raison:
+        return False, f"Je ne trie pas {raison}."
     deplacements = 0
     erreurs      = 0
     categories   = {}
@@ -148,6 +177,9 @@ def classer_par_date(chemin=None):
     cible = interpreter_chemin(chemin) or dossier_courant
     if not cible or not os.path.exists(cible):
         return False, "Aucun dossier ouvert ou invalide."
+    raison = _tri_interdit(cible)
+    if raison:
+        return False, f"Je ne trie pas {raison}."
     deplacements = 0
     erreurs      = 0
     for item in os.scandir(cible):
@@ -189,6 +221,8 @@ def creer_dossier_enfant(nom, chemin=None):
     if not cible:
         return False, "Aucun dossier ouvert."
     nouveau = os.path.join(cible, nom)
+    if not _dans_le_dossier(cible, nouveau):
+        return False, "Le nom sort du dossier ouvert : refusé."
     try:
         os.makedirs(nouveau, exist_ok=True)
         return True, f"Dossier {nom} cree."
@@ -201,6 +235,10 @@ def changer_nom_fichier(ancien_nom, nouveau_nom, chemin=None):
         return False, "Aucun dossier ouvert."
     ancien = os.path.join(cible, ancien_nom)
     nouveau = os.path.join(cible, nouveau_nom)
+    if not _dans_le_dossier(cible, ancien, nouveau):   # le nom vient de l'IA : « ..\\x » ou un chemin absolu déplaçait / renommait hors du dossier ouvert
+        return False, "Le nom sort du dossier ouvert : refusé."
+    if os.path.exists(nouveau):
+        return False, "Un fichier porte déjà ce nom : je n'écrase rien."
     try:
         os.rename(ancien, nouveau)
         return True, f"Fichier renomme en {nouveau_nom}."
@@ -213,6 +251,16 @@ def transferer_fichier(nom_fichier, dossier_dest, chemin=None):
         return False, "Aucun dossier ouvert."
     source = os.path.join(cible, nom_fichier)
     dest   = os.path.join(cible, dossier_dest, nom_fichier)
+    # Tout reste DANS le dossier ouvert : un chemin absolu ou « .. » (venu de l'IA) sortait de `cible`, et shutil.move écrasait en silence un fichier de même nom (copie par-dessus sous Windows).
+    racine = os.path.realpath(cible)
+    try:
+        dedans = all(os.path.commonpath([racine, os.path.realpath(p)]) == racine for p in (source, dest))
+    except ValueError:   # autre lecteur (D: contre C:)
+        dedans = False
+    if not dedans:
+        return False, f"{dossier_dest} est en dehors du dossier ouvert."
+    if os.path.exists(dest):
+        return False, f"{nom_fichier} existe déjà dans {dossier_dest} : je n'écrase rien."
     try:
         os.makedirs(os.path.join(cible, dossier_dest), exist_ok=True)
         shutil.move(source, dest)
@@ -220,14 +268,19 @@ def transferer_fichier(nom_fichier, dossier_dest, chemin=None):
     except Exception as e:
         return False, f"Erreur deplacement : {e}"
 
-def rechercher_fichier(nom, scan_global=True, type_cible=None):
+_DOSSIERS_IGNORES = {"appdata", "windows", "programdata", "program data", "$recycle.bin", "windowsapps", "windows.old", "system volume information"}
+
+
+def rechercher_fichier(nom, scan_global=True, type_cible=None, delai=20.0):
     """
     Cherche un fichier ou un dossier par son nom.
     Si scan_global est True, cherche dans tous les dossiers utilisateurs et sur les disques.
     type_cible peut être 'fichier', 'dossier' ou None (les deux).
     """
     resultats = []
-    
+    fin = time.monotonic() + delai   # un disque entier se parcourt en minutes : on s'arrête à `delai` s et on rend ce qu'on a trouvé
+    trop_long = (f"La recherche a pris plus de {int(delai)} secondes sans rien trouver.")
+
     if scan_global:
         userprofile = os.environ.get("USERPROFILE", "")
         from core.dossiers import dossiers_personnels
@@ -253,8 +306,11 @@ def rechercher_fichier(nom, scan_global=True, type_cible=None):
             if not os.path.exists(base): continue
             try:
                 for root, dirs, files in os.walk(base):
-                    # On évite certains dossiers système trop profonds ou verrouillés
-                    if any(x in root.lower() for x in ["appdata", "windows", "program data", "$recycle.bin"]):
+                    if time.monotonic() > fin:
+                        return resultats, (None if resultats else trop_long)
+                    # On évite certains dossiers système trop profonds ou verrouillés : le NOM du dossier, pas tout le chemin
+                    # (avant, « D:\Jeux\Windows Games » ou « Documents\Mes notes Windows » n'étaient jamais fouillés)
+                    if os.path.basename(root).lower() in _DOSSIERS_IGNORES:
                         dirs.clear() # Ne pas descendre plus bas
                         continue
                         
@@ -283,6 +339,8 @@ def rechercher_fichier(nom, scan_global=True, type_cible=None):
         # Recherche locale uniquement
         cible = dossier_courant or os.getcwd()
         for root, dirs, files in os.walk(cible):
+            if time.monotonic() > fin:
+                return resultats, (None if resultats else trop_long)
             if type_cible is None or type_cible == "dossier":
                 for d in dirs:
                     if nom.lower() in d.lower():
@@ -294,10 +352,36 @@ def rechercher_fichier(nom, scan_global=True, type_cible=None):
                     
     return resultats, None
 
+_SUFFIXES_EXECUTABLES = {".exe", ".bat", ".cmd", ".ps1", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".msi", ".scr", ".com", ".lnk", ".hta", ".jar", ".reg", ".pif"}
+_SUFFIXES_SECRETS = {".pem", ".key", ".pfx", ".p12", ".pickle", ".kdbx"}
+_FICHIERS_SECRETS = {"jarvis_config.json", "token.json", "credentials.json", "client_secret.json", "token.pickle"}
+
+
+def _fichier_sensible(chemin):
+    """Clés, jetons, .env, empreintes vocales, coffre-fort : jamais lus pour l'IA (leur contenu partirait dans le prompt d'un LLM cloud, et pourrait être prononcé)."""
+    p = os.path.normcase(os.path.abspath(chemin))
+    nom = os.path.basename(p)
+    parties = set(p.split(os.sep))
+    return (nom.startswith(".env") or nom in _FICHIERS_SECRETS or os.path.splitext(nom)[1] in _SUFFIXES_SECRETS
+            or bool(parties & {"voiceprints", ".jarvis_vault"}))
+
+
+def _dans_le_dossier(cible, *chemins):
+    """True si tous les chemins restent DANS `cible` (ni chemin absolu, ni « .. », ni autre lecteur)."""
+    racine = os.path.realpath(cible)
+    try:
+        return all(os.path.commonpath([racine, os.path.realpath(p)]) == racine for p in chemins)
+    except ValueError:
+        return False
+
+
 def ouvrir_fichier_ou_dossier(chemin):
     """Ouvre un fichier avec son application par défaut ou un dossier dans l'explorateur."""
     if not chemin or not os.path.exists(chemin):
         return False, "Élément introuvable."
+    # Un chemin choisi par l'IA (« trouve le fichier install » -> install.bat) ne doit jamais LANCER un programme
+    if os.path.isfile(chemin) and os.path.splitext(chemin)[1].lower() in _SUFFIXES_EXECUTABLES:
+        return False, "Je n'ouvre pas les programmes et scripts de cette façon : ouvrez-le vous-même."
     
     try:
         os.startfile(chemin)
@@ -305,7 +389,7 @@ def ouvrir_fichier_ou_dossier(chemin):
     except Exception:
         # Fallback subprocess
         try:
-            subprocess.Popen(['explorer', chemin] if os.path.isdir(chemin) else [chemin], shell=True)
+            subprocess.Popen(['explorer', chemin] if os.path.isdir(chemin) else [chemin])
             return True, f"Ouverture (via shell) de : {os.path.basename(chemin)}"
         except Exception as e2:
             return False, f"Erreur lors de l'ouverture : {e2}"
@@ -355,6 +439,8 @@ def lire_fichier(nom_fichier, chemin=None):
 
     if not chemin_complet or not os.path.exists(chemin_complet):
         return None, f"Le fichier '{nom_fichier}' est introuvable."
+    if _fichier_sensible(chemin_complet):
+        return None, "Je ne lis pas ce fichier : il contient des secrets."
 
     print(f"[FILE_MANAGER] Lecture du fichier : {chemin_complet}")
 

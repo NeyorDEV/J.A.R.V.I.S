@@ -319,7 +319,7 @@ def _liens(url: str) -> list:
 
 def _extraire_bulletin(xml: str) -> dict:
     """XML d'un bulletin -> champs utiles (niveaux 1 à 5 ; altitude et niveau du versant haut quand le risque change avec l'altitude)."""
-    import xml.etree.ElementTree as ET
+    import defusedxml.ElementTree as ET
     racine = ET.fromstring(xml.encode("utf-8"))
     risque = racine.find("./CARTOUCHERISQUE/RISQUE")
     a = risque.attrib if risque is not None else {}
@@ -442,7 +442,7 @@ CATEGORIES_TRAFIC = {   # type DATEX II -> (catégorie, libellé)
 
 def convertir_trafic(xml: str, maintenant=None) -> list:
     """DATEX II -> événements EN COURS (début passé, fin non passée) avec position : [catégorie, libellé, lat, lon, texte, gravité, début, fin, route]."""
-    import xml.etree.ElementTree as ET
+    import defusedxml.ElementTree as ET
     maintenant = maintenant or datetime.now(timezone.utc)
     sortie = []
     racine = ET.fromstring(xml.encode("utf-8") if isinstance(xml, str) else xml)

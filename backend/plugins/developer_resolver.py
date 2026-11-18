@@ -105,6 +105,13 @@ def _chemin_projet(file_path: str):
         cible = os.path.abspath(os.path.join(ROOT_DIR, file_path))
         if os.path.commonpath([cible, ROOT_DIR]) != ROOT_DIR:
             return None
+        parties = [p.lower() for p in os.path.relpath(cible, ROOT_DIR).split(os.sep)]
+        # Périmètre : le code (backend/, interfaces/frontend/). Jamais .env, start.bat, .git/, config/, data/… (exécutés au lancement ou secrets),
+        # ni les empreintes vocales, node_modules et dist.
+        if not (parties[0] == "backend" or parties[:2] == ["interfaces", "frontend"]):
+            return None
+        if any(p in ("voiceprints", "node_modules", "dist", "__pycache__", "sandbox") for p in parties) or parties[-1].startswith(".env")                 or os.path.splitext(parties[-1])[1] in (".bat", ".cmd", ".ps1", ".pickle", ".pem", ".key"):
+            return None
         return cible
     except Exception:
         return None
@@ -112,6 +119,7 @@ def _chemin_projet(file_path: str):
 
 # Dernier lot de fichiers modifiés, pour le rollback demandé à la voix
 _DERNIERS_FICHIERS_MODIFIES = []
+_SAUVEGARDES = {}   # chemin -> contenu d'origine du dernier lot appliqué (voir appliquer_edits)
 
 
 def appliquer_edits(edits):
@@ -120,9 +128,35 @@ def appliquer_edits(edits):
     Retourne la liste des chemins relatifs touchés, pour permettre une annulation
     ciblée en cas d'échec de validation (cf. _annuler_modifications).
     """
-    global _DERNIERS_FICHIERS_MODIFIES
+    global _DERNIERS_FICHIERS_MODIFIES, _SAUVEGARDES
     touches = []
-    for edit in edits:
+    lot = {}   # chemin -> octets d'origine (None si le fichier n'existait pas) : ce qu'on restaure, JAMAIS git (git checkout effaçait aussi le travail non commité)
+    try:
+        for edit in edits:
+            _appliquer_un_edit(edit, touches, lot)
+    except Exception:
+        _restaurer(lot)   # un lot appliqué à moitié ne reste jamais
+        raise
+    _SAUVEGARDES = lot
+    _DERNIERS_FICHIERS_MODIFIES = list(touches)
+    return touches
+
+
+def _restaurer(lot):
+    for chemin, octets in lot.items():
+        try:
+            if octets is None:
+                if os.path.exists(chemin):
+                    os.remove(chemin)
+            else:
+                with open(chemin, "wb") as f:
+                    f.write(octets)
+        except Exception as e:
+            print(f"[MUTATOR] Restauration impossible pour {chemin} : {e}")
+
+
+def _appliquer_un_edit(edit, touches, lot):
+    if True:
         file_path = edit.get("file_path", "")
         target = edit.get("target_code", "")
         replacement = edit.get("replacement_code", "")
@@ -131,6 +165,8 @@ def appliquer_edits(edits):
         if path is None:
             raise ValueError(f"Chemin refusé (hors projet) : {file_path!r}")
         touches.append(file_path)
+        if path not in lot:
+            lot[path] = open(path, "rb").read() if os.path.exists(path) else None
 
         # 1. Création de fichier
         if target == "":
@@ -160,34 +196,23 @@ def appliquer_edits(edits):
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new_content)
             print(f"[MUTATOR] Fichier modifié : {path}")
-    _DERNIERS_FICHIERS_MODIFIES = list(touches)
-    return touches
 
 
 def _annuler_modifications(fichiers):
-    """Annule UNIQUEMENT les fichiers que nous venons de toucher.
+    """Remet les fichiers que nous venons de toucher dans l'état exact où ils étaient AVANT l'édition (copie gardée en mémoire par appliquer_edits).
 
-    Remplace l'ancien « git reset --hard HEAD » + « git clean -fd », qui
-    détruisait l'intégralité du travail non commité de l'utilisateur (y compris
-    les fichiers non suivis) à chaque échec de validation.
+    Ni « git reset --hard », ni « git checkout -- fichier » : les deux effaçaient aussi le travail non commité de l'utilisateur dans ces fichiers.
+    Après un redémarrage de JARVIS la copie n'existe plus : rien n'est touché (et on le dit).
     """
     for rel in fichiers or []:
         chemin = _chemin_projet(rel)
         if chemin is None:
             continue
-        suivi = subprocess.run(["git", "ls-files", "--error-unmatch", rel],
-                               cwd=ROOT_DIR, capture_output=True)
-        if suivi.returncode == 0:
-            subprocess.run(["git", "checkout", "--", rel], cwd=ROOT_DIR, capture_output=True)
-            print(f"[MUTATOR] Restauré depuis git : {rel}")
+        if chemin in _SAUVEGARDES:
+            _restaurer({chemin: _SAUVEGARDES[chemin]})
+            print(f"[MUTATOR] Restauré à l'identique : {rel}")
         else:
-            # Fichier créé par nous et non suivi : on le retire
-            try:
-                if os.path.exists(chemin):
-                    os.remove(chemin)
-                    print(f"[MUTATOR] Fichier créé supprimé : {rel}")
-            except Exception as e:
-                print(f"[MUTATOR] Impossible de supprimer {rel} : {e}")
+            print(f"[MUTATOR] Aucune copie en mémoire pour {rel} : laissé tel quel.")
 
 
 def compiler_et_valider():
@@ -263,6 +288,13 @@ async def resoudre_developpement(cmd):
             return (f"Je n'ai aucune modification récente à annuler{nom_virgule()}. "
                     "Je n'effectue plus de restauration globale du dépôt : "
                     "elle effacerait aussi vos propres changements non enregistrés.")
+        # Créateur seulement, et après confirmation : « fais un retour en arrière sur la vidéo » (sous-chaîne) réécrivait les fichiers d'origine sans rien demander
+        from core.interlocuteur import CREATEUR
+        if (getattr(builtins, "ACTIVE_SPEAKER", "guest") or "guest").lower() != CREATEUR:
+            return f"Seul mon créateur peut annuler mes modifications{nom_virgule()}."
+        from core.confirmation import demander_confirmation
+        if not await demander_confirmation(None, f"Annuler mes dernières modifications de code ({len(_DERNIERS_FICHIERS_MODIFIES)} fichier{'s' if len(_DERNIERS_FICHIERS_MODIFIES) > 1 else ''}) ?"):
+            return f"D'accord{nom_virgule()}, je ne touche à rien."
         _annuler_modifications(_DERNIERS_FICHIERS_MODIFIES)
         
         # Envoyer une carte visuelle au HUD
@@ -336,6 +368,7 @@ async def resoudre_developpement(cmd):
         edits = []
         test_instructions = ""
         success = False
+        _confirmes = set()   # fichiers pour lesquels l'utilisateur a dit oui
         
         for attempt in range(3):
             try:
@@ -369,13 +402,18 @@ async def resoudre_developpement(cmd):
                     edits = response_data.get("edits", [])
                     test_instructions = response_data.get("test_instructions", "")
                 
-                if attempt == 0:
-                    from core.confirmation import demander_confirmation
-                    fichiers = sorted({str(e.get("file_path", "?")) for e in edits})
+                # Confirmation pour CHAQUE fichier jamais confirmé : à l'essai 2 ou 3 l'IA « corrige » avec un nouveau plan, qui pouvait toucher d'autres fichiers sans qu'on redemande.
+                from core.confirmation import demander_confirmation
+                fichiers = sorted({str(e.get("file_path", "?")) for e in edits})
+                nouveaux = [f for f in fichiers if f not in _confirmes]
+                if not edits or nouveaux:
+                    debut = "Je vais modifier" if attempt == 0 else "Pour corriger, je dois aussi modifier"
                     if not edits or not await demander_confirmation(
-                            None, f"Je vais modifier {len(fichiers)} fichier{'s' if len(fichiers) > 1 else ''} : "
-                                  f"{', '.join(fichiers[:4])}{'…' if len(fichiers) > 4 else ''}. J'applique ?"):
-                        return f"Modifications annulées, aucun fichier n'a été touché{nom_virgule()}."
+                            None, f"{debut} {len(nouveaux)} fichier{'s' if len(nouveaux) > 1 else ''} : "
+                                  f"{', '.join(nouveaux[:4])}{'…' if len(nouveaux) > 4 else ''}. J'applique ?"):
+                        _annuler_modifications(_DERNIERS_FICHIERS_MODIFIES if attempt else [])
+                        return f"Modifications annulées{nom_virgule()}."
+                    _confirmes.update(nouveaux)
                 print(f"[MUTATOR] Application des modifications (tentative {attempt+1})...")
                 # On mémorise les fichiers touchés pour pouvoir les restaurer
                 # individuellement en cas d'échec (annulation ciblée).

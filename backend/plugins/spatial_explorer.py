@@ -4,6 +4,7 @@ Gère toutes les actions de l'explorateur de fichiers spatial 3D.
 Réutilise les fonctions existantes de module/file_manager.py.
 """
 
+import asyncio
 import os
 import json
 import shutil
@@ -311,7 +312,7 @@ async def _handle_move(data: dict, websocket) -> None:
                     break
                 counter += 1
 
-        shutil.move(source, dest_final)
+        await asyncio.to_thread(shutil.move, source, dest_final)   # copier 5 Go de C: vers D: gelait tout le backend (HUD, voix) pendant la copie
         await websocket.send(json.dumps({
             "type": "spatial_result",
             "action": "move",

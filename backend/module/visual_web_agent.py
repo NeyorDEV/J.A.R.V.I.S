@@ -7,6 +7,7 @@ pour accomplir n'importe quelle tâche complexe sur le web de façon autonome.
 Flux : LLM Planning → Boucle (Screenshot → Vision → Action → Confirm) → Résultat vocal
 """
 
+import urllib.parse
 import asyncio
 import base64
 import json
@@ -481,6 +482,15 @@ class VisualWebAgent:
         print(f"[VISUAL_AGENT] ⌨️  Texte tapé à ({cx}, {cy}) sur viewport réel ({width}x{height}) : {text}")
 
     async def _execute_step(self, step: dict) -> bool:
+        """Garde-fou avant chaque étape : l'agent tourne dans le vrai profil Opera GX (sessions ouvertes), jamais sur un site de banque / paiement / impôts."""
+        for url in (self.page.url if self.page else "", str(step.get("url") or step.get("text") or "")):
+            hote = urllib.parse.urlparse(url if "//" in url else "//" + url).hostname or ""
+            if any(m in hote.lower() for m in SITES_INTERDITS_AGENT):
+                print(f"[VISUAL_AGENT] ⛔ Étape refusée : site sensible ({hote}).")
+                return False
+        return await self._execute_step_brut(step)
+
+    async def _execute_step_brut(self, step: dict) -> bool:
         """
         Exécute une étape du plan de l'agent.
         Retourne True si l'étape réussit, False sinon.
@@ -1516,6 +1526,11 @@ def get_visual_agent() -> VisualWebAgent:
     if _visual_agent_instance is None:
         _visual_agent_instance = VisualWebAgent()
     return _visual_agent_instance
+
+
+# Fragments de nom d'hôte : l'agent n'agit jamais sur ces sites (banque, paiement, impôts, santé), même si une page le lui demande.
+SITES_INTERDITS_AGENT = ("paypal", "banque", "bank", "boursorama", "revolut", "creditmutuel", "credit-agricole", "caisse-epargne", "societegenerale",
+                         "bnpparibas", "lcl.fr", "stripe.com", "impots.gouv", "ameli.fr", "franceconnect", "checkout")
 
 
 async def run_visual_agent(task: str) -> str:

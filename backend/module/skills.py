@@ -132,8 +132,10 @@ def approuver(nom):
     valeur = empreinte(skills[nom]["dossier"])
     donnees = _approbations()
     donnees[nom] = {"sha256": valeur, "date": time.strftime("%Y-%m-%d %H:%M:%S")}
-    with open(_FICHIER_APPROBATIONS, "w", encoding="utf-8") as f:
+    tmp = _FICHIER_APPROBATIONS + ".tmp"   # fichier temporaire puis os.replace : une coupure en plein écriture ne vide plus la liste des approbations
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(donnees, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, _FICHIER_APPROBATIONS)
     return valeur
 
 

@@ -555,7 +555,8 @@ async def run_dev_swarm_process(user_request, target_dir=None):
                     if os.path.isdir(full_p):
                         # Accepte le nom exact ou n'importe quel mot-clé distinctif (>3 lettres) du nom de projet (ex: "apexmind" -> "apexmind_studio_saas")
                         item_tokens = [t for t in item.lower().replace('_', ' ').split() if len(t) >= 4]
-                        if item.lower() in req_clean or any(token in req_clean for token in item_tokens):
+                        # Mots ENTIERS : « studio » (sous-chaîne) dans « un site pour mon studio photo » basculait en retouche d'un projet existant et réécrivait ses fichiers
+                        if re.search(r"\b" + re.escape(item.lower()) + r"\b", req_clean) or any(re.search(r"\b" + re.escape(token) + r"\b", req_clean) for token in item_tokens):
                             custom_target_dir = full_p
                             is_multi_turn_edit = True
                             existing_files = [os.path.relpath(os.path.join(r, f), full_p).replace('\\', '/')
@@ -1167,13 +1168,22 @@ async def resoudre_lance_sandbox(cmd):
         import subprocess
         if entry_point.endswith(".py"):
             try:
+                # Un script refusé en QA restait sur disque et se lançait ici avec tous les droits : même contrôle de sûreté que l'exécution en sandbox, puis confirmation
+                from module.competences import scanner_appels_dangereux
+                from core.confirmation import demander_confirmation
+                with open(file_full_path, encoding="utf-8", errors="ignore") as _f_scan:
+                    ok_scan, raison_scan = scanner_appels_dangereux(_f_scan.read())
+                if not ok_scan:
+                    return f"Je ne lance pas ce script{nom_virgule()} : il ne passe pas le contrôle de sûreté ({raison_scan})."
+                if not await demander_confirmation(None, f"Lancer le script {entry_point} du projet {project_name} dans un terminal ?"):
+                    return f"D'accord{nom_virgule()}, je ne le lance pas."
                 # Utiliser le venv python si disponible
-                python_exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "venv", "Scripts", "python.exe")
+                python_exe = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "venv", "Scripts", "python.exe")   # backend/plugins/../../venv (c'était backend/venv, qui n'existe pas)
                 if not os.path.exists(python_exe):
                     python_exe = "python"
 
                 # Lancer dans une nouvelle console cmd sous Windows
-                subprocess.Popen(f'start cmd /k ""{python_exe}" "{file_full_path}""', shell=True)
+                subprocess.Popen(["cmd", "/k", python_exe, file_full_path], creationflags=subprocess.CREATE_NEW_CONSOLE)   # sans shell : un nom de projet venu du LLM ne peut pas injecter de commande
                 return f"Très bien{nom_espace()}, je lance le script `{entry_point}` du projet `{project_name}` dans un nouveau terminal."
             except Exception as e:
                 return f"Désolé{nom_espace()}, je n'ai pas pu exécuter le script. Erreur : {e}"
