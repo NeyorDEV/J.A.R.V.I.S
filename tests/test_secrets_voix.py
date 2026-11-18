@@ -6,7 +6,7 @@ from core.secrets_voix import MARQUE, masquer
 
 @pytest.mark.parametrize("secret", [
     "sk-ant-api03-AbCdEf1234567890AbCdEf1234567890",
-    "AIzaSyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q",
+    "AIza" + "SyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q",   # coupée en deux : un faux, mais GitHub (secret scanning) le signalait comme clé Google valide
     "gsk_AbCdEf1234567890AbCdEf1234567890",
     "ghp_AbCdEf1234567890AbCdEf1234567890",
     "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcDEF123456",
