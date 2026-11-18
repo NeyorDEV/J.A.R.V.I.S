@@ -67,6 +67,21 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, p
     Returns:
         str: texte transcrit en minuscules, ou None si échec total
     """
+    # --- TENTATIVE 0 : Whisper local sur le GPU (core/stt_local.py) : sans quota, sans réseau ---
+    from core import stt_local
+    from core.hallucinations import est_hallucination
+    t0 = time.time()
+    texte_local = stt_local.transcrire(raw_audio_bytes, sample_rate, prompt)
+    if texte_local == "":
+        return None   # le modèle local a entendu du silence : pas de repli vers Groq / Google (quota, voix envoyée à un tiers) pour chaque faux déclenchement du VAD
+    if texte_local is not None:
+        if est_hallucination(texte_local):
+            return None   # même règle que pour Groq : bruit pris pour de la parole, pas de repli
+        if len(texte_local) > 1:
+            if shared.jarvis_actif or (shared.WAKE_WORD in texte_local):
+                print(f"[STT] Whisper local OK ({time.time() - t0:.2f}s) : {texte_local}")
+            return texte_local
+
     # --- TENTATIVE 1 : Groq Whisper (ultra-rapide, ~150ms) ---
     if shared.groq_client:
         try:
@@ -81,7 +96,7 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, p
             
             audio_buffer.seek(0)
             # Appel API Groq Whisper
-            transcription = shared.groq_client.audio.transcriptions.create(
+            transcription = shared.groq_client.with_options(timeout=8).audio.transcriptions.create(
                 file=("audio.wav", audio_buffer.read()),
                 model="whisper-large-v3-turbo",
                 language="fr",
@@ -118,6 +133,7 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, p
         try:
             audio_data = sr.AudioData(raw_audio_bytes, sample_rate, 2)
             _noter_stt("google", raw_audio_bytes, sample_rate)
+            recognizer.operation_timeout = 8   # sans délai, un réseau à moitié mort bloquait la boucle d'écoute (JARVIS sourd)
             texte = recognizer.recognize_google(audio_data, language="fr-FR").lower().strip()
             if texte and not est_hallucination(texte):   # même filtre que pour Whisper
                 if shared.jarvis_actif or (shared.WAKE_WORD in texte):

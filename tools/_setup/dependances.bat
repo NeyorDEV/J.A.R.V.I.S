@@ -75,7 +75,7 @@ echo [OK] Outils d'installation a jour.
 :: [4/6] Installation des modules IA et Google APIs
 :: ======================================================
 echo [4/6] Installation des modules IA et Google APIs...
-"%V_PY%" -m pip install --quiet python-dotenv google-genai google-generativeai groq openai flask flask-cors requests websockets colorama tenacity google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client anthropic mistralai httpx aiohttp pydantic psutil
+"%V_PY%" -m pip install --quiet python-dotenv google-genai groq openai flask flask-cors requests websockets colorama tenacity google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client anthropic mistralai httpx aiohttp pydantic psutil
 if !errorlevel! neq 0 (
     echo [AVERTISSEMENT] Certains modules IA n'ont pas pu etre installes.
     set /a WARNINGS+=1
@@ -144,6 +144,8 @@ if !errorlevel! neq 0 (
 echo [SYSTEME] Installation des dependances completes (requirements.txt)...
 if exist "requirements.txt" (
     "%V_PY%" -m pip install -r requirements.txt --quiet
+    :: transcription locale : SANS dependances (sinon onnxruntime CPU s'ajoute a onnxruntime-gpu) ; core/stt_local.py retombe sur Groq si absent
+    "%V_PY%" -m pip install --no-deps faster-whisper==1.2.1 ctranslate2==4.9.0 av==19.0.2 --quiet
     if !errorlevel! neq 0 (
         echo [AVERTISSEMENT] Certaines dependances de requirements.txt n'ont pas pu etre installees.
         set /a WARNINGS+=1

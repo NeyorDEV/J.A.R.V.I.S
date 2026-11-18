@@ -142,7 +142,7 @@ set "V_PY=.\venv\Scripts\python.exe"
 :: 6. Installation des modules
 echo [4/7] Dependances Python
 echo   IA (Gemini, Groq, Claude, Mistral, OpenAI, Google Auth)
-"%V_PY%" -m pip install python-dotenv google-genai google-generativeai groq openai anthropic mistralai flask flask-cors requests websockets colorama tenacity google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client psutil
+"%V_PY%" -m pip install python-dotenv google-genai groq openai anthropic mistralai flask flask-cors requests websockets colorama tenacity google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client psutil
 if %errorlevel% neq 0 (
     echo   echec partiel, verifiez votre connexion internet.
 )
@@ -212,6 +212,8 @@ if !errorlevel! neq 0 (
 echo   finalisation (requirements.txt)
 if exist "requirements.txt" (
     "%V_PY%" -m pip install -r requirements.txt
+    :: transcription locale : SANS dependances, sinon pip ajoute onnxruntime (CPU) a cote d'onnxruntime-gpu et casse le GPU (core/stt_local.py retombe sur Groq si absent)
+    "%V_PY%" -m pip install --no-deps faster-whisper==1.2.1 ctranslate2==4.9.0 av==19.0.2
 )
 
 :: 7. Interface Web
