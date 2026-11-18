@@ -48,7 +48,11 @@ def get_adb_signer():
     return sign_with_rsa_key(pub, priv)
 
 async def adb_command(cmd_shell):
-    """Exécute une commande shell ADB sur la télé."""
+    """Exécute une commande shell ADB sur la télé, hors de la boucle asyncio (connexion + shell bloquants : télé débranchée = 3 s de HUD et de voix gelés)."""
+    return await asyncio.to_thread(_adb_command_sync, cmd_shell)
+
+
+def _adb_command_sync(cmd_shell):
     device = None
     try:
         signer = get_adb_signer()
@@ -143,6 +147,8 @@ async def tv_lancer_app(app_name):
     return f"Impossible de lancer {app_name}."
 
 async def tv_lancer_youtube(video_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", str(video_id)):   # l'identifiant vient d'une page web tierce et part dans une commande shell de la télé
+        return "Identifiant YouTube invalide."
     cmd = f'am start -a android.intent.action.VIEW "vnd.youtube://www.youtube.com/watch?v={video_id}"'
     if await adb_command(cmd): return f"C'est lancé sur votre télé{nom_virgule()} !"
     return "Erreur lors du lancement YouTube."
@@ -152,7 +158,7 @@ def rechercher_sur_youtube(recherche):
         query = requests.utils.quote(recherche)
         url = f"https://www.youtube.com/results?search_query={query}"
         resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        video_ids = re.findall(r"watch\?v=(\S{11})", resp.text)
+        video_ids = re.findall(r"watch\?v=([A-Za-z0-9_-]{11})", resp.text)
         return video_ids[0] if video_ids else None
     except: return None
 
@@ -173,13 +179,13 @@ async def resoudre_tv_localement(texte):
     t = _sans_accent(texte)
 
     # Sans TV_IP, une vraie commande de télé reçoit une explication claire (au lieu d'un échec réseau)
-    if (not _tv_ip() and re.search(r"\b(tele|teles|tv|television|televiseur|philips)\b", t)
+    if (not _tv_ip() and re.search(r"\b(tele|teles|tv|television|televiseur|philips(?!\s+hue))\b", t)
             and re.search(r"\b(allume|demarre|lance|eteins|arrete|ferme|quitte|monte|baisse|augmente|diminue|mets|joue|ouvre|pause|stop|volume|son)\b", t)):
         return _MSG_TV_NON_CONFIGUREE
 
     # Mots entiers : « tele » était trouvé dans téléphone, téléchargement, téléverser…
     # (« arrête le téléchargement » éteignait la télé).
-    if re.search(r"\b(tele|teles|tv|television|televiseur|philips)\b", t):
+    if re.search(r"\b(tele|teles|tv|television|televiseur|philips(?!\s+hue))\b", t):
         # Volume précis
         if re.search(r"\b(son|volume)\b", t):
             if any(k in t for k in ["monte", "augmente", "plus fort", "hausse"]):
@@ -219,7 +225,7 @@ async def resoudre_tv_localement(texte):
                 recherche = recherche.replace(p, "")
             recherche = recherche.strip()
             if recherche:
-                v_id = rechercher_sur_youtube(recherche)
+                v_id = await asyncio.to_thread(rechercher_sur_youtube, recherche)   # requests bloquant (jusqu'à 10 s) : hors de la boucle
                 if v_id: return await tv_lancer_youtube(v_id)
             return await tv_lancer_app("youtube")
 

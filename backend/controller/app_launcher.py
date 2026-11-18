@@ -47,10 +47,12 @@ def _localiser_exe(noms_exe: list, chemins_hints: list = None) -> str:
 
     # 3. Chemins connus communs
     if chemins_hints:
+        import glob
         for hint in chemins_hints:
-            p = os.path.expandvars(hint)
-            if os.path.exists(p):
-                return p
+            # Joker accepté (« app-*\\Discord.exe ») : os.path.exists ne résout jamais un « * » ; la version la plus récente d'abord
+            for p in sorted(glob.glob(os.path.expandvars(hint)), reverse=True):
+                if os.path.exists(p):
+                    return p
 
     return ""
 
@@ -212,8 +214,8 @@ _APPS_CATALOGUE = {
     "discord": {
         "label": "Discord", "noms": ["Discord.exe", "Update.exe"],
         "hints": [
+            r"%LOCALAPPDATA%\Discord\app-*\Discord.exe",   # d'abord le vrai exécutable : Update.exe seul n'ouvre pas Discord
             r"%LOCALAPPDATA%\Discord\Update.exe",
-            r"%LOCALAPPDATA%\Discord\app-*\Discord.exe",
             r"%APPDATA%\Discord\Update.exe",
         ],
     },

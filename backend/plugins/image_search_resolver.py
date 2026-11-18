@@ -62,7 +62,7 @@ async def resoudre_images_locales(texte):
                     cfg = _lire_config()
                     engine = cfg.get("image_search_engine", "serpapi")
                     
-                    urls = images_par_moteur(q, nb_images=6, engine=engine)
+                    urls = await asyncio.to_thread(images_par_moteur, q, 6, engine)   # requests bloquants (SerpAPI, 6 s + replis) : hors de la boucle
                     if urls:
                         msg_json = json.dumps({
                             "type": "show_images",

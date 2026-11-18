@@ -19,6 +19,11 @@ from google.genai import types
 from core.interlocuteur import nom_espace
 
 from core.dossiers import dossier_connu
+
+def _mots(t, mots):
+    """Un des mots / expressions, en MOTS ENTIERS (« echec » dans « un echec de sauvegarde » reste vrai, mais « ar » dans « arrosage » non)."""
+    return any(re.search(r"(?<!\w)" + re.escape(m) + r"(?!\w)", t) for m in mots)
+
 # Sur le vrai Bureau (souvent sous OneDrive) : USERPROFILE\Desktop en dur créait un
 # dossier « Desktop » invisible.
 DOSSIER_SORTIE = os.path.join(dossier_connu("bureau"), "JARVIS_Documents")
@@ -205,16 +210,16 @@ async def resoudre_generation_document(cmd: str):
     if not any(re.search(rf'\b{v}\b', t) for v in verbes_action):
         return None
 
-    if any(m in t for m in ["powerpoint", "presentation", "diaporama", "slides"]):
+    if _mots(t, ["powerpoint", "presentation", "diaporama", "slides"]):
         type_doc, extension = "pptx", "pptx"
         marqueurs = ["powerpoint", "presentation", "diaporama", "slides"]
-    elif any(m in t for m in ["excel", "tableur", "feuille de calcul", "tableau excel"]):
+    elif _mots(t, ["excel", "tableur", "feuille de calcul", "tableau excel"]):
         type_doc, extension = "xlsx", "xlsx"
         marqueurs = ["excel", "tableur", "feuille de calcul", "tableau"]
-    elif "pdf" in t:
+    elif _mots(t, ["pdf"]):
         type_doc, extension = "pdf", "pdf"
         marqueurs = ["pdf"]
-    elif any(m in t for m in ["word", "document", "compte-rendu", "compte rendu", "rapport"]):
+    elif _mots(t, ["word", "document", "compte-rendu", "compte rendu", "rapport"]):
         type_doc, extension = "docx", "docx"
         marqueurs = ["word", "document", "compte-rendu", "compte rendu", "rapport"]
     else:

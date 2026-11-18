@@ -56,6 +56,8 @@ async def resoudre_listes_locales(texte):
                 if item.startswith(pattern):
                     item = item[len(pattern):].strip()
             
+            # « à / sur / dans LA liste de courses » (la tournure la plus courante) : seules les formes avec « ma » étaient retirées, la préposition restait collée (« Lait à »)
+            item = re.sub(r"\b(?:a|à|sur|dans|en)\s+(?:ma|la|mes|les)\s+liste(?:s)?(?:\s+(?:de|des|du)\s+\w+)?", "", item)
             # Nettoyage des suffixes de listes
             for pattern in [
                 "sur ma liste de courses", "à ma liste de courses", "a ma liste de courses", "dans ma liste de courses", "ma liste de courses", "la liste de courses",
@@ -101,6 +103,9 @@ async def resoudre_listes_locales(texte):
             _ecrire_listes(data)
             await _notifier_web()
             return f"J'ai retiré {article} de votre liste de courses{nom_virgule()}."
+        from core.confirmation import demander_confirmation
+        if not await demander_confirmation(None, "Vider toute la liste de courses ?"):   # irréversible : le fichier est réécrit, et le resolver est ouvert aux invités
+            return f"D'accord{nom_virgule()}, je la laisse telle quelle."
         data["courses"] = []
         _ecrire_listes(data)
         await _notifier_web()

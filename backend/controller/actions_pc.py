@@ -63,12 +63,25 @@ def recenser_applications():
     return apps
 
 
+def _titre_fenetre_active():
+    """Titre de la fenêtre au premier plan (ctypes, sans dépendance)."""
+    import ctypes
+    hwnd = ctypes.windll.user32.GetForegroundWindow()
+    tampon = ctypes.create_unicode_buffer(256)
+    ctypes.windll.user32.GetWindowTextW(hwnd, tampon, 256)
+    return tampon.value
+
+
 async def appeler_via_whatsapp(contact):
     try:
         parler(f"J'appelle {contact} sur WhatsApp{nom_virgule()}.")
         # Lancement de l'app via le protocole
         os.system("start whatsapp://")
         await asyncio.sleep(6) # On laisse le temps a l'app de s'ouvrir et se focuser
+        # WhatsApp absent ou lent : le nom du contact (texte de l'IA) + Entrée était tapé dans l'éditeur ou le terminal qui avait le focus
+        if "whatsapp" not in _titre_fenetre_active().lower():
+            parler(f"WhatsApp n'a pas pris le focus{nom_virgule()}, j'annule l'appel.")
+            return False
         
         # Recherche du contact (Ctrl+F)
         pyautogui.hotkey('ctrl', 'f')

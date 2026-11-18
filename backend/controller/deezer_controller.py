@@ -1251,18 +1251,20 @@ async def deezer_chercher(recherche, _deja_corrige=False, _preparation=None):
     query = recherche
     
     # Détection de l'intention de jouer un mix d'artiste
-    veux_mix = "mix" in recherche_lower
+    import re as _re   # mots ENTIERS : « mix » dans « Calm Down remix » faisait chercher l'artiste « calm down re », « album » dans « albumine » un album
+    _mot = lambda m: _re.search(r"(?<!\w)" + m + r"(?!\w)", recherche_lower) is not None   # noqa: E731
+    veux_mix = _mot("mix")
     
     if veux_mix:
         type_recherche = "artist"
-        query = recherche_lower.replace("un mix de", "").replace("le mix de", "").replace("mix de", "").replace("un mix", "").replace("le mix", "").replace("mix", "").strip()
-    elif "playlist" in recherche_lower:
+        query = _re.sub(r"(?<!\w)(?:(?:un|le) )?mix(?: de)?(?!\w)", "", recherche_lower).strip()
+    elif _mot("playlist"):
         type_recherche = "playlist"
         query = recherche_lower.replace("la playlist", "").replace("ma playlist", "").replace("playlist", "").strip()
-    elif "artiste" in recherche_lower or "groupe" in recherche_lower:
+    elif _mot("artiste") or _mot("groupe"):
         type_recherche = "artist"
-        query = recherche_lower.replace("l'artiste", "").replace("artiste", "").replace("groupe", "").strip()
-    elif "album" in recherche_lower:
+        query = _re.sub(r"(?<!\w)(?:l'artiste|artiste|groupe)(?!\w)", "", recherche_lower).strip()
+    elif _mot("album"):
         type_recherche = "album"
         query = recherche_lower.replace("l'album", "").replace("album", "").strip()
     else:

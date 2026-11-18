@@ -1,4 +1,5 @@
 import os
+import time
 import asyncio
 import builtins
 from core.interlocuteur import nom_espace, nom_virgule
@@ -46,6 +47,11 @@ async def resoudre_modifier_image(cmd):
     """
     t = nettoyer_accent(cmd.lower().strip())
 
+    # L'attente expire : sans délai, la phrase suivante, quelle qu'elle soit (« quelle heure est-il »), devenait l'instruction de retouche
+    if _attente_modif_image["actif"] and time.time() - _attente_modif_image.get("t", 0) > 120:
+        _attente_modif_image["actif"] = False
+        _attente_modif_image["chemin"] = None
+
     # ── Étape 2 : une image est déjà sélectionnée, cette phrase EST l'instruction ──
     if _attente_modif_image["actif"]:
         chemin = _attente_modif_image["chemin"]
@@ -82,6 +88,7 @@ async def resoudre_modifier_image(cmd):
 
     _attente_modif_image["actif"] = True
     _attente_modif_image["chemin"] = chemin
+    _attente_modif_image["t"] = time.time()
 
     nom_fichier = os.path.basename(chemin)
     return f"J'ai sélectionné « {nom_fichier} »{nom_virgule()}. Quelle modification voulez-vous que je fasse dessus ?"

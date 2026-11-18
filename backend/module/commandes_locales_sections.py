@@ -328,7 +328,7 @@ async def _commandes_apps_musique(t):
                 elif "spotify" in musique_lien_lower or musique_lien_lower.startswith("spotify:"):
                     try:
                         from controller.spotify_controller import spotify_jouer_playlist
-                        ok = spotify_jouer_playlist(musique_lien)
+                        ok = await asyncio.to_thread(spotify_jouer_playlist, musique_lien)   # time.sleep(3 à 7 s) dedans : hors de la boucle
                         if ok:
                             return f"C'est parti{nom_espace()}, je lance votre musique sur Spotify."
                     except: pass

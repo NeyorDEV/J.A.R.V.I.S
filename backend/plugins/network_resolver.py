@@ -108,6 +108,10 @@ async def resoudre_connexions_reseau(cmd: str):
     if _vdd.ouverte and "reseau" not in t and "radar" not in t and "connexion" not in t:
         return None   # vue ouverte : « montre le trafic » vise ses couches
 
+    # « coupe la connexion réseau » / « arrête la connexion active » : une commande SYSTÈME, pas le masquage du radar (répondait « Radar réseau désactivé » sans rien couper)
+    if "radar" not in t and _re.search(r"\b(coupe|coupes|deconnecte|arrete|arretes|stop)\b.*\bconnexions?\b", t):
+        return None
+
     mots_hide = ["cache", "ferme", "stop", "arrete", "desactive", "masque", "quitte", "coupe", "eteins"]
     if any(m in t for m in mots_hide):
         _radar_active = False

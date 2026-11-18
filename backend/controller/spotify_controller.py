@@ -56,6 +56,9 @@ def spotify_jouer_playlist(playlist_uri: str = "") -> bool:
         except Exception:
             pass
 
+        if playlist_uri and not str(playlist_uri).startswith(("spotify:", "https://open.spotify.com/")):
+            print("[SPOTIFY] Lien refusé (ni spotify: ni open.spotify.com).")
+            playlist_uri = None
         if playlist_uri:
             # Le protocole spotify: est géré par Windows → ouvre l'app et navigue
             subprocess.Popen(["explorer", playlist_uri], shell=False)

@@ -3,6 +3,11 @@ import re
 import os
 from core.interlocuteur import nom_virgule
 
+def _mots(t, mots):
+    """Un des mots / expressions, en MOTS ENTIERS (« echec » dans « un echec de sauvegarde » reste vrai, mais « ar » dans « arrosage » non)."""
+    return any(re.search(r"(?<!\w)" + re.escape(m) + r"(?!\w)", t) for m in mots)
+
+
 # Module du cylindre correspondant à chaque élément du HUD que ce resolver pilote : la roue de recherche s'arrête dessus
 # (sans cette annonce, elle devine d'après la phrase). Préfixes de sélecteurs.
 _SELECTEUR_VERS_MODULE = {
@@ -203,7 +208,7 @@ async def resoudre_dom_hud(cmd):
 
     # --- 11b. MODE ÉCHECS ---
     # (« quitte / ferme / arrête les échecs » est laissé à module/echecs_local.py)
-    if any(k in t for k in ["echecs", "echec", "mode echecs", "joue aux echecs", "on joue aux echecs", "on joue une partie d echecs", "partie d echecs", "jeu d echecs", "lance les echecs", "ouvre les echecs"])             and not any(k in t for k in ["quitte", "ferme", "arrete", "stop"]):
+    if _mots(t, ["mode echecs", "joue aux echecs", "on joue aux echecs", "on joue une partie d echecs", "partie d echecs", "jeu d echecs", "lance les echecs", "ouvre les echecs"])             and not _mots(t, ["quitte", "ferme", "arrete", "stop"]):
         if hasattr(builtins, "CONNECTED_CLIENTS") and builtins.CONNECTED_CLIENTS:
             import json, asyncio
             msg = json.dumps({"action": "chess_start"})
@@ -211,23 +216,23 @@ async def resoudre_dom_hud(cmd):
             return f"Déploiement du plateau d'échecs 3D{nom_virgule()}."
 
     # --- 12. MODE AR (HAND TRACKING) ---
-    if any(k in t for k in ["active le mode ar", "active l'ar", "lance le mode ar", "active le tracking", "active les gestes", "lance l'ar", "ouvre l'ar"]):
+    if _mots(t, ["active le mode ar", "active l'ar", "lance le mode ar", "active le tracking", "active les gestes", "lance l'ar", "ouvre l'ar"]):
         if hasattr(builtins, "send_web_action"):
             await _action("click", selector="#gestures-toggle:not(.active)")
             return f"J'active le mode de détection AR{nom_virgule()}."
 
-    if any(k in t for k in ["desactive le mode ar", "desactive l'ar", "coupe le mode ar", "coupe l'ar", "ferme l'ar", "desactive le tracking", "desactive les gestes"]):
+    if _mots(t, ["desactive le mode ar", "desactive l'ar", "coupe le mode ar", "coupe l'ar", "ferme l'ar", "desactive le tracking", "desactive les gestes"]):
         if hasattr(builtins, "send_web_action"):
             await _action("click", selector="#gestures-toggle.active")
             return f"Je désactive le mode de détection AR{nom_virgule()}."
 
     # --- 13. MODE AR MIROIR ---
-    if any(k in t for k in ["active le miroir ar", "active l'ar miroir", "bascule en ar miroir", "ar miroir"]):
+    if _mots(t, ["active le miroir ar", "active l'ar miroir", "bascule en ar miroir", "ar miroir"]):
         if hasattr(builtins, "send_web_action"):
             await _action("click", selector="#gestures-mirror:not(.active)")
             return f"Mode miroir AR activé{nom_virgule()}."
 
-    if any(k in t for k in ["desactive le miroir ar", "desactive l'ar miroir", "reviens en ar direct", "ar direct"]):
+    if _mots(t, ["desactive le miroir ar", "desactive l'ar miroir", "reviens en ar direct", "ar direct"]):
         if hasattr(builtins, "send_web_action"):
             await _action("click", selector="#gestures-mirror.active")
             return f"Mode miroir AR désactivé. Retour au flux direct{nom_virgule()}."

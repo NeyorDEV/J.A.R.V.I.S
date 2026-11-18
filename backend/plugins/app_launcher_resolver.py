@@ -42,7 +42,7 @@ async def resoudre_apps_localement(texte):
         return await mode_rocket_league()
 
     # 2. OUVERTURE D'APPLICATIONS (Via Catalogue)
-    if any(k in t for k in ["ouvre", "lance", "demarre"]):
+    if any(k in t for k in ["ouvre", "lance", "demarre", "démarre"]):   # « démarre » avec accent : le texte n'est pas normalisé, la majorité des STT l'écrivent ainsi
         for app_key, data in _APPS_CATALOGUE.items():
             # Mot entier : « ea » (EA App) était trouvé dans réseau, tableau, bureau,
             # beatles… (« lance le radar réseau » lançait EA App).

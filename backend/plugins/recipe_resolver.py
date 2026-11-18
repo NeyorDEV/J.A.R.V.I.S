@@ -51,7 +51,9 @@ async def resoudre_recipe(cmd):
             # Seule une réponse qui ressemble à un nombre de personnes est prise comme
             # telle : n'importe quelle commande contenant un nombre (« baisse le son de
             # la télé de 5 ») était consommée comme réponse.
-            if len(t.split()) > 6 and not re.search(r"\b(personnes?|pers|couverts?|convives?|gens)\b", t):
+            # Réponse attendue : un nombre seul (ou « pour 4 », « 4 personnes »). « baisse la télé de 5 » (5 mots, un chiffre) lançait une recette pour 5 personnes.
+            _nombre_seul = re.fullmatch(r"(?:pour |on est |nous sommes |on sera )?(?:\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|douze)(?: personnes?| pers| couverts?| convives?)?(?: merci)?", t.strip())
+            if not _nombre_seul and not re.search(r"\b(personnes?|pers|couverts?|convives?|gens)\b", t):
                 builtins.recipe_context = None
                 return None
             nb_personnes = extraire_nombre(t)
@@ -151,7 +153,9 @@ async def resoudre_recipe(cmd):
     ]
 
     recipe_name = None
-    for pattern in recipe_patterns:
+    # « ma / ta / notre recette » : on parle d'une recette qu'on a déjà (« ma recette de pâtes est ratée »), on n'en demande pas une
+    _possessif = re.search(r"\b(?:ma|mon|ta|ton|sa|son|notre|votre|leur)\s+recette", t)
+    for pattern in ([] if _possessif else recipe_patterns):
         match = re.search(pattern, t)
         if match:
             recipe_name = match.group(1).strip()

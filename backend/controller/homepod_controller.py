@@ -26,8 +26,11 @@ async def find_homepod(identifier: Optional[str] = None):
             if identifier.lower() in device.name.lower() or identifier == device.address:
                 return device
         else:
-            # Par défaut, on prend le premier HomePod trouvé
-            return device
+            # Par défaut, le premier HomePod trouvé : on écarte les appareils AirPlay dont le modèle est CONNU et n'est pas un HomePod (Apple TV, enceinte tierce),
+            # « pause » mettait sinon en pause le premier appareil AirPlay venu
+            modele = str(getattr(getattr(device, "device_info", None), "model", "") or "").lower()
+            if not modele or "homepod" in modele or "homepod" in device.name.lower() or "unknown" in modele:
+                return device
             
     return None
 

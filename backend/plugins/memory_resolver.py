@@ -66,6 +66,8 @@ async def resoudre_memoire_locale(texte):
                 if not sujet: continue
                 # Enlever la ponctuation de fin
                 sujet = re.sub(r'[?!\.]', '', sujet).strip()
+                if len(sujet) < 4:
+                    continue   # « oublie les » : un sujet de 2-3 lettres effaçait toute clé qui le contenait
                 
                 success_kv = False
                 
@@ -84,8 +86,12 @@ async def resoudre_memoire_locale(texte):
                 if not cle_exacte:
                     for cle in mem.keys():
                         cle_clean = cle.replace("_", " ").lower().strip()
-                        if cle_clean in sujet.lower() or sujet.lower() in cle_clean:
-                            cle_exacte = cle
+                        # Mots ENTIERS et clé d'au moins 4 lettres : « oublie la page de garde » supprimait la clé « age » (sous-chaîne)
+                        if (len(cle_clean) >= 4 and re.search(rf"\b{re.escape(cle_clean)}\b", sujet.lower())) \
+                                or re.search(rf"\b{re.escape(sujet.lower())}\b", cle_clean):
+                            from core.confirmation import demander_confirmation
+                            if await demander_confirmation(None, f"Oublier « {cle_clean} » ?"):
+                                cle_exacte = cle
                             break
                             
                 if cle_exacte:
