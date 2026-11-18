@@ -2,6 +2,8 @@
 
 ## Non publié
 
+## 11.0.1 — Assistant de premier lancement complet
+
 - **Assistant de premier lancement : deux étapes de plus, « Hors ligne » et « Services »** (`panels/setup_wizard.ts`, `core/ws_assistant.py`, `core/ws_handler.py`, `css/14_verre.css`) : l'assistant ne parlait que du prénom, des clés d'IA, du micro et de la voix. L'étape « Hors ligne » détecte Ollama (installé / lancé), le modèle de secours `qwen3:4b-instruct` et la carte NVIDIA, affiche la commande `ollama pull` avec un bouton Copier et un bouton « Vérifier à nouveau », et explique ce qui se passe sans GPU (modèle sur le processeur, transcription par Groq). L'étape « Services » dit où se règlent Spotify/Deezer, Google, Home Assistant, les autres clés, la Vue de Dieu et la liste des commandes. Le récapitulatif final affiche l'état du mode hors ligne. Message `setup_check_local` (lecture seule, rien n'est installé ni lancé). Barre d'étapes resserrée pour 7 étapes ; les explications passent à la ligne au lieu d'être coupées. Testé avec le faux serveur (`capture_assistant.py`, 8 captures) et `tests/test_assistant_local.py`.
 
 ## 11.0.0 — Réponses rapides, secours hors ligne, routines, skills et API locale
