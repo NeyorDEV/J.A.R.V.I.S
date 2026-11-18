@@ -4,10 +4,12 @@ import asyncio
 import builtins
 import json
 import re
+import unicodedata
 import time
 
 import core.shared as shared
 from core import module_catalogue
+from core.locuteur import locuteur_effectif
 from core.actions_ia import executer_action
 from core.confirmation import confirmation_en_attente, resoudre_confirmation_vocale
 from core.etat_parole import set_stop_parler
@@ -51,7 +53,21 @@ def est_action_oriented(texte):
         "cellule", "mail", "email", "courriel", "doc", "document", "téléverse", "televerse", "téléverser", "televerser", "charge",
         "charger", "dossier", "sheet", "sheets", "docs"
     ]
-    return any(m in t for m in mots_actions)
+    # Mots entiers : « met » dans « permet », « doc » dans « docteur », « ligne » dans « alignement » rangeaient des conversations dans les actions
+    # (plus de parole en flux, et l'appel d'intention de 2 s). Les accents sont gardés tels quels dans la liste.
+    return re.search(r"(?<![\w])(?:" + "|".join(re.escape(m) for m in mots_actions) + r")\w{0,3}(?![\w])", t) is not None   # jusqu'à 3 lettres de conjugaison après le mot (mets, jouer, lancez)
+
+
+_DEBUT_CONVERSATION = re.compile(r"^(?:(?:s il te plait|stp|dis donc|alors|bon)\s+)?(?:raconte|explique|parle|pourquoi|c est quoi|qu est ce)\b")
+
+
+def est_conversation(texte: str) -> bool:
+    """Phrase qui COMMENCE comme une conversation (« raconte… », « explique… », « parle-moi de… », « pourquoi… », « c'est quoi… »).
+    Celles-ci sautent l'appel d'intention au LLM (2 s) : la réponse normale de Gemini sait aussi lancer des actions.
+    Un mot d'action n'importe où dans la phrase (« explique-moi la météo ») garde l'appel."""
+    t = "".join(c for c in unicodedata.normalize("NFD", texte.lower()) if unicodedata.category(c) != "Mn")
+    t = re.sub(r"[-'’]", " ", t).strip()
+    return bool(_DEBUT_CONVERSATION.match(t)) and not est_action_oriented(texte)
 
 
 def _texte_substantiel(texte: str) -> bool:
@@ -127,6 +143,7 @@ _INTERDITS_INVITE = {
     "resoudre_local_mode", "resoudre_generation_document", "resoudre_modifier_image",
     "resoudre_memoire_locale", "resoudre_developpement", "resoudre_steam_jeux",
     "resoudre_navigateur", "resoudre_discord", "resoudre_skills", "resoudre_vue_de_dieu", "resoudre_repetition", "resoudre_musique",
+    "resoudre_apps_localement", "resoudre_ouvrir_site_web", "resoudre_lancer_enigme",   # lancer des applications du PC, ouvrir un site de la sandbox : réservés aux voix reconnues
 }
 # Fonctions builtins.resoudre_* qui ne sont pas des resolvers de commande
 _HORS_CHAINE = {"interpreter_chemin", "resoudre_echecs_localement",
@@ -185,6 +202,10 @@ async def _resoudre_localement(texte_utilisateur):
 
     # Alarmes, minuteurs, rappels : avant tout plugin, sinon « mets une alarme à 7 h »
     # partait dans la recherche Deezer de secours (phrases commençant par « mets »).
+    if not reponse and getattr(shared, "ACTIVE_SPEAKER", "guest") != "guest":   # routines (« tous les jours à 8 h, … ») : avant les alarmes, qui prendraient « rappelle-moi » ; refusées à un invité
+        from module.routines import resoudre_routines
+        reponse = await resoudre_routines(texte_utilisateur)
+        if reponse: dernier_resolveur = "routines"
     if not reponse:
         reponse = await resoudre_alarmes_localement(texte_utilisateur)
         if reponse: dernier_resolveur = "alarmes"
@@ -232,38 +253,44 @@ async def gerer_reponse_ia(texte_utilisateur, from_voice=False, de_confiance=Fal
 
 async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confiance=False):
     shared.dernier_message = time.time()
+    _t_entree = time.monotonic()   # chronomètres [PERF] : où partent les secondes avant la première parole
     try:   # « répète » : une nouvelle commande ouvre un nouveau tour de parole (core/repeter.py)
         from core.repeter import nouveau_tour
         nouveau_tour()
     except Exception:
         pass
-    shared._derniere_reponse_streamed = False
-    shared.phrases_streamed = []
 
     # Une confirmation d'action destructrice est en attente : "oui"/"non" doit
     # la résoudre immédiatement, AVANT le verrou de traitement (traiter_lock),
     # sinon la réponse resterait bloquée derrière l'action qui attend justement
     # cette confirmation pour continuer (deadlock logique).
     if confirmation_en_attente():
-        if resoudre_confirmation_vocale(epurer_commande(texte_utilisateur)):
+        if resoudre_confirmation_vocale(epurer_commande(texte_utilisateur),
+                                        accord_permis=locuteur_effectif(de_confiance, from_voice, shared.ACTIVE_SPEAKER) != "guest"):
             return
+    # Locuteur de CETTE commande (core/locuteur.py), lu une fois : les droits d'invité se jugent sur lui jusqu'au bout, pas sur le global
+    # shared.ACTIVE_SPEAKER, qu'une autre voix, une saisie clavier ou une routine peut changer pendant l'attente du verrou ou l'appel à l'IA.
+    locuteur = locuteur_effectif(de_confiance, from_voice, shared.ACTIVE_SPEAKER)
     if from_voice:
         shared.jarvis_actif = True  # Seules les commandes vocales ouvrent/maintiennent la session
     elif de_confiance:
         # Clavier du HUD local : l'utilisateur est physiquement devant la machine.
-        shared.ACTIVE_SPEAKER = "neyor"
-        builtins.ACTIVE_SPEAKER = "neyor"
+        shared.ACTIVE_SPEAKER = builtins.ACTIVE_SPEAKER = locuteur
 
     if shared.traiter_lock.locked():
         # La commande attend son tour (avant, elle était purement et simplement jetée).
         parler(f"Je termine ce que je fais{nom_virgule()}, je m'en occupe juste après.")
 
     async with shared.traiter_lock:
+        shared.ACTIVE_SPEAKER = builtins.ACTIVE_SPEAKER = locuteur
         # STOP_PARLER doit être réarmé APRÈS l'obtention du verrou : le remettre à
         # False dès l'entrée annulait le barge-in (« stop ») d'une réponse encore
         # en cours d'énonciation, qui repartait alors de plus belle.
         shared.STOP_PARLER = False
         set_stop_parler(False)
+        # Remis à zéro ICI, sous le verrou : avant, une 2e commande arrivée pendant la réponse de la 1re effaçait son état de dédoublonnage (elle reparlait sa réponse depuis le début)
+        shared._derniere_reponse_streamed = False
+        shared.phrases_streamed = []
         shared.is_thinking = True
         reponse = None
         
@@ -272,7 +299,9 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
 
         # TENTATIVE DE RÉSOLUTION LOCALE (Commandes, Math, Français, etc.)
         print(f"[DEBUG] Tentative de résolution locale pour : {texte_utilisateur}")
+        _t_attente = _t_entree   # attente du verrou comprise : « Je termine ce que je fais » compte ici
         reponse = await _resoudre_localement(texte_utilisateur)
+        print(f"[PERF] Résolveurs locaux : {time.monotonic() - _t_attente:.2f} s (verrou et nettoyage compris)")
 
         # FUNCTION CALLING GEMINI : aucun resolver par mots-clés n'a compris la phrase.
         # Un modèle rapide la mappe sur une intention connue (→ phrase canonique) qu'on
@@ -280,11 +309,17 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
         # Voix inconnue (invité) : pas de devinette. Une phrase mal transcrite (bruit, voix de la télé, conversation à côté) était mappée par le modèle sur une vraie commande :
         # vécu le 13/11/2026, « il fait cause connor jarvis » lançait la recherche de l'artiste Connor sur Deezer. Les commandes par mots-clés restent disponibles.
         if (not reponse and shared._USE_LLM_INTENT and _texte_substantiel(texte_utilisateur)
-                and getattr(shared, "ACTIVE_SPEAKER", "guest") != "guest"
+                and locuteur != "guest"
+                and not est_conversation(texte_utilisateur)
                 and (est_action_oriented(texte_utilisateur) or len(texte_utilisateur.split()) <= 12)):
             try:
                 from core.intent_dispatcher import resoudre_intention_llm
+                # Annoncé AVANT l'appel (2 s) : sinon la roue du cylindre part sur la catégorie devinée d'après les mots, puis repart vers
+                # « ASSISTANT » quand l'annonce arrive = la recherche jouée deux fois. Si l'intention donne une commande, son resolver annonce le vrai module.
+                module_catalogue.annoncer("ASSISTANT")
+                _t_intent = time.monotonic()
                 phrase_canonique = await resoudre_intention_llm(texte_utilisateur)
+                print(f"[PERF] Intention par le LLM (appel avant la vraie réponse) : {time.monotonic() - _t_intent:.2f} s")
                 if phrase_canonique and phrase_canonique.lower().strip() != texte_utilisateur.lower().strip():
                     # Résolution locale complète : avec la seule chaîne des plugins, alarmes,
                     # minuteurs et échecs (traités avant elle) n'étaient jamais atteints —
@@ -298,6 +333,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
         if not reponse:
             force_skip_local = est_action_oriented(texte_utilisateur)
             module_catalogue.annoncer("ASSISTANT")   # conversation, sauf si l'IA répond par une action (annoncée à son exécution)
+            print(f"[PERF] Avant l'appel à l'IA : {time.monotonic() - _t_entree:.2f} s depuis l'entrée de la commande")
             reponse = await interroger_ia(texte_utilisateur, skip_local=force_skip_local)
         
         # print(f"[JARVIS] {reponse}")
@@ -390,8 +426,9 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
                     # Code, sites, saisie, appels, mémoire de l'utilisateur
                     "creer_site_web", "creer_site", "generer_site", "dictee", "whatsapp_appel",
                     "memoriser", "auto_memoriser", "oublier", "lister_memoire", "github_action",
+                    "dom_sequence",   # clics et saisie dans l'onglet actif du navigateur du créateur (sessions ouvertes) + ouverture d'URL
                 }
-                if getattr(shared, "ACTIVE_SPEAKER", "neyor") == "guest" and action in restricted_actions:
+                if locuteur == "guest" and action in restricted_actions:
                     print(f"🔒 [SPEAKER] Action '{action}' bloquée en mode invité.")
                     parler("Désolé, cette action est restreinte en mode invité. Veuillez vous authentifier.")
                     continue

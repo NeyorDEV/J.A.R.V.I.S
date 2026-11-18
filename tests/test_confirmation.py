@@ -41,3 +41,22 @@ def test_mode_simple_question_garde_la_regle_historique():
 def test_vide():
     assert interpreter_reponse("", strict=True) is None
     assert interpreter_reponse("   ", strict=False) is None
+
+
+def test_un_invite_ne_peut_pas_confirmer_mais_peut_refuser():
+    import asyncio
+
+    from core import confirmation as C
+
+    async def scenario(reponse, accord_permis):
+        loop = asyncio.get_running_loop()
+        C._pending = {"id": "t1", "future": loop.create_future(), "strict": True}
+        consomme = C.resoudre_confirmation_vocale(reponse, accord_permis=accord_permis)
+        resolu = C._pending["future"].done() and C._pending["future"].result()
+        C._pending = None
+        return consomme, resolu
+
+    assert asyncio.run(scenario("oui", False)) == (True, False)    # consommé, pas validé
+    assert asyncio.run(scenario("oui", True)) == (True, True)      # le créateur : validé
+    consomme, resolu = asyncio.run(scenario("non", False))
+    assert consomme and resolu is False                            # un refus passe toujours

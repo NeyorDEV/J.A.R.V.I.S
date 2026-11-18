@@ -24,6 +24,9 @@ if _USE_HOMEPOD:
         _USE_HOMEPOD = False
         print("[SPEECH] homepod_audio introuvable — fallback sur pygame.")
 
+import tempfile
+_DOSSIER_TTS = os.path.join(tempfile.gettempdir(), "jarvis_tts")
+
 is_speaking = False
 speak_volume = 0.0
 STOP_PARLER = False
@@ -50,7 +53,8 @@ async def _generer_tts_fichier(texte) -> str | None:
     # Un fragment sans lettre ni chiffre (ex. un « » » isolé) fait échouer edge_tts
     if not any(c.isalnum() for c in texte_tts):
         return None
-    tmp =f"jarvis_tts_{int(time.time()*1000)}"
+    os.makedirs(_DOSSIER_TTS, exist_ok=True)
+    tmp = os.path.join(_DOSSIER_TTS, f"jarvis_tts_{int(time.time()*1000)}")   # dossier temporaire dédié : relatif, ils atterrissaient à la racine du projet et un arrêt brutal les y laissait
     
     try:
         from core.config import VOIX_ACTUELLE
@@ -60,7 +64,7 @@ async def _generer_tts_fichier(texte) -> str | None:
             tmp_path = tmp + ".mp3"
             voice_standard = "fr-FR-HenriNeural" if VOIX_ACTUELLE == "homme" else "fr-FR-DeniseNeural"
             communicate = edge_tts.Communicate(texte_tts, voice=voice_standard, rate="+20%")
-            await communicate.save(tmp_path)
+            await asyncio.wait_for(communicate.save(tmp_path), 12)   # réseau qui stagne : repli SAPI au bout de 12 s au lieu de ~60 s de silence
             return tmp_path
         except Exception as net_err:
             print(f"[SPEECH] Échec edge_tts (déconnexion ?) : {net_err}. Bascule sur pyttsx3 natif...")
@@ -210,13 +214,16 @@ def gestionnaire_parole_worker():
     """Point d'entrée du thread JARVIS : pilote le générateur et le lecteur en parallèle."""
     # Nettoyage des fichiers TTS orphelins laissés par la session précédente
     try:
-        _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        for _f in os.listdir(_base):
-            if _f.startswith("jarvis_tts_") and (_f.endswith(".mp3") or _f.endswith(".wav")):
-                try:
-                    os.remove(os.path.join(_base, _f))
-                except Exception:
-                    pass
+        _racine = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        for _base in (_DOSSIER_TTS, _racine, os.path.join(_racine, "backend")):   # + anciens emplacements (racine du projet, backend/)
+            if not os.path.isdir(_base):
+                continue
+            for _f in os.listdir(_base):
+                if _f.startswith("jarvis_tts_") and (_f.endswith(".mp3") or _f.endswith(".wav")):
+                    try:
+                        os.remove(os.path.join(_base, _f))
+                    except Exception:
+                        pass
     except Exception:
         pass
 
@@ -258,11 +265,21 @@ def parler(texte, print_console=True, orbe=True):
         if time.time() - stop_depuis < 5:
             return
         STOP_PARLER = False
+        try:   # l'autre exemplaire du drapeau (shared) restait levé : la voix de JARVIS n'était plus écartée de l'écoute
+            import core.shared as _sh_stop
+            _sh_stop.STOP_PARLER = False
+        except Exception:
+            pass
     if not texte or not texte.strip(): return
     try:   # prénom de l'interlocuteur dans la première phrase après un changement de personne (core/nommer.py)
         import core.shared as _shared
         from core import nommer
         texte = nommer.appliquer(_shared, texte)
+    except Exception:
+        pass
+    try:   # jamais de clé ni de jeton dit à voix haute / envoyé au TTS (core/secrets_voix.py)
+        from core.secrets_voix import masquer
+        texte = masquer(texte)
     except Exception:
         pass
     if print_console:

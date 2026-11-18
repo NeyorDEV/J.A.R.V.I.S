@@ -165,8 +165,11 @@ def interpreter_reponse(texte: str, strict: bool = True):
     return True
 
 
-def resoudre_confirmation_vocale(texte: str) -> bool:
+def resoudre_confirmation_vocale(texte: str, accord_permis: bool = True) -> bool:
     """Tente de résoudre la confirmation en attente depuis une réponse vocale.
+
+    `accord_permis` : False pour une voix inconnue (invité) : elle peut refuser, jamais accepter. Sans cela, un invité ou une voix de la télé
+    qui disait « oui » validait l'action sensible demandée par le créateur.
 
     Retourne True si le texte a été consommé comme réponse (positive ou
     négative) à la confirmation en attente — dans ce cas l'appelant ne doit
@@ -185,5 +188,8 @@ def resoudre_confirmation_vocale(texte: str) -> bool:
             builtins.parler("Je n'ai pas entendu un oui net, j'annule.")
         except Exception:
             pass
+    if decision and not accord_permis:
+        print("🔒 [CONFIRMATION] « oui » d'une voix non reconnue ignoré : seul un refus est accepté d'un invité.")
+        return True   # consommé, sans valider
     resoudre_confirmation(_pending["id"], bool(decision))
     return True

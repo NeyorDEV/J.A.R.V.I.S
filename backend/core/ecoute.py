@@ -17,7 +17,7 @@ import speech_recognition as sr
 import core.shared as shared
 import core.speech as speech
 from core.audio_stream import AudioStreamManager
-from core.ecoute_outils import _protocole_enrolement_vocal, normaliser_mot_eveil, transcribe_audio_groq
+from core.ecoute_outils import _noter_stt, _protocole_enrolement_vocal, normaliser_mot_eveil, transcribe_audio_groq
 from core.etat_parole import get_dernier_parle_time, get_is_speaking, set_stop_parler
 from core.micro import choisir_microphone
 from core.speech import parler
@@ -187,6 +187,8 @@ def boucle_ecoute():
             #        reconnue (sinon la demande vocale lui serait refusée, par sécurité)
             if shared.ENROLEMENT_CLAVIER:
                 shared.ENROLEMENT_CLAVIER = False
+                shared.STOP_PARLER = False   # un « stop » précédent laissait le drapeau levé : l'enrôlement s'annulait aussitôt, sans message
+                set_stop_parler(False)
                 shared.ACTIVE_SPEAKER = builtins.ACTIVE_SPEAKER = CREATEUR
                 _protocole_enrolement_vocal("enregistre ma voix", queue_ecoute, RATE, CHUNK, SILENCE_LIMIT, ENERGY_THRESHOLD)
                 audio_buffer = []
@@ -315,6 +317,12 @@ def boucle_ecoute():
                             shared.dernier_message = time.time()
                             
                             # --- BIOMÉTRIE : IDENTIFIER LE LOCUTEUR ---
+                            if not shared.VOICE_BIOMETRICS:
+                                # Pas de biométrie (modèle absent ou en panne) : si des profils existent, personne n'est le créateur
+                                from core.locuteur import profils_enroles
+                                from core.vad import VOICEPRINTS_DIR
+                                if profils_enroles(VOICEPRINTS_DIR):
+                                    shared.ACTIVE_SPEAKER = builtins.ACTIVE_SPEAKER = "guest"
                             if shared.VOICE_BIOMETRICS:
                                 try:
                                     # Profil le plus proche, puis décision : seuil normal, ou seuil
@@ -335,9 +343,12 @@ def boucle_ecoute():
                                         shared.DERNIER_LOCUTEUR = (name, time.time())
                                     voiceprints = shared.VOICE_BIOMETRICS.load_voiceprints()
                                     if not voiceprints:
-                                        shared.ACTIVE_SPEAKER = "neyor"
+                                        # Aucune empreinte exploitable : « neyor » seulement si AUCUN profil n'existe (premier lancement) ; sinon invité
+                                        from core.locuteur import profils_enroles
+                                        from core.vad import VOICEPRINTS_DIR
+                                        shared.ACTIVE_SPEAKER = "guest" if profils_enroles(VOICEPRINTS_DIR) else "neyor"
                                         builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
-                                        print(f"🎙  [SPEAKER] Aucun profil enregistré. Par défaut : {shared.ACTIVE_SPEAKER}")
+                                        print(f"🎙  [SPEAKER] Aucune empreinte exploitable. Par défaut : {shared.ACTIVE_SPEAKER}")
                                     else:
                                         shared.ACTIVE_SPEAKER = name
                                         builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
@@ -488,12 +499,13 @@ def _envoyer_interim(audio_chunks, rate):
                     wf.writeframes(raw)
 
                 audio_buffer.seek(0)
-                result = shared.groq_client.audio.transcriptions.create(
+                result = shared.groq_client.with_options(timeout=8).audio.transcriptions.create(
                     file=("interim.wav", audio_buffer.read()),
                     model="whisper-large-v3-turbo",
                     language="fr",
                     response_format="text",
                 )
+                _noter_stt("groq", raw, rate)   # comptée dans le quota : une phrase de 10 s = ~8 requêtes intermédiaires, que le compteur ne voyait pas
                 texte = result.strip().lower() if isinstance(result, str) else str(result).strip().lower()
             except Exception as ex:
                 print(f"[INTERIM] Exception Groq : {ex}")

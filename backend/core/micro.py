@@ -35,10 +35,16 @@ def _ecrire_config(data: dict) -> None:
     """Sauvegarde les données dans jarvis_config.json."""
     try:
         import json
+        import os
         cfg = _lire_config()
+        if not cfg and os.path.exists(_JARVIS_CONFIG_PATH) and os.path.getsize(_JARVIS_CONFIG_PATH) > 2:
+            print("[MIC] jarvis_config.json illisible : écriture annulée (elle remplaçait tout le fichier par une seule clé).")
+            return
         cfg.update(data)
-        with open(_JARVIS_CONFIG_PATH, "w", encoding="utf-8") as f:
+        tmp = _JARVIS_CONFIG_PATH + ".tmp"   # fichier temporaire puis os.replace : jamais de fichier tronqué
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, _JARVIS_CONFIG_PATH)
     except Exception as e:
         print(f"[MIC] Impossible de sauvegarder la config : {e}")
 

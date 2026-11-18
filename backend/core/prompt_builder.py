@@ -14,7 +14,8 @@ def _creator_info():
     """Présentation du propriétaire : prénom du réglage « user_name », et ses informations privées facultatives
     (« createur_infos » dans jarvis_config.json, jamais dans le code)."""
     nom = nom_createur()
-    infos = "".join(f"- {i}\n" for i in infos_createur())
+    # Informations privées (date de naissance, âge…) : jamais dans le prompt d'une voix non reconnue, le LLM pourrait les dire
+    infos = "" if profil_actif() == "guest" else "".join(f"- {i}\n" for i in infos_createur())
     return (
         "INFORMATIONS SUR TON CREATEUR :\n"
         f"- Prenom : {nom} (se prononce {nom})\n"
@@ -33,6 +34,9 @@ def _creator_info():
 def composer_prompt_systeme(souvenirs=""):
     nomc = nom_createur()
     contexte_memoire = composer_contexte_memoire()
+    if profil_actif() == "guest":
+        # Un invité n'a ni la mémoire des faits, ni les souvenirs des conversations du créateur (« que sais-tu sur Neyor ? » contournait le blocage de lister_memoire)
+        contexte_memoire, souvenirs = "", ""
     
     # Date et heure système dynamiques pour éviter toute hallucination temporelle (ex: Booking, recherche)
     now = datetime.now()

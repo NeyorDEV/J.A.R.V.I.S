@@ -12,6 +12,7 @@ def initialiser_vad_biometrie():
 
     try:
         from core.vad import init_models, SileroVAD, SpeakerBiometrics, VAD_MODEL_PATH, SPEAKER_MODEL_PATH, VOICEPRINTS_DIR
+        from core.locuteur import profils_enroles
         init_models()
 
         cfg_vad = {}
@@ -38,12 +39,30 @@ def initialiser_vad_biometrie():
                 shared.ACTIVE_SPEAKER = "guest"
                 builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
                 print(f"🎙  [BIOMETRICS] Empreintes chargées : {list(voiceprints.keys())}. Mode initial : guest")
+            elif profils_enroles(VOICEPRINTS_DIR):
+                # Des profils existent mais aucune empreinte n'est exploitable (modèle changé, fichiers illisibles) : invité, jamais « neyor » pour tout le monde
+                shared.ACTIVE_SPEAKER = "guest"
+                builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
+                print("⚠  [BIOMETRICS] Des profils existent mais aucune empreinte exploitable : mode invité (refaites « enregistre ma voix » au clavier).")
             else:
                 shared.ACTIVE_SPEAKER = "neyor"
                 builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
                 print("🎙  [BIOMETRICS] Aucune empreinte vocale trouvée. Mode par défaut : neyor")
+        elif profils_enroles(VOICEPRINTS_DIR):
+            # Modèle vocal ABSENT alors que des profils existent : sans cela « neyor » (valeur par défaut) restait pour tout le monde, sans aucun message
+            shared.ACTIVE_SPEAKER = "guest"
+            builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
+            print(f"⚠  [BIOMETRICS] Modèle vocal introuvable ({SPEAKER_MODEL_PATH}) alors que des profils existent : mode invité.")
     except Exception as e:
         print(f"❌  [VAD/BIOMETRICS] Erreur lors de l'initialisation : {e}")
+        # Biométrie en panne : si des profils existent, on ne laisse pas « neyor » (valeur par défaut) à tout le monde
+        try:
+            from core.locuteur import profils_enroles as _enroles
+            if _enroles(os.path.join(os.path.dirname(os.path.abspath(__file__)), "voiceprints")):
+                shared.ACTIVE_SPEAKER = "guest"
+                builtins.ACTIVE_SPEAKER = shared.ACTIVE_SPEAKER
+        except Exception:
+            pass
 
 
 def charger_options_config():
