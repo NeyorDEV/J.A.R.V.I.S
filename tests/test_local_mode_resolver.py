@@ -12,7 +12,7 @@ except (ModuleNotFoundError, AttributeError) as e:
 
 @pytest.fixture(autouse=True)
 def neutre(monkeypatch):
-    import core.llm_providers as p
+    p = pytest.importorskip("core.llm_providers")   # google-genai absent de la CI minimale : test ignoré
     monkeypatch.setattr(p, "prechauffer_ollama", lambda: None)   # jamais de chargement réel du modèle dans un test
     monkeypatch.setattr(builtins, "FORCE_LOCAL_MODE", False, raising=False)
 
