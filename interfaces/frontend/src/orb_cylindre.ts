@@ -125,11 +125,12 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   const NLIG = 8;                                 // cartes par colonne
   const NCOL = Math.ceil(CATEGORIES.length / NLIG);
   const PAS_COL = TAU / NCOL;
-  const ATTENTE = 0.45, DERIVE = 1.6, PAUSE = 0.3, VITESSE = 4.4;   // s ; rad/s (dérive) ; s ; rad/s (vitesse moyenne de l'anneau)
-  const SOUS_MAX = 6, DELAI_SOUS = 0.09, DUREE_SOUS = 0.38, SAUT = 0.11;   // sous-catégories visibles ; décalage et durée de leur apparition ; durée d'un saut du sélecteur (s)
+  const ATTENTE = 0.45, DERIVE = 1.6, PAUSE = 0.3, VITESSE = 5.6;   // s ; rad/s (dérive) ; s ; rad/s (vitesse moyenne de l'anneau ; 4,4 sur la vidéo de référence, relevée à 5,6 le 17/11/2026 : « pas assez vite »)
+  const SOUS_MAX = 6, DELAI_SOUS = 0.09, DUREE_SOUS = 0.38, SAUT = 0.09;   // sous-catégories visibles ; décalage et durée de leur apparition ; durée d'un saut du sélecteur (s)
   interface Phase { t0: number; p0: number; dist: number; duree: number; visee: number }
   let confirme = false;   // le backend a annoncé le module de la commande en cours
   let derniereTexte = "";
+  let sequenceJouee = false;   // la recherche de la commande en cours a déjà été jouée (voir appliquer)
   let r1: Phase | null = null;   // plan de rotation de l'anneau
   let rhoCourant = 0, rho0Seq = 0;   // angle de l'anneau au repos, puis au début de la recherche
   const angleCol = (col: number): number => -col * PAS_COL;   // angle d'anneau qui amène la colonne `col` de face
@@ -137,7 +138,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     // chemin le plus court : jamais plus d'un demi-tour (minDist ne sert plus qu'à imposer un mouvement visible minimal, dans le même sens)
     let dist = ((((angleCol(col) - p0 + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
     if (Math.abs(dist) < minDist) dist = (dist < 0 ? -1 : 1) * minDist;
-    return { t0, p0, dist, duree: Math.max(0.85, dist / VITESSE), visee: col };
+    return { t0, p0, dist, duree: Math.max(0.65, dist / VITESSE), visee: col };
   };
   const position = (ph: Phase, tt: number): number => ph.p0 + ph.dist * sm((tt - ph.t0) / ph.duree);
   const fenetreSous = (): { n: number; nVis: number; debut: number; tp: number } => {
@@ -913,7 +914,9 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     const prochain: Mode = raisonsOuvert.size > 0 ? "ouvert" : (menuActif || contenuCyl !== null) && etat === "idle" ? "menu" : (MODE_DE_ETAT[etat] ?? "veille");
     if (prochain === mode) return;
     // Réponse sans phase de réflexion (commande locale instantanée) : la recherche se joue quand même, pendant la parole
-    if (prochain === "reflexion" || (prochain === "parole" && mode !== "reflexion")) { tSeq = maintenant(); r1 = null; rho0Seq = rhoCourant; }
+    // Une seule recherche par commande (sequenceJouee, remise à faux par noteText) : si la réflexion est retombée en veille avant que la voix ne démarre
+    // (synthèse vocale plus lente que 1,4 s), la parole ne rejoue pas toute la séquence une deuxième fois.
+    if (prochain === "reflexion" || (prochain === "parole" && mode !== "reflexion" && !sequenceJouee)) { tSeq = maintenant(); r1 = null; rho0Seq = rhoCourant; sequenceJouee = true; }
     mode = prochain; cible = CIBLES[prochain];
   }
 
@@ -927,7 +930,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
 
   function noteText(texte: string): void {
     const t = sansAccent(texte);
-    derniereTexte = t; derniereBrute = texte; confirme = false;
+    derniereTexte = t; derniereBrute = texte; confirme = false; sequenceJouee = false;
     [cibleCat, cibleSous] = choisir(t);
   }
 
