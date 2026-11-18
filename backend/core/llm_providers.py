@@ -26,7 +26,7 @@ async def interroger_grok(texte, update_hist=True):
     try:
         # SYNC : On utilise le même prompt système que Gemini (incluant la mémoire)
         souvenirs = rechercher_souvenirs(texte)
-        system_prompt = composer_prompt_systeme(souvenirs=souvenirs)
+        system_prompt = composer_prompt_systeme(souvenirs=souvenirs, texte=texte)
         messages = [{"role": "system", "content": system_prompt}]
         
         for h in shared.historique[-30:]: # Limiter aux 30 derniers messages
@@ -148,7 +148,7 @@ MODELE_MISTRAL = "ministral-8b-latest"
 def _messages_openai(texte, nb_historique=30):
     """Prompt système + derniers échanges + question, au format chat (Groq, Mistral, Ollama)."""
     souvenirs = rechercher_souvenirs(texte)
-    messages = [{"role": "system", "content": composer_prompt_systeme(souvenirs=souvenirs)}]
+    messages = [{"role": "system", "content": composer_prompt_systeme(souvenirs=souvenirs, texte=texte)}]
     for h in shared.historique[-nb_historique:]:
         role = "user" if h.role == "user" else "assistant"
         messages.append({"role": role, "content": h.parts[0].text})
@@ -262,7 +262,7 @@ async def interroger_claude(texte, update_hist=True):
     try:
         # Recherche de souvenirs
         souvenirs = rechercher_souvenirs(texte)
-        system_prompt = composer_prompt_systeme(souvenirs=souvenirs)
+        system_prompt = composer_prompt_systeme(souvenirs=souvenirs, texte=texte)
         
         # Conversion historique Gemini → format Anthropic
         messages = []

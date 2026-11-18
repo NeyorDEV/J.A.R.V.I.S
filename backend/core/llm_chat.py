@@ -126,7 +126,7 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
                           types.Content(role="model", parts=[types.Part(text="Bien noté.")])] + list(recent)
             temp_hist = recent + [types.Content(role="user", parts=[types.Part(text=texte)])]
             _t_prompt = time.monotonic()
-            prompt_actuel = composer_prompt_systeme(souvenirs=souvenirs)
+            prompt_actuel = composer_prompt_systeme(souvenirs=souvenirs, texte=texte)
             print(f"[PERF] Construction du prompt système : {time.monotonic() - _t_prompt:.2f} s")
             last_err = None
             for model_name in modeles_disponibles:
