@@ -7,6 +7,7 @@ import math
 import random
 import re
 import edge_tts
+from core import voix_registre
 import builtins
 
 try:
@@ -57,48 +58,46 @@ async def _generer_tts_fichier(texte) -> str | None:
     tmp = os.path.join(_DOSSIER_TTS, f"jarvis_tts_{int(time.time()*1000)}")   # dossier temporaire dédié : relatif, ils atterrissaient à la racine du projet et un arrêt brutal les y laissait
     
     try:
-        from core.config import VOIX_ACTUELLE
-
-        # Essai standard avec edge_tts (requiert internet)
-        try:
-            tmp_path = tmp + ".mp3"
-            voice_standard = "fr-FR-HenriNeural" if VOIX_ACTUELLE == "homme" else "fr-FR-DeniseNeural"
-            communicate = edge_tts.Communicate(texte_tts, voice=voice_standard, rate="+20%")
-            await asyncio.wait_for(communicate.save(tmp_path), 12)   # réseau qui stagne : repli SAPI au bout de 12 s au lieu de ~60 s de silence
-            return tmp_path
-        except Exception as net_err:
-            print(f"[SPEECH] Échec edge_tts (déconnexion ?) : {net_err}. Bascule sur pyttsx3 natif...")
-            # Fallback 100% offline via pyttsx3 (SAPI5 natif de Windows)
-            tmp_path = tmp + ".wav"
-            try:
-                import pyttsx3
-                
-                def _synthetiser_sapi5():
-                    engine = pyttsx3.init()
-                    
-                    # Augmenter légèrement le rythme pour correspondre au style dynamique
-                    rate = engine.getProperty('rate')
-                    engine.setProperty('rate', rate + 25)
-                    
-                    # Essayer de configurer une voix française si disponible
-                    voices = engine.getProperty('voices')
-                    for voice in voices:
-                        if "french" in voice.name.lower() or "fr" in voice.languages or "fr-fr" in voice.id.lower():
-                            engine.setProperty('voice', voice.id)
-                            break
-                            
-                    engine.save_to_file(texte_tts, tmp_path)
-                    engine.runAndWait()
-                    
-                await asyncio.get_event_loop().run_in_executor(None, _synthetiser_sapi5)
-                return tmp_path
-            except Exception as sapi_err:
-                print(f"[SPEECH] Échec ultime du fallback pyttsx3 : {sapi_err}")
-                return None
-            
+        return await voix_registre.generer(texte_tts, tmp)   # moteurs essayés dans l'ordre (core/voix_registre.py), un moteur en échec est mis de côté 30 s
     except Exception as e:
         print(f"[SPEECH GENERATION ERROR] {e}")
         return None
+
+
+async def _moteur_edge_tts(texte_tts, base):
+    from core.config import VOIX_ACTUELLE
+    chemin = base + ".mp3"
+    voix = "fr-FR-HenriNeural" if VOIX_ACTUELLE == "homme" else "fr-FR-DeniseNeural"
+    await asyncio.wait_for(edge_tts.Communicate(texte_tts, voice=voix, rate="+20%").save(chemin), 12)   # réseau qui stagne : moteur suivant au bout de 12 s
+    return chemin
+
+
+async def _moteur_sapi(texte_tts, base):
+    """Voix Windows (SAPI5, hors ligne) par pyttsx3."""
+    import pyttsx3
+    chemin = base + ".wav"
+
+    def _synthetiser():
+        engine = pyttsx3.init()
+        engine.setProperty("rate", engine.getProperty("rate") + 25)
+        for voice in engine.getProperty("voices"):
+            if "french" in voice.name.lower() or "fr" in voice.languages or "fr-fr" in voice.id.lower():
+                engine.setProperty("voice", voice.id)
+                break
+        engine.save_to_file(texte_tts, chemin)
+        engine.runAndWait()
+    await voix_registre.synthese_http(_synthetiser)
+    return chemin
+
+
+voix_registre.enregistrer("edge_tts", 10, lambda: True, _moteur_edge_tts)
+voix_registre.enregistrer("sapi", 90, lambda: True, _moteur_sapi)
+try:
+    from core import voix_elevenlabs
+    voix_elevenlabs.enregistrer()   # désactivé sans réglage « elevenlabs.actif » et clé ELEVENLABS_API_KEY
+except Exception as _e:
+    print(f"[SPEECH] ElevenLabs indisponible : {_e}")
+
 
 async def _jouer_tts_fichier(texte, tmp_path):
     """Joue physiquement le fichier TTS pré-généré et notifie le HUD."""
