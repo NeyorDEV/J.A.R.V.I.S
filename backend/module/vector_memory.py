@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 import chromadb
@@ -159,6 +160,30 @@ def rechercher_souvenirs(query_text, n_results=4, seuil=0.55):
     except Exception as e:
         print(f"[VECTOR DB] Erreur recherche souvenirs : {e}")
         return ""
+
+_prechargee = None   # (texte, tâche) : recherche lancée pendant l'appel d'intention au LLM
+
+
+def precharger_souvenirs(texte):
+    """Lance la recherche en fil séparé (elle recouvre l'appel d'intention de 0,6 à 2 s) ; `souvenirs_async` la récupère."""
+    global _prechargee
+    try:
+        _prechargee = (texte, asyncio.ensure_future(asyncio.to_thread(rechercher_souvenirs, texte)))
+    except RuntimeError:
+        _prechargee = None   # pas de boucle active : la recherche se fera à la demande
+
+
+async def souvenirs_async(texte):
+    """Souvenirs pertinents sans bloquer la boucle asyncio (embedding + HNSW : 0,15 à 0,3 s, voix et WebSocket gelés pendant ce temps)."""
+    global _prechargee
+    pre, _prechargee = _prechargee, None
+    if pre and pre[0] == texte:
+        try:
+            return await pre[1]
+        except Exception:
+            pass
+    return await asyncio.to_thread(rechercher_souvenirs, texte)
+
 
 def rechercher_souvenir_semantique(query_text, threshold=0.4):
     """Recherche un souvenir extrêmement proche sémantiquement.

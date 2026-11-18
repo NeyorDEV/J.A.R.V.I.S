@@ -323,6 +323,19 @@ def demarrer_ia():
         asyncio.create_task(update_homepods_metadata_loop())
         asyncio.create_task(boucle_surveillance_av())
 
+        async def _prechauffer_gemini():
+            # Ouvre la connexion HTTPS (DNS + TLS + HTTP/2) de la boucle avant la 1re question, qui la payait (~1 s sur l'appel d'intention).
+            # models.get ne génère rien : aucun coût, aucun quota de génération.
+            if not shared.gemini_actif or shared.client is None:
+                return
+            _t = time.monotonic()
+            try:
+                await asyncio.wait_for(shared.client.aio.models.get(model=shared.MODELS_LIST[0]), 8)
+                print(f"[PERF] Connexion Gemini préchauffée en {time.monotonic() - _t:.1f} s")
+            except Exception as e:
+                print(f"[PERF] Préchauffage Gemini impossible : {e}")
+        asyncio.create_task(_prechauffer_gemini())
+
         # Le gestionnaire de parole est déjà lancé au démarrage du script
 
 

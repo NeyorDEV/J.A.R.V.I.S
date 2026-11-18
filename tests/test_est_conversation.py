@@ -9,13 +9,15 @@ except ModuleNotFoundError as e:
 
 @pytest.mark.parametrize("phrase", ["raconte moi une histoire", "Raconte-moi une histoire longue", "parle moi de la physique quantique des particules",
                                     "explique-moi comment marche un trou noir", "pourquoi le ciel est bleu", "c'est quoi un trou noir", "qu'est-ce qu'un électron",
-                                    "s'il te plaît raconte une blague"])
+                                    "s'il te plaît raconte une blague", "combien font sept fois huit", "quelle est la capitale du Japon", "comment marche un frigo",
+                                    "quand a eu lieu la révolution", "qui a écrit les misérables", "est-ce que les chats voient la nuit"])
 def test_conversation(phrase):
     assert est_conversation(phrase)
 
 
 @pytest.mark.parametrize("phrase", ["explique-moi la météo de demain", "parle moi de mon agenda", "mets de la musique", "joue du jazz", "baisse la lumière",
-                                    "ouvre discord", "dis moi l'heure", "quelle heure est-il"])
+                                    "ouvre discord", "dis moi l'heure", "quelle heure est-il", "quelle est la météo", "combien de temps reste-t-il au minuteur",
+                                    "quand est mon prochain rendez-vous dans l'agenda"])
 def test_commande_ou_autre(phrase):
     assert not est_conversation(phrase)
 

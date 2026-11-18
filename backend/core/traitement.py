@@ -58,11 +58,11 @@ def est_action_oriented(texte):
     return re.search(r"(?<![\w])(?:" + "|".join(re.escape(m) for m in mots_actions) + r")\w{0,3}(?![\w])", t) is not None   # jusqu'à 3 lettres de conjugaison après le mot (mets, jouer, lancez)
 
 
-_DEBUT_CONVERSATION = re.compile(r"^(?:(?:s il te plait|stp|dis donc|alors|bon)\s+)?(?:raconte|explique|parle|pourquoi|c est quoi|qu est ce)\b")
+_DEBUT_CONVERSATION = re.compile(r"^(?:(?:s il te plait|stp|dis donc|alors|bon)\s+)?(?:raconte|explique|parle|pourquoi|c est quoi|qu est ce|combien|quel|quels|quelle|quelles|quand|comment|qui|est ce que)\b(?! heures?\b)")
 
 
 def est_conversation(texte: str) -> bool:
-    """Phrase qui COMMENCE comme une conversation (« raconte… », « explique… », « parle-moi de… », « pourquoi… », « c'est quoi… »).
+    """Phrase qui COMMENCE comme une conversation ou une question (« raconte… », « explique… », « pourquoi… », « c'est quoi… », « combien… », « quelle… », « comment… »).
     Celles-ci sautent l'appel d'intention au LLM (2 s) : la réponse normale de Gemini sait aussi lancer des actions.
     Un mot d'action n'importe où dans la phrase (« explique-moi la météo ») garde l'appel."""
     t = "".join(c for c in unicodedata.normalize("NFD", texte.lower()) if unicodedata.category(c) != "Mn")
@@ -310,6 +310,9 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
         # repasse dans les resolvers. Tout échec suit le chemin historique (interroger_ia).
         # Voix inconnue (invité) : pas de devinette. Une phrase mal transcrite (bruit, voix de la télé, conversation à côté) était mappée par le modèle sur une vraie commande :
         # vécu le 13/11/2026, « il fait cause connor jarvis » lançait la recherche de l'artiste Connor sur Deezer. Les commandes par mots-clés restent disponibles.
+        if not reponse and locuteur != "guest" and _texte_substantiel(texte_utilisateur):
+            from module.vector_memory import precharger_souvenirs
+            precharger_souvenirs(texte_utilisateur)   # recouvre l'appel d'intention ci-dessous ; interroger_ia la récupère
         if (not reponse and shared._USE_LLM_INTENT and _texte_substantiel(texte_utilisateur)
                 and locuteur != "guest"
                 and not est_conversation(texte_utilisateur)

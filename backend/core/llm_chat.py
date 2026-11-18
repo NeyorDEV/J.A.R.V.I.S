@@ -23,7 +23,7 @@ from core.web_bridge import est_connecte_internet, _safe_ws_send, envoyer_etat_h
 from module.memory_manager import _archiver_echange
 from module.meteo_domotique import meteo_du_moment, meteo_depuis_ha, HA_URL
 from module.recherche_web import resume_recherche_web
-from module.vector_memory import ajouter_souvenir, rechercher_souvenirs
+from module.vector_memory import ajouter_souvenir, souvenirs_async
 from core.interlocuteur import nom_createur, nom_espace, nom_virgule
 
 
@@ -115,7 +115,7 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
 
             print(f"[CERVEAU] Modèles Gemini disponibles : {modeles_disponibles}...")
             _t_souv = time.monotonic()
-            souvenirs = rechercher_souvenirs(texte)
+            souvenirs = await souvenirs_async(texte)
             print(f"[PERF] Recherche de souvenirs : {time.monotonic() - _t_souv:.2f} s")
             # Plafonné comme pour les autres moteurs (Groq / Claude / Mistral : 30 entrées) : sans limite, l'historique de session envoyé (et facturé) à chaque question grossissait de 2 entrées par échange
             recent = shared.historique[-4:] if getattr(shared, "ACTIVE_SPEAKER", "") == "guest" else shared.historique[-60:]   # un invité ne reçoit pas les échanges du créateur
@@ -199,7 +199,7 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
                         shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
                         shared.historique.append(types.Content(role="model", parts=[types.Part(text=full_text)]))
                         _archiver_echange(texte, full_text)
-                        ajouter_souvenir(texte, full_text)
+                        await asyncio.to_thread(ajouter_souvenir, texte, full_text)   # embedding : ne gèle pas la boucle
                         from core import compression
                         asyncio.ensure_future(compression.compresser_en_fond())   # résumé des vieux échanges, en arrière-plan
                     
@@ -396,7 +396,7 @@ async def interroger_ia_vision(texte, img_b64):
         )
         
         # Recherche de souvenirs
-        souvenirs = rechercher_souvenirs(texte)
+        souvenirs = await souvenirs_async(texte)
         prompt_actuel = composer_prompt_systeme(souvenirs=souvenirs) + "\n\nIMPORTANT: Réponds uniquement avec le texte de la réponse, n'utilise JAMAIS de format JSON ou de balises structurées. Analyse l'image et réponds."
         
         # On envoie l'image et le texte avec retry en cas de 503
