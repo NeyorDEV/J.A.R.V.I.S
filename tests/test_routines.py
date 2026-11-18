@@ -101,3 +101,27 @@ def test_creation_et_demon_ne_se_perdent_pas(tmp_path, monkeypatch):
     stop.set()
     t.join()
     assert len(R.charger()["routines"]) == 9
+
+
+def test_intervalle():
+    assert R.intervalle_de(R.norm("toutes les 2 heures")) == 120
+    assert R.intervalle_de(R.norm("chaque heure")) == 60
+    assert R.intervalle_de(R.norm("toutes les trente minutes")) is None   # nombre en lettres inconnu : pas de devinette
+    st, r = R.analyser("toutes les 2 heures donne-moi la météo")
+    assert st == "ok" and r["chaque_min"] == 120 and r["commande"] == "donne-moi la meteo"
+    assert R.analyser("toutes les 2 minutes donne-moi la météo")[0] == "trop_court"
+    assert R.analyser("toutes les 2 heures éteins le pc")[0] == "interdit"
+    assert R.analyser("je mange toutes les 2 heures") is None
+
+
+def test_a_lancer_intervalle():
+    from datetime import datetime
+    r = {"commande": "x y", "chaque_min": 60, "derniere_ts": datetime(2026, 11, 18, 10, 0).timestamp()}
+    assert not R.a_lancer(r, datetime(2026, 11, 18, 10, 59))
+    assert R.a_lancer(r, datetime(2026, 11, 18, 11, 0))
+    assert R.decrire(r) == "toutes les heures : x y"
+
+
+def test_veille():
+    st, r = R.analyser("surveille les prix des gpu toutes les 6 heures")
+    assert st == "ok" and r["chaque_min"] == 360 and r["commande"] == "recherche les dernieres nouvelles sur prix des gpu"

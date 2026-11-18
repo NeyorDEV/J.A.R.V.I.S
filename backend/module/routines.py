@@ -23,7 +23,7 @@ _SEMAINE, _WEEKEND = [0, 1, 2, 3, 4], [5, 6]
 # commandes qu'on refuse de programmer : effet sur le PC ou envoi vers l'extérieur
 _INTERDIT = re.compile(r"\b(eteins?|eteindre|arrete(?:r)? (?:le )?(?:pc|ordinateur)|redemarre\w*|veille|hiberne\w*|verrouille\w*|supprime\w*|efface\w*|vide\w*|desinstalle\w*|"
                        r"corbeille|formate\w*|installe\w*|met(?:s)? a jour|mise a jour|envoie\w*|mail|e-mail|courriel|ferme\w*|kill|tue\w*|payer|achete\w*)\b")
-_IMPERATIFS = ("dis", "donne", "lance", "ouvre", "joue", "mets", "met", "montre", "affiche", "fais", "annonce", "lis", "resume", "ecoute", "active", "demande")
+_IMPERATIFS = ("dis", "donne", "lance", "ouvre", "joue", "mets", "met", "montre", "affiche", "fais", "annonce", "lis", "resume", "ecoute", "active", "demande", "surveille")
 _RECURRENCE = re.compile(r"\b(?:tous les jours|chaque jour|tous les matins|chaque matin|tous les soirs|chaque soir|en semaine|les jours de semaine|tous les week ?-?ends?|le week ?-?end|"
                          r"(?:tous les|chaque|les) (?:lundis?|mardis?|mercredis?|jeudis?|vendredis?|samedis?|dimanches?))\b")
 _HEURE = re.compile(r"\b(?:a|vers)?\s*(?:(\d{1,2})\s*(?:h|heures?|:)\s*(\d{2})?|(midi)|(minuit))(?:\s*et\s*(demie|quart))?(?:\s*du\s*(matin|soir))?\b")
@@ -86,9 +86,40 @@ def interdite(commande: str) -> bool:
     return bool(_INTERDIT.search(norm(commande)))
 
 
+_INTERVALLE = re.compile(r"\b(?:toutes les|chaque)\s+(\d{1,3}|une|deux|trois|quatre|cinq|six|huit|dix|douze)?\s*(minutes?|heures?)\b")
+_NOMBRES = {"une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6, "huit": 8, "dix": 10, "douze": 12}
+INTERVALLE_MIN = 5   # minutes : en dessous, une routine saturerait JARVIS
+
+
+def intervalle_de(t: str):
+    """Minutes entre deux lancements (« toutes les 2 heures », « toutes les 30 minutes », « chaque heure »), ou None."""
+    m = _INTERVALLE.search(t)
+    if not m:
+        return None
+    n = m.group(1)
+    n = 1 if not n else (int(n) if n.isdigit() else _NOMBRES[n])
+    return n * (60 if m.group(2).startswith("heure") else 1)
+
+
 def analyser(texte: str):
     """Phrase de création -> ('ok', routine) | ('heure', None) | ('interdit', commande) | ('commande', None) | None si ce n'est pas une création de routine."""
     t = norm(texte)
+    pas = intervalle_de(t)
+    if pas is not None:
+        commande = re.sub(r"\s+", " ", re.sub(r"\b(?:jarvis|s'il te plait|stp)\b", " ", _INTERVALLE.sub(" ", t))).strip(" ,.;:!?-")
+        commande = re.sub(r"^(?:(?:programme|planifie|automatise|ajoute|cree)\s+)?(?:(?:une|ma|la)\s+)?(?:nouvelle\s+)?(?:routine\s*(?:ou|:)?\s*)?", "", commande).strip(" ,.;:!?-")
+        premier = re.split(r"[ \-]", commande)[0] if commande else ""
+        if interdite(commande):
+            return ("interdit", commande)   # comme pour les routines horaires : refusé, jamais exécuté à la place
+        if not ("routine" in t or premier in _IMPERATIFS):
+            return None
+        if len(commande.split()) < 2:
+            return ("commande", None)
+        if pas < INTERVALLE_MIN:
+            return ("trop_court", None)
+        if premier == "surveille":   # veille : une recherche sur le sujet à chaque échéance (pas de comparaison avec la fois précédente)
+            commande = "recherche les dernieres nouvelles sur " + commande.split(" ", 1)[1].removeprefix("les ").removeprefix("la ").removeprefix("le ")
+        return ("ok", {"commande": commande, "chaque_min": pas})
     jours = jours_de(t)
     if jours is None:
         return None
@@ -109,6 +140,9 @@ def analyser(texte: str):
 
 
 def decrire(r: dict) -> str:
+    if r.get("chaque_min"):
+        n = r["chaque_min"]
+        return f"toutes les {n // 60} heures : {r['commande']}" if n % 60 == 0 and n > 60 else (f"toutes les heures : {r['commande']}" if n == 60 else f"toutes les {n} minutes : {r['commande']}")
     jours = r.get("jours") or _TOUS
     if jours == _TOUS:
         quand = "tous les jours"
@@ -124,6 +158,8 @@ def decrire(r: dict) -> str:
 
 def a_lancer(r: dict, maintenant: datetime) -> bool:
     """La routine doit-elle partir maintenant ? Jour voulu, heure passée (de moins de RATTRAPAGE_MIN minutes), pas déjà lancée aujourd'hui."""
+    if r.get("chaque_min"):   # à intervalle : depuis le dernier lancement (ou la création), sans rattrapage en rafale
+        return maintenant.timestamp() - r.get("derniere_ts", 0) >= r["chaque_min"] * 60
     if maintenant.weekday() not in (r.get("jours") or _TOUS) or r.get("derniere") == maintenant.date().isoformat():
         return False
     h, m = (int(x) for x in r["heure"].split(":"))
@@ -198,11 +234,15 @@ def _resoudre(texte: str):
         return f"À quelle heure{nom_virgule()} ? Dites par exemple : tous les jours à 8 heures, donne-moi la météo."
     if statut == "commande":
         return f"Que dois-je faire{nom_virgule()} ? Dites par exemple : tous les jours à 8 heures, donne-moi la météo."
+    if statut == "trop_court":
+        return f"Pas moins de {INTERVALLE_MIN} minutes entre deux lancements{nom_virgule()}."
     if statut == "interdit":
         return f"Je ne programme pas « {valeur} » : une routine tourne sans personne pour la confirmer{nom_virgule()}."
     d = charger()
-    if any(r["commande"] == valeur["commande"] and r["heure"] == valeur["heure"] and r["jours"] == valeur["jours"] for r in d["routines"]):
+    if any(r["commande"] == valeur["commande"] and r.get("heure") == valeur.get("heure") and r.get("jours") == valeur.get("jours") and r.get("chaque_min") == valeur.get("chaque_min") for r in d["routines"]):
         return f"Cette routine existe déjà{nom_virgule()}."
+    if valeur.get("chaque_min"):
+        valeur["derniere_ts"] = time.time()   # premier lancement après un intervalle complet
     if len(d["routines"]) >= 30:
         return f"Vous avez déjà 30 routines{nom_virgule()}, supprimez-en une d'abord."
     d["routines"].append(valeur)
@@ -232,6 +272,7 @@ def _surveiller():
                 maintenant, change = datetime.now(), False
                 for r in d["routines"]:
                     if a_lancer(r, maintenant):
+                        r["derniere_ts"] = maintenant.timestamp()
                         r["derniere"] = maintenant.date().isoformat()   # marqué avant : une routine ne part jamais deux fois le même jour
                         change = True
                         if interdite(r["commande"]):
