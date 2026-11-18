@@ -33,7 +33,7 @@ def ip_blocable(ip: str):
 
 async def ws_block_ip(websocket, data):
     """Message WS « block_ip » : bloque une IP via le pare-feu Windows (entrant + sortant)."""
-    import re as _re, subprocess as _sp
+    import subprocess as _sp
     _ip = str(data.get("ip", "")).strip()
     _ok_ip, _raison = ip_blocable(_ip)
     if not _ok_ip:

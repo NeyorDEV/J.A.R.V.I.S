@@ -3,8 +3,8 @@ import pytest
 
 try:   # la CI n'installe que pytest et requests : sans les dépendances de l'appli, ce fichier est ignoré
     from module import file_manager as fm
-except ModuleNotFoundError as e:
-    pytest.skip(f"dépendance absente : {e.name}", allow_module_level=True)
+except (ModuleNotFoundError, AttributeError) as e:   # AttributeError : ctypes.windll absent hors Windows (CI Linux)
+    pytest.skip(f"dépendance absente : {e}", allow_module_level=True)
 
 
 def test_deplace_dans_un_sous_dossier(tmp_path):

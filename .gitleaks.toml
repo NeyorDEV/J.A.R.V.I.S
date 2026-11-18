@@ -1,0 +1,8 @@
+# Config gitleaks : les règles par défaut, plus une seule exception.
+# tests/test_secrets_voix.py contient de FAUSSES clés (AIza..., gsk_..., ghp_...) : c'est ce que le filtre core/secrets_voix.py doit masquer.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "fausses clés des tests du filtre de secrets"
+paths = ['''tests/test_secrets_voix\.py''']
