@@ -5,6 +5,7 @@ Prompt statique (compatible prefix caching) + contexte mémoire + souvenirs
 vectoriels + consignes par locuteur (biométrie). Extrait de main2.py.
 """
 
+from core import i18n
 import re
 import unicodedata
 from datetime import datetime
@@ -84,7 +85,7 @@ def composer_prompt_systeme(souvenirs="", texte=None):
     
     # Le prompt principal est construit de manière 100% statique pour permettre le Prefix Caching (Ollama / Cloud)
     base = (
-        f"Tu es JARVIS, une IA sophistiquée, élégante et experte mondiale. {nomc} est ton créateur. "
+        f"{i18n.consigne_langue()}Tu es JARVIS, une IA sophistiquée, élégante et experte mondiale. {nomc} est ton créateur. "
         "CONSIGNE ABSOLUE DE CONCISION : Fais des réponses extrêmement courtes, directes et percutantes (maximum 1 à 2 phrases courtes, pas de paragraphes longs, pas d'explications de texte inutiles). Va droit au but. "
         "Tu as accès aux conversations passées avec tes utilisateurs (incluses dans l'historique), ce qui te permet de te souvenir de ce qui a été dit dans les sessions précédentes — réfère-toi y naturellement quand pertinent. "
         "Tu possèdes une expertise de niveau professionnel dans les domaines suivants :\n"
@@ -357,4 +358,4 @@ def composer_prompt_systeme(souvenirs="", texte=None):
             f"mais tu ne dois pas effectuer d'opérations critiques ou destructrices réservées à ton créateur principal {nomc}."
         )
 
-    return base
+    return base + i18n.consigne_langue_fin()

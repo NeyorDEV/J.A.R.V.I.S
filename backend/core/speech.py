@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import queue
+from core import i18n
 import time
 import os
 import math
@@ -67,7 +68,7 @@ async def _generer_tts_fichier(texte) -> str | None:
 async def _moteur_edge_tts(texte_tts, base):
     from core.config import VOIX_ACTUELLE
     chemin = base + ".mp3"
-    voix = "fr-FR-HenriNeural" if VOIX_ACTUELLE == "homme" else "fr-FR-DeniseNeural"
+    voix = i18n.voix_edge(VOIX_ACTUELLE)
     await asyncio.wait_for(edge_tts.Communicate(texte_tts, voice=voix, rate="+20%").save(chemin), 12)   # réseau qui stagne : moteur suivant au bout de 12 s
     return chemin
 
@@ -81,7 +82,7 @@ async def _moteur_sapi(texte_tts, base):
         engine = pyttsx3.init()
         engine.setProperty("rate", engine.getProperty("rate") + 25)
         for voice in engine.getProperty("voices"):
-            if "french" in voice.name.lower() or "fr" in voice.languages or "fr-fr" in voice.id.lower():
+            if i18n.mot_voix_windows() in voice.name.lower() or i18n.langue() in voice.languages or i18n.stt_google().lower() in voice.id.lower():
                 engine.setProperty("voice", voice.id)
                 break
         engine.save_to_file(texte_tts, chemin)
@@ -180,6 +181,7 @@ def gestionnaire_generateur_worker():
                 parole_queue.task_done()
                 continue
                 
+            phrase = i18n.traduire_sync(phrase)   # mode anglais : phrase écrite en français dite en anglais (core/i18n.py)
             tmp_path = loop.run_until_complete(_generer_tts_fichier(phrase))
             if tmp_path:
                 lecture_queue.put({"text": phrase, "file": tmp_path})

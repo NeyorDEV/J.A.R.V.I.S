@@ -9,6 +9,8 @@ _PLUGINS = [
     "plugins.repetition_resolver",
     "plugins.quota_stt_resolver",
     "plugins.cout_llm_resolver",
+    "plugins.briefing_resolver",
+    "plugins.langue_resolver",
     "plugins.musique_resolver",
     "plugins.tv_resolver",
     "plugins.steam_resolver",

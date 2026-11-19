@@ -19,7 +19,7 @@ from core.extension_bridge import deconnecter as ext_deconnecter, jeton as ext_j
 from core.mises_a_jour import ws_check_update, ws_open_release
 from core.ws_assistant import ws_get_setup_state, ws_setup_check_local, ws_setup_test_key
 from core.ws_etat_systeme import ws_get_system_status, ws_system_test
-from core.ws_reglages import ws_get_settings, ws_update_settings
+from core.ws_reglages import ws_get_settings, ws_traduire, ws_update_settings
 from core.ws_securite import (
     ws_av_threat_action, ws_block_ip, ws_clear_cache, ws_get_blocked_ips, ws_unblock_ip,
 )
@@ -136,6 +136,9 @@ async def gerer_connexion_ws(websocket):
         # Force le broadcast immédiat de tous les widgets
         asyncio.create_task(broadcast_weather_stats_once())
 
+        from core import i18n   # langue du backend : le HUD s'y aligne dès la connexion (sinon il garde celle de son navigateur)
+        asyncio.create_task(websocket.send(json.dumps({"action": "langue", "langue": i18n.langue()})))
+
         # Envoi d'un état initial pour la musique
         asyncio.create_task(websocket.send(json.dumps({
             "action": "music_update",
@@ -204,6 +207,8 @@ async def gerer_connexion_ws(websocket):
                 elif data.get("type") == "get_alarmes":
                     from module.alarm_manager import alarmes_pour_hud
                     await websocket.send(json.dumps({"action": "alarmes_liste", "alarmes": alarmes_pour_hud()}))
+                elif data.get("type") == "traduire":
+                    await ws_traduire(websocket, data)
                 elif data.get("type") == "get_settings":
                     await ws_get_settings(websocket, data)
                 elif data.get("type") == "update_settings":

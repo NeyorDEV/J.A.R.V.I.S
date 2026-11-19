@@ -5,6 +5,7 @@ Jamais d'exception vers l'appelant : modèle absent, pas de GPU CUDA, mémoire v
 Désactivable : "stt_local": false dans jarvis_config.json. Le modèle se charge en tâche de fond (prechauffer) ; tant qu'il n'est pas prêt, Groq répond.
 """
 import json
+from core import i18n
 import os
 import threading
 import time
@@ -61,7 +62,7 @@ def transcrire(raw_audio_bytes, sample_rate=16000, prompt=None):
         if sample_rate != 16000 and len(a):
             a = np.interp(np.linspace(0, len(a) - 1, int(len(a) * 16000 / sample_rate)), np.arange(len(a)), a).astype(np.float32)
         with _verrou:   # un seul calcul à la fois sur le GPU (écoute normale + transcription d'un « stop »)
-            segments, _ = _modele.transcribe(a, language="fr", initial_prompt=prompt or None, condition_on_previous_text=False)
+            segments, _ = _modele.transcribe(a, language=i18n.stt_whisper(), initial_prompt=prompt or None, condition_on_previous_text=False)
             return " ".join(s.text.strip() for s in segments).strip().lower()   # "" = le modèle a entendu du silence (≠ None : indisponible)
     except Exception as e:
         print(f"[STT] Transcription locale en échec : {e}")

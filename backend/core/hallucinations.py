@@ -18,11 +18,11 @@ def _norm(texte) -> str:
 
 EXACTES = frozenset(_norm(x) for x in (
     "merci", "merci beaucoup", "merci à tous", "je vous remercie", "merci de votre attention", "bonjour", "you", "thank you", "thanks for watching", "subtitles", "sous-titres", "sous-titrage", "sous-titres par",
-    "sous-titres par amara.org", "subtitles by amara.org", "société radio-canada", "radio-canada",
+    "sous-titres par amara.org", "subtitles by amara.org", "thank you for watching", "thanks", "bye", "bye bye", "please subscribe", "subtitles by the amara.org community", "société radio-canada", "radio-canada",
 ))
 MARQUEURS = tuple(_norm(x) for x in (
     "amara.org", "sous-titres réalisés par", "sous-titrage st", "sous-titres st", "société radio-canada", "merci d'avoir regardé", "merci d'avoir écouté", "n'oubliez pas de vous abonner", "pensez à vous abonner",
-    "abonnez-vous à la chaîne", "à la prochaine pour une nouvelle vidéo", "à bientôt pour une nouvelle vidéo", "thanks for watching",
+    "abonnez-vous à la chaîne", "à la prochaine pour une nouvelle vidéo", "à bientôt pour une nouvelle vidéo", "thanks for watching", "thank you for watching", "please subscribe", "like and subscribe", "subtitles by the amara.org community", "transcribed by",
 ))
 DEBUTS = tuple(_norm(x) for x in ("sous-titres", "sous-titrage", "abonnez-vous", "à la prochaine vidéo"))
 

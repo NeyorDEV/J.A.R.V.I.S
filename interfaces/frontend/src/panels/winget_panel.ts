@@ -2,6 +2,7 @@
 // Compteur dans l'en-tête, versions lisibles, état de chaque mise à jour sur sa ligne
 // (le serveur indique l'identifiant du paquet dans chaque message), journal repliable.
 
+import { locale } from "../i18n/i18n";
 import { wsRef } from "../ws_link";
 import { makePanelDraggable } from "../ui/draggable";
 import { closeUninstallerPanel } from "./uninstaller_panel";
@@ -131,7 +132,7 @@ function renderWingetUpgrades() {
     wingetCountBadge.classList.toggle("hidden", n === 0);
   }
   if (wingetResume) {
-    const heure = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const heure = new Date().toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
     wingetResume.textContent = n
       ? `${n} mise${n > 1 ? "s" : ""} à jour disponible${n > 1 ? "s" : ""} · vérifié à ${heure}`
       : `Tout est à jour · vérifié à ${heure}`;

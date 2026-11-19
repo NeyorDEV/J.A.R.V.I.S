@@ -3,6 +3,7 @@
 import asyncio
 import builtins
 import io
+from core import i18n
 import json
 import os
 import threading
@@ -29,12 +30,12 @@ from core.interlocuteur import CREATEUR, nom_espace, nom_virgule
 # Ordres d'interruption de la parole (texte sans accents, mots entiers). « arrête » seul n'est
 # retenu que dans un énoncé bref (_est_ordre_stop) : dans une transcription intermédiaire qui
 # mêle la voix de JARVIS, « j'arrête le minuteur » l'aurait fait se couper lui-même.
-_RE_STOP = re.compile(r"\b(stop|stoppe|arrete[- ]toi|tais[- ]toi|taisez[- ]vous|silence|chut|ca suffit)\b")
+_RE_STOP = re.compile(r"\b(stop|stoppe|arrete[- ]toi|tais[- ]toi|taisez[- ]vous|silence|chut|ca suffit|shut up|be quiet)\b")
 # Énoncé bref : on accepte aussi les erreurs de transcription fréquentes d'un mot isolé
 # entendu par-dessus la voix de JARVIS (mesuré : « stop » → « top », « step » ;
 # « tais-toi » → « c'est toi »). Interrompre à tort une réponse est sans gravité.
 _RE_STOP_BREF = re.compile(r"\b(stop+e?|stopper|top|step|arrete[sz]?|arrete[- ]toi|tais[- ]?toi|taisez[- ]vous"
-                           r"|c'?est toi|t'?es toi|tes toi|silence|chut+e?|ca suffit|ta gueule)\b")
+                           r"|c'?est toi|t'?es toi|tes toi|silence|chut+e?|ca suffit|ta gueule|shut up|be quiet|quiet|enough|that'?s enough)\b")
 # Amorce Whisper pour la transcription d'un énoncé bref pendant que JARVIS parle : oriente vers
 # le vocabulaire d'arrêt. Phrase longue exprès : si Whisper la recopie (hallucination sur un
 # bruit), elle dépasse 4 mots et n'est pas prise pour un ordre.
@@ -290,7 +291,7 @@ def boucle_ecoute():
                             # (après 1,2 s de parole continue) pouvait le voir : un « stop » court et
                             # isolé n'interrompait jamais JARVIS.
                             if len(raw_audio) <= DUREE_MAX_ORDRE_STOP * RATE * 2:
-                                texte_stop = transcribe_audio_groq(raw_audio, RATE, r, prompt=_AMORCE_STOP)
+                                texte_stop = transcribe_audio_groq(raw_audio, RATE, r, prompt=i18n.amorce_stop())
                                 if _est_ordre_stop(texte_stop):
                                     _interrompre_parole(f"« {texte_stop} »")
                             # Sinon : JARVIS qui s'entend lui-même, jeté sans transcription
@@ -483,7 +484,7 @@ def _envoyer_interim(audio_chunks, rate):
                 import speech_recognition as sr
                 recognizer = sr.Recognizer()
                 audio_data = sr.AudioData(raw, rate, 2)
-                texte = recognizer.recognize_google(audio_data, language="fr-FR").lower().strip()
+                texte = recognizer.recognize_google(audio_data, language=i18n.stt_google()).lower().strip()
             except Exception:
                 pass
         else:
@@ -502,7 +503,7 @@ def _envoyer_interim(audio_chunks, rate):
                 result = shared.groq_client.with_options(timeout=8).audio.transcriptions.create(
                     file=("interim.wav", audio_buffer.read()),
                     model="whisper-large-v3-turbo",
-                    language="fr",
+                    language=i18n.stt_whisper(),
                     response_format="text",
                 )
                 _noter_stt("groq", raw, rate)   # comptée dans le quota : une phrase de 10 s = ~8 requêtes intermédiaires, que le compteur ne voyait pas

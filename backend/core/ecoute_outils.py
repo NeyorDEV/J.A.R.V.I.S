@@ -3,6 +3,7 @@
 import asyncio
 import builtins
 import io
+from core import i18n
 import re
 import time
 import wave
@@ -99,7 +100,7 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, p
             transcription = shared.groq_client.with_options(timeout=8).audio.transcriptions.create(
                 file=("audio.wav", audio_buffer.read()),
                 model="whisper-large-v3-turbo",
-                language="fr",
+                language=i18n.stt_whisper(),
                 response_format="text",
                 **({"prompt": prompt} if prompt else {}),
             )
@@ -134,7 +135,7 @@ def transcribe_audio_groq(raw_audio_bytes, sample_rate=16000, recognizer=None, p
             audio_data = sr.AudioData(raw_audio_bytes, sample_rate, 2)
             _noter_stt("google", raw_audio_bytes, sample_rate)
             recognizer.operation_timeout = 8   # sans délai, un réseau à moitié mort bloquait la boucle d'écoute (JARVIS sourd)
-            texte = recognizer.recognize_google(audio_data, language="fr-FR").lower().strip()
+            texte = recognizer.recognize_google(audio_data, language=i18n.stt_google()).lower().strip()
             if texte and not est_hallucination(texte):   # même filtre que pour Whisper
                 if shared.jarvis_actif or (shared.WAKE_WORD in texte):
                     print(f"[STT] Google STT (fallback) : {texte}")

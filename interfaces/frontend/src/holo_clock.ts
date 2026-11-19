@@ -1,11 +1,10 @@
+import { nomJour, nomMois } from "./i18n/i18n";
 /**
  * J.A.R.V.I.S — Horloge « lignes » (canvas 2D) : l'heure en grand entre deux lignes fines à repères ;
  * le curseur de la ligne de gauche avance avec les secondes, la date est dessous. Même teinte que l'orbe.
  */
 
 
-const JOURS = ["DIMANCHE", "LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI", "SAMEDI"];
-const MOIS = ["JANVIER", "FÉVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET", "AOÛT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DÉCEMBRE"];
 const LARGEUR = 440, HAUTEUR = 84;
 const p2 = (n: number): string => String(n).padStart(2, "0");
 const A = (c: string, a: number): string => `rgba(${c},${a})`;
@@ -47,7 +46,7 @@ export function initHoloClock(): void {
     g.shadowColor = "#00e5ff"; g.shadowBlur = 8; g.fillStyle = "#fff"; g.fillRect(px - 0.7, 30, 1.4, 8); g.shadowBlur = 0;
     ls(2); g.font = "400 9px Orbitron,Consolas,monospace"; g.fillStyle = A("0,229,255", 0.95); g.textAlign = "left"; g.fillText(p2(d.getSeconds()), 372, 51); ls(0);
     ls(3); g.font = "400 7.5px Orbitron,Consolas,monospace"; g.fillStyle = A("130,215,255", 0.85); g.textAlign = "center";
-    g.fillText(`${JOURS[d.getDay()]} ${d.getDate()} ${MOIS[d.getMonth()]}`, LARGEUR / 2 + 1.5, 72); ls(0);
+    g.fillText(`${nomJour(d.getDay())} ${d.getDate()} ${nomMois(d.getMonth())}`, LARGEUR / 2 + 1.5, 72); ls(0);
   }
 
   dessiner();

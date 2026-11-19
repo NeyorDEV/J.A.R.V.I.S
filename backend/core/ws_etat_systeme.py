@@ -119,7 +119,8 @@ def collecter_etat():
     voix = c.voix if c and c.voix and time.time() - c.voix[2] < 600 else None
     try:
         from core.config import VOIX_ACTUELLE
-        tts = "edge-tts · " + ("Henri" if VOIX_ACTUELLE == "homme" else "Denise")
+        from core import i18n
+        tts = "edge-tts · " + i18n.voix_edge(VOIX_ACTUELLE).split("-")[2].replace("Neural", "")
     except Exception:
         tts = "edge-tts"
     souvenirs = None

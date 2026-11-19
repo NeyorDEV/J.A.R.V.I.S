@@ -1,6 +1,7 @@
 // Pièces éclatées des 4 tableaux de gestion (style « fin et riche », css/17_fin.css + css/18_tableaux_fin.css) : système, mises à jour des
 // logiciels, antivirus, désinstallateur. Les anciens panneaux restent dans le DOM : ils reçoivent les messages du serveur, portent l'état
 // affiché / masqué et exposent leur état (lireEtat…) et leurs actions. Rien n'est inventé : une donnée absente est écrite comme telle.
+import { locale } from "../i18n/i18n";
 import { rafraichirPieces, type PieceDef } from "./eclate";
 import { AX, AX2, COUL, bornes, courbe, donut, ticks } from "./fin_graph";
 import { esc, formatDate, formatTaille } from "../panels/pm_utils";
@@ -12,7 +13,7 @@ import { desinstallerProgramme, garderTraces, lireEtatDesinstall, nettoyerTraces
 const cliquer = (id: string): void => { (document.getElementById(id) as HTMLElement | null)?.click(); };
 const bouton = (act: string, texte: string, extra = ""): string => `<span class="fn-btn ${extra}" data-act="${act}">${texte}</span>`;
 const vide = (texte: string): string => `<div class="fn-txt tf-vide">${texte}</div>`;
-const nombre = (n: number): string => Math.round(n).toLocaleString("fr-FR");
+const nombre = (n: number): string => Math.round(n).toLocaleString(locale());
 const virgule = (n: number, d = 1): string => n.toFixed(d).replace(".", ",");
 const mmss = (s: number): string => { const n = Math.max(0, Math.floor(s)); return `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`; };
 const cap = (t: string): string => `<div class="fn-cap">${t}</div>`;

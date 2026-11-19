@@ -1,3 +1,4 @@
+import { locale } from "../i18n/i18n";
 import { timerDisplayEl, timerHudEl, timerProgressEl } from "./dom_refs";
 import { signalerOutils } from "./donnees_outils";
 
@@ -88,7 +89,7 @@ function updateTimerDisplay() {
 // ── Clock Logic ─────────────────────────────────────────────────────────────
 function updateClock() {
   const now = new Date();
-  const timeStr = now.toLocaleTimeString('fr-FR', { hour12: false });
+  const timeStr = now.toLocaleTimeString(locale(), { hour12: false });
 
   // Globe overlay clock (existing)
   const clockEl = document.getElementById("globe-clock");
@@ -100,7 +101,7 @@ function updateClock() {
 
   const orbDate = document.getElementById("orb-date-display");
   if (orbDate) {
-    orbDate.textContent = now.toLocaleDateString('fr-FR', {
+    orbDate.textContent = now.toLocaleDateString(locale(), {
       day: '2-digit', month: '2-digit', year: 'numeric'
     });
   }

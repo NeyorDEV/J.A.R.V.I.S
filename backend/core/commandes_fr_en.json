@@ -1,0 +1,1018 @@
+[
+[
+"Lance Spotify",
+"Launch Spotify"
+],
+[
+"Mets de la musique",
+"Play music"
+],
+[
+"Joue du Daft Punk",
+"Play Daft Punk"
+],
+[
+"Reprends la musique",
+"Resume music"
+],
+[
+"Morceau suivant",
+"Next track"
+],
+[
+"Morceau précédent",
+"Previous track"
+],
+[
+"Monte le volume de Spotify",
+"Turn up Spotify volume"
+],
+[
+"Ouvre Deezer",
+"Open Deezer"
+],
+[
+"Mets de la musique sur Deezer",
+"Play music on Deezer"
+],
+[
+"Lance ma playlist Deezer",
+"Play my Deezer playlist"
+],
+[
+"Recherche Stromae sur Deezer",
+"Search for Stromae on Deezer"
+],
+[
+"Mets de la musique sur YouTube",
+"Play music on YouTube"
+],
+[
+"Montre la musique",
+"Show music"
+],
+[
+"Cache la musique",
+"Hide music"
+],
+[
+"Passe ta voix sur le HomePod",
+"Switch your voice to the HomePod"
+],
+[
+"Repasse sur le casque",
+"Switch back to headphones"
+],
+[
+"Pause le HomePod",
+"Pause the HomePod"
+],
+[
+"Musique suivante sur le HomePod",
+"Next track on HomePod"
+],
+[
+"Allume la télé",
+"Turn on the TV"
+],
+[
+"Éteins la télé",
+"Turn off the TV"
+],
+[
+"Lance Netflix sur la télé",
+"Launch Netflix on the TV"
+],
+[
+"Lance YouTube sur la télé",
+"Launch YouTube on the TV"
+],
+[
+"Lance Disney+ sur la télé",
+"Launch Disney+ on the TV"
+],
+[
+"Mets Squeezie sur YouTube sur la télé",
+"Play Squeezie on YouTube on TV"
+],
+[
+"Pause la télé",
+"Pause the TV"
+],
+[
+"Reprends la télé",
+"Resume TV"
+],
+[
+"Monte le son de la télé",
+"Turn up the TV volume"
+],
+[
+"Baisse un peu le son de la télé",
+"Turn down the TV volume a bit"
+],
+[
+"Retour à l'accueil de la télé",
+"Return to TV home screen"
+],
+[
+"Lance Portal sur Steam",
+"Launch Portal on Steam"
+],
+[
+"Mes jeux Steam",
+"My Steam games"
+],
+[
+"Ouvre ma bibliothèque Steam",
+"Open my Steam library"
+],
+[
+"On joue à Rocket League",
+"Let's play Rocket League"
+],
+[
+"Ouvre Steam",
+"Open Steam"
+],
+[
+"Mode gaming",
+"Gaming Mode"
+],
+[
+"Allume la lumière du salon",
+"Turn on the living room light"
+],
+[
+"Éteins la lumière de la chambre",
+"Turn off the bedroom light"
+],
+[
+"Mets la lumière en bleu",
+"Set lights to blue"
+],
+[
+"Allume la prise du bureau",
+"Turn on the office plug"
+],
+[
+"Éteins la prise du sapin",
+"Turn off the Christmas tree plug"
+],
+[
+"Quelle est la température dans le salon ?",
+"What is the temperature in the living room?"
+],
+[
+"Quel est le taux d'humidité dans le bureau ?",
+"What is the humidity level in the office?"
+],
+[
+"Active la scène cinéma",
+"Activate cinema scene"
+],
+[
+"Verrouille la porte",
+"Lock the door"
+],
+[
+"Déverrouille la porte",
+"Unlock the door"
+],
+[
+"Active la simulation de présence",
+"Activate presence simulation"
+],
+[
+"Lance le nettoyage",
+"Start cleanup"
+],
+[
+"Aspire la maison",
+"Vacuum the house"
+],
+[
+"Arrête l'aspirateur",
+"Stop the vacuum"
+],
+[
+"Retour à la base",
+"Return to base"
+],
+[
+"Quelle est la puissance consommée à la maison ?",
+"What is the home power consumption?"
+],
+[
+"Combien ai-je consommé d'énergie ce mois-ci ?",
+"How much energy have I consumed this month?"
+],
+[
+"Quelle est la batterie de mon téléphone ?",
+"What is my phone's battery level?"
+],
+[
+"Quand a eu lieu le dernier ramassage des œufs ?",
+"When was the last egg collection?"
+],
+[
+"Ferme le panneau température",
+"Close temperature panel"
+],
+[
+"Quel temps fait-il ?",
+"What's the weather like?"
+],
+[
+"Montre-moi la météo",
+"Show me the weather"
+],
+[
+"Quelle est la météo de demain ?",
+"What's tomorrow's weather?"
+],
+[
+"Quelle est la météo de la semaine ?",
+"What's the weather forecast for this week?"
+],
+[
+"Va-t-il pleuvoir demain ?",
+"Will it rain tomorrow?"
+],
+[
+"Faut-il un parapluie ?",
+"Do I need an umbrella?"
+],
+[
+"Quelle température fait-il dehors ?",
+"What's the temperature outside?"
+],
+[
+"Cache la météo",
+"Hide weather"
+],
+[
+"Ferme la météo",
+"Close weather"
+],
+[
+"Annule le minuteur",
+"Cancel the timer"
+],
+[
+"Combien de temps reste-t-il ?",
+"How much time is left?"
+],
+[
+"Combien de minuteurs sont actifs ?",
+"How many timers are active?"
+],
+[
+"Liste mes alarmes",
+"List my alarms"
+],
+[
+"Annule toutes les alarmes",
+"Cancel all alarms"
+],
+[
+"Montre mon agenda",
+"Show my calendar"
+],
+[
+"Quels sont mes prochains rendez-vous ?",
+"What are my upcoming appointments?"
+],
+[
+"Quels sont mes événements ?",
+"What are my events?"
+],
+[
+"Modifie l'événement dentiste",
+"Reschedule dentist appointment"
+],
+[
+"Supprime l'événement dentiste",
+"Delete the dentist event"
+],
+[
+"Montre le calendrier",
+"Show the calendar"
+],
+[
+"Cache le calendrier",
+"Hide the calendar"
+],
+[
+"Ajoute une tâche dans mes tâches : appeler Léo",
+"Add a task to my tasks: call Leo"
+],
+[
+"Liste mes tâches Google Tasks",
+"List my Google Tasks"
+],
+[
+"Valide la tâche appeler Léo",
+"Mark the task call Leo as completed"
+],
+[
+"Supprime la tâche appeler Léo",
+"Delete the call Leo task"
+],
+[
+"Ajoute une tâche : acheter du pain",
+"Add a task: buy bread"
+],
+[
+"Mes tâches",
+"My tasks"
+],
+[
+"Efface mes tâches",
+"Clear my tasks"
+],
+[
+"Qui a son anniversaire aujourd'hui ?",
+"Whose birthday is it today?"
+],
+[
+"Lis mes nouveaux emails",
+"Read my new emails"
+],
+[
+"Lis le détail du dernier email",
+"Read the details of the latest email"
+],
+[
+"Envoie un email à Léo au sujet de la réunion",
+"Send an email to Leo about the meeting"
+],
+[
+"Réponds au dernier email",
+"Reply to the last email"
+],
+[
+"Archive le dernier email",
+"Archive the last email"
+],
+[
+"Supprime le dernier email",
+"Delete the last email"
+],
+[
+"Crée un Google Doc intitulé Réunion",
+"Create a Google Doc titled Meeting"
+],
+[
+"Écris dans mon Google Doc",
+"Write in my Google Doc"
+],
+[
+"Lis le contenu de mon Google Doc",
+"Read the contents of my Google Doc"
+],
+[
+"Crée un Google Sheet intitulé Budget",
+"Create a Google Sheet titled Budget"
+],
+[
+"Ajoute une ligne dans mon Google Sheet",
+"Add a row to my Google Sheet"
+],
+[
+"Ouvre mon Google Drive",
+"Open my Google Drive"
+],
+[
+"Cherche sur mon Drive le CV",
+"Search my Drive for resume"
+],
+[
+"Téléverse un fichier sur mon Drive",
+"Upload a file to my Drive"
+],
+[
+"Partage le document Budget avec Léo",
+"Share the Budget document with Léo"
+],
+[
+"Crée un dossier sur mon Drive",
+"Create a folder on my Drive"
+],
+[
+"Crée une présentation PowerPoint sur le climat",
+"Create a PowerPoint presentation about climate"
+],
+[
+"Rédige un rapport Word sur la sécurité",
+"Write a Word report on security"
+],
+[
+"Crée un tableau Excel des dépenses",
+"Create an Excel spreadsheet for expenses"
+],
+[
+"Génère un PDF sur les volcans",
+"Generate a PDF about volcanoes"
+],
+[
+"Fusionne les PDF de mon bureau",
+"Merge the PDFs on my desktop"
+],
+[
+"Analyse le fichier notes",
+"Scan the notes file"
+],
+[
+"Niveau de la batterie",
+"Battery level"
+],
+[
+"Utilisation du processeur",
+"CPU usage"
+],
+[
+"Utilisation de la RAM",
+"RAM Usage"
+],
+[
+"Depuis combien de temps le PC est allumé ?",
+"How long has the PC been on?"
+],
+[
+"Monte le volume",
+"Turn up the volume"
+],
+[
+"Baisse le volume",
+"Lower the volume"
+],
+[
+"Coupe le son",
+"Mute audio"
+],
+[
+"Remets le son",
+"Unmute audio"
+],
+[
+"Prends une capture d'écran",
+"Take a screenshot"
+],
+[
+"Vide la corbeille",
+"Empty the trash"
+],
+[
+"Redémarre le PC",
+"Restart the PC"
+],
+[
+"Mets le PC en veille",
+"Put the PC to sleep"
+],
+[
+"Verrouille le PC",
+"Lock the PC"
+],
+[
+"Annule l'arrêt",
+"Cancel shutdown"
+],
+[
+"Ouvre mon Bureau",
+"Open my Desktop"
+],
+[
+"Ouvre mes Documents",
+"Open my Documents"
+],
+[
+"Ouvre mes Téléchargements",
+"Open my Downloads"
+],
+[
+"Ouvre mes Images",
+"Open my Pictures"
+],
+[
+"Ouvre le dossier Projets",
+"Open the Projects folder"
+],
+[
+"Ouvre le fichier notes",
+"Open notes file"
+],
+[
+"Range mes dossiers",
+"Organize my files"
+],
+[
+"Trie complet",
+"Full sort"
+],
+[
+"Crée le dossier Projets",
+"Create the Projects folder"
+],
+[
+"Renomme ancien en nouveau",
+"Rename old to new"
+],
+[
+"Déplace photo vers Images",
+"Move photo to Pictures"
+],
+[
+"Ouvre la calculatrice",
+"Open Calculator"
+],
+[
+"Ouvre Notepad",
+"Open Notepad"
+],
+[
+"Ouvre Paint",
+"Open Paint"
+],
+[
+"Ouvre le gestionnaire de tâches",
+"Open Task Manager"
+],
+[
+"Ferme Chrome",
+"Close Chrome"
+],
+[
+"Mode boulot",
+"Work Mode"
+],
+[
+"Lance l'autopilote OS : ouvre le bloc-notes",
+"Launch OS autopilot: open Notepad"
+],
+[
+"Mets à jour mes logiciels",
+"Update my software"
+],
+[
+"Lance les mises à jour",
+"Run updates"
+],
+[
+"Lance winget",
+"Run winget"
+],
+[
+"Ouvre le désinstallateur",
+"Open the uninstaller"
+],
+[
+"Désinstalle un logiciel",
+"Uninstall software"
+],
+[
+"Analyse mon PC",
+"Scan my PC"
+],
+[
+"Lance le scan antivirus",
+"Run antivirus scan"
+],
+[
+"Active la protection en temps réel",
+"Enable real-time protection"
+],
+[
+"Désactive la protection antivirus",
+"Disable antivirus protection"
+],
+[
+"Recherche approfondie sur l'intelligence artificielle",
+"Deep research on artificial intelligence"
+],
+[
+"Ouvre Chrome",
+"Open Chrome"
+],
+[
+"Ouvre Firefox",
+"Open Firefox"
+],
+[
+"Ouvre YouTube et recherche Stromae",
+"Open YouTube and search for Stromae"
+],
+[
+"Ouvre Amazon, cherche un clavier et clique sur le premier article",
+"Open Amazon, search for a keyboard, and click on the first item"
+],
+[
+"Cherche un hôtel avec spa à Annecy sur Booking",
+"Find a hotel with a spa in Annecy on Booking"
+],
+[
+"Cherche les vols Paris-Barcelone sur Kayak",
+"Search for flights from Paris to Barcelona on Kayak"
+],
+[
+"Ferme le navigateur",
+"Close browser"
+],
+[
+"Stop l'autopilote",
+"Stop autopilot"
+],
+[
+"Mets la vidéo en pause",
+"Pause video"
+],
+[
+"Reprends la vidéo",
+"Resume video"
+],
+[
+"Coupe le son de la vidéo",
+"Mute the video"
+],
+[
+"Quels sont mes onglets ?",
+"What are my open tabs?"
+],
+[
+"Va sur l'onglet YouTube",
+"Switch to the YouTube tab"
+],
+[
+"Ferme cet onglet",
+"Close this tab"
+],
+[
+"Résume cette page",
+"Summarize this page"
+],
+[
+"Combien d'abonnés sur TikTok ?",
+"How many TikTok followers do I have?"
+],
+[
+"Génère une image d'un coucher de soleil",
+"Generate an image of a sunset"
+],
+[
+"Dessine-moi une voiture de sport",
+"Draw me a sports car"
+],
+[
+"Montre-moi des images de chats",
+"Show me pictures of cats"
+],
+[
+"Cherche des photos de Paris",
+"Search for photos of Paris"
+],
+[
+"Modifie une image de mon PC",
+"Edit an image from my PC"
+],
+[
+"Retouche une photo",
+"Edit a photo"
+],
+[
+"Crée la compétence météo pour dire la météo",
+"Create weather skill to tell the weather"
+],
+[
+"Liste mes compétences",
+"List my skills"
+],
+[
+"Supprime la compétence météo",
+"Remove the weather skill"
+],
+[
+"Exécute la compétence météo",
+"Execute weather skill"
+],
+[
+"Mes skills",
+"My skills"
+],
+[
+"Autorise le skill espace disque",
+"Authorize the disk space skill"
+],
+[
+"Lance le skill espace disque",
+"Run disk space skill"
+],
+[
+"Crée un site web de portfolio",
+"Create a portfolio website"
+],
+[
+"Crée une application de notes",
+"Create a notes app"
+],
+[
+"Lance l'essaim",
+"Launch the swarm"
+],
+[
+"Crée un plugin pour Notion",
+"Create a plugin for Notion"
+],
+[
+"Envoie salut à tous dans le salon annonces",
+"Send hello everyone in the announcements channel"
+],
+[
+"Écris à Léo sur Discord que je suis en retard",
+"Tell Leo on Discord that I'm running late"
+],
+[
+"Appelle Léo sur WhatsApp",
+"Call Leo on WhatsApp"
+],
+[
+"Souviens-toi que j'aime le café",
+"Remember that I like coffee"
+],
+[
+"Oublie mon adresse",
+"Forget my address"
+],
+[
+"Qu'est-ce que tu sais sur moi ?",
+"What do you know about me?"
+],
+[
+"Liste ma mémoire",
+"List my memory"
+],
+[
+"Cherche dans mes souvenirs l'anniversaire",
+"Search my memories for birthday"
+],
+[
+"Cherche dans mon cortex les vacances",
+"Search my cortex for vacation"
+],
+[
+"Lis ce souvenir",
+"Read this memory"
+],
+[
+"Note ça : acheter des piles",
+"Note this: buy batteries"
+],
+[
+"Lis mes notes",
+"Read my notes"
+],
+[
+"Efface mes notes",
+"Delete my notes"
+],
+[
+"Recette de la ratatouille",
+"Ratatouille recipe"
+],
+[
+"Ajoute du lait à ma liste de courses",
+"Add milk to my shopping list"
+],
+[
+"Affiche ma liste de courses",
+"Show my shopping list"
+],
+[
+"Vide la liste de courses",
+"Clear the shopping list"
+],
+[
+"Ferme la recette",
+"Close the recipe"
+],
+[
+"Affiche l'explorateur spatial",
+"Show space explorer"
+],
+[
+"Ouvre le cortex",
+"Open the cortex"
+],
+[
+"Affiche le radar réseau",
+"Show network radar"
+],
+[
+"On joue aux échecs",
+"Let's play chess"
+],
+[
+"Lance la partie avec les blancs niveau moyen",
+"Start game as white medium level"
+],
+[
+"Recommence la partie",
+"Restart the game"
+],
+[
+"Quitte les échecs",
+"Quit chess"
+],
+[
+"Affiche la Terre",
+"Show Earth"
+],
+[
+"Montre-moi Tokyo",
+"Show me Tokyo"
+],
+[
+"Où suis-je ?",
+"Where am I?"
+],
+[
+"Trace un itinéraire de Paris à Lyon",
+"Plot a route from Paris to Lyon"
+],
+[
+"Ferme le globe",
+"Close the globe"
+],
+[
+"Active la vue de Dieu",
+"Activate God view"
+],
+[
+"Mets à jour la vue de Dieu",
+"Update God's eye view"
+],
+[
+"Ferme la vue de Dieu",
+"Close God View"
+],
+[
+"Active le mode AR",
+"Enable AR mode"
+],
+[
+"Active le miroir AR",
+"Enable AR mirror"
+],
+[
+"Ouvre les paramètres",
+"Open settings"
+],
+[
+"Ferme les paramètres",
+"Close settings"
+],
+[
+"Active les sous-titres",
+"Turn on subtitles"
+],
+[
+"Désactive les sous-titres",
+"Turn off subtitles"
+],
+[
+"Active le clavier",
+"Enable keyboard"
+],
+[
+"Ferme le clavier",
+"Close keyboard"
+],
+[
+"Active l'accélération graphique",
+"Enable graphics acceleration"
+],
+[
+"Prends la voix d'homme",
+"Switch to male voice"
+],
+[
+"Prends la voix de femme",
+"Switch to a female voice"
+],
+[
+"Tais-toi",
+"Be quiet"
+],
+[
+"Active le mode local",
+"Enable local mode"
+],
+[
+"Repasse en mode hybride",
+"Switch back to hybrid mode"
+],
+[
+"Liste tes commandes",
+"List your commands"
+],
+[
+"Quelle heure est-il ?",
+"What time is it?"
+],
+[
+"On est quel jour ?",
+"What day is it?"
+],
+[
+"Quelle date sommes-nous ?",
+"What is today's date?"
+],
+[
+"C'est quel mois ?",
+"What month is it?"
+],
+[
+"On est en quelle année ?",
+"What year is it?"
+],
+[
+"J'ai quel âge ?",
+"How old am I?"
+],
+[
+"Quelle heure est-il à Tokyo ?",
+"What time is it in Tokyo?"
+],
+[
+"Quelle est la capitale du Japon ?",
+"What is the capital of Japan?"
+],
+[
+"Quelle est la monnaie du Japon ?",
+"What is the currency of Japan?"
+],
+[
+"Raconte-moi une blague",
+"Tell me a joke"
+],
+[
+"Donne-moi une citation",
+"Give me a quote"
+],
+[
+"Qui es-tu ?",
+"Who are you?"
+],
+[
+"Qui est ton créateur ?",
+"Who is your creator?"
+],
+[
+"Traduis bonjour en anglais",
+"Translate hello into English"
+],
+[
+"Lance une pièce",
+"Flip a coin"
+],
+[
+"Lance un dé",
+"Roll a die"
+],
+[
+"Épelle bonjour",
+"Spell hello"
+],
+[
+"Combien de jours avant Noël ?",
+"How many days until Christmas?"
+],
+[
+"Analyse mon écran",
+"Scan my screen"
+],
+[
+"Aide-moi",
+"Help me"
+],
+[
+"Regarde mon écran",
+"Look at my screen"
+],
+[
+"Lance la caméra",
+"Start camera"
+],
+[
+"Regarde-moi",
+"Look at me"
+],
+[
+"Clique sur le bouton Valider",
+"Click the Confirm button"
+],
+[
+"Tape le texte bonjour",
+"Type the text hello"
+]
+]

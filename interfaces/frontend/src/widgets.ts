@@ -2,6 +2,7 @@
  * J.A.R.V.I.S — Widgets Logic (Calendar & Weather)
  */
 
+import { locale } from "./i18n/i18n";
 import { construireVuesMeteo } from "./weather_vues";
 import { donnees } from "./hud/donnees_widgets";
 import { rafraichirPieces } from "./hud/eclate";
@@ -224,7 +225,7 @@ function updateCalendar() {
   if (!container) return;
 
   const now = new Date();
-  const month = now.toLocaleString('fr-FR', { month: 'long' });
+  const month = now.toLocaleString(locale(), { month: 'long' });
   const year = now.getFullYear();
 
   let html = `<div class="cal-header"><span class="cal-header-title">${month} ${year}</span><button class="widget-close-btn" id="cal-close-btn" title="Masquer">✕</button></div>`;

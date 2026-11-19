@@ -19,6 +19,15 @@ def _masquer_cle(valeur: str) -> str:
     return _MASQUE_CLE + (valeur[-4:] if len(valeur) > 8 else "")
 
 
+async def ws_traduire(websocket, data):
+    """Message WS « traduire » : le HUD (en anglais) demande la traduction de textes dynamiques venus du serveur (cartes, confirmations, écrans de module). Réponse « traduction »."""
+    import asyncio
+    from core import i18n
+    textes = [str(t) for t in (data.get("textes") or [])][:40]
+    traduits = await asyncio.gather(*(i18n.traduire(t) for t in textes))
+    await websocket.send(json.dumps({"type": "traduction", "id": data.get("id"), "textes": list(traduits)}, ensure_ascii=False))
+
+
 async def ws_get_settings(websocket, data):
     """Message WS « get_settings » : envoie la config (clés API masquées) et la liste des micros."""
     import json as _j
@@ -157,6 +166,9 @@ async def ws_update_settings(websocket, data):
     if settings.get("voix_jarvis") in ("homme", "femme"):
         from core import config as _config
         _config.VOIX_ACTUELLE = shared.VOIX_ACTUELLE = settings["voix_jarvis"]
+    if settings.get("langue") in ("fr", "en"):
+        from core import i18n
+        i18n.definir(settings["langue"])   # reconnaissance, voix, prompt et traduction suivent sans redémarrage
     if "av_live_protection" in settings:
         shared.AV_LIVE_PROTECTION_ENABLED = settings["av_live_protection"]
     # Recharger l'identité globalement

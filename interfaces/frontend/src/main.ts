@@ -60,6 +60,7 @@ import { initCylindreOuvert } from "./hud/cylindre_ouvert";
 import { initMenuRoue } from "./hud/menu_roue";
 import { initWeatherTempPanels } from "./panels/weather_temp_panels";
 import { connect } from "./ws/connection";
+import { initI18n } from "./i18n/i18n";
 
 // Classes des vues 3D exposées pour vues_3d.js (qui les instancie à la demande)
 (window as any).SpatialFileExplorer = SpatialFileExplorer;
@@ -72,6 +73,9 @@ import { connect } from "./ws/connection";
 initSwarmLounge();
 initConfirmDialog();
 initWebsiteBuilderHud();
+
+// ── Langue du HUD (avant tout panneau : traduit le DOM déjà présent puis observe les ajouts) ──
+initI18n();
 
 // ── Orb ──
 initOrb();

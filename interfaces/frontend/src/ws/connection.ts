@@ -1,3 +1,4 @@
+import { recevoirTraduction, traduireMessage } from "../i18n/i18n";
 import { captureFrame } from "../screen_capture";
 import { wsRef } from "../ws_link";
 import { createDomActionQueue } from "../hud/dom_automation";
@@ -56,7 +57,9 @@ export function connect(): void {
 
   ws.addEventListener("message", async (event: MessageEvent) => {
     try {
-      const data = JSON.parse(event.data as string) as JarvisMessage;
+      const brut = JSON.parse(event.data as string) as JarvisMessage;
+      if ((brut as any).type === "traduction") { recevoirTraduction(brut as any); return; }
+      const data = await traduireMessage(brut);   // anglais : textes dynamiques du serveur traduits avant l'affichage (src/i18n/i18n.ts)
       // Mêmes branches, dans le même ordre, que l'ancien gestionnaire unique :
       // chaque handle*() renvoie true là où il faisait « return; ».
       if (handleAutopilotMessage(data)) return;

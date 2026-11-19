@@ -70,7 +70,28 @@ _NOMBRES_EN_LETTRES = {
     "treize": 13, "quatorze": 14, "quinze": 15, "seize": 16, "vingt": 20,
     "vingt-cinq": 25, "trente": 30, "quarante": 40, "quarante-cinq": 45,
     "cinquante": 50, "soixante": 60, "quatre-vingt-dix": 90,
+    # anglais (« set a timer for five minutes ») : les mots-nombres sont convertis comme les français
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "fifteen": 15, "twenty": 20, "twenty-five": 25, "thirty": 30, "forty": 40, "forty-five": 45, "fifty": 50, "sixty": 60, "ninety": 90,
 }
+
+
+def _anglais_vers_francais(t: str) -> str:
+    """Tournures anglaises de durée et d'heure ramenées au français que parse le reste (« in 5 minutes », « 7 pm », « half an hour », « tomorrow »)."""
+    t = re.sub(r"\bhalf an? hour\b", "30 minutes", t)
+    t = re.sub(r"\ba quarter of an hour\b|\bquarter of an hour\b", "15 minutes", t)
+    t = re.sub(r"\ban? (hour|minute|second)\b", r"1 \1", t)
+    t = re.sub(r"\bhours?\b", "heures", t)
+    t = re.sub(r"\bseconds?\b", "secondes", t)
+    t = re.sub(r"\bin (?=\d)", "dans ", t)
+    t = re.sub(r"\btomorrow\b", "demain", t)
+    t = re.sub(r"\bnoon\b", "midi", t)
+    t = re.sub(r"\bmidnight\b", "minuit", t)
+
+    def _ampm(m):
+        h = int(m.group(1)) % 12 + (12 if m.group(3) == "p" else 0)
+        return f"{h}h{m.group(2) or '00'}"
+    return re.sub(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\b\.?", _ampm, t)
 
 
 def _normaliser_texte_heure(texte: str) -> str:
@@ -85,7 +106,7 @@ def _normaliser_texte_heure(texte: str) -> str:
     # Les composés (« vingt-cinq ») avant leurs parties (« vingt »)
     for mot in sorted(_NOMBRES_EN_LETTRES, key=len, reverse=True):
         t = re.sub(rf"(?<![\w-]){re.escape(mot)}(?![\w-])", str(_NOMBRES_EN_LETTRES[mot]), t)
-    return t
+    return _anglais_vers_francais(t)
 
 
 def parser_duree(texte: str) -> int | None:

@@ -1,4 +1,5 @@
 import { icone } from "../panels/pm_utils";
+import { definirLangue, langueActuelle } from "../i18n/i18n";
 import { wsRef } from "../ws_link";
 import { appAddBtn, appAddNameEl, appAddPathEl, appDetectBtn, appDetectSelect, keyboardHudEl, keyboardToggleButtonEl, settingsAgeEl, settingsAppsListEl, settingsCameraSelect, settingsCloseBtn, settingsMicSelect, settingsModalEl, settingsMusiqueLien, settingsNameEl, settingsSaveBtn, swarmLoungeClose, swarmLoungeHud } from "./dom_refs";
 import { orb } from "./orb_state";
@@ -12,6 +13,12 @@ import { donneesOutils, signalerOutils } from "./donnees_outils";
 let currentCustomApps: { id: string, label: string, exe_path: string }[] = [];
 
 export function handleSettingsMessage(data: JarvisMessage): boolean {
+  if ((data as any).action === "langue" && ((data as any).langue === "fr" || (data as any).langue === "en")) {
+    definirLangue((data as any).langue);   // « passe en anglais » dit à voix haute
+    const sel = document.getElementById("settings-langue") as HTMLSelectElement | null;
+    if (sel) sel.value = langueActuelle();
+    return true;
+  }
   if (data.type === "detected_apps" && (data as any).apps) {
     if (appDetectSelect && appDetectBtn) {
       appDetectSelect.innerHTML = '<option value="">-- Sélectionner une application détectée --</option>';
@@ -29,6 +36,11 @@ export function handleSettingsMessage(data: JarvisMessage): boolean {
 
   if (data.type === "settings_data" && data.data) {
     const settings = data.data as any;
+    if (settings.langue === "fr" || settings.langue === "en") {
+      definirLangue(settings.langue);   // la langue du backend (reconnaissance vocale, voix) fait foi
+      const sel = document.getElementById("settings-langue") as HTMLSelectElement | null;
+      if (sel) sel.value = settings.langue;
+    }
     // Voix, mot d'éveil et profils vocaux : lus par les pièces éclatées des réglages (hud/pieces_outils.ts)
     donneesOutils.reglages = { voix: String(settings.voix_actuelle ?? ""), motEveil: String(settings.mot_eveil ?? ""), profils: Array.isArray(settings.profils_vocaux) ? settings.profils_vocaux : null };
     signalerOutils("reglages");
@@ -289,6 +301,16 @@ export function initSettingsForm(): void {
         }
         appDetectSelect.value = "";
       }
+    });
+  }
+
+  const langueSel = document.getElementById("settings-langue") as HTMLSelectElement | null;
+  if (langueSel) {
+    langueSel.value = langueActuelle();
+    langueSel.addEventListener("change", () => {   // effet immédiat, sans attendre « Enregistrer »
+      const l = langueSel.value === "en" ? "en" : "fr";
+      definirLangue(l);
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify({ type: "update_settings", settings: { langue: l } }));
     });
   }
 

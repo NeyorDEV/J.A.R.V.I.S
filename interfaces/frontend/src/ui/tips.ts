@@ -1,3 +1,4 @@
+import { t } from "../i18n/i18n";
 // ── Carrousel de conseils dynamiques (panneau pliable) — extrait de main.ts ──
 
 // ── Dynamic Quick Tips Carousel (Option 2) ──────────────────────────
@@ -80,7 +81,7 @@ export function initDynamicUserTips() {
     // Attendre la fin de l'expansion CSS (300ms) puis dactylographier
     setTimeout(() => {
       if (!isCollapsed) {
-        typeText(QUICK_TIPS[currentTipIndex], () => {
+        typeText(t(QUICK_TIPS[currentTipIndex]), () => {
           // Relancer le timer de disparition automatique (5s)
           resetCollapseTimer(5000);
         });
@@ -131,14 +132,14 @@ export function initDynamicUserTips() {
     } else {
       // Si déjà ouvert, un clic force le passage directement à l'astuce suivante
       currentTipIndex = (currentTipIndex + 1) % QUICK_TIPS.length;
-      typeText(QUICK_TIPS[currentTipIndex], () => {
+      typeText(t(QUICK_TIPS[currentTipIndex]), () => {
         resetCollapseTimer(5000);
       });
     }
   });
 
   // Cycle initial : Dactylographie la première astuce, puis se replie au bout de 5 secondes
-  typeText(QUICK_TIPS[currentTipIndex], () => {
+  typeText(t(QUICK_TIPS[currentTipIndex]), () => {
     resetCollapseTimer(5000);
   });
 }

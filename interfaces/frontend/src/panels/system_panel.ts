@@ -1,5 +1,6 @@
 // ── ÉTAT DU SYSTÈME : moteurs d'IA, voix, services, ressources (style verre : css/13 et css/14) ──
 // Le backend (core/ws_etat_systeme.py) répond à « get_system_status » et exécute « system_test ».
+import { locale } from "../i18n/i18n";
 import { makePanelDraggable } from "../ui/draggable";
 import { wsRef } from "../ws_link";
 import { esc, icone } from "./pm_utils";
@@ -70,7 +71,7 @@ function dessiner(d: any): void {
   }
   const sous = document.getElementById("system-sous");
   if (sous) {
-    sous.textContent = `${moteursOk} moteur${moteursOk > 1 ? "s" : ""} disponible${moteursOk > 1 ? "s" : ""} · mis à jour à ${new Date(d.t * 1000).toLocaleTimeString("fr-FR")}`;
+    sous.textContent = `${moteursOk} moteur${moteursOk > 1 ? "s" : ""} disponible${moteursOk > 1 ? "s" : ""} · mis à jour à ${new Date(d.t * 1000).toLocaleTimeString(locale())}`;
   }
 
   const resMicro = resultats["micro"];

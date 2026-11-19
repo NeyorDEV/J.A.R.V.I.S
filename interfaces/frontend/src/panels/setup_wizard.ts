@@ -3,6 +3,10 @@
 // l'enregistrement passe par « update_settings », comme la page Paramètres.
 import { wsRef } from "../ws_link";
 import { esc, icone } from "./pm_utils";
+import { definirLangue, langueActuelle } from "../i18n/i18n";
+
+// Voix de JARVIS dans la langue choisie (core/i18n.py : mêmes noms côté serveur)
+const nomVoix = (v: string): string => (langueActuelle() === "en" ? (v === "homme" ? "Ryan · en-GB" : "Sonia · en-GB") : v === "homme" ? "Henri · fr-FR" : "Denise · fr-FR");
 
 type Moteur = "gemini" | "groq" | "mistral";
 interface Test { ok: boolean; detail: string; duree: number }
@@ -105,12 +109,17 @@ function dessiner(): void {
   if (e === 1) {
     corps.innerHTML = `<h3>Faisons connaissance</h3>
       <p class="wz-intro">JARVIS s'adressera à vous par votre prénom. Tout se modifie plus tard dans les Paramètres.</p>
+      <div class="wz-etiq">Langue / Language</div>
+      <div class="wz-choix" data-i18n-skip>
+        <button class="wz-opt ${langueActuelle() === "fr" ? "on" : ""}" data-langue="fr"><span>Français</span></button>
+        <button class="wz-opt ${langueActuelle() === "en" ? "on" : ""}" data-langue="en"><span>English</span></button>
+      </div>
       <div class="wz-etiq">Votre prénom</div>
       <input class="wz-champ" id="wz-nom" type="text" maxlength="30" autocomplete="off" placeholder="Votre prénom" value="${esc(etat.nom)}">
       <div class="wz-etiq">Voix de JARVIS</div>
       <div class="wz-choix">
-        <button class="wz-opt ${etat.voix === "homme" ? "on" : ""}" data-voix="homme">${icone("haut_parleur")}<span>Voix d'homme<small>Henri · fr-FR</small></span></button>
-        <button class="wz-opt ${etat.voix === "femme" ? "on" : ""}" data-voix="femme">${icone("haut_parleur")}<span>Voix de femme<small>Denise · fr-FR</small></span></button>
+        <button class="wz-opt ${etat.voix === "homme" ? "on" : ""}" data-voix="homme">${icone("haut_parleur")}<span>Voix d'homme<small>${nomVoix("homme")}</small></span></button>
+        <button class="wz-opt ${etat.voix === "femme" ? "on" : ""}" data-voix="femme">${icone("haut_parleur")}<span>Voix de femme<small>${nomVoix("femme")}</small></span></button>
       </div>
       <div style="margin-top:12px"><button class="pm-bouton petit" data-wz="exemple">${icone("haut_parleur")} Écouter un exemple</button></div>`;
     bas.innerHTML = pied(false, "Continuer", { actif: etat.nom.trim().length > 0 });
@@ -170,7 +179,7 @@ function dessiner(): void {
       <p class="wz-intro">Voici l'état de votre installation. Tout reste modifiable à tout moment depuis les Paramètres.</p>
       ${ligne(ia.length > 0, "Moteur d'IA", ia.length ? `${ia.map((i) => MOTEURS.find((m) => m.id === i)!.nom).join(", ")} · test réussi` : "Aucune clé testée : ajoutez-en une dans Paramètres › Clés API", ia.length === 0)}
       ${ligne(!!etat.testMicro && etat.testMicro.ok, "Micro", etat.testMicro?.ok ? `${micro ? micro.name : "micro par défaut"} · signal reçu` : "Non testé", !(etat.testMicro && etat.testMicro.ok))}
-      ${ligne(true, "Voix de JARVIS", etat.voix === "homme" ? "Henri · fr-FR" : "Denise · fr-FR")}
+      ${ligne(true, "Voix de JARVIS", nomVoix(etat.voix))}
       ${ligne(etat.empreinte === "lancee", "Empreinte vocale", etat.empreinte === "lancee" ? "Enregistrement lancé" : "Passée : à refaire en disant « enregistre ma voix »", etat.empreinte !== "lancee")}
       ${(() => {
         const l = etat.local && etat.local !== "en_cours" ? etat.local : null;
@@ -285,6 +294,13 @@ export function initSetupWizard(): void {
     const cible = ev.target as HTMLElement;
     const bouton = cible.closest("button") as HTMLButtonElement | null;
     if (!bouton || bouton.disabled) return;
+    const choixLangue = bouton.dataset.langue;
+    if (choixLangue === "fr" || choixLangue === "en") {   // première étape : langue de l'interface, de la voix et des réponses
+      definirLangue(choixLangue);
+      envoyer({ type: "update_settings", settings: { langue: choixLangue } });
+      dessiner();
+      return;
+    }
     const wz = bouton.dataset.wz;
     if (wz === "suivant") suivant();
     else if (wz === "retour") {

@@ -1,3 +1,4 @@
+import { locale } from "../i18n/i18n";
 // ── Utilitaires communs aux panneaux de modules (css/13_panneaux_modules.css) ──
 // Désinstallateur, mises à jour (winget), sécurité (antivirus), domotique.
 
@@ -33,7 +34,7 @@ export function formatDate(aaaammjj: string): string {
 
 /** Nombre avec espaces de milliers : 4812 → « 4 812 ». */
 export function formatNombre(n: number): string {
-  return Math.round(n).toLocaleString("fr-FR");
+  return Math.round(n).toLocaleString(locale());
 }
 
 // Icônes au trait (24×24, stroke = currentColor), sans dépendance externe.

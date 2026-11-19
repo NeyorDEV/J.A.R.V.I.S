@@ -3,6 +3,7 @@
 //   (panneau au style commun css/13_panneaux_modules.css)
 // ════════════════════════════════════════════════════════════
 
+import { locale } from "./i18n/i18n";
 import { esc, icone } from "./panels/pm_utils";
 import { wsRef } from "./ws_link";
 import { signalerOutils } from "./hud/donnees_outils";
@@ -306,7 +307,7 @@ function getFormattedState(entity: HAEntity): string {
   const unit = attrs.unit_of_measurement;
   const nombre = Number(stateVal);
   const valeur = stateVal !== "" && !isNaN(nombre)
-    ? nombre.toLocaleString("fr-FR", { maximumFractionDigits: 1 })
+    ? nombre.toLocaleString(locale(), { maximumFractionDigits: 1 })
     : stateVal;
   return unit ? `${valeur} ${unit}` : valeur.charAt(0).toUpperCase() + valeur.slice(1);
 }

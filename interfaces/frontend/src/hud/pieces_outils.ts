@@ -2,6 +2,7 @@
 // Les anciens éléments (#help-overlay, #timer-hud, #ha-panel, #settings-modal) restent dans le DOM et portent l'état affiché / masqué
 // (plus la logique : sauvegarde, WebSocket) ; leurs pièces lisent les données reçues (donnees_outils.ts, timer_clock.ts, ha_dashboard.ts).
 // Rien n'est inventé : sans donnée, la pièce l'écrit.
+import { nomJour, t } from "../i18n/i18n";
 import type { PieceDef } from "./eclate";
 import { piecesOuvertes, rafraichirPieces } from "./eclate";
 import { donneesOutils } from "./donnees_outils";
@@ -48,7 +49,7 @@ const majAide = (): void => rafraichirPieces("aide");
 
 function resultatsAide(): CommandeAide[] {
   const s = sansAccent(aide.q.trim());
-  return commandesAide().filter((c) => (aide.cat === "TOUT" || c.cat === aide.cat) && (!s || sansAccent(`${c.texte} ${c.cat} ${c.sous}`).includes(s)));
+  return commandesAide().filter((c) => (aide.cat === "TOUT" || c.cat === aide.cat) && (!s || sansAccent(`${t(c.texte)} ${c.texte} ${c.cat} ${c.sous}`).includes(s)));
 }
 
 /** Surligne le texte trouvé (sans tenir compte des accents ni de la casse). */
@@ -112,7 +113,7 @@ function rendreListe(c: HTMLElement): void {
   const l = resultatsAide();
   if (aide.sel >= l.length) aide.sel = Math.max(0, l.length - 1);
   const zone = c.querySelector(".ec-defile") as HTMLElement | null, haut = zone?.scrollTop ?? 0;
-  c.innerHTML = `<div class="ec-defile" style="max-height:150px">${l.length ? l.map((x, i) => `<div class="ec-cmd${i === aide.sel ? " on" : ""}" data-i="${i}" role="button">${surligner(x.texte)}</div>`).join("") : `<div class="ec-sub" style="padding:8px 4px;line-height:1.5">Aucune commande.<br>Essaie « musique ».</div>`}</div>`;
+  c.innerHTML = `<div class="ec-defile" style="max-height:150px">${l.length ? l.map((x, i) => `<div class="ec-cmd${i === aide.sel ? " on" : ""}" data-i="${i}" role="button">${surligner(t(x.texte))}</div>`).join("") : `<div class="ec-sub" style="padding:8px 4px;line-height:1.5">Aucune commande.<br>Essaie « musique ».</div>`}</div>`;
   const z = c.querySelector(".ec-defile") as HTMLElement;
   z.scrollTop = haut;
   voir(z, z.querySelector(".ec-cmd.on"));
@@ -125,7 +126,7 @@ function rendreListe(c: HTMLElement): void {
 function rendreDetail(c: HTMLElement): void {
   const x = resultatsAide()[aide.sel];
   c.innerHTML = x
-    ? `<div class="ec-lab" style="color:#7fdcff">${esc(x.cat)}${x.sous ? ` · ${esc(x.sous.toUpperCase())}` : ""}</div><div class="ec-val" style="font-size:12.5px;margin:9px 0 4px;line-height:1.4;letter-spacing:.3px">« ${esc(x.texte)} »</div><div class="ec-sub">PHRASE D'EXEMPLE</div><div style="margin-top:10px">${bouton('data-go="1"', "LANCER", "fort")}</div>`
+    ? `<div class="ec-lab" style="color:#7fdcff">${esc(x.cat)}${x.sous ? ` · ${esc(x.sous.toUpperCase())}` : ""}</div><div class="ec-val" style="font-size:12.5px;margin:9px 0 4px;line-height:1.4;letter-spacing:.3px">« ${esc(t(x.texte))} »</div><div class="ec-sub">PHRASE D'EXEMPLE</div><div style="margin-top:10px">${bouton('data-go="1"', "LANCER", "fort")}</div>`
     : `<div class="ec-sub" style="margin-top:6px">Rien de sélectionné.</div>`;
   surClic(c, (cible) => { if (cible.closest("[data-go]")) lancerCommande(resultatsAide()[aide.sel]); });
 }
@@ -179,13 +180,12 @@ function rendreCommandesMinuteur(c: HTMLElement): void {
   });
 }
 
-const JOURS = ["DIM.", "LUN.", "MAR.", "MER.", "JEU.", "VEN.", "SAM."];
 function quand(iso: string): string {
   const d = new Date(iso), a = new Date(), demain = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 1);
   const h = `${d.getHours()}H${String(d.getMinutes()).padStart(2, "0")}`;
   if (d.toDateString() === a.toDateString()) return `AUJ. ${h}`;
   if (d.toDateString() === demain.toDateString()) return `DEM. ${h}`;
-  return `${JOURS[d.getDay()]} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, "0")} ${h}`;
+  return `${nomJour(d.getDay(), true)} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, "0")} ${h}`;
 }
 function rendreAlarmes(c: HTMLElement): void {
   const l = donneesOutils.alarmes;

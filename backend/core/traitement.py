@@ -8,7 +8,7 @@ import unicodedata
 import time
 
 import core.shared as shared
-from core import module_catalogue
+from core import i18n, module_catalogue
 from core.locuteur import locuteur_effectif
 from core.actions_ia import executer_action
 from core.confirmation import confirmation_en_attente, resoudre_confirmation_vocale
@@ -51,14 +51,15 @@ def est_action_oriented(texte):
         "ajoute", "ajouter", "tâche", "tache", "valide", "valider", "complete", "completer", "termine", "terminer", "drive",
         "envoie", "envoyer", "réponds", "repondre", "reponds", "agenda", "calendrier", "partage", "partager", "tableur", "ligne",
         "cellule", "mail", "email", "courriel", "doc", "document", "téléverse", "televerse", "téléverser", "televerser", "charge",
-        "charger", "dossier", "sheet", "sheets", "docs"
+        "charger", "dossier", "sheet", "sheets", "docs",
+        "play", "open", "close", "launch", "start", "stop", "turn", "switch", "set", "remind", "timer", "volume", "pause", "skip", "next", "show", "hide", "search", "send", "delete", "remove", "add", "create", "mute", "shut", "restart", "lights", "calendar", "playlist", "song", "music"
     ]
     # Mots entiers : « met » dans « permet », « doc » dans « docteur », « ligne » dans « alignement » rangeaient des conversations dans les actions
     # (plus de parole en flux, et l'appel d'intention de 2 s). Les accents sont gardés tels quels dans la liste.
     return re.search(r"(?<![\w])(?:" + "|".join(re.escape(m) for m in mots_actions) + r")\w{0,3}(?![\w])", t) is not None   # jusqu'à 3 lettres de conjugaison après le mot (mets, jouer, lancez)
 
 
-_DEBUT_CONVERSATION = re.compile(r"^(?:(?:s il te plait|stp|dis donc|alors|bon)\s+)?(?:raconte|explique|parle|pourquoi|c est quoi|qu est ce|combien|quel|quels|quelle|quelles|quand|comment|qui|est ce que)\b(?! heures?\b)")
+_DEBUT_CONVERSATION = re.compile(r"^(?:(?:s il te plait|stp|dis donc|alors|bon)\s+)?(?:raconte|explique|parle|pourquoi|c est quoi|qu est ce|combien|quel|quels|quelle|quelles|quand|comment|qui|est ce que|tell me|explain|why|how|who|when|what is|what are|what s)\b(?! heures?\b)")
 
 
 def est_conversation(texte: str) -> bool:
@@ -117,7 +118,7 @@ _INTERJECTIONS = {
 # répond à toute phrase ressemblant à un ancien échange) reste en tout dernier.
 _ORDRE_RESOLVEURS = [
     # Commandes précises (phrases ou mots-clés explicites)
-    "resoudre_repetition", "resoudre_quota_stt", "resoudre_cout_llm", "resoudre_musique", "resoudre_dom_hud", "resoudre_developpement", "resoudre_uninstaller_localement", "resoudre_local_mode",
+    "resoudre_repetition", "resoudre_quota_stt", "resoudre_cout_llm", "resoudre_briefing", "resoudre_langue", "resoudre_musique", "resoudre_dom_hud", "resoudre_developpement", "resoudre_uninstaller_localement", "resoudre_local_mode",
     "resoudre_lancer_enigme", "resoudre_os_autopilot", "resoudre_creation_plugin",
     "resoudre_generation_document", "resoudre_images_locales", "resoudre_modifier_image",
     "resoudre_recipe", "resoudre_connexions_reseau", "resoudre_vue_de_dieu",
@@ -142,7 +143,7 @@ _INTERDITS_INVITE = {
     "resoudre_lance_sandbox", "resoudre_creation_site_web", "resoudre_uninstaller_localement",
     "resoudre_local_mode", "resoudre_generation_document", "resoudre_modifier_image",
     "resoudre_memoire_locale", "resoudre_developpement", "resoudre_steam_jeux",
-    "resoudre_navigateur", "resoudre_discord", "resoudre_skills", "resoudre_vue_de_dieu", "resoudre_repetition", "resoudre_musique",
+    "resoudre_navigateur", "resoudre_discord", "resoudre_skills", "resoudre_vue_de_dieu", "resoudre_briefing", "resoudre_langue", "resoudre_repetition", "resoudre_musique",
     "resoudre_apps_localement", "resoudre_ouvrir_site_web", "resoudre_lancer_enigme",   # lancer des applications du PC, ouvrir un site de la sandbox : réservés aux voix reconnues
 }
 # Fonctions builtins.resoudre_* qui ne sont pas des resolvers de commande
@@ -305,6 +306,15 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
         reponse = await _resoudre_localement(texte_utilisateur)
         print(f"[PERF] Résolveurs locaux : {time.monotonic() - _t_attente:.2f} s (verrou et nettoyage compris)")
 
+        # Mode anglais : la commande est ramenée à la phrase française que comprennent les resolvers (core/i18n.py), puis passe par la même chaîne
+        # (resolvers, routeur d'intentions). La conversation garde le texte anglais d'origine.
+        texte_routage = texte_utilisateur
+        if not reponse and i18n.en_anglais() and _texte_substantiel(texte_utilisateur):
+            texte_routage = await i18n.commande_en_francais(texte_utilisateur)
+            if texte_routage != texte_utilisateur:
+                print(f"[LANGUE] Commande anglaise comprise comme : « {texte_routage} »")
+                reponse = await _resoudre_localement(texte_routage)
+
         # FUNCTION CALLING GEMINI : aucun resolver par mots-clés n'a compris la phrase.
         # Un modèle rapide la mappe sur une intention connue (→ phrase canonique) qu'on
         # repasse dans les resolvers. Tout échec suit le chemin historique (interroger_ia).
@@ -315,17 +325,17 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
             precharger_souvenirs(texte_utilisateur)   # recouvre l'appel d'intention ci-dessous ; interroger_ia la récupère
         if (not reponse and shared._USE_LLM_INTENT and _texte_substantiel(texte_utilisateur)
                 and locuteur != "guest"
-                and not est_conversation(texte_utilisateur)
-                and (est_action_oriented(texte_utilisateur) or len(texte_utilisateur.split()) <= 12)):
+                and not est_conversation(texte_routage)
+                and (est_action_oriented(texte_routage) or len(texte_routage.split()) <= 12)):
             try:
                 from core.intent_dispatcher import resoudre_intention_llm
                 # Annoncé AVANT l'appel (2 s) : sinon la roue du cylindre part sur la catégorie devinée d'après les mots, puis repart vers
                 # « ASSISTANT » quand l'annonce arrive = la recherche jouée deux fois. Si l'intention donne une commande, son resolver annonce le vrai module.
                 module_catalogue.annoncer("ASSISTANT")
                 _t_intent = time.monotonic()
-                phrase_canonique = await resoudre_intention_llm(texte_utilisateur)
+                phrase_canonique = await resoudre_intention_llm(texte_routage)
                 print(f"[PERF] Intention par le LLM (appel avant la vraie réponse) : {time.monotonic() - _t_intent:.2f} s")
-                if phrase_canonique and phrase_canonique.lower().strip() != texte_utilisateur.lower().strip():
+                if phrase_canonique and phrase_canonique.lower().strip() != texte_routage.lower().strip():
                     # Résolution locale complète : avec la seule chaîne des plugins, alarmes,
                     # minuteurs et échecs (traités avant elle) n'étaient jamais atteints —
                     # « mets une alarme à 10h » repartait à l'IA
@@ -399,6 +409,7 @@ async def _traiter_reponse_ia_impl(texte_utilisateur, from_voice=False, de_confi
                     texte_a_parler = texte_a_parler[idx + len(phrase_strip):].strip()
 
         if texte_a_parler:
+            texte_a_parler = await i18n.traduire(texte_a_parler)   # langue anglaise : réponse des resolvers (écrite en français) traduite avant d'être dite
             texte_reel = re.sub(r'[^\w\s]', '', texte_a_parler).strip()
             if texte_reel:
                 builtins.parler(texte_a_parler, print_console=True)

@@ -1,6 +1,7 @@
 // Pièces éclatées de la météo, de l'agenda et de la musique (voir eclate.ts), au style fin (css/17_fin.css, fin_graph.ts).
 // Chacune lit les dernières données reçues (donnees_widgets.ts, prévisions de weather_vues.ts) ; rien n'est inventé :
 // sans donnée, la pièce l'écrit. Quatre pièces par widget (deux de chaque côté), comme sur les maquettes validées.
+import { locale, nomJour, nomMois } from "../i18n/i18n";
 import { rafraichirPieces, type PieceDef } from "./eclate";
 import type { ContenuCylindre } from "../orb_cylindre";
 import { donnees, positionMusique } from "./donnees_widgets";
@@ -100,11 +101,8 @@ export const piecesMeteo = (): PieceDef[] => [
 ];
 
 // ───────────────────────────────────────── AGENDA ─────────────────────────────────────────
-const JOURS_COURTS = ["DIM.", "LUN.", "MAR.", "MER.", "JEU.", "VEN.", "SAM."];
-const MOIS = ["JANVIER", "FÉVRIER", "MARS", "AVRIL", "MAI", "JUIN", "JUILLET", "AOÛT", "SEPTEMBRE", "OCTOBRE", "NOVEMBRE", "DÉCEMBRE"];
-const MOIS_COURTS = ["JANV.", "FÉVR.", "MARS", "AVR.", "MAI", "JUIN", "JUIL.", "AOÛT", "SEPT.", "OCT.", "NOV.", "DÉC."];
 const iso = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const dateCourte = (j: string): string => { const d = new Date(`${j}T12:00:00`); return `${JOURS_COURTS[d.getDay()]} ${d.getDate()} ${MOIS_COURTS[d.getMonth()]}`; };
+const dateCourte = (j: string): string => { const d = new Date(`${j}T12:00:00`); return `${nomJour(d.getDay(), true)} ${d.getDate()} ${nomMois(d.getMonth(), true)}`; };
 let jourChoisi: string | null = null;   // jour du calendrier sélectionné au clic (aujourd'hui par défaut)
 const jourActif = (): string => jourChoisi ?? iso(new Date());
 const evenementsDu = (j: string) => (donnees.agenda ?? []).filter((e) => e.jour === j);
@@ -134,7 +132,7 @@ function rendreJourChoisi(c: HTMLElement): void {
   const j = jourActif(), auj = iso(new Date()), d = new Date(`${j}T12:00:00`), du = evenementsDu(j).length;
   const ecart = Math.round((d.getTime() - new Date(`${auj}T12:00:00`).getTime()) / 86400000);
   const rel = ecart === 0 ? "aujourd'hui" : ecart > 0 ? `dans ${ecart} jour${ecart > 1 ? "s" : ""}` : `il y a ${-ecart} jour${ecart < -1 ? "s" : ""}`;
-  c.innerHTML = `<div style="display:flex;align-items:center;gap:10px"><div class="jr-anneau">${jauge(78, 0, "#2fd8ff", String(d.getDate()), MOIS_COURTS[d.getMonth()])}</div><div class="fn-txt"><b>${dateCourte(j)}</b><br><span class="fn-petit">${rel}</span><br><span class="fn-petit">${du ? `${du} rendez-vous` : "journée libre"}</span></div></div>
+  c.innerHTML = `<div style="display:flex;align-items:center;gap:10px"><div class="jr-anneau">${jauge(78, 0, "#2fd8ff", String(d.getDate()), nomMois(d.getMonth(), true))}</div><div class="fn-txt"><b>${dateCourte(j)}</b><br><span class="fn-petit">${rel}</span><br><span class="fn-petit">${du ? `${du} rendez-vous` : "journée libre"}</span></div></div>
     ${j === auj ? `<div class="fn-cap" style="margin-top:10px">L'anneau montre la part de la journée écoulée</div><div class="fn-sep fn-txt"><span class="hr" style="font:300 18px Consolas,monospace;color:#2fd8ff"></span></div>` : `<div class="fn-cap" style="margin-top:10px">Clique un autre jour du calendrier pour changer</div>`}`;
 }
 function tickJourChoisi(c: HTMLElement): void {
@@ -142,7 +140,7 @@ function tickJourChoisi(c: HTMLElement): void {
   const n = new Date(), f = (n.getHours() * 3600 + n.getMinutes() * 60 + n.getSeconds()) / 86400;
   const cercle = c.querySelectorAll("circle")[1], hr = c.querySelector(".hr");
   if (cercle) { const r = 78 / 2 - 11, C = 2 * Math.PI * r; cercle.setAttribute("stroke-dasharray", `${(C * f).toFixed(1)} ${C.toFixed(1)}`); }
-  if (hr) hr.textContent = n.toLocaleTimeString("fr-FR");
+  if (hr) hr.textContent = n.toLocaleTimeString(locale());
 }
 
 function ligneRdv(x: { t: string; d?: string | null; jour?: string | null }, i: number): string {
@@ -182,7 +180,7 @@ function rendreSemaineMois(c: HTMLElement): void {
 export const piecesAgenda = (): PieceDef[] => {
   jourChoisi = null;
   return [
-    { id: "mois", cote: "g", rang: 0, w: 238, h: 226, classe: fin, croix: hideCalendarWidget, titre: `${MOIS[new Date().getMonth()]} ${new Date().getFullYear()}`, rendre: rendreMois },
+    { id: "mois", cote: "g", rang: 0, w: 238, h: 226, classe: fin, croix: hideCalendarWidget, titre: `${nomMois(new Date().getMonth())} ${new Date().getFullYear()}`, rendre: rendreMois },
     { id: "jour", cote: "g", rang: 1, w: 238, h: 190, classe: fin, titre: "JOUR CHOISI", rendre: rendreJourChoisi, tick: tickJourChoisi },
     { id: "rdv", cote: "d", rang: 0, w: 248, h: 204, classe: fin, titre: "RENDEZ-VOUS", rendre: rendreRendezVous },
     { id: "sem", cote: "d", rang: 1, w: 248, h: 190, classe: fin, titre: "SEMAINE ET MOIS", rendre: rendreSemaineMois },
@@ -260,7 +258,7 @@ export const centreMeteo = (): ContenuCylindre => {
 };
 export const centreAgenda = (): ContenuCylindre => {
   const j = jourActif(), d = new Date(`${j}T12:00:00`), premier = evenementsDu(j)[0]?.t ?? donnees.agenda?.find((e) => (e.jour ?? "") > j)?.t;
-  return { titre: "AGENDA", valeur: `${d.getDate()} ${MOIS_COURTS[d.getMonth()]}`, sous: (premier ?? JOURS_COURTS[d.getDay()].replace(".", "")).toUpperCase() };
+  return { titre: "AGENDA", valeur: `${d.getDate()} ${nomMois(d.getMonth(), true)}`, sous: (premier ?? nomJour(d.getDay(), true).replace(".", "")).toUpperCase() };
 };
 export const centreMusique = (): ContenuCylindre => {
   const m = donnees.musique;

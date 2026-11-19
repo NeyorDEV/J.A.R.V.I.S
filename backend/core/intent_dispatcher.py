@@ -26,7 +26,8 @@ _SYSTEM_INSTRUCTION = (
     "ne fais AUCUN appel de fonction et ne réponds rien. "
     "En cas de doute, NE PAS appeler de fonction : un faux négatif est sans conséquence "
     "(la conversation continue normalement), un faux positif peut déclencher une action "
-    "réelle non voulue par l'utilisateur."
+    "réelle non voulue par l'utilisateur. "
+    "L'utilisateur peut parler anglais : comprends-le de la même façon (les arguments, comme un titre de chanson ou une ville, restent tels qu'il les dit)."
 )
 
 _FUNCTION_DECLARATIONS = [
