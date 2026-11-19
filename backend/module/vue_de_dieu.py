@@ -830,7 +830,7 @@ const DONNEES_DIR = process.env.JARVIS_DONNEES_DIR || '';
 // Rangement des couches de JARVIS dans les catégories du panneau de l'appli (sans lui, elles tomberaient dans « Other layers ») : la liste PANEL_GROUPS de src/ui/layerPanel.js reçoit leurs identifiants.
 // Chaque remplacement est indépendant ; verifier_surcharges() surveille la phrase la plus fragile.
 const PLACEMENT_COUCHES = [
-  ["'bikeshare',", "'bikeshare', 'fuel-prices-fr', 'ev-chargers-fr', 'road-traffic-fr', 'bathing-water-fr',"],
+  ["'bikeshare',", "'bikeshare', 'fuel-prices-fr', 'ev-chargers-fr', 'road-traffic-fr', 'bathing-water-fr', 'parkings-fr',"],
   ["'earthquakes',", "'earthquakes', 'earthquakes-fr',"],
   [/('air-quality',)(\s*'wind',)/, (m, a, b) => `${a} 'air-quality-fr',${b}`],
   [/('weather-cyclones',)(\s*\],\s*\},\s*\{\s*label: msg\('Utilities'\))/, (m, a, b) => `${a} 'flood-vigilance-fr', 'weather-alerts-fr', 'avalanche-fr', 'drought-fr',${b}`],
@@ -872,7 +872,7 @@ function jarvisCouches() {
       });
       // jeux de données téléchargés par module/gev_donnees_fr.py (liste blanche de noms, aucun chemin venant de la page)
       server.middlewares.use('/__jarvis/donnees', (req, res) => {
-        const nom = /^\/(recharge|crues|seismes|air|vigilance|avalanche|electricite|secheresse|trafic|seveso|baignade)\.json$/.exec((req.url || '').split('?')[0])?.[1];
+        const nom = /^\/(recharge|crues|seismes|air|vigilance|avalanche|electricite|secheresse|trafic|seveso|baignade|parkings)\.json$/.exec((req.url || '').split('?')[0])?.[1];
         if (req.method !== 'GET' || !nom || !DONNEES_DIR) { res.statusCode = nom ? 405 : 404; return res.end(); }
         try { const corps = fs.readFileSync(path.join(DONNEES_DIR, nom + '.json')); res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Cache-Control', 'no-store'); res.end(corps); }
         catch { res.statusCode = 503; res.setHeader('Retry-After', '3'); res.end(); }

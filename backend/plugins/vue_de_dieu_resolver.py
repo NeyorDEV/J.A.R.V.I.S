@@ -221,8 +221,65 @@ async def _pilotage(t: str):
     return None
 
 
+async def _montrer_parkings(lat: float, lon: float, ouvrir: bool) -> None:
+    """Allume la couche Parkings et survole la zone ; ouvre la vue d'abord si l'utilisateur l'a demandé."""
+    if ouvrir and not vdd.ouverte:
+        if not (await _ouvrir_vue()).startswith("J'active la vue"):
+            return
+        for _ in range(120):
+            if vdd.ouverte:
+                break
+            await asyncio.sleep(1)
+        await asyncio.sleep(8)   # le panneau des couches se monte quelques secondes après l'appli
+    for _ in range(25):
+        r = await _ordre({"op": "couche", "nom": "parkings", "etat": True, "souple": True}, 5.0)
+        if r and r[0]:
+            break
+        await asyncio.sleep(2)
+    await _diffuser({"action": "vue_de_dieu_goto", "ancre": f"#v=2&lat={lat:.5f}&lon={lon:.5f}&alt=12000&heading=0&pitch=-60"})
+
+
+async def _chercher_parking(dem: dict, t: str) -> str:
+    """« trouve-moi un parking ouvert à Saint-Étienne » : les plus proches à la voix (données de la couche Parkings, voir module/gev_parkings.py) et,
+    si la vue de Dieu est installée et ouverte (ou demandée dans la phrase), la couche allumée sur la zone."""
+    import os
+    from core.web_bridge import geocode_lieu_detaille
+    from module import gev_donnees_fr as don, gev_parkings as gp
+    info = None
+    m = re.match(r"^.*\b(?:de|du|des|d)\s+(.+)$", dem["lieu"])
+    for candidat in [dem["lieu"]] + ([m.group(1)] if m else []):   # « la gare de nantes » introuvable : on retombe sur « nantes »
+        info = await geocode_lieu_detaille(candidat)
+        if info and float(info.get("importance", 0)) >= 0.2:
+            break
+        info = None
+    if not info:
+        return f"Je ne trouve pas « {dem['lieu']} » sur la carte{nom_virgule()}."
+    if don.age("parkings") > 600:   # la première fois : quelques secondes de téléchargement
+        await asyncio.to_thread(don.maj_parkings)
+
+    def _lire():
+        with open(os.path.join(don.DOSSIER, "parkings.json"), encoding="utf-8") as f:
+            return json.load(f)
+    try:
+        parkings = await asyncio.to_thread(_lire)
+    except (OSError, ValueError):
+        return "Je n'ai pas pu charger les données de parkings : vérifiez la connexion internet."
+    lieu = (info.get("nom") or "").split(",")[0].strip() or dem["lieu"].title()
+    reponse = gp.phrase(lieu, gp.classer(parkings, info["lat"], info["lon"], dem["gratuit"], dem["libre"], dem["ouvert"]), dem["libre"], dem["ouvert"], dem["gratuit"])
+    if vdd.installee() and not vdd.installation_en_cours and (vdd.ouverte or _NOM.search(t)):
+        tache = asyncio.create_task(_montrer_parkings(float(info["lat"]), float(info["lon"]), bool(_NOM.search(t))))
+        _taches.add(tache)
+        tache.add_done_callback(_taches.discard)
+    return reponse
+
+
 async def resoudre_vue_de_dieu(cmd: str):
     t = _clean(cmd)
+
+    from module import gev_parkings
+    dem = gev_parkings.demande(t)   # avant « ouvre la vue de Dieu » : « ouvre la vue de Dieu et trouve-moi un parking à X » est une recherche, la vue s'ouvre en plus
+    if dem and not vdd.installation_en_cours:
+        return await _chercher_parking(dem, t)
 
     if _NOM.search(t):
         if _FERMER.search(t):

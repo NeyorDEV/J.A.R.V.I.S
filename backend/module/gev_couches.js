@@ -49,6 +49,12 @@
     'Source: Bison Futé, national road network (non-motorway) — not every road': "Source : Bison Futé, réseau routier national (hors autoroutes concédées) — pas toutes les routes",
     'Seveso sites · France': 'Sites Seveso · France', 'High threshold': 'Seuil haut', 'Low threshold': 'Seuil bas', 'All sites': 'Tous les sites', 'High threshold only': 'Seuil haut seulement', 'Town': 'Commune', 'Seveso status': 'Statut Seveso', 'Regime': 'Régime', 'Seveso site': 'Site Seveso',
     'Source: Géorisques (classified installations), refreshed weekly': 'Source : Géorisques (installations classées), actualisé chaque semaine',
+    'Car parks · France': 'Parkings · France', 'Car park': 'Parking', 'Paying': 'Payants', 'Spaces': 'Places', 'Disabled spaces': 'Places PMR', 'EV spaces': 'Places avec borne', 'Max height': 'Hauteur max', 'Rate 1 h': 'Tarif 1 h', 'Rate 24 h': 'Tarif 24 h', 'Unknown capacity': 'Capacité inconnue',
+    'Free spaces': 'Places libres', 'Almost full': 'Presque complet', 'Full or closed': 'Complet ou fermé', 'Live count': 'Comptage en direct', 'With free spaces': 'Avec places libres', 'Status': 'Statut', 'Updated': 'Mis à jour',
+    'Open': 'Ouvert', 'Full': 'Complet', 'Closed': 'Fermé', 'Subscribers only': 'Abonnés seulement',
+    '< 100 spaces': '< 100 places', '100–300 spaces': '100–300 places', '300–800 spaces': '300–800 places', '> 800 spaces': '> 800 places',
+    'Source: city open data (live count) and BNLS': 'Source : données ouvertes des villes (comptage en direct) et BNLS',
+    'Source: BNLS, Saemes, Indigo, cities (open data, static: not the live availability)': 'Source : BNLS, Saemes, Indigo, villes (données ouvertes, statiques : pas la disponibilité en direct)',
     'Bathing water · France': 'Eaux de baignade · France', 'Excellent': 'Excellente', 'Sufficient': 'Suffisante', 'Poor': 'Insuffisante', 'Not classified': 'Non classé', 'Sea': 'Mer', 'Fresh water': 'Eau douce', 'Water': 'Eau', 'Quality class': 'Classe de qualité', 'Bathing site': 'Site de baignade', 'Département': 'Département',
     'Source: Ministère de la Santé (classification of the bathing sites, not a live reading)': 'Source : ministère de la Santé (classement des sites de baignade, pas une mesure en direct)',
     'Downloading the data · a few seconds, up to several minutes the first time': "Téléchargement des données · quelques secondes, jusqu'à plusieurs minutes la première fois",
@@ -91,6 +97,8 @@
       (m) => m[1] + " événements en cours sur le réseau routier national (routes des DIR, pas les autoroutes concédées). Incidents = accidents, bouchons, obstacles ; restrictions = fermetures de voie, déviations, limitations de vitesse. Cliquez sur un point pour le détail."],
     [/^(\d+) Seveso sites \(industrial sites with major accident hazard\)\. Red = high threshold, orange = low threshold\. Click a site for details\.$/,
       (m) => m[1] + " sites Seveso (sites industriels à risque d'accident majeur). Rouge = seuil haut, orange = seuil bas. Cliquez sur un site pour le détail."],
+    [/^(\d+) car parks shown, (\d+) with a live count \(Nantes, Aix-Marseille, Tours, Clermont-Ferrand\)\. Green\/orange\/red = free spaces now; blue to pink = number of spaces when there is no live count \(grey = unknown\)\. Coverage is partial: other cities have no open live feed\. Click a car park for details\.$/,
+      (m) => m[1] + ' parkings affichés, dont ' + m[2] + " avec comptage en direct (Nantes, Aix-Marseille, Tours, Clermont-Ferrand). Vert / orange / rouge = places libres maintenant ; du bleu au rose = nombre de places quand il n'y a pas de comptage en direct (gris = inconnu). Couverture partielle : les autres villes ne publient pas de flux ouvert en direct. Cliquez sur un parking pour le détail."],
     [/^(\d+) bathing sites\. Quality class of the official classification \(several seasons of sampling\), not a live measurement: check the sign at the site and the ARS before swimming\. Click a site for details\.$/,
       (m) => m[1] + " sites de baignade. Classe de qualité du classement officiel (plusieurs saisons de prélèvements), pas une mesure en direct : vérifiez l'affichage sur place et l'ARS avant de vous baigner. Cliquez sur un site pour le détail."],
     [/^(\d+) · last (.*)$/, (m) => m[1] + ' · dernière le ' + m[2]],
@@ -801,12 +809,51 @@
     info: (e) => (e.count || 0) + ' bathing sites. Quality class of the official classification (several seasons of sampling), not a live measurement: check the sign at the site and the ARS before swimming. Click a site for details.',
   });
 
+  // ---- parkings (statique : BNLS, Saemes, Indigo, Saint-Étienne, Orléans ; en direct : Nantes, Aix-Marseille, Tours, Clermont) ------------------------------------------------------
+  const PARKINGS = [[100, '#4aa3ff', '< 100'], [300, '#2de2d0', '100–300'], [800, '#ffe14a', '300–800'], [Infinity, '#ff4df0', '> 800']];   // capacité (sans comptage en direct)
+  const DISPO = { ok: ['#3ddc97', 'Free spaces'], peu: ['#ffb02e', 'Almost full'], plein: ['#ff3b3b', 'Full or closed'] };                          // places libres (comptage en direct)
+  const STATUT = { ouvert: 'Open', complet: 'Full', ferme: 'Closed', abonnes: 'Subscribers only' };
+  const euros = (x) => (x === null || x === undefined ? '—' : x.toFixed(2).replace('.', ',') + ' €');
+  const dispo = (s) => (s[13] === null || s[13] === undefined ? null : (s[15] === 'ferme' || s[15] === 'abonnes' || s[15] === 'complet' || s[13] === 0 ? 'plein' : (s[4] && s[13] / s[4] < 0.2 ? 'peu' : 'ok')));
+  const parkingsFrance = (Cesium, viewer) => fabrique(Cesium, viewer, {
+    id: 'parkings-fr', name: 'Car parks · France', icon: '🅿️', source: 'BNLS · Saemes · Indigo · villes · data.gouv.fr', updateInterval: 5 * 60000, url: '/__jarvis/donnees/parkings.json', params: { type: 'all' },
+    accepte: (p) => (['all', 'gratuit', 'payant', 'direct', 'libre'].includes(p.type) ? { type: p.type } : null),
+    construire(d, { pts, lab, params, col: c }) {
+      let n = 0, direct = 0;
+      d.forEach((s, k) => {   // [nom, adresse, lat, lon, places, gratuit, PMR, bornes, hauteur cm, tarif 1 h, tarif 24 h, exploitant, lien, libres, maj, statut]
+        const dd = dispo(s);
+        if ((params.type === 'gratuit' && !s[5]) || (params.type === 'payant' && s[5]) || (params.type === 'direct' && !dd) || (params.type === 'libre' && dd !== 'ok' && dd !== 'peu')) return;
+        const hexa = dd ? DISPO[dd][0] : (s[4] ? PARKINGS.find(([max]) => s[4] < max)[1] : '#9aa7b2');
+        const position = Cesium.Cartesian3.fromDegrees(s[3], s[2], 10);
+        pts.add({ position, pixelSize: dd ? 9 : 5 + (s[4] ? Math.min(5, Math.log2(Math.max(1, s[4] / 50))) : 0), color: c(hexa, 0.95), outlineColor: Cesium.Color.BLACK.withAlpha(0.6), outlineWidth: 1,
+          disableDepthTestDistance: Infinity, scaleByDistance: new Cesium.NearFarScalar(2e4, 1.5, 6e6, 0.4), id: { jarvisCle: k } }); n++;
+        if (dd) {   // le nombre de places libres s'affiche en zoomant
+          direct++;
+          lab.add({ position, text: String(s[13]), font: '600 13px Consolas, monospace', fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, -16),
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 150000), disableDepthTestDistance: Infinity, scale: 0.9, id: { jarvisCle: k } });
+        }
+      });
+      return { count: n, direct };
+    },
+    fiche: (k, d) => {
+      const s = d[k], dd = dispo(s);
+      const lignes = [['Address', s[1] || '—'], ['Spaces', s[4] ? String(s[4]) : '—']];
+      if (dd) lignes.push(['Free spaces', String(s[13])], ['Status', STATUT[s[15]] || '—'], ['Updated', (s[14] || '').replace('T', ' ').slice(0, 16) + ' UTC']);
+      lignes.push(['Disabled spaces', s[6] ? String(s[6]) : '—'], ['EV spaces', s[7] ? String(s[7]) : '—'], ['Max height', s[8] ? (s[8] / 100).toFixed(2).replace('.', ',') + ' m' : '—'],
+        ['Free', s[5] ? 'yes' : 'no'], ['Rate 1 h', euros(s[9])], ['Rate 24 h', euros(s[10])], ['Operator', s[11] || '—']);
+      return [s[0] || 'Car park', lignes, dd ? 'Source: city open data (live count) and BNLS' : 'Source: BNLS, Saemes, Indigo, cities (open data, static: not the live availability)'];
+    },
+    chips: (p) => chipsDe('type', [['all', 'All'], ['direct', 'Live count'], ['libre', 'With free spaces'], ['gratuit', 'Free'], ['payant', 'Paying']], p),
+    legende: () => leg([...Object.values(DISPO).map(([c, l]) => [l, c]), ...PARKINGS.map(([, c, l]) => [l + ' spaces', c]), ['Unknown capacity', '#9aa7b2']]),
+    info: (e) => (e.count || 0) + ' car parks shown, ' + (e.direct || 0) + ' with a live count (Nantes, Aix-Marseille, Tours, Clermont-Ferrand). Green/orange/red = free spaces now; blue to pink = number of spaces when there is no live count (grey = unknown). Coverage is partial: other cities have no open live feed. Click a car park for details.',
+  });
+
   async function demarrer() {
     for (let i = 0; i < 240; i++) {   // l'appli met plusieurs secondes à démarrer ; 2 minutes au plus
       const g = window.__godsEyeView;
       if (g?.dataManager && g.viewer && window.__CESIUM__ && typeof window.__gevQaRegisterLayer === 'function') {
         try {
-          for (const creer of [carburantsFrance, rechargeFrance, cruesFrance, seismesFrance, airFrance, dronesFrance, alertesFrance, avalancheFrance, electriciteFrance, secheresseFrance, traficFrance, sevesoFrance, baignadeFrance]) {   // une couche qui plante ne doit pas empêcher les autres
+          for (const creer of [carburantsFrance, rechargeFrance, cruesFrance, seismesFrance, airFrance, dronesFrance, alertesFrance, avalancheFrance, electriciteFrance, secheresseFrance, traficFrance, sevesoFrance, baignadeFrance, parkingsFrance]) {   // une couche qui plante ne doit pas empêcher les autres
             try { window.__gevQaRegisterLayer(g.dataManager, habiller(creer(window.__CESIUM__, g.viewer))); } catch (e) { if (/not authorized|finalized/i.test(String(e && e.message))) throw e; if (!/Duplicate/.test(String(e && e.message))) console.warn('[JARVIS] Couche non ajoutée : ' + (e && e.message)); }
           }
           try {   // fait apparaître la ligne dans le panneau des couches (la liste est montée une seule fois au démarrage)
@@ -855,7 +902,7 @@
   }
   // mots courants qu'on dit à la voix pour désigner une couche de JARVIS (les noms des lignes sont anglais ou longs : « Événements routiers · France »)
   const ALIAS = { 'traffic': ['trafic', 'trafic routier', 'bouchons', 'embouteillages', 'circulation'], 'road-traffic-fr': ['accidents', 'travaux routiers', 'evenements routiers', 'incidents routiers'], 'electricity-fr': ['electricite', 'courant', 'energie', 'production electrique'],
-    'drought-fr': ['secheresse', 'restrictions eau', 'restrictions de sechresse'], 'seveso-fr': ['seveso', 'usines', 'industries', 'sites industriels', 'sites a risque'], 'bathing-water-fr': ['baignade', 'baignades', 'plages', 'eaux de baignade'],
+    'drought-fr': ['secheresse', 'restrictions eau', 'restrictions de sechresse'], 'seveso-fr': ['seveso', 'usines', 'industries', 'sites industriels', 'sites a risque'], 'bathing-water-fr': ['baignade', 'baignades', 'plages', 'eaux de baignade'], 'parkings-fr': ['parkings', 'parking', 'stationnement', 'parcs de stationnement'],
     'avalanche-fr': ['avalanches', 'risque avalanche', 'neige'], 'weather-alerts-fr': ['vigilance', 'alertes meteo', 'vigilance meteo'], 'fuel-prices-fr': ['carburants', 'essence', 'prix carburants', 'prix essence', 'diesel', 'gazole'],
     'ev-chargers-fr': ['bornes', 'bornes de recharge', 'recharge electrique'], 'flood-vigilance-fr': ['crues', 'inondations', 'vigicrues'], 'earthquakes-fr': ['seismes', 'tremblements de terre'], 'air-quality-fr': ['pollution', 'qualite de lair'],
     'drone-zones-fr': ['drones', 'zones de drones'] };

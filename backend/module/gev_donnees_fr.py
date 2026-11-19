@@ -2,6 +2,8 @@
 
   recharge.json  Bornes de recharge électrique (IRVE, fichier consolidé de data.gouv.fr / transport.data.gouv.fr, ~120 Mo en CSV, refait toutes les semaines)
                  [identifiant, lat, lon, nom, opérateur, nombre de points de charge, puissance max (kW), prises, gratuit (bool), horaires]
+  parkings.json  Parkings (statique : BNLS, Saemes, Indigo, Saint-Étienne, Orléans, refait chaque semaine ; en direct : Nantes, Aix-Marseille, Tours, Clermont, toutes les 5 minutes)
+                 [nom, adresse, lat, lon, places, gratuit 0/1, PMR, bornes électriques, hauteur max cm, tarif 1 h, tarif 24 h, exploitant, lien, places libres ou None, mise à jour, statut]
   crues.json     Vigilance crues par tronçon (Vigicrues, ministère de la Transition écologique, refait toutes les 20 minutes) [nom, niveau 1 vert à 4 rouge, lignes [[lon, lat], ...]]
   seismes.json   Séismes des 30 derniers jours (EMSC, service FDSN, refait toutes les 10 minutes) [identifiant, lat, lon, profondeur km, magnitude, heure ISO, région]
   air.json       Qualité de l'air européenne (Open-Meteo, modèle CAMS Europe, CC BY 4.0, refait toutes les 2 heures) [ville, lat, lon, indice européen 1 à 6, PM2.5, PM10, NO2, O3, heure]
@@ -14,8 +16,10 @@ Test : scratch/outils_test/test_gev_donnees_fr.py.
 
 import codecs
 import csv
+import io
 import json
 import os
+import re
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -629,8 +633,236 @@ def maj_baignade() -> bool:
         return False
 
 
+# --- parkings : fichier statique (BNLS, Saemes, Indigo, Saint-Étienne, Orléans) + disponibilité en direct (Nantes, Aix-Marseille, Tours, Clermont) ---------------------------------
+# Pas de source nationale unique : chaque ville publie dans son format. Le statique est refait chaque semaine (parkings_statique.json), le direct toutes les 5 minutes ; parkings.json = les deux fusionnés.
+# Essayés et écartés : OpenStreetMap (API Overpass trop lente et instable pour un téléchargement automatique), Lyon (flux temps réel derrière un compte), Dijon (jeu retiré).
+# Colonnes : [nom, adresse, lat, lon, places, gratuit 0/1, places PMR, bornes électriques, hauteur max cm, tarif 1 h, tarif 24 h, exploitant, lien, places libres (None = inconnu), mise à jour ISO, statut]
+# statut : None (inconnu) | "ouvert" | "complet" | "ferme" | "abonnes" (ouvert aux seuls abonnés)
+URL_BNLS = "https://www.data.gouv.fr/api/1/datasets/r/e32f7675-913b-4e01-b8c8-0a29733e4407"
+URL_SAEMES = "https://www.data.gouv.fr/api/1/datasets/r/59044c4a-54fb-4617-b752-532303180d25"
+URL_INDIGO = "https://www.data.gouv.fr/api/1/datasets/r/c87a5804-ed47-4ffb-8d96-9ce3b559e699"
+URL_SAINT_ETIENNE = "https://extranet.saint-etienne.fr/extrasig/geoserver/wfs?request=getFeature&typeName=vse:Parking_SaintEtienneMetropole&outputformat=application/json&srsName=EPSG:4326"
+URL_ORLEANS = "https://data.orleans-metropole.fr/api/explore/v2.1/catalog/datasets/om-mobilite-parcs-stationnement/exports/json"
+URL_NANTES = "https://data.nantesmetropole.fr/api/explore/v2.1/catalog/datasets/244400404_parkings-publics-nantes-disponibilites/exports/json"
+URL_NANTES_RELAIS = "https://data.nantesmetropole.fr/api/explore/v2.1/catalog/datasets/244400404_parcs-relais-nantes-metropole-disponibilites/exports/json"
+URL_AIX = "https://data.ampmetropole.fr/api/explore/v2.1/catalog/datasets/disponibilites-des-places-de-parkings/exports/json"
+URL_TOURS = "https://data.tours-metropole.fr/api/explore/v2.1/catalog/datasets/etat-des-parkings-en-ouvrage-en-temps-reel-tours-metropole-val-de-loire/exports/json"
+URL_CLERMONT = "https://opendata.clermontmetropole.eu/api/explore/v2.1/catalog/datasets/occupation_parcs_stationnement_metropolitains/exports/json"
+VALIDITE_DIRECT = 30 * 60   # au-delà (la doc de Nantes dit 15 minutes), les places libres ne sont plus affichées : une valeur périmée serait pire qu'une valeur absente
+
+
+def _decoder(contenu: bytes) -> str:
+    """UTF-8 (avec ou sans BOM) ; à défaut Windows-1252 (le CSV de Saemes n'est pas en UTF-8)."""
+    try:
+        return contenu.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return contenu.decode("cp1252", errors="replace")
+
+
+def _int(v) -> int:
+    x = _f(v)
+    return int(x) if x is not None and x > 0 else 0
+
+
+def _parking(nom, adresse, lat, lon, places=0, gratuit=0, pmr=0, elec=0, hauteur=0, t1=None, t24=None, exploitant="", url="", libres=None, maj="", statut=None):
+    """Une ligne de parking (16 colonnes) ; None sans position valide en France."""
+    lat, lon = _f(lat), _f(lon)
+    if lat is None or lon is None or not (_FR[0] < lat < _FR[1] and _FR[2] < lon < _FR[3]):
+        return None
+    return [str(nom or "").strip().title()[:60], str(adresse or "").strip()[:90], round(lat, 5), round(lon, 5), _int(places), 1 if gratuit else 0, _int(pmr), _int(elec), _int(hauteur),
+            _f(t1), _f(t24), exploitant, str(url or "").strip()[:200], libres, maj or "", statut]
+
+
+def _depuis_bnls(lignes, exploitant: str = "") -> list:
+    """Enregistrements au schéma de la Base Nationale des Lieux de Stationnement (CSV, GeoJSON de Saint-Étienne, JSON d'Orléans ; clés en minuscules ou non)."""
+    sortie = []
+    for brut in lignes:
+        r = {str(k).lower(): v for k, v in brut.items()}
+        p = _parking(r.get("nom"), r.get("adresse"), r.get("ylat"), r.get("xlong"), r.get("nb_places"), str(r.get("gratuit")).strip().lower() in ("1", "true"), r.get("nb_pmr"),
+                     r.get("nb_voitures_electriques"), r.get("hauteur_max"), r.get("tarif_1h"), r.get("tarif_24h"), exploitant or str(r.get("nom_gestionnaire") or ""), r.get("url"))
+        if p:
+            sortie.append(p)
+    return sortie
+
+
+def convertir_parkings_bnls(texte: str, exploitant: str = "") -> list:
+    """CSV de la BNLS (séparateur « ; », même schéma pour Saemes) ; StringIO car certains champs contiennent un retour à la ligne entre guillemets."""
+    return _depuis_bnls(csv.DictReader(io.StringIO(texte), delimiter=";"), exploitant)
+
+
+def convertir_parkings_geojson_bnls(doc: dict, exploitant: str = "") -> list:
+    return _depuis_bnls((f.get("properties") or {} for f in (doc or {}).get("features", [])), exploitant)
+
+
+def convertir_parkings_indigo(doc: dict) -> list:
+    """JSON Indigo (profil « parking » à la NeTEx ; position en [latitude, longitude], l'inverse de GeoJSON) ; capacité 0 = inconnue."""
+    sortie = []
+    for p in (doc or {}).get("places", []):
+        try:
+            lat, lon = (float(x) for x in p["indicativePointLocation"]["coordinates"][:2])
+        except (KeyError, TypeError, ValueError):
+            continue
+        nom = next((n.get("string") for n in p.get("name", []) if n.get("string")), "")
+        ligne = _parking(nom, "", lat, lon, (p.get("characteristics") or {}).get("spacesTotal"), exploitant="Indigo")
+        if ligne:
+            sortie.append(ligne)
+    return sortie
+
+
+def _dispo(libres, places, statut=None):
+    """(libres, statut) cohérents : pas de libres sans comptage, « complet » quand il n'en reste aucune."""
+    if libres is None:
+        return None, statut
+    libres = max(0, int(libres))
+    return libres, statut or ("ouvert" if libres > 0 else "complet")
+
+
+def _recent(horodatage, maintenant) -> bool:
+    try:
+        t = datetime.fromisoformat(str(horodatage).replace("Z", "+00:00").replace(" ", "T"))
+        if t.tzinfo is None:
+            return True   # « 2026-11-19 09:05:04 » : le fuseau n'est pas indiqué, on garde la valeur plutôt que de la jeter
+        return (maintenant - t).total_seconds() < VALIDITE_DIRECT
+    except (TypeError, ValueError):
+        return False
+
+
+def convertir_nantes(enregistrements, exploitant: str = "Naolib", maintenant=None) -> list:
+    """Parkings publics et parcs-relais de Nantes (Opendatasoft). Statut : 0 comptage hors service, 1 fermé, 2 abonnés seulement, 5 ouvert ; « complet » sous le seuil grp_complet."""
+    maintenant = maintenant or datetime.now(timezone.utc)
+    sortie = []
+    for r in enregistrements or []:
+        loc = r.get("location") or {}
+        code, libres = r.get("grp_statut"), r.get("grp_disponible")
+        statut = {1: "ferme", 2: "abonnes"}.get(code)
+        if code in (0, None) or not _recent(r.get("grp_horodatage"), maintenant):
+            libres, statut = None, None
+        elif code == 5:
+            seuil = _f(r.get("grp_complet"), 0) or 0
+            libres, statut = _dispo(libres, None, "complet" if libres is not None and libres <= seuil else None)
+        else:
+            libres = None   # fermé ou abonnés : les places « horaires » ne sont pas à vendre
+        p = _parking(r.get("grp_nom") or r.get("nom_complet"), r.get("adresse"), loc.get("lat"), loc.get("lon"), r.get("grp_exploitation"), exploitant=exploitant, libres=libres, maj=r.get("grp_horodatage") or "", statut=statut)
+        if p:
+            sortie.append(p)
+    return sortie
+
+
+def convertir_aix(enregistrements, maintenant=None) -> list:
+    """Métropole Aix-Marseille-Provence : « tempsreel » dit si le comptage est en direct."""
+    sortie = []
+    for r in enregistrements or []:
+        direct = str(r.get("tempsreel")).lower() == "true" and _f(r.get("voitureplacesdisponibles")) is not None
+        libres, statut = _dispo(_f(r.get("voitureplacesdisponibles")) if direct else None, None)
+        p = _parking(r.get("nom"), f"{r.get('adresse') or ''} {r.get('commune') or ''}".strip(), r.get("latitude"), r.get("longitude"), r.get("voitureplacescapacite"), url=r.get("site"),
+                     exploitant=str(r.get("producteur") or ""), libres=libres, maj=(r.get("datemajpy") or "").replace(" ", "T") if direct else "", statut=statut)
+        if p:
+            sortie.append(p)
+    return sortie
+
+
+def _hauteur_cm(texte) -> int:
+    m = re.search(r"(\d+)[,.](\d+)", str(texte or ""))
+    return int(m.group(1)) * 100 + int(m.group(2).ljust(2, "0")[:2]) if m else 0
+
+
+def convertir_tours(enregistrements) -> list:
+    sortie = []
+    for r in enregistrements or []:
+        loc = r.get("geo_point") or {}
+        libres, statut = _dispo(_f(r.get("free_spots")), None)
+        p = _parking(r.get("libelle_parking"), f"{r.get('adresse') or ''} {r.get('commune') or ''}".strip(), loc.get("lat"), loc.get("lon"), r.get("capacite"),
+                     hauteur=_hauteur_cm(r.get("hauteur_max_premier_niveau")), exploitant="Indigo", url=r.get("url_abonnement_"), libres=libres, maj=r.get("horodatage") or "", statut=statut)
+        if p:
+            sortie.append(p)
+    return sortie
+
+
+def convertir_clermont(enregistrements, maintenant=None) -> list:
+    sortie = []
+    for r in enregistrements or []:
+        valide = str(r.get("etat") or "").lower() == "valide"
+        libres, statut = _dispo(_f(r.get("places_libres")) if valide else None, None)
+        p = _parking(r.get("nom"), "", r.get("latitude"), r.get("longitude"), r.get("capacite_maximale"), exploitant="Clermont Auvergne Métropole", url=r.get("lien"),
+                     libres=libres, maj=r.get("horodatage") or "" if valide else "", statut=statut)
+        if p:
+            sortie.append(p)
+    return sortie
+
+
+def fusionner_parkings(*listes, metres: float = 60.0) -> list:
+    """Concatène les listes dans l'ordre de priorité ; un parking à moins de `metres` d'un parking d'une liste PRÉCÉDENTE est le même (la BNLS reprend déjà Saemes ; le direct l'emporte sur le statique) :
+    écarté. Deux parkings voisins d'une même liste sont conservés."""
+    cellules, sortie = {}, []
+    for liste in listes:
+        nouveaux = []
+        for p in liste:
+            cx, cy = int(p[3] / 0.001), int(p[2] / 0.001)   # cellule de ~100 m : on ne compare qu'avec les 9 voisines
+            if any(abs((q[2] - p[2]) * 111_000) < metres and abs((q[3] - p[3]) * 111_000 * 0.68) < metres for dx in (-1, 0, 1) for dy in (-1, 0, 1) for q in cellules.get((cx + dx, cy + dy), ())):
+                continue
+            nouveaux.append(p)
+        for p in nouveaux:
+            cellules.setdefault((int(p[3] / 0.001), int(p[2] / 0.001)), []).append(p)
+            sortie.append(p)
+    return sortie
+
+
+def _json(url: str, **kw):
+    r = requests.get(url, headers=ENTETES, timeout=60, **kw)
+    r.raise_for_status()
+    return r
+
+
+def _construire_statique() -> list:
+    """Télécharge et fusionne les jeux statiques ; liste vide si la BNLS (la base) est tronquée ; un exploitant en panne n'est pas remplacé par du vide si un fichier complet existe déjà."""
+    bnls = convertir_parkings_bnls(_decoder(_json(URL_BNLS).content), "BNLS")
+    if len(bnls) < 500:
+        return []
+    autres, manquantes = [], []
+    for nom, url, conv in (("Saemes", URL_SAEMES, lambda r: convertir_parkings_bnls(_decoder(r.content), "Saemes")),
+                           ("Indigo", URL_INDIGO, lambda r: convertir_parkings_indigo(json.loads(_decoder(r.content)))),
+                           ("Saint-Étienne", URL_SAINT_ETIENNE, lambda r: convertir_parkings_geojson_bnls(r.json(), "Saint-Étienne Métropole")),
+                           ("Orléans", URL_ORLEANS, lambda r: _depuis_bnls(r.json(), "Orléans Métropole"))):
+        try:
+            autres.append(conv(_json(url)))
+        except Exception as e:  # noqa: BLE001
+            manquantes.append(nom)
+            print(f"[DONNEES FR] Parkings {nom} : {type(e).__name__}")
+    if manquantes and age("parkings_statique") != float("inf"):
+        return []
+    return fusionner_parkings(bnls, *autres)
+
+
+def maj_parkings() -> bool:
+    try:
+        statique = None
+        if age("parkings_statique") > 7 * 86400:
+            statique = _construire_statique()
+            if statique:
+                _ecrire("parkings_statique", statique)
+        if not statique:
+            with open(os.path.join(DOSSIER, "parkings_statique.json"), encoding="utf-8") as f:
+                statique = json.load(f)   # le fichier de la semaine (ou, si la reconstruction a échoué, le dernier bon)
+    except Exception as e:  # noqa: BLE001
+        print(f"[DONNEES FR] Parkings (statique) : {type(e).__name__}")
+        return False
+    direct = []
+    for nom, url, conv in (("Nantes", URL_NANTES, convertir_nantes), ("Nantes (parcs-relais)", URL_NANTES_RELAIS, convertir_nantes), ("Aix-Marseille", URL_AIX, convertir_aix),
+                           ("Tours", URL_TOURS, convertir_tours), ("Clermont-Ferrand", URL_CLERMONT, convertir_clermont)):
+        try:
+            direct += conv(_json(url).json())
+        except Exception as e:  # noqa: BLE001 — une ville en panne : ses parkings restent affichés avec les données statiques
+            print(f"[DONNEES FR] Parkings en direct {nom} : {type(e).__name__}")
+    try:
+        _ecrire("parkings", fusionner_parkings(direct, statique))
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"[DONNEES FR] Parkings : {type(e).__name__}")
+        return False
+
+
 # nom -> (mise à jour, validité en secondes)
-JEUX = {"baignade": (maj_baignade, 7 * 86400), "seveso": (maj_seveso, 7 * 86400), "electricite": (maj_electricite, 900), "secheresse": (maj_secheresse, 3 * 3600), "trafic": (maj_trafic, 600), "avalanche": (maj_avalanche, 3600), "vigilance": (maj_vigilance, 900), "seismes": (maj_seismes, 600), "crues": (maj_crues, 1200), "air": (maj_air, 7200), "recharge": (maj_recharge, 7 * 86400)}
+JEUX = {"parkings": (maj_parkings, 300), "baignade": (maj_baignade, 7 * 86400), "seveso": (maj_seveso, 7 * 86400), "electricite": (maj_electricite, 900), "secheresse": (maj_secheresse, 3 * 3600), "trafic": (maj_trafic, 600), "avalanche": (maj_avalanche, 3600), "vigilance": (maj_vigilance, 900), "seismes": (maj_seismes, 600), "crues": (maj_crues, 1200), "air": (maj_air, 7200), "recharge": (maj_recharge, 7 * 86400)}
 
 
 def _boucle() -> None:
