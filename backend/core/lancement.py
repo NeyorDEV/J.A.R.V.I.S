@@ -21,12 +21,33 @@ except ImportError:
 _RELANCEUR = (
     "import os, subprocess, sys, time\n"
     "import psutil\n"
-    "pid = int(sys.argv[1]); commande = sys.argv[2:]\n"
+    "pid, console = int(sys.argv[1]), int(sys.argv[2]); commande = sys.argv[3:]\n"
     "debut = time.time()\n"
     "while psutil.pid_exists(pid) and time.time() - debut < 25:\n"
     "    time.sleep(0.3)\n"
+    "if console:\n"   # console de start.bat : sans elle, « Appuyez sur une touche » resterait ouvert après l'arrêt de l'ancien JARVIS
+    "    try:\n"
+    "        c = psutil.Process(console)\n"
+    "        if c.name().lower() == 'cmd.exe' and 'start.bat' in ' '.join(c.cmdline()).lower():\n"
+    "            c.kill()\n"
+    "    except Exception:\n"
+    "        pass\n"
     "subprocess.Popen(commande, cwd=os.getcwd())\n"
 )
+
+
+def _console_start_bat() -> int:
+    """PID de la console cmd.exe qui exécute start.bat parmi les ancêtres de ce processus, 0 sinon (lancement par le raccourci installé, sans console)."""
+    try:
+        import psutil
+        p = psutil.Process(os.getpid()).parent()
+        while p is not None:
+            if p.name().lower() == "cmd.exe" and "start.bat" in " ".join(p.cmdline()).lower():
+                return p.pid
+            p = p.parent()
+    except Exception:
+        pass
+    return 0
 
 
 def redemarrer(commande=None, delai_force=12.0):
@@ -36,7 +57,7 @@ def redemarrer(commande=None, delai_force=12.0):
     """
     commande = list(commande) if commande else [sys.executable, *sys.argv]
     flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-    subprocess.Popen([sys.executable, "-c", _RELANCEUR, str(os.getpid()), *commande], cwd=os.getcwd(), creationflags=flags, close_fds=True)
+    subprocess.Popen([sys.executable, "-c", _RELANCEUR, str(os.getpid()), str(_console_start_bat()), *commande], cwd=os.getcwd(), creationflags=flags, close_fds=True)
     shared.ARRET_DEMANDE = True   # sort de _attendre_hud (mode navigateur)
     fenetre = getattr(shared, "_WEBVIEW_WINDOW", None)
     if fenetre is not None:   # fermer la fenêtre native termine webview.start() : main.py arrête alors le serveur web et fait ses nettoyages

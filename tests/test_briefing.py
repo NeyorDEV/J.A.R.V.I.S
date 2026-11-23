@@ -50,3 +50,44 @@ def test_resolver_de_bout_en_bout(monkeypatch):
     assert rep.startswith(("Bonjour Clara.", "Bonsoir Clara.")) and "Rien à l'agenda" in rep and "2 mails non lus" in rep
     assert asyncio.run(r.resoudre_briefing("mets de la musique")) is None
     assert builtins.resoudre_briefing is r.resoudre_briefing
+
+
+def test_salutation_anglaise_suit_l_heure(monkeypatch):
+    from core import i18n
+    monkeypatch.setattr(i18n, "_langue", "en")
+    assert b.composer(datetime(2026, 11, 16, 9, 0)).startswith("Good morning.")
+    assert b.composer(datetime(2026, 11, 16, 15, 0)).startswith("Good afternoon.")
+    assert b.composer(datetime(2026, 11, 16, 19, 0)).startswith("Good evening.")
+    monkeypatch.setattr(i18n, "_langue", "fr")
+    assert b.composer(datetime(2026, 11, 16, 15, 0)).startswith("Bonjour.") and b.composer(datetime(2026, 11, 16, 19, 0)).startswith("Bonsoir.")
+
+
+class _Chaine:
+    """Faux service Google : service.xxx().yyy(...).execute() renvoie la réponse préparée, sans réseau."""
+    def __init__(self, reponse):
+        self.reponse = reponse
+
+    def __getattr__(self, _):
+        return lambda *a, **k: self
+
+    def execute(self):
+        return self.reponse
+
+
+def test_sources_google_avec_de_faux_services(monkeypatch):
+    """Agenda, tâches et mails lus et mis en forme comme avec le vrai Google (jeton simulé valide) ; une panne de service donne None, jamais une erreur dite."""
+    pytest.importorskip("google_auth_oauthlib")   # absent de l'environnement minimal de la CI
+    import module.google_services as gs
+    monkeypatch.setattr(b, "_google_pret", lambda: True)
+    monkeypatch.setattr(gs, "service_agenda", lambda: _Chaine({"items": [{"start": {"dateTime": "2026-11-23T18:30:00+01:00"}, "summary": "Dentiste"}, {"start": {"date": "2026-11-23"}, "summary": "Anniversaire de Clara"}]}))
+    monkeypatch.setattr(gs, "get_tasks_service", lambda: _Chaine({"items": [{"title": "Payer le loyer"}, {"title": "Appeler Léo"}]}))
+    monkeypatch.setattr(gs, "service_gmail", lambda: _Chaine({"messages": [{"id": "1"}, {"id": "2"}, {"id": "3"}]}))
+    ev = b._agenda()
+    assert [(d.hour if d else None, t) for d, t in ev] == [(18, "Dentiste"), (None, "Anniversaire de Clara")]
+    assert b._taches() == ["Payer le loyer", "Appeler Léo"] and b._mails() == 3
+    phrase = b.composer(datetime(2026, 11, 23, 9, 0), evenements=ev, taches=b._taches(), mails=b._mails())
+    assert "Dentiste à 18 h 30" in phrase and "Anniversaire de Clara, toute la journée" in phrase and "2 tâches à faire" in phrase and "3 mails non lus" in phrase
+    monkeypatch.setattr(gs, "service_agenda", lambda: (_ for _ in ()).throw(RuntimeError("panne")))
+    assert b._agenda() is None   # panne : source passée sous silence
+    monkeypatch.setattr(b, "_google_pret", lambda: False)
+    assert b._taches() is None and b._mails() is None   # pas de jeton utilisable : aucune fenêtre de connexion ouverte, source ignorée

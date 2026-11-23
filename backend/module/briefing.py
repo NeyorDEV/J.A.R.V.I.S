@@ -6,6 +6,8 @@ configuré : le briefing la passe sous silence au lieu de dire une erreur. Le re
 import re
 from datetime import datetime
 
+from core import i18n
+
 _JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 _MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
 _DEMANDE = re.compile(
@@ -34,7 +36,10 @@ def _liste(elements) -> str:
 
 def composer(maintenant: datetime, meteo=None, evenements=None, taches=None, alarmes=None, mails=None, nom: str = "") -> str:
     """meteo : phrase ou None ; evenements : [(datetime|None = toute la journée, titre)] ; taches : [titre] ; alarmes : [(datetime, libellé)] ; mails : nombre ou None."""
-    salut = "Bonsoir" if maintenant.hour >= 18 else "Bonjour"
+    if i18n.en_anglais():   # « Bonjour » se traduirait toujours « Good morning » : la salutation anglaise suit l'heure (le reste de la phrase est traduit ensuite)
+        salut = "Good morning" if maintenant.hour < 12 else "Good afternoon" if maintenant.hour < 18 else "Good evening"
+    else:
+        salut = "Bonsoir" if maintenant.hour >= 18 else "Bonjour"
     morceaux = [f"{salut}{' ' + nom if nom else ''}. Nous sommes {_JOURS[maintenant.weekday()]} {maintenant.day} {_MOIS[maintenant.month - 1]}."]
     if meteo:
         morceaux.append(meteo.rstrip(" .") + ".")

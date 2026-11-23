@@ -258,7 +258,7 @@ def test_redemarrer_lance_le_relanceur_puis_ferme_la_fenetre(monkeypatch):
     monkeypatch.setattr(lancement.threading, "Timer", _Timer)
     lancement.redemarrer(["python", "main.py"], delai_force=7)
     cmd, kw = appels[0]
-    assert cmd[1] == "-c" and cmd[3] == str(__import__("os").getpid()) and cmd[4:] == ["python", "main.py"]
+    assert cmd[1] == "-c" and cmd[3] == str(__import__("os").getpid()) and cmd[4].isdigit() and cmd[5:] == ["python", "main.py"]   # cmd[4] : console start.bat à fermer (0 = aucune)
     assert kw["creationflags"] == getattr(lancement.subprocess, "CREATE_NEW_CONSOLE", 0) and fermee == [1] and shared.ARRET_DEMANDE is True
     assert armees[0][0] == 7 and armees[0][1] is __import__("os")._exit
     shared.ARRET_DEMANDE = False
@@ -274,7 +274,7 @@ def test_relanceur_attend_la_fin_de_l_ancien_puis_demarre_le_nouveau(tmp_path):
     marque = tmp_path / "nouveau.txt"
     ancien = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(1.5)"])
     t0 = time.time()
-    subprocess.Popen([sys.executable, "-c", lancement._RELANCEUR, str(ancien.pid), sys.executable, "-c", f"open(r'{marque}', 'w').write('ok')"], cwd=str(tmp_path))
+    subprocess.Popen([sys.executable, "-c", lancement._RELANCEUR, str(ancien.pid), "0", sys.executable, "-c", f"open(r'{marque}', 'w').write('ok')"], cwd=str(tmp_path))
     time.sleep(0.5)
     assert not marque.exists()   # l'ancien tourne encore : pas de nouveau
     ancien.wait()
@@ -283,3 +283,40 @@ def test_relanceur_attend_la_fin_de_l_ancien_puis_demarre_le_nouveau(tmp_path):
             break
         time.sleep(0.2)
     assert marque.exists() and time.time() - t0 >= 1.4
+
+
+def test_relanceur_ferme_la_console_start_bat_mais_pas_un_autre_cmd(tmp_path):
+    """Le relanceur tue la console « cmd /c start.bat » donnée (pour ne pas laisser « Appuyez sur une touche »), jamais un autre cmd.exe."""
+    pytest.importorskip("psutil")
+    import shutil
+    import subprocess
+    import sys
+    import time
+    from core import lancement
+    cmd = shutil.which("cmd.exe")
+    bat = tmp_path / "start.bat"
+    bat.write_text("@echo off\r\nping -n 30 127.0.0.1 > nul\r\n", encoding="ascii")
+    console = subprocess.Popen([cmd, "/c", str(bat)], cwd=str(tmp_path))
+    autre = subprocess.Popen([cmd, "/c", "ping -n 30 127.0.0.1 > nul"], cwd=str(tmp_path))
+    ancien = subprocess.Popen([sys.executable, "-c", "pass"])
+    ancien.wait()
+    marque = tmp_path / "nouveau.txt"
+    lanceur = [sys.executable, "-c", lancement._RELANCEUR, str(ancien.pid), str(console.pid), sys.executable, "-c", f"open(r'{marque}', 'w').write('ok')"]
+    subprocess.run(lanceur, cwd=str(tmp_path), timeout=20)
+    for _ in range(40):
+        if marque.exists():
+            break
+        time.sleep(0.2)
+    time.sleep(0.5)
+    try:
+        assert marque.exists()
+        assert console.poll() is not None   # console start.bat fermée
+        assert autre.poll() is None         # un autre cmd.exe n'est pas touché
+        autre2 = subprocess.Popen([cmd, "/c", "ping -n 30 127.0.0.1 > nul"])   # cmd.exe sans start.bat : refusé même si on donne son PID
+        subprocess.run([sys.executable, "-c", lancement._RELANCEUR, str(ancien.pid), str(autre2.pid), sys.executable, "-c", "pass"], cwd=str(tmp_path), timeout=20)
+        time.sleep(0.5)
+        assert autre2.poll() is None
+        autre2.kill()
+    finally:
+        for p in (console, autre):
+            p.kill()
