@@ -189,6 +189,37 @@ def test_libelles_console_et_phrase_dite(langue):
     assert i18n.depuis_cache("Très bien.") == "Very well."
 
 
+def test_avis_de_redemarrage_a_chaque_changement(langue):
+    langue.definir("en")
+    titre, texte = langue.avis_redemarrage()
+    assert titre == "LANGUAGE" and "Restart JARVIS" in texte
+    rep = asyncio.run(lr.resoudre_langue("passe en français"))
+    assert "Redémarrez JARVIS" in rep and langue.langue() == "fr"   # dit dans la nouvelle langue
+    assert "Restart JARVIS" in asyncio.run(lr.resoudre_langue("switch to English"))
+
+
+def test_reglage_langue_envoie_l_avis(langue, monkeypatch, tmp_path):
+    pytest.importorskip("google.genai")   # ws_reglages importe les clients IA
+    import core.web_bridge as wb
+    from core import ws_reglages
+    cartes = []
+
+    async def _carte(titre, texte, *a, **k):
+        cartes.append((titre, texte))
+    monkeypatch.setattr(wb, "envoyer_carte_contextuelle", _carte)
+    monkeypatch.setattr(ws_reglages, "_masquer_cle", lambda c: c, raising=False)
+    import core.shared as shared
+    monkeypatch.setattr(shared, "RACINE_PROJET", str(tmp_path))   # jamais la vraie jarvis_config.json de l'utilisateur
+    (tmp_path / "jarvis_config.json").write_text("{}", encoding="utf-8")
+    import types
+    ws = types.SimpleNamespace(send=lambda m: asyncio.sleep(0))
+    try:
+        asyncio.run(ws_reglages.ws_update_settings(ws, {"settings": {"langue": "en"}}))
+    except Exception:
+        pass   # la sauvegarde de la config n'est pas l'objet du test : seul l'avis compte
+    assert cartes and cartes[0][0] == "LANGUAGE" and "Restart JARVIS" in cartes[0][1]
+
+
 def test_ligne_dit_de_la_console_en_anglais(langue, capsys):
     """Mode anglais : « [DIT] » montre la phrase traduite si elle est connue ; sinon elle attend la traduction (affichée par le fil de la parole)."""
     pytest.importorskip("edge_tts")
@@ -206,3 +237,49 @@ def test_ligne_dit_de_la_console_en_anglais(langue, capsys):
     speech.parler("Très bien, je lance Spotify.")
     assert "[DIT] Très bien, je lance Spotify." in capsys.readouterr().out   # français : comme avant
     speech.vider_files()
+
+
+def test_redemarrer_lance_le_relanceur_puis_ferme_la_fenetre(monkeypatch):
+    """redemarrer() : relanceur lancé dans une nouvelle console avec la ligne de commande donnée, fenêtre native fermée, sortie forcée armée. Rien n'est vraiment relancé."""
+    import types as _t
+    import core.shared as shared
+    from core import lancement
+    appels, fermee, armees = [], [], []
+    monkeypatch.setattr(lancement.subprocess, "Popen", lambda cmd, **kw: appels.append((cmd, kw)))
+    monkeypatch.setattr(shared, "_WEBVIEW_WINDOW", _t.SimpleNamespace(destroy=lambda: fermee.append(1)), raising=False)
+
+    class _Timer:
+        def __init__(self, delai, fn, args=()):
+            armees.append((delai, fn, args))
+            self.daemon = False
+
+        def start(self):
+            pass
+    monkeypatch.setattr(lancement.threading, "Timer", _Timer)
+    lancement.redemarrer(["python", "main.py"], delai_force=7)
+    cmd, kw = appels[0]
+    assert cmd[1] == "-c" and cmd[3] == str(__import__("os").getpid()) and cmd[4:] == ["python", "main.py"]
+    assert kw["creationflags"] == getattr(lancement.subprocess, "CREATE_NEW_CONSOLE", 0) and fermee == [1] and shared.ARRET_DEMANDE is True
+    assert armees[0][0] == 7 and armees[0][1] is __import__("os")._exit
+    shared.ARRET_DEMANDE = False
+
+
+def test_relanceur_attend_la_fin_de_l_ancien_puis_demarre_le_nouveau(tmp_path):
+    """Le vrai relanceur, avec un faux « ancien JARVIS » (processus court) et un faux « nouveau » (écrit un fichier) : le nouveau ne démarre qu'après la fin de l'ancien."""
+    pytest.importorskip("psutil")
+    import subprocess
+    import sys
+    import time
+    from core import lancement
+    marque = tmp_path / "nouveau.txt"
+    ancien = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(1.5)"])
+    t0 = time.time()
+    subprocess.Popen([sys.executable, "-c", lancement._RELANCEUR, str(ancien.pid), sys.executable, "-c", f"open(r'{marque}', 'w').write('ok')"], cwd=str(tmp_path))
+    time.sleep(0.5)
+    assert not marque.exists()   # l'ancien tourne encore : pas de nouveau
+    ancien.wait()
+    for _ in range(40):
+        if marque.exists():
+            break
+        time.sleep(0.2)
+    assert marque.exists() and time.time() - t0 >= 1.4

@@ -17,6 +17,38 @@ except ImportError:
     _WEBVIEW_OK = False
 
 
+# Relanceur : petit programme séparé (lancé dans sa propre console) qui attend la fin de l'ancien JARVIS (micro, ports, base de mémoire libérés) puis démarre le nouveau.
+_RELANCEUR = (
+    "import os, subprocess, sys, time\n"
+    "import psutil\n"
+    "pid = int(sys.argv[1]); commande = sys.argv[2:]\n"
+    "debut = time.time()\n"
+    "while psutil.pid_exists(pid) and time.time() - debut < 25:\n"
+    "    time.sleep(0.3)\n"
+    "subprocess.Popen(commande, cwd=os.getcwd())\n"
+)
+
+
+def redemarrer(commande=None, delai_force=12.0):
+    """Relance JARVIS : un relanceur démarre dans une nouvelle console avec la même ligne de commande, puis ce processus s'arrête (fenêtre fermée, serveur web arrêté, nettoyages de main.py).
+
+    `commande` : ligne de commande du nouveau JARVIS (par défaut celle de celui-ci : même Python, même main.py). Si l'arrêt propre traîne plus de `delai_force` secondes, la sortie est forcée.
+    """
+    commande = list(commande) if commande else [sys.executable, *sys.argv]
+    flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+    subprocess.Popen([sys.executable, "-c", _RELANCEUR, str(os.getpid()), *commande], cwd=os.getcwd(), creationflags=flags, close_fds=True)
+    shared.ARRET_DEMANDE = True   # sort de _attendre_hud (mode navigateur)
+    fenetre = getattr(shared, "_WEBVIEW_WINDOW", None)
+    if fenetre is not None:   # fermer la fenêtre native termine webview.start() : main.py arrête alors le serveur web et fait ses nettoyages
+        try:
+            fenetre.destroy()
+        except Exception as e:
+            print(f"[JARVIS] Fermeture de la fenêtre impossible : {e}")
+    timer = threading.Timer(delai_force, os._exit, args=(0,))
+    timer.daemon = True
+    timer.start()
+
+
 def afficher_statut_services():
     """Annonce les services démarrés (l'état détaillé est dans le bandeau de la console)."""
     print("[SERVICES] Backend actif · WebSocket ws://localhost:8765 · mot-clé « Jarvis »")
@@ -361,6 +393,8 @@ def _attendre_hud(frontend_process):
     try:
         while True:
             time.sleep(1)
+            if getattr(shared, "ARRET_DEMANDE", False):   # redémarrage demandé depuis le HUD (redemarrer())
+                break
             # On ne ferme que si l'interface a été connectée au moins une fois
             if shared.interface_deja_connectee and not (shared.CONNECTED_CLIENTS - shared.CLIENTS_EXTENSION):
                 print("\n[JARVIS] HUD déconnecté, 60 s pour se reconnecter...")

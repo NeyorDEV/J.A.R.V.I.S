@@ -207,6 +207,11 @@ async def gerer_connexion_ws(websocket):
                 elif data.get("type") == "get_alarmes":
                     from module.alarm_manager import alarmes_pour_hud
                     await websocket.send(json.dumps({"action": "alarmes_liste", "alarmes": alarmes_pour_hud()}))
+                elif data.get("type") == "restart":   # bouton « redémarrer » de l'avis de changement de langue
+                    from core import audit_log, lancement
+                    audit_log.consigner("redemarrage", source="HUD")
+                    await websocket.send(json.dumps({"action": "ctx_card", "title": "JARVIS", "text": "Redémarrage de JARVIS…", "type": "info", "icon": "◈", "duration": 8000}))
+                    lancement.redemarrer()
                 elif data.get("type") == "traduire":
                     await ws_traduire(websocket, data)
                 elif data.get("type") == "get_settings":

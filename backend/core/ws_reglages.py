@@ -168,7 +168,11 @@ async def ws_update_settings(websocket, data):
         _config.VOIX_ACTUELLE = shared.VOIX_ACTUELLE = settings["voix_jarvis"]
     if settings.get("langue") in ("fr", "en"):
         from core import i18n
-        i18n.definir(settings["langue"])   # reconnaissance, voix, prompt et traduction suivent sans redémarrage
+        if settings["langue"] != i18n.langue():
+            i18n.definir(settings["langue"])   # reconnaissance, voix, prompt et traduction suivent sans redémarrage
+            titre, avis = i18n.avis_redemarrage()   # la console et le reste ne suivent qu'au redémarrage : on le dit
+            from core.web_bridge import envoyer_carte_contextuelle
+            await envoyer_carte_contextuelle(titre, avis, "info", "◈", 30000, {"libelle": i18n.libelle_redemarrer(), "type": "restart"})
     if "av_live_protection" in settings:
         shared.AV_LIVE_PROTECTION_ENABLED = settings["av_live_protection"]
     # Recharger l'identité globalement

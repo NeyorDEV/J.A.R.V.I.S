@@ -188,7 +188,7 @@ export const confirmationOuverte = (): boolean => conf !== null && conf.etat ===
 
 // ───────────────────────────────────────── NOTIFICATIONS ─────────────────────────────────────────
 export type Priorite = "critique" | "alarme" | "info" | "astuce";
-export interface Notification { id?: string; titre: string; texte: string; priorite: Priorite; duree?: number; icone?: string }
+export interface Notification { id?: string; titre: string; texte: string; priorite: Priorite; duree?: number; icone?: string; bouton?: { libelle: string; type: string } }
 const ZONES: { cote: "g" | "d"; rang: number; forme: Forme }[] = [
   { cote: "d", rang: 0, forme: "cut2" }, { cote: "g", rang: 0, forme: "cut" }, { cote: "d", rang: 1, forme: "rect" },
   { cote: "g", rang: 1, forme: "cut2" }, { cote: "d", rang: 2, forme: "cut" }, { cote: "g", rang: 2, forme: "rect" },
@@ -228,10 +228,16 @@ function poser(n: Notification): void {
   fermetures.set(raison, fermer); if (n.id) fermetures.set(`id:${n.id}`, fermer);
   let t0 = 0;
   const def: PieceDef = {
-    id: "n", cote: zone.cote, rang: zone.rang, w: 232, h: Math.min(150, 66 + lignes * 17), forme: zone.forme, classe: `ec-n ${p.classe}`,
+    id: "n", cote: zone.cote, rang: zone.rang, w: 232, h: Math.min(150, 66 + lignes * 17) + (n.bouton ? 30 : 0), forme: zone.forme, classe: `ec-n ${p.classe}`,
     titre: `${n.icone ? `${n.icone} ` : ""}${p.tag}${texteBrut(n.titre).toUpperCase() === p.tag ? "" : ` · ${coupe(texteBrut(n.titre).toUpperCase(), 26)}`}`,
     rendre: (k) => {
-      k.innerHTML = `<div class="ec-val al-texte"></div><i class="al-duree"></i>`;
+      k.innerHTML = `<div class="ec-val al-texte"></div>${n.bouton ? `<span class="ec-bt fort al-bouton" role="button" style="margin-top:6px"></span>` : ""}<i class="al-duree"></i>`;
+      const bouton = k.querySelector(".al-bouton") as HTMLElement | null;
+      if (bouton && n.bouton) {   // action de la carte (ex. redémarrer JARVIS) : message au backend ; la carte se ferme avec le clic
+        bouton.textContent = n.bouton.libelle;
+        const type = n.bouton.type;
+        bouton.addEventListener("click", () => { if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify({ type })); });
+      }
       const txt = k.querySelector(".al-texte") as HTMLElement;
       txt.textContent = n.priorite === "astuce" ? "" : texte;
       (k.closest(".ec-piece") as HTMLElement | null)?.addEventListener("click", fermer);

@@ -12,12 +12,13 @@ export interface CardOptions {
   duration?: number; // ms, selon la priorité par défaut
   icon?: string;
   priorite?: Priorite;
+  bouton?: { libelle: string; type: string };
 }
 
 class CardManager {
   public showCard(options: CardOptions) {
     const priorite: Priorite = options.priorite ?? (options.type === 'alert' ? 'critique' : 'info');
-    afficherNotification({ id: options.id, titre: options.title, texte: options.content, priorite, duree: options.duration, icone: options.icon });
+    afficherNotification({ id: options.id, titre: options.title, texte: options.content, priorite, duree: options.duration, icone: options.icon, bouton: options.bouton });
   }
 }
 

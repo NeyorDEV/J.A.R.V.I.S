@@ -345,6 +345,17 @@ def depuis_cache(texte: str):
         return _charger_cache().get(texte)
 
 
+def libelle_redemarrer() -> str:
+    return "RESTART NOW" if _langue == "en" else "REDÉMARRER MAINTENANT"
+
+
+def avis_redemarrage() -> tuple:
+    """(titre, texte) de l'avis affiché à chaque changement de langue : certaines choses (console, journaux) ne suivent qu'au redémarrage."""
+    if _langue == "en":
+        return "LANGUAGE", "Language set to English. Restart JARVIS for the console and everything else to take full effect."
+    return "LANGUE", "Langue réglée sur le français. Redémarrez JARVIS pour que la console et le reste soient pris en compte."
+
+
 _UI_CONSOLE = {
     "PRÊT": "READY", "INVITÉ": "GUEST", "invité": "guest", "démarrage": "starting", "micro coupé": "mic muted", "réfléchit": "thinking", "écoute": "listening", "aucun": "none",
     "● prêt": "● ready", "mémoire": "memory", "détail": "detail", "affiché": "shown", "ÉCHANGES": "EXCHANGES", "configuré": "configured", "non configuré": "not configured",

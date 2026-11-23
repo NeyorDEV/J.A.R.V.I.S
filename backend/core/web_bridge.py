@@ -224,8 +224,8 @@ async def capturer_ecran_hud():
         return None
 
 
-async def envoyer_carte_contextuelle(titre: str, texte: str, type_carte: str = "info", icon: str = "◈", duree: int = 10000):
-    """Envoie une carte dynamique au HUD via WebSocket."""
+async def envoyer_carte_contextuelle(titre: str, texte: str, type_carte: str = "info", icon: str = "◈", duree: int = 10000, bouton: dict | None = None):
+    """Envoie une carte dynamique au HUD via WebSocket. `bouton` : {"libelle": ..., "type": message envoyé au backend au clic} (ex. redémarrer JARVIS)."""
     if shared.CONNECTED_CLIENTS:
         msg = json.dumps({
             "action": "ctx_card",
@@ -233,7 +233,8 @@ async def envoyer_carte_contextuelle(titre: str, texte: str, type_carte: str = "
             "text": texte,
             "type": type_carte,
             "icon": icon,
-            "duration": duree
+            "duration": duree,
+            **({"bouton": bouton} if bouton else {}),
         })
         await asyncio.gather(*[ws.send(msg) for ws in shared.CONNECTED_CLIENTS], return_exceptions=True)
 

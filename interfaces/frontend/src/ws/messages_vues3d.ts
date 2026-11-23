@@ -201,7 +201,8 @@ export function handleVues3DMessage(data: JarvisMessage): boolean {
       type: data.type as any,
       duration: data.duration,
       icon: data.icon,
-      priorite: (data as any).priorite
+      priorite: (data as any).priorite,
+      bouton: (data as any).bouton
     });
     return true;
   }

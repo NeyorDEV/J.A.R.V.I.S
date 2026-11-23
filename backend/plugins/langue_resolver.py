@@ -29,6 +29,17 @@ def prevenir_hud(code: str) -> None:
         pass
 
 
+def carte_redemarrage() -> None:
+    """Carte du HUD avec le bouton « redémarrer » (la phrase dite et la carte disent la même chose)."""
+    try:
+        from core.web_bridge import diffuser_web_sync
+        titre, avis = i18n.avis_redemarrage()
+        diffuser_web_sync({"action": "ctx_card", "title": titre, "text": avis, "type": "info", "icon": "◈", "duration": 30000,
+                           "bouton": {"libelle": i18n.libelle_redemarrer(), "type": "restart"}})
+    except Exception:
+        pass
+
+
 async def resoudre_langue(cmd: str):
     t = "".join(c for c in unicodedata.normalize("NFD", cmd.lower()) if unicodedata.category(c) != "Mn")
     t = re.sub(r"[-'’]", " ", t)
@@ -39,7 +50,8 @@ async def resoudre_langue(cmd: str):
         return "I am already speaking English." if code == "en" else "Je parle déjà français."
     i18n.definir(code)
     prevenir_hud(code)
-    return "Switching to English. I will understand and answer in English now." if code == "en" else "Je repasse en français."
+    carte_redemarrage()
+    return i18n.avis_redemarrage()[1]   # dit dans la nouvelle langue : redémarrer JARVIS pour que la console et le reste suivent
 
 
 builtins.resoudre_langue = resoudre_langue
