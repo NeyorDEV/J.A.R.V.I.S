@@ -279,3 +279,87 @@ def traduire_sync(texte: str) -> str:
     except Exception as e:
         print(f"[LANGUE] Traduction impossible ({type(e).__name__}) : phrase dite telle quelle")
         return texte
+
+
+# ── Console ───────────────────────────────────────────────────────────────────
+
+_CONSOLE_FICHIER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "console_fr_en.json")
+_console_modeles: list | None = None
+_console_memo: dict = {}
+
+
+def _charger_console() -> list:
+    """Messages de la console (fabriqués par tools/i18n_console.py) : [(regex, modèle anglais, indices, poids)] du plus précis au plus vague."""
+    global _console_modeles
+    if _console_modeles is None:
+        _console_modeles = []
+        try:
+            with open(_CONSOLE_FICHIER, encoding="utf-8") as f:
+                dico = json.load(f)
+        except Exception:
+            dico = {}
+        for fr, en in dico.items():
+            indices, motif = [], []
+            for morceau in re.split(r"(\{\d+\})", fr):
+                m = re.fullmatch(r"\{(\d+)\}", morceau)
+                if m:
+                    indices.append(int(m.group(1)))
+                    motif.append("(.*?)")
+                else:
+                    motif.append(re.escape(morceau))
+            fixe = re.sub(r"\{\d+\}", "", fr)
+            if len(re.sub(r"[^A-Za-zÀ-ÿ]", "", fixe)) < 4:
+                continue
+            _console_modeles.append((re.compile("^" + "".join(motif) + "$", re.S), en, indices, len(fixe)))
+        _console_modeles.sort(key=lambda m: -m[3])
+    return _console_modeles
+
+
+def console(texte: str) -> str:
+    """Message de console (sans son étiquette « [STT] ») traduit en anglais quand la langue est « en » ; inchangé si inconnu. Instantané : aucun appel réseau."""
+    if _langue != "en" or not texte:
+        return texte
+    brut = re.sub(r"\s+", " ", texte).strip()
+    if brut in _console_memo:
+        return _console_memo[brut] or texte
+    sortie = None
+    for regex, en, indices, _ in _charger_console():
+        r = regex.match(brut)
+        if r:
+            valeurs = {}
+            for i, idx in enumerate(indices):
+                valeurs[idx] = r.group(i + 1)
+            sortie = re.sub(r"\{(\d+)\}", lambda m: valeurs.get(int(m.group(1)), ""), en)
+            break
+    if len(_console_memo) > 4000:
+        _console_memo.clear()
+    _console_memo[brut] = sortie
+    return sortie or texte
+
+
+def depuis_cache(texte: str):
+    """Traduction déjà connue d'une phrase dite (cache sur disque / mémoire), ou None : sert à l'affichage console sans appel réseau."""
+    if _langue != "en" or not texte:
+        return None
+    with _verrou:
+        return _charger_cache().get(texte)
+
+
+_UI_CONSOLE = {
+    "PRÊT": "READY", "INVITÉ": "GUEST", "invité": "guest", "démarrage": "starting", "micro coupé": "mic muted", "réfléchit": "thinking", "écoute": "listening", "aucun": "none",
+    "● prêt": "● ready", "mémoire": "memory", "détail": "detail", "affiché": "shown", "ÉCHANGES": "EXCHANGES", "configuré": "configured", "non configuré": "not configured",
+    "lecture": "playing", "en pause": "paused", "arrêt": "stopped", "… démarrage": "… starting", "✕ coupé": "✕ muted", "◐ réfléchit": "◐ thinking", "● écoute": "● listening",
+    "VOIX": "VOICE", "MUSIQUE": "MUSIC", "DÉTAIL": "DETAIL", "heure / système": "time / system", "alarmes": "alarms", "échecs": "chess", "commandes": "commands", "système": "system",
+    "télé": "TV", "heure mondiale": "world time", "listes": "lists", "COFFRE": "VAULT", "DÉSINST.": "UNINST.", "MÉMOIRE": "MEMORY", "DÉMARR.": "STARTUP", "intention → ": "intent → ",
+    "J'écoute : dites « Jarvis », ou écrivez dans le HUD.": "Listening: say \"Jarvis\", or type in the HUD.", "Parole interrompue.": "Speech interrupted.",
+    "SYSTÈME": "SYSTEM", "FIL DES ÉCHANGES": "EXCHANGES", "historique": "history", "rangée(s) plus haut": "row(s) up", "Fin = retour": "End = back",
+    "JARVIS parle": "JARVIS speaking", "session ouverte": "session open", "veille": "standby", "○ veille": "○ standby", "▶ parle": "▶ speaking", "en cours": "in progress",
+    "● actif": "● active", "○ libre": "○ idle", "micro": "mic", "MICRO": "MIC", "empreinte": "voiceprint", "souvenirs": "memories", "MOTEURS D'IA": "AI ENGINES",
+    "RESSOURCES": "RESOURCES", "IA": "AI", "LATENCE": "LATENCY", "EN PAUSE": "PAUSED", "protection active": "protection on", "inactif": "inactive",
+    "Musique": "Music", "Alarme": "Alarm", "○ aucune": "○ none", "journal": "log", "remonter le fil": "scroll back", "quitter": "quit",
+}
+
+
+def ui_console(libelle: str) -> str:
+    """Libellé fixe de la console (colonnes, panneaux, états) dans la langue courante. La console ne suit un changement de langue qu'au redémarrage."""
+    return _UI_CONSOLE.get(libelle, libelle) if _langue == "en" else libelle

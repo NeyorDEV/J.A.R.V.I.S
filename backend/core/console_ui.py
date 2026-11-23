@@ -32,6 +32,14 @@ import core.shared as shared
 
 # Étiquette en début de ligne, éventuellement précédée d'un symbole (« 🎙  [SPEAKER] … »)
 _RE_TAG = re.compile(r"^\s*([^\[\w]{0,8}?)\s*\[([^\]\n]{1,40})\]\s?(.*)$", re.S)
+from core import i18n
+T = i18n.ui_console   # libellés fixes de la console dans la langue du démarrage (un changement de langue demande un redémarrage)
+
+
+def _connectes(n: int) -> str:
+    return f"{n} connected" if i18n.en_anglais() else f"{n} connecté{'s' if n > 1 else ''}"
+
+
 _RE_ERREUR = re.compile(r"❌|\b(erreur|error|échec|echec|exception|traceback|impossible|introuvable|failed|fatal)\b",
                         re.I)
 _RE_ALERTE = re.compile(r"⚠|\b(quota|avertissement|warning|indisponible|limite atteinte|hors[- ]ligne|offline|refusé)\b",
@@ -41,17 +49,17 @@ _ESSENTIELS = {"ALARME", "CONFIRMATION", "CONFIRM", "AUDIT", "AV LIVE", "AV", "U
                "UNINSTALLER", "WINGET", "VOICE VAULT", "BIOMETRICS", "QUOTA", "DEMARRAGE"}
 # Noms lisibles des resolvers locaux (« [DEBUG] Commande résolue par : … »)
 _RESOLVEURS = {
-    "traiter_infos_systeme": "heure / système", "alarmes": "alarmes", "echecs": "échecs",
-    "commandes_locales": "commandes", "resoudre_commandes_systeme": "système",
-    "resoudre_tv_localement": "télé", "resoudre_temps_localement": "heure mondiale",
-    "resoudre_listes_locales": "listes", "resoudre_apps_localement": "applications",
-    "resoudre_memoire_locale": "mémoire", "traiter_globe_local": "globe",
+    "traiter_infos_systeme": T("heure / système"), T("alarmes"): T("alarmes"), "echecs": T("échecs"),
+    "commandes_locales": T("commandes"), "resoudre_commandes_systeme": T("système"),
+    "resoudre_tv_localement": T("télé"), "resoudre_temps_localement": T("heure mondiale"),
+    "resoudre_listes_locales": T("listes"), "resoudre_apps_localement": "applications",
+    "resoudre_memoire_locale": T("mémoire"), "traiter_globe_local": "globe",
 }
 # Libellés courts (colonne de 8 caractères)
-_LIBELLES = {"BIOMETRICS": "VOIX", "SPEAKER": "VOIX", "AV LIVE": "ANTIVIR.", "AV": "ANTIVIR.",
-             "VOICE VAULT": "COFFRE", "UNINSTALLER": "DÉSINST.", "CONFIRMATION": "CONFIRM.",
+_LIBELLES = {"BIOMETRICS": T("VOIX"), "SPEAKER": T("VOIX"), "AV LIVE": "ANTIVIR.", "AV": "ANTIVIR.",
+             "VOICE VAULT": T("COFFRE"), "UNINSTALLER": T("DÉSINST."), "CONFIRMATION": "CONFIRM.",
              "AUDIOSTREAMMANAGER": "AUDIO", "IA RELOAD": "IA", "DEEZER CDP": "DEEZER", "DEEZER UIA": "DEEZER",
-             "VECTOR DB": "MÉMOIRE", "MEMORY MANAGER": "MÉMOIRE", "DEMARRAGE": "DÉMARR."}
+             "VECTOR DB": T("MÉMOIRE"), "MEMORY MANAGER": T("MÉMOIRE"), "DEMARRAGE": T("DÉMARR.")}
 # Annonces de JARVIS sur la voix reconnue : pas la réponse à la question
 _RE_ANNONCE_VOIX = re.compile(r"^(voix inconnue détectée|voix de .{1,30} détectée)", re.I)
 # Couleurs : une pour l'utilisateur (doré), une pour JARVIS (cyan) ; modules et événements
@@ -178,7 +186,7 @@ class _Console:
 
         if "streaming vad actif" in bas and not self.pret:
             self.pret = True
-            return self._rangee("", "PRÊT", "J'écoute : dites « Jarvis », ou écrivez dans le HUD.",
+            return self._rangee("", T("PRÊT"), T("J'écoute : dites « Jarvis », ou écrivez dans le HUD."),
                                 style_qui="bold green", style_texte="green")
 
         # Niveau
@@ -206,9 +214,10 @@ class _Console:
         texte = re.sub(r"^\s*(?:[✔⚠❌⚡]\ufe0f?\s*)+", "", reste if tag else brut.strip())
         texte = re.sub(r"\s{2,}", " ", texte)
         if TAG == "JARVIS" and "interruption" in bas:
-            return self._rangee(time.strftime("%H:%M:%S"), "■ STOP", "Parole interrompue.", style_qui="bold yellow",
+            return self._rangee(time.strftime("%H:%M:%S"), "■ STOP", T("Parole interrompue."), style_qui="bold yellow",
                                 style_texte="yellow")
-        etiquette = _LIBELLES.get(TAG, TAG or ("ERREUR" if niveau == "erreur" else ""))[:8]
+        texte = i18n.console(texte)   # anglais : message traduit pour l'affichage seulement (le classement ci-dessus et le journal gardent l'original)
+        etiquette = _LIBELLES.get(TAG, TAG or (("ERROR" if i18n.en_anglais() else "ERREUR") if niveau == "erreur" else ""))[:8]
         styles = {"erreur": ("bold red", "red"), "alerte": ("bold yellow", "yellow"),
                   "info": ("steel_blue", "grey70"), "detail": ("grey42", "grey50")}[niveau]
         self._rangee(time.strftime("%H:%M:%S"), etiquette, texte, style_qui=styles[0], style_texte=styles[1])
@@ -253,7 +262,7 @@ class _Console:
         elif nom == "CLAVIER":
             libelle = "CLAVIER"
         elif nom == "guest":
-            libelle = "INVITÉ"
+            libelle = T("INVITÉ")
         else:
             libelle = nom.upper()[:8]
         return libelle, _STYLE_UTILISATEUR
@@ -276,13 +285,14 @@ class _Console:
 
     def _jarvis(self, texte):
         self._vider_attente()
+        texte = i18n.depuis_cache(texte) or texte   # anglais : phrase dite, déjà traduite si connue (sans appel réseau)
         if _RE_ANNONCE_VOIX.match(texte):
-            return self._rangee(time.strftime("%H:%M:%S"), "VOIX", texte, style_qui="grey62", style_texte="grey62")
+            return self._rangee(time.strftime("%H:%M:%S"), T("VOIX"), texte, style_qui="grey62", style_texte="grey62")
         e = self.echange
         if e and e["lignes"] == 0 and time.time() - e["t0"] < 60:
             route = e["route"] or "local"
             if e["intention"]:
-                route = "intention → " + route
+                route = T("intention → ") + route
             meta = f"{route} · {_duree(time.time() - e['t0'])}"
             if e["route"] and not e["route"].startswith("local"):
                 self.moteur = e["route"]
@@ -373,19 +383,19 @@ class _Console:
         speech = sys.modules.get("core.speech")
         parle = bool(speech and (speech.is_speaking or not speech.parole_queue.empty()))
         if not self.pret:
-            micro = ("démarrage", gr)
+            micro = (T("démarrage"), gr)
         elif getattr(shared, "MIC_MUTED", False):
-            micro = ("micro coupé", "bold #ff5a5f")
+            micro = (T("micro coupé"), "bold #ff5a5f")
         elif parle:
-            micro = ("JARVIS parle", f"bold {cy}")
+            micro = (T("JARVIS parle"), f"bold {cy}")
         elif getattr(shared, "is_thinking", False):
-            micro = ("réfléchit", f"bold {am}")
+            micro = (T("réfléchit"), f"bold {am}")
         elif getattr(shared, "ETAT_HUD", None) == "listening":
-            micro = ("écoute", f"bold {ve}")
+            micro = (T("écoute"), f"bold {ve}")
         elif getattr(shared, "jarvis_actif", False):
-            micro = ("session ouverte", ve)
+            micro = (T("session ouverte"), ve)
         else:
-            micro = ("veille", gr)
+            micro = (T("veille"), gr)
         clients = getattr(shared, "CONNECTED_CLIENTS", set()) - getattr(shared, "CLIENTS_EXTENSION", set())
 
         tete = Text()
@@ -394,15 +404,15 @@ class _Console:
         if self.voix and time.time() - self.voix[2] < 600:
             nom, score, _ = self.voix
             tete.append("    locuteur ", style=gr)
-            tete.append(f"{'invité' if nom == 'guest' else nom} {score:.2f}".replace(".", ","),
+            tete.append(f"{T('invité') if nom == 'guest' else nom} {score:.2f}".replace(".", ","),
                         style=am if nom == "guest" else "bold white")
         if getattr(shared, "jarvis_actif", False) and speech:
             dernier = max(getattr(shared, "dernier_message", 0), getattr(speech, "dernier_parle_time", 0))
             reste = shared.SESSION_TIMEOUT - (time.time() - dernier)
             tete.append("    session ", style=gr)
-            tete.append("en cours" if parle or shared.is_thinking else f"{max(0, int(reste))} s", style="white")
+            tete.append(T("en cours") if parle or shared.is_thinking else f"{max(0, int(reste))} s", style="white")
         tete.append("    HUD ", style=gr)
-        tete.append(f"{len(clients)} connecté{'s' if len(clients) > 1 else ''}" if clients else "aucun",
+        tete.append(f"{_connectes(len(clients))}" if clients else T("aucun"),
                     style="white" if clients else am)
         musique = getattr(shared, "MUSIQUE_EN_COURS", None)
         if musique and musique.get("status") in ("Playing", "Paused") and musique.get("title"):
@@ -435,19 +445,19 @@ class _Console:
             if pause > 0:
                 etat = Text(f"● pause {pause} s", style=am)
             elif actif:
-                etat = Text("● actif", style=ve)
+                etat = Text(T("● actif"), style=ve)
             else:
-                etat = Text("● prêt", style=gr)
+                etat = Text(T("● prêt"), style=gr)
             moteurs.add_row(Text(nom, style="white"), etat)
         moteurs.add_row(Text("Ollama", style="white"),
-                        Text(f"● {self.ollama}", style=ve) if self.ollama else Text("○ libre", style=gr))
+                        Text(f"● {self.ollama}", style=ve) if self.ollama else Text(T("○ libre"), style=gr))
 
         voix = Table.grid(padding=(0, 2))
-        voix.add_row(Text("micro", style=gr), Text(micro[0], style=micro[1]))
-        voix.add_row(Text("empreinte", style=gr),
+        voix.add_row(Text(T("micro"), style=gr), Text(micro[0], style=micro[1]))
+        voix.add_row(Text(T("empreinte"), style=gr),
                      Text(f"{self.voix[0]} {self.voix[1]:.2f}".replace(".", ","), style="white") if self.voix else Text("—", style=gr))
-        voix.add_row(Text("mémoire", style=gr), Text(self._souvenirs(), style="white"))
-        voix.add_row(Text("détail", style=gr), Text("jarvis_run.log" if not self.detail else "affiché", style=gr))
+        voix.add_row(Text(T("mémoire"), style=gr), Text(self._souvenirs(), style="white"))
+        voix.add_row(Text(T("détail"), style=gr), Text("jarvis_run.log" if not self.detail else T("affiché"), style=gr))
 
         res = Table.grid(padding=(0, 1))
         try:
@@ -466,9 +476,9 @@ class _Console:
 
         version = getattr(shared, "CURRENT_VERSION", "")
         entete = Panel(tete, box=box.ROUNDED, border_style=cy, padding=(0, 1),
-                       title=f"[bold {cy}]◈ SYSTÈME[/] [grey62]{version}[/]", title_align="left",
+                       title=f"[bold {cy}]◈ {T('SYSTÈME')}[/] [grey62]{version}[/]", title_align="left",
                        subtitle=f"[grey62]{time.strftime('%H:%M:%S')}[/]", subtitle_align="right")
-        return entete, panneau("MOTEURS D'IA", moteurs, cy), panneau("VOIX", voix, bl), panneau("RESSOURCES", res, ve), micro
+        return entete, panneau(T("MOTEURS D'IA"), moteurs, cy), panneau(T("VOIX"), voix, bl), panneau(T("RESSOURCES"), res, ve), micro
 
     def _tableau_de_bord(self):
         """Bandeau épinglé en bas (mode défilant) : état, puis trois panneaux côte à côte."""
@@ -497,10 +507,10 @@ class _Console:
         lignes = Table.grid(padding=(0, 1))
         lignes.add_row(Text("MIC", style=gr), _barre(niveau * 100, couleur="#00e5ff"))
         lignes.add_row(Text("LOCAL", style=gr), _barre(local / total * 100 if total else 0, couleur="#3ddc97"))
-        lignes.add_row(Text("IA", style=gr), _barre(ia / total * 100 if total else 0, couleur="#3d8bff"))
-        lignes.add_row(Text("LATENCE", style=gr),
+        lignes.add_row(Text(T("IA"), style=gr), _barre(ia / total * 100 if total else 0, couleur="#3d8bff"))
+        lignes.add_row(Text(T("LATENCE"), style=gr),
                        _barre(min(100.0, moyenne / 6 * 100), couleur="#ffb020", suffixe=f" {moyenne:.1f} s".replace(".", ",").rjust(6)))
-        lignes.add_row(Text("ÉCHANGES", style=gr), Text(str(total), style="white"))
+        lignes.add_row(Text(T("ÉCHANGES"), style=gr), Text(str(total), style="white"))
         return Panel(lignes, title="[bold #b388ff]SESSION[/]", title_align="left", box=box.ROUNDED,
                      border_style="#b388ff", padding=(0, 1))
 
@@ -519,15 +529,15 @@ class _Console:
         def etat(actif, texte_on, texte_off):
             return Text("● " + texte_on, style=ve) if actif else Text("○ " + texte_off, style=gr)
 
-        lignes.add_row(Text("HUD", style=gr), etat(bool(clients), f"{len(clients)} connecté{'s' if len(clients) > 1 else ''}", "aucun"))
+        lignes.add_row(Text("HUD", style=gr), etat(bool(clients), f"{_connectes(len(clients))}", T("aucun")))
         if not compact:
-            lignes.add_row(Text("WebSocket", style=gr), etat(self.pret, "ws://localhost:8765", "démarrage"))
-        lignes.add_row(Text("Home Assistant", style=gr), etat(ha, "configuré", "non configuré"))
-        lignes.add_row(Text("Antivirus", style=gr), etat(av, "protection active", "inactif"))
+            lignes.add_row(Text("WebSocket", style=gr), etat(self.pret, "ws://localhost:8765", T("démarrage")))
+        lignes.add_row(Text("Home Assistant", style=gr), etat(ha, T("configuré"), T("non configuré")))
+        lignes.add_row(Text("Antivirus", style=gr), etat(av, T("protection active"), T("inactif")))
         if not compact:
-            lignes.add_row(Text("Musique", style=gr),
-                           etat(musique.get("status") == "Playing", "lecture", "en pause" if musique.get("status") == "Paused" else "arrêt"))
-        lignes.add_row(Text("Alarme", style=gr), Text("● " + self.alarme, style=am) if self.alarme else Text("○ aucune", style=gr))
+            lignes.add_row(Text(T("Musique"), style=gr),
+                           etat(musique.get("status") == "Playing", T("lecture"), T("en pause") if musique.get("status") == "Paused" else T("arrêt")))
+        lignes.add_row(Text(T("Alarme"), style=gr), Text("● " + self.alarme, style=am) if self.alarme else Text(T("○ aucune"), style=gr))
         return Panel(lignes, title="[bold #ff7ac6]SERVICES[/]", title_align="left", box=box.ROUNDED,
                      border_style="#ff7ac6", padding=(0, 1))
 
@@ -575,10 +585,10 @@ class _Console:
         lay["haut"].update(entete)
         lay["corps"].split_row(
             Layout(Panel(self._fil_visible(largeur_fil, hauteur_fil), box=box.ROUNDED, border_style="#3d8bff",
-                         padding=(1, 2), title="[bold #3d8bff]FIL DES ÉCHANGES[/]" + (f"  [bold #ffd24a]· historique : {self.decalage} rangée(s) plus haut · Fin = retour[/]" if self.decalage else ""), title_align="left"), ratio=3),
+                         padding=(1, 2), title="[bold #3d8bff]" + T("FIL DES ÉCHANGES") + "[/]" + (f"  [bold #ffd24a]· {T('historique')} : {self.decalage} {T('rangée(s) plus haut')} · {T('Fin = retour')}[/]" if self.decalage else ""), title_align="left"), ratio=3),
             Layout(Group(*([p1, p2, p3] + self._panneaux_bas(p1, p2, p3))), ratio=2, minimum_size=38))
         rouet = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[int(time.time() * 8) % 10]
-        lay["bas"].update(Text(f" {rouet} {micro[0]}   ·   journal : data/jarvis_run.log   ·   ↑/↓ : remonter le fil   ·   Ctrl+C : quitter",
+        lay["bas"].update(Text(f" {rouet} {micro[0]}   ·   {T('journal')} : data/jarvis_run.log   ·   ↑/↓ : {T('remonter le fil')}   ·   Ctrl+C : {T('quitter')}",
                                style="grey50"))
         return lay
 
@@ -587,7 +597,7 @@ class _Console:
         try:
             vm = sys.modules.get("module.vector_memory")
             n = vm._collection.count() if vm and getattr(vm, "_collection", None) else None
-            return f"{n} souvenirs" if n is not None else "—"
+            return f"{n} {T('souvenirs')}" if n is not None else "—"
         except Exception:
             return "—"
 
@@ -606,33 +616,33 @@ class _Console:
         l1, l2, l3 = Text(), Text(), Text()
 
         if not self.pret:
-            micro = ("… démarrage", "grey62")
+            micro = (T("… démarrage"), "grey62")
         elif getattr(shared, "MIC_MUTED", False):
-            micro = ("✕ coupé", "bold red")
+            micro = (T("✕ coupé"), "bold red")
         elif parle:
-            micro = ("▶ parle", "bold cyan")
+            micro = (T("▶ parle"), "bold cyan")
         elif getattr(shared, "is_thinking", False):
-            micro = ("◐ réfléchit", "bold yellow")
+            micro = (T("◐ réfléchit"), "bold yellow")
         elif getattr(shared, "ETAT_HUD", None) == "listening":
-            micro = ("● écoute", "bold green")
+            micro = (T("● écoute"), "bold green")
         elif getattr(shared, "jarvis_actif", False):
             micro = ("● session", "green")
         else:
-            micro = ("○ veille", "grey62")
-        segment(l1, "MICRO", *micro)
+            micro = (T("○ veille"), "grey62")
+        segment(l1, T("MICRO"), *micro)
         if self.voix and time.time() - self.voix[2] < 600:
             nom, score, _ = self.voix
-            segment(l1, "VOIX", f"{'invité' if nom == 'guest' else nom} {score:.2f}".replace(".", ","),
+            segment(l1, T("VOIX"), f"{T('invité') if nom == 'guest' else nom} {score:.2f}".replace(".", ","),
                     "yellow" if nom == "guest" else "bold white")
         if getattr(shared, "jarvis_actif", False):
             dernier = max(getattr(shared, "dernier_message", 0), getattr(speech, "dernier_parle_time", 0) if speech else 0)
             reste = shared.SESSION_TIMEOUT - (time.time() - dernier)
-            segment(l1, "SESSION", "en cours" if parle or shared.is_thinking else f"{max(0, int(reste))} s", "white")
+            segment(l1, "SESSION", T("en cours") if parle or shared.is_thinking else f"{max(0, int(reste))} s", "white")
         clients = getattr(shared, "CONNECTED_CLIENTS", set()) - getattr(shared, "CLIENTS_EXTENSION", set())
-        segment(l1, "HUD", f"{len(clients)} connecté{'s' if len(clients) > 1 else ''}" if clients else "aucun",
+        segment(l1, "HUD", f"{_connectes(len(clients))}" if clients else T("aucun"),
                 "white" if clients else "yellow")
 
-        segment(l2, "IA", self.moteur or "—", "bold white")
+        segment(l2, T("IA"), self.moteur or "—", "bold white")
         pauses = []
         try:
             from core.api_quota import _quota_mgr
@@ -643,7 +653,7 @@ class _Console:
         except Exception:
             pass
         if pauses:
-            segment(l2, "EN PAUSE", " · ".join(pauses[:3]), "yellow")
+            segment(l2, T("EN PAUSE"), " · ".join(pauses[:3]), "yellow")
         try:
             import psutil
             segment(l2, "CPU", f"{psutil.cpu_percent(None):.0f} %", "white")
@@ -654,13 +664,13 @@ class _Console:
         musique = getattr(shared, "MUSIQUE_EN_COURS", None)
         if musique and musique.get("status") in ("Playing", "Paused") and musique.get("title"):
             titre = f"{musique.get('title', '').title()} — {musique.get('artist', '').title()}"[:48]
-            segment(l3, "MUSIQUE", ("▶ " if musique["status"] == "Playing" else "❚❚ ") + titre,
+            segment(l3, T("MUSIQUE"), ("▶ " if musique["status"] == "Playing" else "❚❚ ") + titre,
                     "bold white" if musique["status"] == "Playing" else "white")
         else:
-            segment(l3, "MUSIQUE", "■ —", "grey62")
-        segment(l3, "OLLAMA", f"● {self.ollama}" if self.ollama else "○ libre", "green" if self.ollama else "grey62")
+            segment(l3, T("MUSIQUE"), "■ —", "grey62")
+        segment(l3, "OLLAMA", f"● {self.ollama}" if self.ollama else T("○ libre"), "green" if self.ollama else "grey62")
         if not self.detail:
-            segment(l3, "DÉTAIL", "data/jarvis_run.log", "grey62")
+            segment(l3, T("DÉTAIL"), "data/jarvis_run.log", "grey62")
 
         corps = Table.grid()
         for ligne in (l1, l2, l3):
@@ -869,6 +879,6 @@ def installer_console():
     sys.stdout = _Flux(_CONSOLE, "stdout")
     sys.stderr = _Flux(_CONSOLE, "stderr")
     _CONSOLE.console.print()
-    _CONSOLE.console.rule(f"[bold cyan]J.A.R.V.I.S[/]  [grey62]{getattr(shared, 'CURRENT_VERSION', '')} · démarrage[/]",
+    _CONSOLE.console.rule(f"[bold cyan]J.A.R.V.I.S[/]  [grey62]{getattr(shared, 'CURRENT_VERSION', '')} · {T('démarrage')}[/]",
                           style="cyan")
     _CONSOLE.demarrer()

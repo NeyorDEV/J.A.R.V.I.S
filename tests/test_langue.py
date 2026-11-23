@@ -165,3 +165,44 @@ def test_message_ws_traduire(langue, monkeypatch):
     import json as _j
     rep = _j.loads(envoyes[0])
     assert rep == {"type": "traduction", "id": "tr7", "textes": ["Firewall rules added.", "Done, sir."]}
+
+
+def test_console_traduite_par_modeles(langue, monkeypatch, tmp_path):
+    """Messages de la console : modèles à variables ({0}), inchangés en français et quand le message est inconnu ; jamais d'appel réseau."""
+    import json as _j
+    f = tmp_path / "console_fr_en.json"
+    f.write_text(_j.dumps({"Whisper local OK ({0}s) : {1}": "Local Whisper OK ({0}s): {1}", "Micro retenu : {0}": "Selected mic: {0}"}, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(i18n, "_CONSOLE_FICHIER", str(f))
+    monkeypatch.setattr(i18n, "_console_modeles", None)
+    assert i18n.console("Whisper local OK (0.42s) : bonjour") == "Whisper local OK (0.42s) : bonjour"   # français : inchangé
+    langue.definir("en")
+    assert i18n.console("Whisper local OK (0.42s) : bonjour") == "Local Whisper OK (0.42s): bonjour"
+    assert i18n.console("Micro retenu : [3] Microphone (Realtek)") == "Selected mic: [3] Microphone (Realtek)"
+    assert i18n.console("Message jamais vu") == "Message jamais vu"
+
+
+def test_libelles_console_et_phrase_dite(langue):
+    assert i18n.ui_console("PRÊT") == "PRÊT" and i18n.depuis_cache("Très bien.") is None
+    langue.definir("en")
+    assert i18n.ui_console("PRÊT") == "READY" and i18n.ui_console("inconnu") == "inconnu"
+    langue._cache = {"Très bien.": "Very well."}
+    assert i18n.depuis_cache("Très bien.") == "Very well."
+
+
+def test_ligne_dit_de_la_console_en_anglais(langue, capsys):
+    """Mode anglais : « [DIT] » montre la phrase traduite si elle est connue ; sinon elle attend la traduction (affichée par le fil de la parole)."""
+    pytest.importorskip("edge_tts")
+    pytest.importorskip("pygame")
+    from core import speech
+    langue.definir("en")
+    langue._cache = {"Très bien, je lance Spotify.": "Very well, launching Spotify."}
+    speech.parler("Très bien, je lance Spotify.")
+    speech.parler("Phrase jamais traduite : il fait beau.")
+    sortie = capsys.readouterr().out
+    assert "[DIT] Very well, launching Spotify." in sortie and "jamais traduite" not in sortie   # la 2e attend sa traduction
+    assert "Phrase jamais traduite : il fait beau." in speech._DIT_APRES_TRADUCTION
+    speech._DIT_APRES_TRADUCTION.clear()
+    langue.definir("fr")
+    speech.parler("Très bien, je lance Spotify.")
+    assert "[DIT] Très bien, je lance Spotify." in capsys.readouterr().out   # français : comme avant
+    speech.vider_files()

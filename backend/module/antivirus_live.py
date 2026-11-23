@@ -3,6 +3,7 @@
 import asyncio
 
 import core.shared as shared
+from core import i18n
 from core.micro import _lire_config
 from core.speech import parler
 
@@ -38,7 +39,7 @@ async def boucle_surveillance_av():
     except Exception:
         shared.AV_LIVE_PROTECTION_ENABLED = False
 
-    print(f"[AV LIVE] Protection temps réel prête : {'ACTIF' if shared.AV_LIVE_PROTECTION_ENABLED else 'INACTIF'}")
+    print(f"[AV LIVE] Protection temps réel prête : {('ACTIVE' if shared.AV_LIVE_PROTECTION_ENABLED else 'INACTIVE') if i18n.en_anglais() else ('ACTIF' if shared.AV_LIVE_PROTECTION_ENABLED else 'INACTIF')}")
 
     last_check_time = time.time()
 

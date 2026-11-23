@@ -35,6 +35,20 @@ STOP_PARLER = False
 stop_depuis = 0.0   # instant du dernier « stop » (cf. parler)
 parole_queue = queue.Queue()
 _SANS_ORBE = set()  # phrases dites sans animer l'orbe du HUD (accueil du lancement)
+_DIT_APRES_TRADUCTION = set()  # phrases dont la ligne « [DIT] » de la console attend la traduction (mode anglais)
+
+
+def _afficher_dit(texte):
+    """Ligne « [DIT] » de la console (core/console_ui), sans jamais lever d'erreur d'encodage."""
+    try:
+        print(f"[DIT] {texte}")
+    except UnicodeEncodeError:
+        try:
+            import sys
+            enc = sys.stdout.encoding or 'utf-8'
+            print(f"[DIT] {texte.encode(enc, errors='replace').decode(enc)}")
+        except Exception:
+            print(f"[DIT] {''.join(c for c in texte if ord(c) < 128)}")
 parole_stop_event = threading.Event()
 dernier_parle_time = 0
 
@@ -181,7 +195,11 @@ def gestionnaire_generateur_worker():
                 parole_queue.task_done()
                 continue
                 
+            original = phrase
             phrase = i18n.traduire_sync(phrase)   # mode anglais : phrase écrite en français dite en anglais (core/i18n.py)
+            if original in _DIT_APRES_TRADUCTION:
+                _DIT_APRES_TRADUCTION.discard(original)
+                _afficher_dit(phrase)
             tmp_path = loop.run_until_complete(_generer_tts_fichier(phrase))
             if tmp_path:
                 lecture_queue.put({"text": phrase, "file": tmp_path})
@@ -284,17 +302,13 @@ def parler(texte, print_console=True, orbe=True):
     except Exception:
         pass
     if print_console:
-        try:
-            print(f"[DIT] {texte}")  # « [DIT] » : phrase prononcée (core/console_ui)
-        except UnicodeEncodeError:
-            try:
-                import sys
-                enc = sys.stdout.encoding or 'utf-8'
-                safe_text = texte.encode(enc, errors='replace').decode(enc)
-                print(f"[DIT] {safe_text}")
-            except Exception:
-                safe_text = "".join(c for c in texte if ord(c) < 128)
-                print(f"[DIT] {safe_text}")
+        affiche = texte
+        if i18n.en_anglais() and i18n.parait_francais(texte):   # anglais : la console montre ce qui est DIT (traduit) ; si la traduction n'est pas encore connue, le fil de la parole l'affiche une fois traduite
+            affiche = i18n.depuis_cache(texte)
+            if affiche is None:
+                _DIT_APRES_TRADUCTION.add(texte)
+        if affiche is not None:
+            _afficher_dit(affiche)
     try:   # « répète » : mémoire de ce qui vient d'être dit (core/repeter.py)
         from core.repeter import noter
         noter(texte)
