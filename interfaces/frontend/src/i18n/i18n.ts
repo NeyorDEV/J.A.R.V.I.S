@@ -276,7 +276,7 @@ export function recevoirTraduction(m: { id?: string; textes?: string[] }): void 
 
 async function traduireTextes(textes: string[]): Promise<string[]> {
   const sortie = textes.map((s) => chercher(s) ?? s);
-  const manquants = textes.map((s, i) => i).filter((i) => sortie[i] === textes[i] && /[A-Za-zÀ-ÿ]{3}/.test(textes[i]));
+  const manquants = textes.map((s, i) => i).filter((i) => sortie[i] === textes[i] && /[A-Za-zÀ-ÿ]{3}/.test(textes[i]) && resteFrancais(textes[i]));   // une phrase déjà anglaise ne fait pas d'aller-retour
   const ws = wsRef.current;
   if (!manquants.length || !ws || ws.readyState !== WebSocket.OPEN) return sortie;
   const id = `tr${++compteur}`;

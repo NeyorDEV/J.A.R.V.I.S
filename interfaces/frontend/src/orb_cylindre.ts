@@ -11,6 +11,7 @@
  * Même interface que l'ancien orbe (setState, setVolume, setMicLevel…) : le reste du HUD n'a pas changé.
  */
 
+import { langueActuelle } from "./i18n/i18n";
 import { CATEGORIES, DEFAUT, choisir, choisirSous, motReconnu } from "./orb_themes";
 
 /** Contenu affiché au milieu du cylindre dressé quand des pièces éclatées sont ouvertes : titre, grande valeur, sous-titre. */
@@ -371,7 +372,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   interface OptsBande { demi: number; R: number; dep: number; titre: string; sous: string; gi: number; sel: number; fs?: number }
   const textures = new Map<string, HTMLCanvasElement>();
   function textureCarte(o: OptsBande): HTMLCanvasElement {
-    const cle = `${o.gi}|${o.titre}|${o.sous}|${Math.round(o.demi * 100)}|${o.sel > 0.5 ? 1 : 0}|${o.fs ?? 0}`, dej = textures.get(cle);
+    const cle = `${langueActuelle()}|${o.gi}|${o.titre}|${o.sous}|${Math.round(o.demi * 100)}|${o.sel > 0.5 ? 1 : 0}|${o.fs ?? 0}`, dej = textures.get(cle);
     if (dej) return dej;
     const k = 3, wl = Math.max(40, Math.round(2 * o.demi * o.R)), hl = 28, cv = document.createElement("canvas");
     cv.width = wl * k; cv.height = hl * k;
