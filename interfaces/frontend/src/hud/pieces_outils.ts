@@ -327,6 +327,7 @@ export const piecesMaison = (): PieceDef[] => {
 // Chaque contrôle agit sur le vrai champ de #settings-modal (même gestionnaires : aperçu immédiat, sauvegarde, update_settings).
 const ACCENTS: [valeur: string, nom: string, couleur: string][] = [["cyan", "CYAN", "#00e5ff"], ["emerald", "ÉMERAUDE", "#10d89a"], ["amber", "AMBRE", "#ffb020"], ["red", "ROUGE", "#ff4d6d"], ["gold", "OR", "#e6c86e"], ["anneaux", "VIOLET", "#9b6bff"]];
 const ECO: [string, string][] = [["auto", "AUTO"], ["1", "ON"], ["0", "OFF"]];
+const LANGUES: [string, string][] = [["fr", "FRANÇAIS"], ["en", "ENGLISH"]];
 const champ = (id: string): HTMLInputElement | HTMLSelectElement | null => brut(id) as HTMLInputElement | HTMLSelectElement | null;
 function poser(id: string, valeur: string): void {
   const c = champ(id);
@@ -337,15 +338,17 @@ function poser(id: string, valeur: string): void {
 const majReglages = (): void => rafraichirPieces("parametres");
 
 function rendreApparence(c: HTMLElement): void {
-  const accent = champ("settings-orb-style")?.value || "cyan", eco = champ("settings-orb-eco")?.value || "auto";
+  const accent = champ("settings-orb-style")?.value || "cyan", eco = champ("settings-orb-eco")?.value || "auto", langue = champ("settings-langue")?.value || "fr";
   const cur = ACCENTS.find((a) => a[0] === accent) ?? ACCENTS[0];
   c.innerHTML = `<div class="ec-lab" style="margin-bottom:8px">COULEUR</div><div>${ACCENTS.map(([v, nom, col]) => `<span class="ec-sw${v === accent ? " on" : ""}" data-sw="${v}" title="${nom}" role="button" style="background:${col};--col:${col}"></span>`).join("")}</div>
     <div style="height:3px;margin:10px 0 6px;background:linear-gradient(90deg,${cur[2]},transparent)"></div><div class="ec-sub">ACCENT ${cur[1]}</div>
-    <div class="ec-lab" style="margin:14px 0 6px">MODE ÉCONOME</div><div>${ECO.map(([v, nom]) => bouton(`data-eco="${v}"`, nom, v === eco ? "on" : "")).join("")}</div><div class="ec-sub" style="font-size:8.5px">ON : 30 images/s en permanence</div>`;
+    <div class="ec-lab" style="margin:14px 0 6px">MODE ÉCONOME</div><div>${ECO.map(([v, nom]) => bouton(`data-eco="${v}"`, nom, v === eco ? "on" : "")).join("")}</div><div class="ec-sub" style="font-size:8.5px">ON : 30 images/s en permanence</div>
+    <div class="ec-lab" style="margin:14px 0 6px">LANGUE</div><div data-i18n-skip>${LANGUES.map(([v, nom]) => bouton(`data-langue="${v}"`, nom, v === langue ? "on" : "")).join("")}</div>`;
   surClic(c, (cible) => {
-    const s = cible.closest("[data-sw]") as HTMLElement | null, e = cible.closest("[data-eco]") as HTMLElement | null;
+    const s = cible.closest("[data-sw]") as HTMLElement | null, e = cible.closest("[data-eco]") as HTMLElement | null, l = cible.closest("[data-langue]") as HTMLElement | null;
     if (s?.dataset.sw) poser("settings-orb-style", s.dataset.sw);
     else if (e?.dataset.eco) poser("settings-orb-eco", e.dataset.eco);
+    else if (l?.dataset.langue) poser("settings-langue", l.dataset.langue);   // même gestionnaire que le select : effet immédiat + envoi au backend
     else return;
     majReglages();
   });
@@ -396,7 +399,7 @@ function rendreSecurite(c: HTMLElement): void {
 export const piecesReglages = (): PieceDef[] => {
   envoyerWs({ type: "get_settings" });   // (déjà demandé par openSettingsModal : cette ligne ne sert que si l'ouverture vient d'ailleurs)
   return [
-    { id: "apparence", cote: "g", rang: 0, w: 200, h: 236, titre: "APPARENCE", croix: closeSettingsModal, rendre: rendreApparence },
+    { id: "apparence", cote: "g", rang: 0, w: 200, h: 286, titre: "APPARENCE", croix: closeSettingsModal, rendre: rendreApparence },
     { id: "profil", cote: "g", rang: 1, w: 236, h: 152, forme: "cut", titre: "PROFIL", rendre: rendreProfil },
     { id: "avance", cote: "g", rang: 2, w: 236, h: 104, forme: "cut", ecart: 0, titre: "PLUS DE RÉGLAGES", rendre: rendreAvance },
     { id: "voix", cote: "d", rang: 0, w: 240, h: 150, titre: "VOIX ET ÉVEIL", rendre: rendreVoix },
