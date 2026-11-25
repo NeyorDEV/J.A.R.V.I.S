@@ -70,16 +70,33 @@ def identifiants_google():
                     print(f"[GOOGLE] credentials.json introuvable à : {credentials_path}")
                     return None
                 flow  = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-                creds = flow.run_local_server(port=0)
+                creds = _connexion_google(flow)
         else:
             if not os.path.exists(credentials_path):
                 print(f"[GOOGLE] credentials.json introuvable à : {credentials_path}")
                 return None
             flow  = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
-            creds = flow.run_local_server(port=0)
+            creds = _connexion_google(flow)
+        if not creds:
+            return None   # connexion abandonnée ou expirée : rien à enregistrer
         with open(token_path, "wb") as f:
             pickle.dump(creds, f)
     return creds
+
+def _connexion_google(flow):
+    """Ouvre la page de connexion Google et l'attend 2 minutes au plus. Dit à voix haute ce qui se passe (sans cela JARVIS restait muet) ; None si personne ne valide."""
+    import builtins
+    parler = getattr(builtins, "parler", None)
+    if parler:
+        parler(f"Connexion Google nécessaire{nom_virgule()} : validez-la dans la fenêtre de votre navigateur, je l'attends deux minutes.")
+    try:
+        return flow.run_local_server(port=0, timeout_seconds=120)
+    except Exception as e:
+        print(f"[GOOGLE] Connexion non terminée : {e}")
+        if parler:
+            parler(f"La connexion Google n'a pas abouti{nom_virgule()}. Redemandez-moi quand vous voulez la refaire.")
+        return None
+
 
 def service_docs():
     creds = identifiants_google()

@@ -1,7 +1,9 @@
 import asyncio
 import os
+import re
 import time
 import chromadb
+from module.memory_manager import est_accuse_reception as _est_accuse_reception
 from chromadb.utils import embedding_functions
 
 # Ajout manuel des répertoires DLL pour Windows (CUDA + cuDNN)
@@ -75,6 +77,8 @@ def ajouter_souvenir(user_text, model_text):
     # Détecter le JSON / Actions
     if "{" in model_text or "action" in m_lower:
         return
+    if _est_accuse_reception(model_text):
+        return   # « Très bien... » avant une action : mémorisé, il apprenait à Gemini à répondre sans agir
         
     # Liste de mots-clés dynamiques transitoires
     mots_exclus = [
@@ -85,6 +89,7 @@ def ajouter_souvenir(user_text, model_text):
         "liste", "mémoire locale", "memo",
         "heure", "date", "météo", "meteo", "température", "temperature",
         "agenda", "calendrier", "calendar",
+        "mail", "mails", "email", "emails", "courriel", "gmail", "drive", "tache", "tâche", "colis", "facture",   # contenu qui change : jamais rejoué depuis un ancien échange
         "oublie", "oublier", "supprime", "supprimer", "efface", "effacer", "vide", "vider", "annule", "annuler", "retire", "retirer",
         "retiens", "retienne", "enregistre", "enregistrer", "mémorise", "memorise", "mémoriser", "memoriser", "note", "noter", "rappelle", "rappeler"
     ]
@@ -146,7 +151,7 @@ def rechercher_souvenirs(query_text, n_results=4, seuil=0.55):
         # Ne garder que les souvenirs réellement proches de la requête
         pertinents = [
             doc for doc, dist in zip(docs, distances)
-            if dist <= seuil
+            if dist <= seuil and not _est_accuse_reception(doc.split("Assistant:")[-1])
         ]
 
         if not pertinents:
@@ -198,6 +203,7 @@ def rechercher_souvenir_semantique(query_text, threshold=0.4):
         "liste", "mémoire locale", "memo",
         "heure", "date", "météo", "meteo", "température", "temperature",
         "agenda", "calendrier", "calendar",
+        "mail", "mails", "email", "emails", "courriel", "gmail", "drive", "tache", "tâche", "colis", "facture",   # contenu qui change : jamais rejoué depuis un ancien échange
         "oublie", "oublier", "supprime", "supprimer", "efface", "effacer", "vide", "vider", "annule", "annuler", "retire", "retirer",
         "retiens", "retienne", "enregistre", "enregistrer", "mémorise", "memorise", "mémoriser", "memoriser", "note", "noter", "rappelle", "rappeler",
         # Sujets dont la réponse change dans le temps : un ancien échange donnerait
@@ -242,6 +248,9 @@ def rechercher_souvenir_semantique(query_text, threshold=0.4):
                     # S'assurer qu'on ne renvoie pas une action JSON
                     if "{" in assistant_reply or "action" in assistant_reply.lower():
                         print(f"[VECTOR DB] Hit sémantique local ignoré car il contient une action ou du JSON.")
+                        return None
+                    if _est_accuse_reception(assistant_reply):
+                        print("[VECTOR DB] Hit sémantique local ignoré : simple accusé de réception (l'action n'est pas rejouée).")
                         return None
                         
                     print(f"[VECTOR DB] Hit sémantique local (dist={dist:.3f}) : {assistant_reply}")

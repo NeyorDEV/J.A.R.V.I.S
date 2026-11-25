@@ -71,7 +71,9 @@ async def executer_actions_services(action, data, block, texte_utilisateur, repo
         parler(result)
     elif action == "read_emails":
         result = await _google(consulter_emails)
-        if "Aucun nouvel email" in result:
+        if result.startswith("Gmail non disponible"):
+            parler(f"Je n'ai pas pu accéder à votre messagerie{nom_virgule()}. Vérifiez la connexion Google, puis redemandez-moi.")
+        elif "Aucun nouvel email" in result:
             parler(f"Vous n'avez aucun nouvel email non lu dans votre boîte principale{nom_virgule()}.")
         else:
             parler(f"Voici vos derniers emails non lus{nom_virgule()}. {result}")

@@ -20,7 +20,7 @@ from core.llm_providers import interroger_grok, interroger_groq, interroger_olla
 from core.prompt_builder import composer_prompt_systeme
 from core.speech import parler
 from core.web_bridge import est_connecte_internet, _safe_ws_send, envoyer_etat_hud
-from module.memory_manager import _archiver_echange
+from module.memory_manager import _archiver_echange, est_accuse_reception
 from module.meteo_domotique import meteo_du_moment, meteo_depuis_ha, HA_URL
 from module.recherche_web import resume_recherche_web
 from module.vector_memory import ajouter_souvenir, souvenirs_async
@@ -195,7 +195,7 @@ async def interroger_ia(texte, update_hist=True, skip_local=False):
                     if not full_text.strip() and not get_stop_parler():
                         # Réponse vide (filtre de sécurité…) : jamais dans l'historique (Gemini rejette ensuite les parts vides : tous les appels suivants échouaient en 400) ni renvoyée comme un succès muet
                         raise Exception("réponse Gemini vide")
-                    if update_hist and full_text.strip():
+                    if update_hist and full_text.strip() and not est_accuse_reception(full_text):
                         shared.historique.append(types.Content(role="user", parts=[types.Part(text=texte)]))
                         shared.historique.append(types.Content(role="model", parts=[types.Part(text=full_text)]))
                         _archiver_echange(texte, full_text)

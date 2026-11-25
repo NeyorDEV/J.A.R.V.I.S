@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import shutil
 import threading
 import time
@@ -102,8 +103,19 @@ MAX_ECHANGES_CHARGE  = 30    # échanges rechargés au démarrage (contexte IA)
 _NB_ECHANGES_CONSOLIDES = 0   # nombre d'échanges déjà vus par la dernière consolidation
 
 
+def est_accuse_reception(reponse: str) -> bool:
+    """« Très bien... » : texte dit avant une action. Seul (sans le JSON de l'action), il ne mène à rien : mémorisé ou rechargé dans le contexte,
+    il apprend à Gemini à répondre « Très bien... » sans rien faire (la lecture des mails restait muette)."""
+    r = (reponse or "").strip()
+    if "{" in r:
+        return False
+    return r.endswith(("...", "…")) or (len(r) < 60 and bool(re.match(r"(?:très bien|tres bien|bien sûr|bien sur|d'accord|entendu|ok|tout de suite|un instant|je m'en occupe)\b", r, re.IGNORECASE)))
+
+
 def _archiver_echange(user_text: str, model_text: str):
     """Ajoute un échange user/model au fichier JSON persistant."""
+    if est_accuse_reception(model_text):
+        return
     # Verrou + écriture atomique : deux requêtes qui se chevauchent partaient
     # sinon de la même liste et la seconde écrasait l'échange de la première.
     with _VERROU_MEMOIRE:
@@ -142,6 +154,8 @@ def _relire_historique_recent():
         recents = echanges[-MAX_ECHANGES_CHARGE:]
         hist = []
         for e in recents:
+            if est_accuse_reception(e.get("model", "")):
+                continue   # anciens « Très bien... » sans action : Gemini les imitait
             date_str = f"[{e.get('date','?')} {e.get('heure','?')}] "
             hist.append(types.Content(role="user",  parts=[types.Part(text=date_str + e["user"])]))
             hist.append(types.Content(role="model", parts=[types.Part(text=e["model"])]))
