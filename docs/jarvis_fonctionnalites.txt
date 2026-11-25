@@ -12,7 +12,9 @@ programmée dans le système J.A.R.V.I.S.
 * Détection de claps : Coupe la parole de JARVIS sur un simple clap, et le réveille sur un double clap.
 * Réduction de feedback (Barge-in) : Purge le son des haut-parleurs sous 1800 RMS pendant que JARVIS parle.
 * Interruption vocale ("Stop") : Arrêt instantané tolérant aux déformations (stop, top, hop, coupe, etc.).
-* Synthèse vocale (TTS) hybride : edge-tts en ligne avec buffer de lecture pygame, repli SAPI5/pyttsx3 natif hors-ligne.
+* Synthèse vocale (TTS) hybride : edge-tts en ligne avec buffer de lecture pygame, repli SAPI5/pyttsx3 natif hors-ligne ; ElevenLabs en option.
+* Reconnaissance vocale en trois paliers : Whisper local sur le GPU (faster-whisper), puis Groq Whisper, puis Google ; filtre des phrases que Whisper invente sur du bruit.
+* Langue : français ou anglais (voir la section 22) : reconnaissance, voix, réponses, interface.
 
 ================================================================================
 2. COMPOSANTS HUD & INTERFACES 3D (frontend/src/)
@@ -69,7 +71,7 @@ programmée dans le système J.A.R.V.I.S.
 ================================================================================
 9. ROUTAGE HYBRIDE MULTI-CERVEAU & SÉCURITÉ (core/llm_chat.py, core/traitement.py)
 ================================================================================
-* IA hybride : Résolution locale (Ollama) si hors-ligne, sinon routeur Cloud intelligent (Groq / Claude / Gemini).
+* IA hybride : Gemini en premier (flux, bascule entre modèles), secours Groq / Claude / Mistral / Grok, puis Ollama (qwen3:4b-instruct, 100 % hors ligne, mode local activable à la voix), puis SerpAPI. Le system prompt n'envoie que les domaines d'actions utiles à la phrase.
 * Auto-évolution : Pipeline de modification de son propre code avec tests unitaires automatiques et rollback.
 * Protection invité : Blocage d'accès aux fichiers, emails et commandes système pour les voix non reconnues.
 
@@ -79,7 +81,7 @@ programmée dans le système J.A.R.V.I.S.
 * Recettes de cuisine : Génération adaptative selon le nombre de personnes et affichage/lecture du processus.
 * Système d'alarmes : Alarmes persistantes (`alarmes.json`) en arrière-plan à heure fixe ou relative.
 * Listes locales : Création et lecture hors-ligne de listes de courses, notes et todos (`jarvis_listes.json`).
-* Générateur d'images : Génération d'illustrations via Pollinations.ai converties en base64 pour le HUD.
+* Générateur d'images : FLUX.1 schnell sur Cloudflare Workers AI (gratuit), repli sur Pollinations ; l'image est affichée dans le HUD.
 
 ================================================================================
 11. NAVIGATEUR VISUEL & AUTOPILOTE OS (module/)
@@ -101,26 +103,26 @@ programmée dans le système J.A.R.V.I.S.
 * Sauvegarde en direct : Modification des clés d'API (Gemini, Mistral, Groq, SerpApi, etc.) depuis le HUD avec écriture asynchrone automatique dans le fichier `.env` à la racine et rechargement des clients IA à chaud.
 
 ================================================================================
-14. MENU CONTROLE SYSTÈME UNIFIÉ & DIALOGUES (frontend/index.html, main.ts)
+14. MENU EN ROUE & DIALOGUES (frontend/src/hud/menu_roue.ts, panels/confirm_dialog.ts)
 ================================================================================
-* Hub central : Regroupe l'ensemble des contrôles (GPU Boost, Clavier visuel, Désinstallateur, Domotique, Vider Cache, Liste Commandes, Config API, Paramètres).
+* Menu en roue : le disque de veille s'ouvre en cylindre ; les commandes y forment une roue de cartes courbes à deux niveaux (groupes, puis commandes). Il regroupe les contrôles (GPU Boost, clavier visuel, désinstallateur, domotique, vider le cache, aide, clés API, paramètres).
 * Liaison robuste : Liaison événementielle directe et résiliente pour basculer les écrans, masquer le clavier visuel ou fermer le menu de manière fluide.
 
 ================================================================================
-15. DÉSINSTATEUR D'APPLICATIONS INTERACTIF (frontend/src/uninstaller.ts)
+15. DÉSINSTALLATEUR D'APPLICATIONS INTERACTIF (frontend/src/panels/uninstaller_panel.ts)
 ================================================================================
 * Registry Scanner : Analyse en arrière-plan des logiciels Windows installés via les registres 32/64 bits.
 * UI Réactive : Filtre de recherche instantané, bouton de désinstallation et barre de progression fluide pendant le processus système.
 
 ================================================================================
-16. MISE A JOUR LOGICIELLE INTÉGRÉE - WINGET (frontend/src/winget.ts)
+16. MISE A JOUR LOGICIELLE INTÉGRÉE - WINGET (frontend/src/panels/winget_panel.ts)
 ================================================================================
 * Détecteur d'obsolescence : Vérifie asynchronement les versions logicielles de Windows via Winget.
 * Badge de notification : Affiche sur le bouton menu le nombre de paquets à mettre à jour.
 * Console en temps réel : Log dynamique et asynchrone des étapes de téléchargement et d'installation.
 
 ================================================================================
-17. ANTIVIRUS SCANNNEUR & PROTECTION RESIDENTE (antivirus_scanner.py)
+17. ANTIVIRUS SCANNEUR & PROTECTION RÉSIDENTE (module/antivirus_live.py, frontend/src/panels/antivirus_panel.ts)
 ================================================================================
 * Scanner à la demande : Scan rapide de répertoires ou fichiers spécifiques avec reporting.
 * Protection en temps réel : Moniteur résident activable à chaud pour bloquer l'écriture de scripts malveillants.
@@ -133,8 +135,49 @@ programmée dans le système J.A.R.V.I.S.
 * Panneaux latéraux : ils sortent du sol et s'y enfoncent ; l'onde « entrée audio » suit le niveau réel du micro.
 
 ================================================================================
-19. EXHAUSTIVITÉ DES COMMANDES SUGGÉRÉES (frontend/src/main.ts)
+19. AIDE ET PALETTE DE COMMANDES (frontend/src/hud/aide_commandes.ts, pieces_outils.ts)
 ================================================================================
-* Index Exhaustif : Liste de suggestions alimentée par la totalité des 164 commandes vocales réelles de J.A.R.V.I.S.
-* Popups Aléatoires : Affichage harmonieux de 16 exemples tirés au sort lors du clic sur le bouton "Liste Commandes".
+* Palette de commandes (Ctrl+K) : 272 phrases d'exemple rangées à la main dans les 21 catégories du cylindre, avec recherche ; un clic lance la commande.
+* Traduite en anglais avec le reste du HUD : la recherche trouve aussi bien le texte français que l'anglais.
 ================================================================================
+
+================================================================================
+20. VUE DE DIEU : GOD'S EYE VIEW ET COUCHES FRANCE (module/vue_de_dieu.py, module/gev_*.py)
+================================================================================
+* Installation à la demande : JARVIS télécharge la dernière release de God's Eye View (globe 3D en direct : avions, bateaux, satellites, séismes, caméras) dans data/gods_eye_view/, la met à jour, la lance et l'arrête (Node portable si besoin). Rien n'est installé sans votre accord (question oui / non).
+* Traduite en français et réglée pour la France : couches ajoutées par JARVIS (gev_couches.js) : carburants, bornes de recharge, radars automatiques, crues, séismes, qualité de l'air, sécheresse, sites Seveso, baignades, radar de pluie Météo-France, caméras, et **parkings** (environ 1 460, places libres en direct à Nantes, Aix-Marseille, Tours et Clermont-Ferrand). Données ouvertes téléchargées en tâche de fond, sans clé.
+* Recherche vocale de parkings : « trouve-moi un parking ouvert à Saint-Étienne » : les 3 plus proches, distance, places libres ; JARVIS dit quand il n'a pas de comptage en direct.
+* Détails et limites : docs/VUE_DE_DIEU.md.
+
+================================================================================
+21. BRIEFING DU MATIN ET OUTILS DU QUOTIDIEN (module/briefing.py, module/routines.py, plugins/)
+================================================================================
+* Briefing : « ma journée » donne en une phrase la date, la météo, l'agenda du reste de la journée, les tâches, les alarmes et le nombre de mails non lus (sources Google lues seulement avec un jeton valide sans interaction ; une source en panne est passée sous silence).
+* Routines : « tous les jours à 8 heures, donne-moi la météo » : une commande qui se rejoue toute seule (démon, data/routines.json) ; les commandes à effet sur le PC sont refusées.
+* « Répète » : JARVIS redit sa dernière réponse. Reconnaissance musicale : « c'est quoi cette musique » (titre Deezer direct, sinon 10 s de micro puis Shazam / AudD).
+* Skills à script : dossiers data/skills/<nom>/ (SKILL.md + script) approuvés par empreinte SHA-256, exécutés dans un environnement nettoyé ; import depuis GitHub sans jamais approuver.
+* Discord : message dans un salon (webhook ou bot) ou à quelqu'un (option), toujours confirmé. Steam : lancement des jeux installés. Navigateur : pilotage de l'onglet actif par l'extension Chrome.
+* Quotas et dépenses : « combien de requêtes Groq », « combien coûte Gemini aujourd'hui » (plafond journalier, alertes à 80 % et 100 %).
+
+================================================================================
+22. LANGUE : FRANÇAIS ET ANGLAIS (core/i18n.py, plugins/langue_resolver.py, frontend/src/i18n/)
+================================================================================
+* Réglage : Paramètres (panneau Apparence), première étape de l'assistant de premier lancement, ou à la voix (« passe en anglais », « switch to English »). Clé « langue » de jarvis_config.json. Un avis (carte du HUD avec un bouton « Redémarrer maintenant ») s'affiche à chaque changement : la console et les journaux ne suivent qu'au redémarrage.
+* Voix : Ryan / Sonia (en-GB) en anglais, Henri / Denise (fr-FR) en français. Reconnaissance vocale réglée sur la langue, mots d'arrêt et hallucinations Whisper des deux langues.
+* Commandes en anglais : si aucun resolver ne comprend la phrase telle quelle, Gemini la ramène à la commande française qu'un utilisateur dirait (avec les commandes de l'aide en exemples) ; elle suit ensuite le chemin normal. Minuteurs et alarmes comprennent l'anglais (« five minutes », « 7 pm »).
+* Réponses : les phrases des resolvers (écrites en français) sont traduites avant d'être dites ; la conversation avec Gemini se fait directement en anglais (rappel de langue au début et à la fin du prompt).
+* Interface : traducteur de DOM et de canvas avec un dictionnaire de ~1 800 textes (fabriqué par tools/i18n_extraire.py et tools/i18n_traduire.py), modèles pour les textes à variable, textes dynamiques du serveur traduits à la demande, dates et nombres selon la langue.
+* Console : ~700 messages traduits à l'affichage (tools/i18n_console.py), libellés du tableau de bord, ligne « [DIT] » avec la phrase dite ; le journal data/jarvis_run.log reste en français.
+* Limites : une commande anglaise coûte un appel Gemini de plus (~0,7 s) ; les contenus de l'utilisateur (titres d'agenda, noms de pièces, artistes) ne sont jamais traduits.
+
+================================================================================
+23. REDÉMARRAGE ET MISES À JOUR (core/lancement.py, core/mises_a_jour.py, tools/installateur/)
+================================================================================
+* Redémarrage depuis le HUD : le bouton « Redémarrer maintenant » lance un relanceur dans une nouvelle console, qui attend la fin de l'ancien JARVIS (micro, ports et base de mémoire libérés) puis démarre le nouveau ; la console de start.bat est fermée. Vérifié avec le lancement par start.bat et par le raccourci installé (pythonw).
+* Mises à jour : compare la version installée à la dernière release GitHub (vérification au lancement, coupable avec « maj_auto »: false) et ouvre la page de la release ; rien n'est téléchargé ni installé sans vous. Installateur Windows (Inno Setup) : Python 3.12 et dépendances installés automatiquement, assistant de premier lancement en 5 étapes (profil et langue, clé d'IA, micro et voix, options, fin).
+
+================================================================================
+24. API LOCALE ET CONSOLE (core/api_locale.py, core/console_ui.py)
+================================================================================
+* API locale compatible OpenAI (désactivée par défaut : JARVIS_API_TOKEN dans .env et "api_locale": {"actif": true, "port": 8770} dans jarvis_config.json) : d'autres outils du PC (éditeur, scripts, Open WebUI) parlent à JARVIS comme à un modèle.
+* Console : tableau de bord en direct (moteurs, voix, ressources, état du micro) et fil des échanges, tout est journalisé horodaté dans data/jarvis_run.log ; console_detail: true dans jarvis_config.json pour tout afficher.
