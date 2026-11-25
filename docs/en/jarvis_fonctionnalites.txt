@@ -1,0 +1,183 @@
+================================================================================
+           J.A.R.V.I.S — CONCISE INVENTORY OF CODED FEATURES
+================================================================================
+This document presents a quick and synthetic overview of each feature
+programmed in the J.A.R.V.I.S. system.
+
+================================================================================
+1. AUDIO PIPELINE & BIOMETRICS (main.py, core/)
+================================================================================
+* Voice Activity Detection (VAD): Uses Silero VAD (ONNX) with RMS energy fallback.
+* Voice Biometrics (CAM++ Deep Learning): Identifies the user via their voice (multi-fingerprint deep neural network model for increased robustness) and restricts guest access.
+* Clap Detection: Cuts off JARVIS's speech on a single clap, and wakes it up on a double clap.
+* Feedback Reduction (Barge-in): Purges speaker audio below 1800 RMS while JARVIS is speaking.
+* Voice Interruption ("Stop"): Instant stop tolerant to mispronunciations (stop, top, hop, cut, etc.).
+* Hybrid Speech Synthesis (TTS): Online edge-tts with pygame playback buffer, native offline SAPI5/pyttsx3 fallback; optional ElevenLabs.
+* Three-tier Speech Recognition: Local Whisper on the GPU (faster-whisper), then Groq Whisper, then Google; filters out phrases that Whisper hallucinates on noise.
+* Language: French or English (see section 22): recognition, voice, responses, interface.
+
+================================================================================
+2. HUD COMPONENTS & 3D INTERFACES (frontend/src/)
+================================================================================
+* Central Holographic Cylinder (2D canvas): Reactive to listening, thinking, and speaking states, with a category search wheel and an opening screen for widgets.
+* Information Widgets: Interactive calendar, live weather forecasts, and music player (Deezer).
+* Contextual Cards (HUD Cards): Neon notifications with an animated dismiss progress bar.
+* Frequency Visualizer: Dynamic audio spectrum bar at the bottom of the screen.
+
+================================================================================
+3. 3D EARTH GLOBE (frontend/src/globe.ts, module/globe_local.py)
+================================================================================
+* Earth 3D: Realistic Three.js modeling of Earth with day/night textures, clouds, and scanlines.
+* Voice Control: Spatial zoom commands ("zoom in/zoom out") and flights to a city with geocoding.
+* Smart Transition: Automatic switch from the globe to the 2D map if the camera gets too close.
+
+================================================================================
+4. FULLSCREEN 3D VIEWS & GESTURE TRACKING (frontend/src/vues_3d.js, hud/vues_3d.ts)
+================================================================================
+* Voice Opening: Space explorer, 3D house, cortex, chess, and network radar open directly, one view at a time (the legacy hologram mode was removed).
+* Shared Rendering: Three.js scene with glow (bloom), chromatic aberration, and starry background.
+* MediaPipe Tracking: Live webcam capture to draw your hands' skeleton and control the view (pinch to grab, two hands to rotate).
+* Virtual Clicks: Finger pinch to click remotely on view panels.
+* 3D Chess Game (ChessMap): Interactive and touch-enabled 3D chessboard with full voice/HUD options, smartly oriented floating 3D buttons, and gesture tracking.
+
+================================================================================
+5. 3D HOME AUTOMATION MAPPING (frontend/src/domotic_map.ts, core/ha_mcp_client.py)
+================================================================================
+* 3D Home: Multi-level modeling (extruded transparent rooms) of your home.
+* Live Status: Connected nodes reacting in real time to the state of your lights/plugs in Home Assistant.
+* Direct Toggles: Click on a 3D component to toggle the corresponding device in the house.
+* Voice Control: Natural language commands routed to Home Assistant's native MCP server
+  (no more hard-coded device lists — any device exposed on the HA side is immediately usable).
+
+================================================================================
+6. 3D NEURAL CORTEX - MEMORY HISTORY (frontend/src/cortex_map.ts)
+================================================================================
+* Synaptic Constellation: 3D graph of your long-term memory (ChromaDB conversations and local keys).
+* Management Panel: Click on a neuron to listen to, correct, or permanently delete a memory.
+
+================================================================================
+7. 3D SPATIAL FILE EXPLORER (frontend/src/spatial_explorer.ts)
+================================================================================
+* Spatialized Tree: 3D rendering of local folders (tori) and files (octahedra).
+* Preview Panels: Hovering over a file displays its metadata, first lines of code, or an image.
+
+================================================================================
+8. WEB AUTOMATION CHROME EXTENSION (chrome_extension/)
+================================================================================
+* Remote Control: Local socket connecting JARVIS to the browser to execute web scenarios.
+* Neon Virtual Cursor: Smooth physical pointer moving across the page to simulate clicks.
+* Status Banner: Banner displayed on the browser summarizing the ongoing action.
+
+================================================================================
+9. HYBRID MULTI-BRAIN ROUTING & SECURITY (core/llm_chat.py, core/traitement.py)
+================================================================================
+* Hybrid AI: Gemini first (streaming, model fallback), Groq / Claude / Mistral / Grok fallbacks, then Ollama (qwen3:4b-instruct, 100% offline, local mode voice-activatable), then SerpAPI. The system prompt only sends action domains relevant to the sentence.
+* Self-Evolution: Pipeline for modifying its own code with automated unit tests and rollback.
+* Guest Protection: Access blocking to files, emails, and system commands for unrecognized voices.
+
+================================================================================
+10. PRACTICAL & DAILY LIFE ASSISTANTS (plugins/, module/)
+================================================================================
+* Cooking Recipes: Adaptive generation based on the number of people, with display/read-aloud of the process.
+* Alarm System: Persistent background alarms (`alarmes.json`) at fixed or relative times.
+* Local Lists: Offline creation and reading of grocery lists, notes, and todos (`jarvis_listes.json`).
+* Image Generator: FLUX.1 schnell on Cloudflare Workers AI (free), fallback to Pollinations; the image is displayed in the HUD.
+
+================================================================================
+11. VISUAL BROWSER & OS AUTOPILOT (module/)
+================================================================================
+* Windows Autopilot: Translates requests into system actions (keyboard, clicks, launches) via PyAutoGUI.
+* Secure Input & Folders: Conflict-free AZERTY clipboard and file creation detection.
+* Visual Web Agent (Opera GX): Launches Opera with your cookies and sessions, navigating via screenshot analysis (Gemini Vision).
+
+================================================================================
+12. CLOUD & WEB SERVICE INTEGRATIONS (module/)
+================================================================================
+* Google Services: Autonomous read and write for Gmail, Calendar, Drive, Docs, Sheets, and Tasks.
+* Chromecast & TV (ADB): TV power on (WoL), volume control, YouTube Cast, and app launching.
+* Music (Deezer/Spotify): Windows multimedia controls and current track retrieval.
+* Weather: Weather updates (Open-Meteo/wttr.in).
+================================================================================
+13. HOT API CONFIGURATION (main.py, frontend/)
+================================================================================
+* Live Save: API key modification (Gemini, Mistral, Groq, SerpApi, etc.) from the HUD with automatic asynchronous write to the root `.env` file and hot reloading of AI clients.
+
+================================================================================
+14. RADIAL MENU & DIALOGS (frontend/src/hud/menu_roue.ts, panels/confirm_dialog.ts)
+================================================================================
+* Radial Menu: The standby disk expands into a cylinder; commands form a two-level wheel of curved cards (groups, then commands). It brings controls together (GPU Boost, virtual keyboard, uninstaller, home automation, clear cache, help, API keys, settings).
+* Robust Binding: Direct and resilient event binding to toggle screens, hide the virtual keyboard, or smoothly close the menu.
+
+================================================================================
+15. INTERACTIVE APP UNINSTALLER (frontend/src/panels/uninstaller_panel.ts)
+================================================================================
+* Registry Scanner: Background scanning of installed Windows software via 32/64-bit registries.
+* Responsive UI: Instant search filter, uninstall button, and smooth progress bar during the system process.
+
+================================================================================
+16. INTEGRATED SOFTWARE UPDATER - WINGET (frontend/src/panels/winget_panel.ts)
+================================================================================
+* Outdated Software Detector: Asynchronously checks Windows software versions via Winget.
+* Notification Badge: Displays the number of packages to update directly on the menu button.
+* Real-time Console: Dynamic and asynchronous logging of download and installation steps.
+
+================================================================================
+17. ANTIVIRUS SCANNER & RESIDENT PROTECTION (module/antivirus_live.py, frontend/src/panels/antivirus_panel.ts)
+================================================================================
+* On-demand Scanner: Quick scan of specific directories or files with reporting.
+* Real-time Protection: Hot-toggleable resident monitor to block malicious script writes.
+
+================================================================================
+18. HOLOGRAPHIC CYLINDER AND SEARCH WHEEL (frontend/src/orb_cylindre.ts, orb_themes.ts)
+================================================================================
+* Search Wheel: Category and subcategory are inferred from the phrase, then confirmed by the backend (module actually executed).
+* Cylinder Screen: Opens for widgets and panels, featuring a module card (phrase, recognized word, subcategories, rank, search duration, steps).
+* Side Panels: Slide up from and recede into the floor; the "audio input" wave reflects the actual microphone level.
+
+================================================================================
+19. HELP AND COMMAND PALETTE (frontend/src/hud/aide_commandes.ts, pieces_outils.ts)
+================================================================================
+* Command palette (Ctrl+K): 272 example phrases hand-sorted into the cylinder's 21 categories, with search; a click runs the command.
+* Translated into English along with the rest of the HUD: search finds both French and English text.
+================================================================================
+
+================================================================================
+20. GOD'S EYE VIEW: GOD'S EYE VIEW AND FRANCE LAYERS (module/vue_de_dieu.py, module/gev_*.py)
+================================================================================
+* On-demand installation: JARVIS downloads the latest release of God's Eye View (live 3D globe: planes, ships, satellites, earthquakes, cameras) into data/gods_eye_view/, updates it, launches it, and stops it (portable Node if needed). Nothing is installed without your agreement (yes / no question).
+* Translated into French and tuned for France: layers added by JARVIS (gev_couches.js): fuel prices, charging stations, speed cameras, floods, earthquakes, air quality, drought, Seveso sites, bathing spots, Météo-France rain radar, cameras, and **parking lots** (about 1,460, live available spots in Nantes, Aix-Marseille, Tours, and Clermont-Ferrand). Open data downloaded in the background, no API key needed.
+* Voice parking search: "find me an open parking lot in Saint-Étienne": the 3 closest, distance, available spaces; JARVIS mentions when live counting is unavailable.
+* Details and limitations: docs/fr/VUE_DE_DIEU.md.
+
+================================================================================
+21. MORNING BRIEFING AND EVERYDAY TOOLS (module/briefing.py, module/routines.py, plugins/)
+================================================================================
+* Briefing: "my day" provides in one sentence the date, weather, schedule for the rest of the day, tasks, alarms, and the number of unread emails (Google sources read only with a valid token without interaction; a failed source is silently ignored).
+* Routines: "every day at 8 AM, give me the weather": a command that repeats automatically (daemon, data/routines.json); commands affecting the PC are rejected.
+* "Repeat": JARVIS repeats its last response. Music recognition: "what's this song" (direct Deezer track, otherwise 10 s of microphone then Shazam / AudD).
+* Scripted skills: data/skills/<name>/ folders (SKILL.md + script) approved by SHA-256 hash, executed in a sanitized environment; imported from GitHub without ever auto-approving.
+* Discord: message in a channel (webhook or bot) or to someone (optional), always confirmed. Steam: launches installed games. Browser: controls the active tab via the Chrome extension.
+* Quotas and spending: "how many Groq requests", "how much did Gemini cost today" (daily cap, alerts at 80% and 100%).
+
+================================================================================
+22. LANGUAGE: FRENCH AND ENGLISH (core/i18n.py, plugins/langue_resolver.py, frontend/src/i18n/)
+================================================================================
+* Setting: Settings (Appearance panel), first step of the initial setup wizard, or by voice ("switch to English"). "langue" key in jarvis_config.json. A notice (HUD card with a "Restart Now" button) is displayed upon each change: the console and logs only update on restart.
+* Voices: Ryan / Sonia (en-GB) in English, Henri / Denise (fr-FR) in French. Speech recognition tuned to the language, stop words and Whisper hallucinations for both languages.
+* English commands: if no resolver understands the sentence as is, Gemini maps it back to the French command a user would say (using help commands as examples); it then follows the normal path. Timers and alarms understand English ("five minutes", "7 pm").
+* Responses: resolver phrases (written in French) are translated before being spoken; the conversation with Gemini happens directly in English (language reminder at the beginning and end of the prompt).
+* Interface: DOM and canvas translator with a dictionary of ~1,800 strings (built by tools/i18n_extraire.py and tools/i18n_traduire.py), templates for variable text, dynamic server strings translated on demand, dates and numbers formatted according to the language.
+* Console: ~700 messages translated upon display (tools/i18n_console.py), dashboard labels, "[DIT]" line with the spoken phrase; the data/jarvis_run.log log remains in French.
+* Limitations: an English command costs one extra Gemini call (~0.7 s); user content (calendar titles, room names, artists) is never translated.
+
+================================================================================
+23. RESTART AND UPDATES (core/lancement.py, core/mises_a_jour.py, tools/installateur/)
+================================================================================
+* Restart from the HUD: the "Restart Now" button launches a restarter in a new console, which waits for the old JARVIS to terminate (mic, ports, and memory database released) then starts the new one; the start.bat console is closed. Verified when launched via start.bat and via the installed shortcut (pythonw).
+* Updates: compares the installed version to the latest GitHub release (check on launch, can be disabled with "maj_auto": false) and opens the release page; nothing is downloaded or installed without you. Windows installer (Inno Setup): Python 3.12 and dependencies installed automatically, 5-step initial setup wizard (profile and language, AI key, mic and voice, options, finish).
+
+================================================================================
+24. LOCAL API AND CONSOLE (core/api_locale.py, core/console_ui.py)
+================================================================================
+* Local OpenAI-compatible API (disabled by default: JARVIS_API_TOKEN in .env and "api_locale": {"actif": true, "port": 8770} in jarvis_config.json): other PC tools (editor, scripts, Open WebUI) talk to JARVIS like a model.
+* Console: live dashboard (engines, voice, resources, mic status) and exchange feed, everything is logged with timestamps in data/jarvis_run.log; console_detail: true in jarvis_config.json to display everything.

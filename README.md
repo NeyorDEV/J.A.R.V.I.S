@@ -9,7 +9,7 @@
   [![Python](https://img.shields.io/badge/python-3.12%2B-blue)](#prerequisites)
   [![Node](https://img.shields.io/badge/node-18%2B-339933?logo=node.js&logoColor=white)](#prerequisites)
   [![Frontend](https://img.shields.io/badge/frontend-Three.js%20%2B%20Vite-black)](interfaces/frontend)
-  [![Docs](https://img.shields.io/badge/docs-files%20guide-orange)](docs/JARVIS_FILES_GUIDE.md)
+  [![Docs](https://img.shields.io/badge/docs-files%20guide-orange)](docs/en/JARVIS_FILES_GUIDE.md)
   [![GitHub](https://img.shields.io/badge/github-NeyorDEV%2FJ.A.R.V.I.S-181717?logo=github&logoColor=white)](https://github.com/NeyorDEV/J.A.R.V.I.S)
 </div>
 
@@ -26,7 +26,7 @@ Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 - Speech-to-text in three tiers: local Whisper on the GPU (faster-whisper), then Groq Whisper, then Google STT; filter for the phrases Whisper invents on silence
 - Streaming generative answers (Gemini as the main model, automatic failover to Groq / Claude / Mistral / Grok / local Ollama depending on availability)
 - Text-to-speech (edge-tts, French and British English voices; ElevenLabs optional) with a speech queue and interruption ("stop", "silence", "shut up")
-- **French and English**: say "passe en anglais" / "switch to English" (or use Settings, or the first-launch assistant). Recognition, voice, answers, HUD and console follow; English commands are understood by mapping them to the French command engine. A notice offers a **Restart now** button because the console and logs only follow after a restart. See [docs](docs/JARVIS_Commandes.txt) for the commands
+- **French and English**: say "passe en anglais" / "switch to English" (or use Settings, or the first-launch assistant). Recognition, voice, answers, HUD and console follow; English commands are understood by mapping them to the French command engine. A notice offers a **Restart now** button because the console and logs only follow after a restart. See [docs](docs/en/JARVIS_Commandes.txt) for the commands
 - Iron Man-style JARVIS personality: composed, loyal, dry humour — answers are generated on the fly, never canned phrases
 - **Speaker biometrics**: identifies who is speaking from their voiceprint (CAM++ / sherpa-onnx) and adapts permissions (guest vs authenticated user)
 - Two-level memory: persistent key-value facts + vector memory (ChromaDB) of past conversations
@@ -36,7 +36,7 @@ Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 - Calendar, weather and music widgets, shown on voice command; exploded panels around a holographic cylinder, with a command palette (Ctrl+K) of 272 example phrases
 - Augmented reality mode (MediaPipe) with gesture drag-and-drop
 - 3D globe + map for geographic navigation
-- **God's Eye View** (optional, installed on demand): live 3D globe with flights, ships, satellites, earthquakes, public cameras and French open-data layers (fuel prices, charging stations, speed cameras, floods, rain radar, **car parks with live free spaces**), including voice search ("find me an open car park in Saint-Étienne"). See [docs/VUE_DE_DIEU.md](docs/VUE_DE_DIEU.md)
+- **God's Eye View** (optional, installed on demand): live 3D globe with flights, ships, satellites, earthquakes, public cameras and French open-data layers (fuel prices, charging stations, speed cameras, floods, rain radar, **car parks with live free spaces**), including voice search ("find me an open car park in Saint-Étienne"). See [docs/en/VUE_DE_DIEU.md](docs/en/VUE_DE_DIEU.md)
 
 **Control & home automation**
 - Home Assistant (lights, plugs, temperature, humidity, alarms, batteries...)
@@ -133,7 +133,7 @@ interfaces/
   chrome_extension/  — Browser extension
 tools/               — Installer (Inno Setup), git hook, translation tools (tools/i18n_*.py)
 tests/               — pytest suite (`venv\Scripts\python.exe -m pytest tests`)
-docs/                — Guides (French): files guide, voice commands, features, God's Eye View
+docs/                — Documentation in two languages: docs/en (English) and docs/fr (French, reference), with an index in each
 scratch/             — Debug/exploration scripts (not versioned)
 ```
 
@@ -150,7 +150,7 @@ Developer checks: `venv\Scripts\python.exe -m pytest tests`, `venv\Scripts\ruff.
 
 <div align="center">
 
-[Files guide](docs/JARVIS_FILES_GUIDE.md) · [Detailed features](docs/jarvis_fonctionnalites.txt) · [Voice commands](docs/JARVIS_Commandes.txt) · [Changelog](CHANGELOG.md) *(documentation in French)*
+[Documentation index](docs/en/README.md) · [Files guide](docs/en/JARVIS_FILES_GUIDE.md) · [Features](docs/en/jarvis_fonctionnalites.txt) · [Voice commands](docs/en/JARVIS_Commandes.txt) · [Documentation en français](docs/README.md) · [Changelog](CHANGELOG.md) *(in French)*
 
 Personal project, developed and maintained by [@NeyorDEV](https://github.com/NeyorDEV).
 

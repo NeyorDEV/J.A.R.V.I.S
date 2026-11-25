@@ -1,0 +1,437 @@
++----------------------------------------------------------+
+          J.A.R.V.I.S - Complete Commands Guide
++----------------------------------------------------------+
+
+The commands below are given in English (translated from the French reference, docs/fr/JARVIS_Commandes.txt). JARVIS understands them in English mode: see the "LANGUAGE" section at the end of the document
+("switch to English" / "passe en français" to go back). Square brackets [ ] indicate a variable part of the phrase.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  LOCAL & SYSTEM COMMANDS (Instant)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Time & Date ]
+  - What time is it? -> Gives your system's current local time
+  - What day is it? / What date is it? / What day are we? -> Today's full date
+  - What month is it? / What year is it? -> Current month or year
+  - How old am I? -> Automatically calculates your current age based on your date of birth (May 21, 1988)
+
+[ PC System ]
+  - Battery status / Battery level / Battery life -> Battery level and whether the PC is plugged in
+  - CPU / Processor load / RAM usage / Memory -> Real-time PC hardware health status
+  - How long has it been on? / Uptime -> Time elapsed since the last PC startup
+  - Volume up / down / mute -> Step-by-step hardware control of Windows volume
+  - Volume to [X]% / Sound to [X]% -> Precisely sets the Windows volume to the requested percentage
+  - Turn sound back on / Unmute -> Re-enables system volume if it was muted
+  - Take a screenshot / Screen capture -> Captures the screen and automatically saves the image file to your Desktop
+  - Turn off the PC / Shut down the PC / Shutdown [in X seconds/minutes] -> Cleanly shuts down your PC (with delay option)
+  - Restart the PC / Reboot [in X seconds/minutes] -> Restarts the PC (with delay option)
+  - Put the PC to sleep / Sleep mode / Sleep [in X seconds/minutes] -> Suspends PC activity (with delay option)
+  - Lock the PC / Lock the session / Lock PC -> Instantly locks the Windows user session (5s delay)
+  - Cancel shutdown / Cancel restart / Cancel sleep -> Immediately cancels a scheduled power-off or sleep command
+  - Empty the Recycle Bin / Clean the Recycle Bin -> Permanently deletes all files from the Windows Recycle Bin silently
+
+[ File & Folder Management ]
+  - Open my [Desktop / Documents / Downloads / Pictures / Music / Videos] -> Direct access to system folders
+  - Open folder [Name] / Open file [Name] -> Smart search and opening of a local directory or document
+  - Organize my folders / Tile folders -> Spatial arrangement of File Explorer windows
+  - Sort my files by [Type / Date] -> Sorting active folder files by category or chronology
+  - Full sort -> Organizes all files by type then by date inside each directory
+  - Create folder [Name] / Rename [Old] to [New] -> On-the-fly management of the local directory tree
+  - Move [File] to [Destination] -> Physical moving of files
+  - Analyze file [Name] -> Reading, extraction, and smart summarization of text content by AI
+
+[ Applications & Games ]
+  - Open / Launch [Calculator / Notepad / Paint / Chrome / Firefox / Edge / Opera] -> Launching common applications
+  - Open / Launch [Steam / Origin / EA App / Task Manager] -> Launching gaming platforms or utilities
+  - Close / Quit [Application Name] -> Clean closing of the target window by its process
+  - Work Mode! -> Launches your complete work environment (Claude, Outlook, Chrome, Spotify)
+  - Gaming Mode / Game on! -> Optimizes the system and launches your favorite gaming platform
+  - Let's play Rocket League -> Directly launches the Rocket League game on your PC
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ENTERTAINMENT, HUD INTERFACES, 3D & AR VIEWS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Graphical User Interface (HUD) Control ]
+  - Open settings / Close settings -> On-the-fly configuration and profiling of JARVIS
+  - Enable / Disable hardware acceleration / Boost the GPU -> Three.js 3D performance
+  - Enable subtitles / Disable text -> Toggles speech text display on the HUD
+  - Enable keyboard / Close keyboard -> Written command input module
+  - Close recipe / Hide recipe -> Closes active recipe cards
+  - Close temperature panel / Hide temperature -> Hides the smart home sensors panel
+  - Close weather / Hide weather -> Closes the lateral weather panel
+  - Show / Hide the [Calendar / Weather / Music] widget -> Dynamic display of desktop modules
+  - Enable / Disable AR mode -> Webcam hand tracking and contactless remote gesture control
+  - Enable / Disable AR mirror -> Camera orientation toggle (direct vs mirror) for hand tracking
+
+[ Interactive Timers (HUD) ]
+  - Set a timer for [X] minutes / Start a timer for [X] minutes -> Starts a countdown and displays it on the HUD
+  - Add [X] minutes to the timer / Extend the timer by [X] minutes -> Dynamically increases the active timer's duration
+  - Remove [X] minutes from the timer / Decrease the timer by [X] minutes -> Decreases the duration of the running timer
+  - Cancel timer / Stop the timer / Stop the clock -> Immediately stops the countdown and clears it from the HUD
+  - How many active timers? / How much time is left? -> Displays the status and count of running timers
+
+[ Full-Screen 3D Views - Overview ]
+  - 3D views (file explorer, house, cortex, chess, network radar) open directly via voice, one at a time
+  - Close cortex / Close the house / Close space explorer / Close radar / Close 3D view / Back Jarvis -> Closes the open 3D view and returns to the JARVIS interface
+  - *"⌂ BACK TO JARVIS" button* -> Same effect, using the mouse
+  - *Hand control (webcam)* -> Pinch (index + thumb) to grab or move, two pinched hands to rotate; a pinch on a button clicks it
+  - *Circular index finger gesture* -> Mutes / unmutes the JARVIS microphone
+
+[ 3D Spatial File Explorer ]
+  - 3D Explorer / Spatial Explorer / Show spatial explorer / Explorer mode -> Deploys the 3D spatial file explorer ("my folders" / "my files" open Windows Explorer)
+  - *Left Click / Hand Pinch on a Folder (Cube)* -> Enters the folder and displays it at the center in concentric 3D
+  - *Left Click / Hand Pinch on a File (Sphere)* -> Opens the file with its default application on the PC
+  - *Left Click / Hand Pinch on the Yellow Pyramid (Back)* -> Pops the directory tree and goes up to the parent folder in 3D
+  - *Left Click / Hand Pinch on the Recycle Bin (Red Torus)* -> Opens the Windows Recycle Bin folder in concentric 3D
+  - *Mouse or Hand Drag & Drop*:
+    - File/Folder onto a folder -> Moves the item into this subfolder (with smart indexing and no duplicates)
+    - File/Folder onto the BACK button (or onto the parent on the periphery) -> Moves the item up one level in the tree
+    - File/Folder onto the Recycle Bin -> Sends the item to the native Windows Recycle Bin (or permanently deletes it if already in the Bin)
+    - Moving an item out of the Recycle Bin to the parent folder -> Restores the file preserving its original name and extension
+  - *Left Click & Drag in empty space (Mouse)* -> Panning of the entire 3D scene for comfortable navigation
+  - *Right Click & Drag (Mouse)* -> Full 3D orbital rotation (spin) to inspect the scene from all angles
+
+[ 3D Smart Home Map ]
+  - Jarvis, show my house / Home automation map / 3D map mode / Show the 3D map / My 3D home -> Deploys the interactive and dynamic 3D model of the house
+  - *Touch interaction or gesture* -> Allows turning on/off or changing brightness/color of smart lights and plugs directly in 3D
+  - *Left Click & Drag in empty space (Mouse)* -> Lateral movement (translation) within the model's 3D environment
+  - *Right Click & Drag (Mouse)* -> Full orbital rotation of the 3D house structure
+
+[ 3D Neural Cortex - Memory Constellation ]
+  - Cortex / Show your cortex / Cortex mode / Open cortex / Neural connections -> Deploys the interactive 3D double synaptic constellation (vector memories and facts)
+  - *Left Lobe (Cyan)* -> Constellation of semantic conversational memories (ChromaDB)
+  - *Right Lobe (Magenta)* -> Constellation of static facts and information (jarvis_memoire.json)
+  - *Left Click / Hand Pinch on a Node* -> Opens the holographic cybernetic detail bubble of the memory (Date, Type, Full text content of user and assistant)
+  - *"DELETE" Button on Panel* -> Permanently deletes the memory live from the database (ChromaDB or jarvis_memoire.json) with 3D disintegration effect and ripple light wave
+  - *Sparks & Synapses* -> Dynamic visualization of electrical signals traveling through active synaptic connections
+  - *Left Click & Drag in empty space (Mouse)* -> Movement of the constellation in 3D space
+  - *Right Click & Drag (Mouse)* -> Rotation of the three-dimensional neural structure
+
+[ 3D Chess Game ]
+  - Let's play chess / Start a chess game / Chess game -> Opens the 3D chessboard on the HUD
+  - Start the game with [white/black] [easy/medium/hard] [with/without] timer -> Launches and configures a new game
+  - Restart the game / Reset chess -> Resets the game on the fly without confirmation prompt and returns to the board setup screen
+  - Quit chess / Stop the game / Close chess -> Cleanly closes the 3D chessboard
+  - *Touch interaction or gesture (Hands Interaction)* :
+    - Pinch a piece (Index + Thumb) and move it to a square to play a move
+    - Pinch/Click the floating 3D buttons to the left of the board (START, RESTART, QUIT) to control the game remotely (buttons automatically face the camera)
+
+[ 3D Earth Globe ]
+  - Show the Earth / Terrestrial globe / View from space -> Displays the 3D Earth globe, recentered, slowly rotating
+  - Zoom in / Move closer / Closer (globe open) -> Moves the camera closer; below a certain altitude, switches to the 2D satellite map
+  - Zoom out / Move away / Further (globe open) -> Moves the camera away (and exits the 2D map)
+  - Show me / Fly over / Fly to / Zoom in on [Location, city, country] -> Flies to the destination (higher for a country, lower for a city)
+  - Show my location / Where am I? / Locate me -> Flies over the city configured in JARVIS (otherwise, browser geolocation)
+  - Route from [City A] to [City B] / Journey from [A] to [B] -> Plots the route (great-circle) between two cities and frames it
+  - Close the map / Close the globe / Back to JARVIS -> Closes the globe and returns to the main interface
+
+[ God's Eye View ]
+  - Enable God's eye view / Launch God's eye view / Open God's eye view -> Launches God's Eye View (3D globe with planes, ships, satellites, earthquakes, live public cameras) in fullscreen. Not yet installed: JARVIS asks whether to install it from the latest GitHub release (yes / no, by voice or click); a newer version exists: prompts for update
+  - Update God's eye view -> Installs the latest release if newer than the installed version
+  - Go to Tokyo / Show me Paris / Fly over Mont Blanc (God's eye view open) -> Moves the camera to this location
+  - Close God's eye view (or the cross, or Esc) -> Closes the view and stops its local server
+  - Turn on / Turn off parking lots (or "live parking layer") -> Toggles the "Parking · France" layer: around 1,460 parking lots, live available spots in Nantes, Aix-Marseille, Tours, and Clermont-Ferrand (buttons: All / Live / Available / Free / Paid)
+  - Find me an open parking lot in Saint-Étienne / Where to park near Nantes train station / Look for free parking in [City] -> Provides the 3 closest parking lots with distance and available spots (never more than the data: if no live count, JARVIS states it), and turns on the layer on the area if God's Eye View is open or requested in the phrase ("open God's eye view and find me…")
+  - Turn on / Turn off [another layer: fuel stations, charging stations, speed cameras, floods, earthquakes, air quality, rain radar…] -> Toggles the corresponding France layer on or off
+
+[ TV (Philips / Android TV) ]
+  - Turn on the TV / Turn off the TV -> Power control of your TV via Wake-on-LAN and ADB
+  - Launch [Netflix / YouTube / Disney+ / Prime Video / Deezer / Crunchyroll / Twitch / Apple TV] on the TV -> Application launcher
+  - Put [Title] on YouTube (TV) -> Automatic search and direct playback of the first matching video
+  - Pause the TV / Resume the TV / Stop the TV -> Media playback control via ADB signals
+  - Turn up the TV volume / Turn down the TV volume -> Volume adjustment (with option "a bit" = 3 pts or "a lot" = 25 pts)
+  - Quit the app on the TV / Back to home -> Return to the Android TV home screen
+
+[ Music - Spotify ]
+  - Open Spotify / Play some music -> Opens the Spotify app and plays the last track
+  - Play [Title] / Play some [Artist] on Spotify -> Searches and automatically plays the targeted song or artist
+  - Pause / Resume / Next / Previous -> Global playback commands
+  - Turn up Spotify volume / Turn down Spotify volume -> Spotify app volume control via system shortcuts
+  - Play music on YouTube (PC) -> Starts your backup music playlist on YouTube in full screen
+
+[ Music - Deezer ]
+  - Open Deezer / Play some music on Deezer -> Opens the Deezer app and starts playback
+  - Play my Deezer playlist / My custom music -> Opens the playlist URL or custom link configured in your profile
+  - Search [Title/Artist] on Deezer -> Searches via the Deezer API and plays the best matching result
+  - Pause / Next / Previous / Stop -> Deezer media commands
+  - Deezer volume up / down -> Step-by-step system volume adjustment while listening to Deezer
+
+[ HomePod Mini & Headset Audio ]
+  - Route your voice to the HomePod / Use the HomePod -> Switches the speech synthesis (TTS) audio stream to the HomePod Mini on the fly
+  - Switch back to the headset / Route back to the headset -> Instantly reactivates your PC audio output
+  - Set HomePod volume to [X]% -> Precise HomePod volume adjustment from 0 to 100% via the AirPlay API (pyatv)
+  - Pause the HomePod / Resume the HomePod -> Direct media playback control on the HomePod Mini
+  - Next / previous track on the HomePod -> Navigation within the HomePod's active playlist
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  AUTOPILOT & VIRTUAL CURSOR ON THE WEB (Chrome Extension)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Autonomous Search & Navigation (Amazon & Web) ]
+  - Open Amazon, search [Product], and click on the first/third/fifth item -> Full shopping navigation simulation
+  - Open Amazon, enter [Text] in the search bar, click the search button and open the first item
+  - Go to [URL], type [Text] in [Selector/Field] and click on [Button] -> Universal web automation command
+  - Open YouTube and search [Artist/Topic] -> Full autopilot on the YouTube website
+
+[ Autopilot Special Capabilities ]
+  - *Ad Filtering* -> JARVIS automatically filters out sponsored ads and promotional carousels on Amazon to click only on genuine organic items.
+  - *Visual Index Selection* -> Uses a universal selector `[item-number=N]` to reliably identify the Nth item actually visible on screen, without getting misled by index offsets.
+  - *Real-Time Diagnostic HUD* :
+    - Generates a `#jarvis-hud-banner` cybernetic banner at the top of the screen showing logs and the current autopilot step.
+    - Outlines input elements and items the virtual cursor is about to click in neon green (`3px solid #00ffaa`).
+  - *Anti-Collision Queue* -> Smoothly chains complex sequences of clicks, simulated keystrokes (at 100ms/character), and focus events.
+  - *Cross-page persistence* -> The autopilot survives page reloads (form submissions) thanks to persistent temporary local storage.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  UNIVERSAL VISUAL AI AUTOPILOT (visual_web_agent.py)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Autonomous system that opens Opera GX visibly and completes any
+  complex web task step by step using AI vision (Gemini Vision).
+  Flow: LLM Planning → Screenshot → Vision → Action → Confirmation
+
+[ Example commands ]
+  - "Jarvis, search for a hotel with a spa in Annecy for this weekend under €120 on Booking"
+    → JARVIS plans: goto booking.com → fill dates → fill destination → filter → scroll results
+  - "Jarvis, find me Nike Air Max sneakers in size 42 under €100 on Zalando"
+    → JARVIS opens Zalando, searches, filters, and shows you the results
+  - "Jarvis, go to Leboncoin and search for a PS5 under €400 in Lyon"
+    → JARVIS navigates and displays the matching listings
+  - "Jarvis, look up Paris-Barcelona flights this Friday on Kayak"
+    → JARVIS fills in the dates, searches, and presents the offers
+  - Any complex web command: forms, searches, bookings, price comparisons
+
+[ Agent control ]
+  - "Close the browser" / "Stop the browser" / "Stop the autopilot" / "Close Opera"
+    → Closes Opera GX cleanly and stops the agent
+
+[ File ]
+  n:\JARVIS\module\visual_web_agent.py
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  OS AUTOPILOT & SYSTEM RPA (os_autopilot_agent.py)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Native automation and RPA system that translates natural language instructions
+  into a sequence of physical and system actions on Windows.
+  Flow: LLM Planning → Window Focus (win32) → Input/Action (pyautogui) → Keyboard/Mouse
+
+[ Example commands ]
+  - "Jarvis, launch OS autopilot: open command prompt (cmd), type the command 'ipconfig' and press enter."
+    → Opens a new isolated CMD console, moves the virtual cursor, types the command, and executes it.
+  - "Jarvis, launch OS autopilot: open calculator, type '1250 * 4 =' to run the calculation and wait 2 seconds."
+    → Opens the calculator, forces it to the foreground via a fallback physical click, and inputs the calculation.
+  - "Jarvis, launch OS autopilot: open notepad, write 'Hello Neyor...' and save the file to the desktop."
+    → Launches Notepad, prepares a blank page (ctrl+n), types the AZERTY text, and saves it to the Desktop.
+  - "Jarvis, launch OS autopilot: open file explorer to the 'Downloads' folder and wait 2 seconds."
+    → Directly opens the Downloads folder on Windows and places the virtual cursor there.
+
+[ Files ]
+  - Agent: n:\JARVIS\module\os_autopilot_agent.py
+  - Trigger: n:\JARVIS\plugins\os_autopilot_resolver.py
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  HOME AUTOMATION & SMART HOME (Home Assistant)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Lights & Smart Plugs ]
+  - Turn on / Turn off the light in the [Living Room / Bedroom / Office / Kitchen] -> Instant home automation control
+  - Set the light to [Color] -> Adjusts light color (Red, Blue, Green, Cyan, Pink, Purple...)
+  - Set brightness to [X]% -> Precisely sets the brightness percentage of your smart bulbs
+  - Turn on / Turn off the [Office / Christmas tree / ...] plug -> Turns power to smart plugs on or off
+
+[ Comfort & Sensors ]
+  - What is the temperature in the [Living Room / Office]? -> Retrieves thermal status from your indoor sensors
+  - What is the humidity level in the [Office]? -> Ambient humidity level
+  - Set the thermostat to [X] degrees -> Adjusts the smart heating system temperature
+  - Battery status of [My phone / Julie's phone / ...] -> Returns the battery level of registered smartphones
+  - How much energy did I use this month? / Energy usage of [Device] -> Precise monthly or daily energy tracking
+  - What is the current power consumption at home? / Power usage -> Instantaneous home power draw (in Volt-Amperes)
+  - How many TikTok followers? / TikTok followers -> Retrieves the current follower count on your TikTok account
+  - When was the last egg collection? -> Exact date and time of the last recorded egg collection
+  - Whose birthday is it today? / Today's birthdays -> Retrieves birthdays to celebrate from your smart home calendar
+
+[ Security & Scenes ]
+  - Activate the [Scene Name] scene -> Preconfigured mood/scene (Cinema, Dinner, Night, Wake up...)
+  - Arm / Disarm the alarm -> Arms or disarms your Home Base security system
+  - Lock / Unlock the door -> Physical locking of your front door
+  - Turn on presence simulation -> Toggles the smart home light-based presence simulation protocol
+
+[ Robot Vacuum ]
+  - Start cleaning / Vacuum the house -> Bob starts his cleaning cycle
+  - Stop the vacuum / Pause / Return to base -> Controls the robot Bob
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  INTELLIGENCE & AI ASSISTANCE (AI Engines)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Intelligence & AI Assistance ]
+  - Deep search on [Topic] -> Real-time analysis of multiple web sources via an autonomous browser (Playwright)
+  - Analyze my screen / Help me -> Instant screenshot and visual AI diagnostics (Code, UI, bugs...)
+  - Look at my screen / Analyze what you see -> Live coding advice
+  - Click on [Button] / Type [Text] in the [Name] field -> Smart clicking and typing via AI vision
+  - Start the camera / Look at me -> Physical visual analysis via your machine's physical webcam
+  - Generate an image of [Description] / Draw me [Description] -> Instantly generates an artistic AI image (via Pollinations.ai) and displays it live on the HUD interface
+  - Dictation: type [Text] / write [Text] -> Faithfully types the dictated text at the exact location of your Windows text cursor
+
+[ Memory & Learning ]
+  - Remember that [Information] / Save that [Info] -> Immediate hot semantic and key-value storage
+  - Forget [Information] / Delete the memory [Topic] -> Deletes a specific key from your local memory and ChromaDB
+  - What do you know about me? / List my memory -> Displays all your stored personal data and facts
+  - Search my memories for [Topic] -> Deep vector semantic search (ChromaDB) to retrieve your past memories
+
+[ Google Workspace (Docs, Sheets, Gmail, Calendar, Tasks & Drive) ]
+  - Create a Google Doc titled [Title] -> Generates and opens a new document with content options
+  - Write / Append to my Google Doc [Text] -> Writes to the last active document
+  - Read the content of my Google Doc -> AI reading and analysis of your active document
+  - Create a Google Sheet titled [Title] -> Generates and opens a Sheets spreadsheet
+  - Add [Value1, Value2...] to my Google Sheet -> Inserts a new row of data
+  - Read data from my Google Sheet from [Range, e.g., A1:C10] -> Retrieves Sheets data
+  - Read my latest emails / new emails -> Displays your 5 most recent unread messages from the primary inbox
+  - Read the details of the latest email -> Full extraction and reading of the raw text
+  - Send an email to [Email] about [Subject] containing [Body] -> Autonomous Gmail email sending
+  - Reply to the latest email with [Text] -> Drafts a reply in the ongoing email thread
+  - Archive / Delete the latest email -> Quick management of your Gmail inbox
+  - Show my calendar / What are my events -> Lists your upcoming Google Calendar events
+  - Create an event [Title] from [Start Date] to [End Date] -> Adds an event to Calendar
+  - Edit event [Title] to [New Title / New Time] -> Dynamic event editing
+  - Delete event [Title] -> Immediate removal of the event from the calendar
+  - Open my Google Drive -> Opens your cloud storage space in the browser
+  - Search my Drive for [File Name] -> Searches files/folders on Google Drive by name
+  - Upload file [Local Path] to my Drive -> Uploads a local document to the cloud
+  - Share document [Title] with [Email] -> Configures Drive sharing permissions
+  - Create folder [Name] on my Drive -> Organizes your Google Drive cloud
+  - Add a task [Title] to my tasks -> Saves a reminder in Google Tasks
+  - List my Google Tasks -> Retrieves your active To-Do list
+  - Mark task [Title] as done -> Checks off and completes the selected task
+  - Delete task [Title] -> Deletes the task from your Google list
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PRACTICAL TOOLS, UTILITIES & CONVERSATIONAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Local List Management ]
+  - Add [Item] to my shopping list -> Inserts an item into your local shopping list (`jarvis_listes.json`)
+  - Show my shopping list / What's on my list? -> Reads out your items to buy
+  - Clear the shopping list / Delete my groceries -> Resets your local shopping list
+  - Note this: [Text] / Take note of [Text] -> Saves a quick timestamped note in your notes
+  - Read my notes / Show my notes -> Displays your 5 most recent local notes
+  - Delete my notes / Clear my notes -> Deletes all your local notes
+  - Add a task: [Task] / Add to my to-do -> Adds a task to complete locally
+  - My tasks / My to-do / Task list -> Displays your incomplete local tasks
+  - Clear my tasks / Clear my to-do -> Resets your local to-do list
+
+[ Practical Tools & Communication ]
+  - Remind me to [Task] at [Time] -> Sets an alarm or voice reminder
+  - List my alarms / Cancel the [Time] alarm / Cancel all alarms -> Persistent alarm management
+  - Translate [Text] into [Language] / How do you say [Word] in [Language]? -> Ultra-fast translation (common word dictionary) or AI
+  - Call [Contact Name] on WhatsApp -> Instantly starts a WhatsApp PC audio or video call
+
+[ Games & Utilities ]
+  - Flip a coin / Heads or tails -> Flips a virtual coin to get Heads or Tails
+  - Roll a die [with X sides] / Roll the die -> Simulates a die roll (6-sided die by default or custom X-sided die)
+  - Generate a random number between [A] and [B] / Random number -> Draws a random number in the requested range
+  - Generate a password [with X characters] / Secure password -> Creates a highly secure password on the fly (max 64 chars)
+  - Spell [Word] / Phonetic alphabet -> Phonetically spells the requested word using the international radiotelephony alphabet (NATO)
+  - [Letter] as in? -> Gives the phonetic equivalent of the letter (e.g.: "A as in Alfa", "B as in Bravo")
+  - How many days until Christmas? -> Festive countdown to December 25
+  - How many days until New Year's? -> Countdown to January 1 of the following year
+
+[ General Knowledge & World Time ]
+  - What time is it in [City]? -> World time zones (Paris, London, New York, Tokyo, Sydney, Dubai, Moscow...)
+  - What is the currency of [Country]? / Currency of [Country] -> Gives the official currency of countries (France, USA, Japan, United Kingdom, Switzerland, Canada...)
+  - What is the capital of [Country]? -> States the capital of a country in the world
+
+[ Humor, Identity & Greetings ]
+  - Tell me a joke / Make me laugh -> Chooses and tells a funny joke from its local repertoire
+  - Give me a quote / Inspire me -> Shares a famous and motivating philosophical quote
+  - Who are you? / What is your name? / What is JARVIS? -> Introduces its identity (Just A Rather Very Intelligent System)
+  - Who is your creator? / Who made you? -> Answers about its creator (Neyor), without canned responses
+  - Hello / Hi / How are you? / How's it going? -> Responds warmly with the status of its processors
+
+[ Security & System Updates ]
+  - Scan my PC / Scan my computer / Run antivirus scan / Scan the PC -> Opens the security console and runs a real-time antivirus scan
+  - Enable real-time protection / Disable antivirus protection / Live security -> Hot-toggles resident antivirus protection on or off
+  - Update my software / Run updates / Open winget / Run winget -> Searches for outdated application packages on Windows and launches automatic updates via Winget
+
+[ Dynamic Skill Management ]
+  - Create skill [name] to [description] / Learn skill [name] -> Codes, integrates, and hot-compiles a new Python voice skill into plugins
+  - Delete skill [name] / Uninstall skill [name] -> Disables and permanently deletes the custom skill script from the system
+  - Run skill [name] [with parameter] / Launch skill [name] -> Triggers manual execution of a programmed voice skill
+  - List my skills / List all your skills / What are my skills -> Reads out the full list of your installed voice extensions
+
+[ Neural Cortex & Advanced Memory ]
+  - Search my cortex for [topic] / Find [topic] in cortex -> Runs a vector semantic search in your memories and highlights the matching nodes
+  - Read this memory / Tell this memory / Read the memory -> Vocally recites the detailed content and date of the memory currently selected in the 3D cortex
+
+[ Advanced Chess Game ]
+  - Start the game at level [beginner (600 Elo) / novice (800 Elo) / medium (1000 Elo) / intermediate (1400 Elo) / expert (1800 Elo) / master (2000 Elo)] -> Precisely configures the chess AI Bot
+  - Start the game as [white / black] [with / without] timer -> Initializes the 3D chess game with color and timer (10-minute game time)
+
+[ Configuration & Voice Streams ]
+  - Switch to the male voice -> Switches to the masculine voice (Henri in French, Ryan in English)
+  - Switch to the female voice -> Switches to the feminine voice (Denise in French, Sonia in English)
+  - Enable / Disable Iron Man mode -> Enables or disables continuous clap detection to control lights and YouTube
+  - Shut up! / Silence! / Stop! -> Immediate speech stream interruption, RAM cleanup, and instant deletion of temporary audio files.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  LANGUAGE: FRENCH & ENGLISH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Change language ]
+  - Switch to English / Speak English / Passe en anglais / Parle en anglais -> JARVIS switches to English: speech recognition, voice, responses, interface (setting also in Settings, Appearance panel, or on the first step of the onboarding wizard)
+  - Switch to French / Speak French / Passe en français / Parle en français -> Back to French
+  - Each change displays a notification (HUD card with a "Restart now" button) and JARVIS speaks it: recognition, voice, responses, and HUD update immediately, console and logs only update upon restarting JARVIS
+
+[ Speaking to JARVIS in English ]
+  - In English mode, say your commands in English: "play some music", "set a timer for five minutes", "what time is it", "open Spotify", "show my agenda", "my day"
+  - JARVIS maps them to the corresponding French command (using JARVIS help commands as reference) then executes them: an English command therefore costs one additional Gemini call (~0.7 s) before executing; a command already understood as-is ("pause the music", "take a screenshot") does not need it
+  - Timers and alarms understand English: "five minutes", "in 10 minutes", "half an hour", "7 pm", "6:30 am", "tomorrow at 6"
+  - Proper nouns (artist, title, city, room name) are used exactly as you say them
+  - Stop commands in English: "stop", "shut up", "be quiet"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  JARVIS BRIEFING & TOOLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Morning briefing ]
+  - My day / My morning briefing / My schedule for today / What do I have today? -> A single sentence: date, weather, Google Calendar for the rest of the day (up to 5 events), Google Tasks, today's alarms, and unread email count. A broken or unauthorized source is silently skipped. Google sources require an initial authorization (say for instance "Read my new emails": the Google sign-in window opens once). Denied to a guest (private calendar and emails)
+  - (in English) My day / Give me my morning briefing / What do I have today? -> Same briefing, greeting based on time of day (Good morning / afternoon / evening)
+
+[ Repeat ]
+  - Repeat / Say again / Say it again / I didn't get that -> JARVIS repeats its last response word for word
+
+[ Usage & quotas ]
+  - How many Groq requests / Give me the Groq quota / Voice recognition quota -> Where speech recognition stands regarding Groq limits (requests, audio seconds, recent rejections)
+  - How much does Gemini cost today? / My AI spending / AI budget -> Today's and monthly Gemini spending, daily limit (alert at 80% then at 100%)
+
+[ Music recognition ]
+  - What's this song? / Who sings this? / Recognize this song -> If Deezer is playing on this PC, directly gives its title; otherwise JARVIS listens for 10 seconds via the microphone and queries Shazam (then AudD as backup). Specify "with the mic" or "in the room" to force listening. Nothing is sent without this request
+
+[ Routines (commands that replay automatically) ]
+  - Every day at 8 AM, give me the weather / Every morning at 7:30 AM, [command] / Every Monday at 9 AM, [command] / Every 2 hours, [command] -> Saves a routine; a daemon replays it at the specified time, just as if you had said it
+  - Monitor [topic] [every X hours] -> A search on the topic at each interval
+  - Commands with effects on the PC (shutdown, sleep, deletion, sending an email…) are rejected in a routine: no one could confirm them. Denied to a guest
+
+[ Scripted skills ]
+  - My skills -> Lists installed skills (data/skills/<name>/ folder with a SKILL.md and a script)
+  - Authorize skill [name] -> Approves the skill (SHA-256 hash of its script: any modification requires a new approval)
+  - Run skill [name] / say its trigger phrase directly ("how much free space") -> Executes the approved skill, in a sanitized environment
+
+[ Discord ]
+  - Send [message] to channel [name] (e.g., "Send hello everyone to the announcements channel") -> Message in a registered channel (webhook or bot, Settings > Discord), after voice and HUD confirmation; recorded in the audit log
+  - Write to [Name] on Discord that [message] -> Types via the Discord window, on your behalf (option to enable, disabled by default: Discord forbids automating user accounts)
+
+[ Steam ]
+  - Launch [Game] on Steam / Play [Game] -> Launches the game (matched against actually installed games)
+  - My Steam games / Open my Steam library -> Lists games or opens the library
+
+[ Browser (Chrome extension connected) ]
+  - Pause the video / Resume the video / Mute the video -> Controls the video in the active tab
+  - What are my tabs? / Go to the [YouTube] tab / Close this tab -> Manages tabs
+  - Summarize this page -> Summary of the displayed page. Without the extension connected, JARVIS explains how to connect it
+
+[ Local mode (offline) ]
+  - Enable / Switch to local mode (or "offline mode") -> Switches to the local Ollama model (qwen3:4b-instruct, ~4 GB of VRAM): JARVIS responds without internet
+  - Disable local mode -> Switches back to Gemini
