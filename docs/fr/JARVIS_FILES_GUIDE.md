@@ -24,6 +24,7 @@ Chemins relatifs à la racine du projet. Mis à jour le 25/11/2026.
 ### `docs/` (documentation en deux langues)
 *   **[docs/README.md](../README.md)** : index de la documentation (français). **[docs/en/README.md](../en/README.md)** : même index en anglais.
 *   **`docs/fr/`** (référence) et **`docs/en/`** (traduction) contiennent les mêmes documents : **[JARVIS_Commandes.txt](JARVIS_Commandes.txt)** (commandes vocales par catégorie), **[jarvis_fonctionnalites.txt](jarvis_fonctionnalites.txt)** (inventaire concis des fonctionnalités), **[VUE_DE_DIEU.md](VUE_DE_DIEU.md)** (installation, couches France et commandes de la Vue de Dieu) et ce guide. Après une modification du français, relancer `tools/docs_traduire.py <fichier>` met l'anglais à jour.
+*   **`docs/images/`** : images de la documentation (`apercu.webp` : l'aperçu du HUD affiché en tête du README).
 *   `docs/AUDIT_BUGS.md` : audit complet (local, exclu de git, jamais poussé).
 
 ### `tools/` (outils de développement et d'installation)
