@@ -1,207 +1,121 @@
-# J.A.R.V.I.S — Guide des Fichiers & Architecture (v8.9)
+# J.A.R.V.I.S — Guide des fichiers et de l'architecture (v11)
 
-Ce document propose un inventaire complet et détaillé de chaque fichier et dossier constituant le projet **J.A.R.V.I.S**. Il est conçu pour être lu par l'IA au début de chaque nouvelle conversation afin de comprendre instantanément le rôle de chaque composant et d'éviter toute perte de repères.
+Inventaire du projet **J.A.R.V.I.S**, dossier par dossier : à quoi sert chaque fichier. Pensé pour être lu au début d'une nouvelle conversation (humaine ou IA) afin de retrouver ses repères. Les conventions de développement sont dans [CLAUDE.md](../CLAUDE.md), l'historique détaillé dans [CHANGELOG.md](../CHANGELOG.md).
 
----
-
-## 📂 RACINE DU PROJET (n:\JARVIS)
-
-### 🖥️ Scripts d'entrée & Utilitaires Principaux
-*   **[main.py](file:///n:/JARVIS/main.py)** : Point d'entrée (~300 lignes). Orchestre le démarrage dans un ordre précis (console, moteur de parole, modèles audio, modules du projet, clés et clients IA) puis lance `main()` : frontend, serveur WebSocket + écoute vocale (`demarrer_ia`), fenêtre. Toute la logique vit dans `backend/` ; l'état partagé est dans `backend/core/shared.py`.
-*   **[antivirus_scanner.py](file:///n:/JARVIS/tools/antivirus_scanner.py)** : Scanner de sécurité à la demande et résident. Il surveille l'écriture de scripts malveillants sur le PC et permet de lancer des analyses de répertoires.
-*   **[consulter_memoire.py](file:///n:/JARVIS/tools/consulter_memoire.py)** : Script console rapide pour lire les faits stockés dans la mémoire locale de JARVIS.
-
-### ⚙️ Fichiers de Configuration & États (Dossier `data/` et `config/`)
-*   **[.env](file:///n:/JARVIS/.env)** : Fichier contenant les clés API sensibles (`GEMINI_API_KEY`, `GROQ_API_KEY`, `SERPAPI_API_KEY`, etc.). Modifiable à chaud depuis l'interface HUD.
-*   **[jarvis_config.json](file:///n:/JARVIS/jarvis_config.json)** : Configuration utilisateur (seuil micro, entités Home Assistant, chemins d'applications, etc.).
-*   **[.jarvis_cache_version](file:///n:/JARVIS/.jarvis_cache_version)** : Identifiant court de version de cache.
-
-### 📂 Sous-dossier `data/` (Bases de Données Locales)
-*   **[jarvis_memoire.json](file:///n:/JARVIS/data/jarvis_memoire.json)** : Mémoire clé-valeur persistante (faits, préférences utilisateur, codes d'accès).
-*   **[jarvis_listes.json](file:///n:/JARVIS/data/jarvis_listes.json)** : Stockage persistant des todos, notes et listes de courses.
-*   **[alarmes.json](file:///n:/JARVIS/data/alarmes.json)** : Stockage persistant des alarmes et des minuteurs actifs.
-*   **[jarvis_conversations.json](file:///n:/JARVIS/data/jarvis_conversations.json)** : Cache local des derniers échanges conversationnels.
-*   **[jarvis_synapses.json](file:///n:/JARVIS/data/jarvis_synapses.json)** : Métadonnées associées aux connexions neuronales du cortex 3D.
-
-### 📂 Sous-dossier `config/` (Identifiants & Clés)
-*   **[credentials.json](file:///n:/JARVIS/config/credentials.json)** : Fichier d'authentification pour les API Google Workspace.
-*   **[token.pickle](file:///n:/JARVIS/config/token.pickle)** : Jeton de session Google persisté.
-*   **[adb_key](file:///n:/JARVIS/config/adb_key)** : Clé privée de signature ADB pour le contrôle de la TV.
-*   **[adb_key.pub](file:///n:/JARVIS/config/adb_key.pub)** : Clé publique de signature ADB.
-
-### 📂 Sous-dossier `docs/` (Documentations)
-*   **[JARVIS_Commandes.txt](file:///n:/JARVIS/docs/JARVIS_Commandes.txt)** : Liste exhaustive de toutes les commandes vocales supportées par le système.
-*   **[jarvis_fonctionnalites.txt](file:///n:/JARVIS/docs/jarvis_fonctionnalites.txt)** : Descriptif détaillé de chaque fonctionnalité programmée.
-
-### 📂 Sous-dossier `tests/` (Tests & Diagnostics)
-*   **[deezer_controller_fuzzy_test.py](file:///n:/JARVIS/tools/tests/deezer_controller_fuzzy_test.py)** : Test de correspondance floue pour la sélection des chansons/artistes sur Deezer.
-
-### 📑 Scripts Batch de Lancement
-*   **[CLAUDE.md](file:///n:/JARVIS/CLAUDE.md)** : Guide d'architecture générale et conventions de développement pour l'IA.
-*   **[README.md](file:///n:/JARVIS/README.md)** : Fichier d'accueil basique.
-*   **[requirements.txt](file:///n:/JARVIS/requirements.txt)** : Liste des dépendances Python du projet.
-*   **[start.bat](file:///n:/JARVIS/start.bat)** : Lanceur rapide du serveur backend.
-*   **[tools/memoire.bat](file:///n:/JARVIS/tools/memoire.bat)** : Lanceur rapide pour `consulter_memoire.py`.
-*   **[tools/vider_cache.bat](file:///n:/JARVIS/tools/vider_cache.bat)** : Script de maintenance pour purger les fichiers temporaires et réinitialiser le cache.
-*   **[install.bat](file:///n:/JARVIS/install.bat)** : Script d'installation automatique des dépendances et de configuration du projet.
+Chemins relatifs à la racine du projet. Mis à jour le 25/11/2026.
 
 ---
 
-## 🧠 DOSSIER `core/` (Cœur du Système)
-Fichiers gérant les entrées/sorties physiques, la biométrie et les liaisons API de base.
+## Racine du projet
 
-*   **[config.py](file:///n:/JARVIS/backend/core/config.py)** : Configuration globale (clés API, modèle actif, index audio, redirection automatique des liens web vers Opera GX).
-*   **[dossiers.py](file:///n:/JARVIS/backend/core/dossiers.py)** : Emplacements réels des dossiers personnels Windows (Bureau, Documents, Téléchargements, Images, Musique, Vidéos), y compris sous OneDrive.
-*   **[ha_mcp_client.py](file:///n:/JARVIS/backend/core/ha_mcp_client.py)** : Client MCP pour Home Assistant. Découvre dynamiquement les outils exposés par le serveur MCP natif de HA et route les instructions domotiques en langage naturel via function-calling Gemini — remplace l'ancien système d'actions codées en dur par appareil.
-*   **[prompt_builder.py](file:///n:/JARVIS/backend/core/prompt_builder.py)** : Assembleur du *System Prompt* de JARVIS. Injecte de manière optimisée la date/heure actuelle, les faits en mémoire, et les schémas d'actions JSON.
-*   **[audio_stream.py](file:///n:/JARVIS/backend/core/audio_stream.py)** : Gestionnaire de flux audio d'entrée (PyAudio). capture les blocs audio du micro physique ou virtuel.
-*   **[vad.py](file:///n:/JARVIS/backend/core/vad.py)** : Détection d'Activité Vocale (Voice Activity Detection). Analyse l'audio via Silero VAD (ONNX) et détermine quand l'utilisateur commence et arrête de parler.
-*   **[speech.py](file:///n:/JARVIS/backend/core/speech.py)** : Text-to-Speech (TTS). Gère la file d'attente de parole en parallèle, en lisant les phrases au fil de leur génération via `edge_tts` (avec repli SAPI5/pyttsx3 hors-ligne) et en contrôlant les interruptions utilisateur (Barge-in / Claps).
-*   **[intent_dispatcher.py](file:///n:/JARVIS/backend/core/intent_dispatcher.py)** : Parse les réponses de l'IA. Si un bloc JSON d'action est détecté, il extrait l'action et l'exécute via le module système correspondant.
-*   **[webview_cache.py](file:///n:/JARVIS/backend/core/webview_cache.py)** : Gestion et nettoyage du cache des interfaces WebView locales.
+*   **[main.py](../main.py)** : point d'entrée (~300 lignes). Orchestre le démarrage dans un ordre précis (console, moteur de parole, modèles audio, modules, clés et clients IA) puis lance `main()` : frontend, serveur WebSocket + écoute vocale (`demarrer_ia`), fenêtre native. L'état partagé est dans `backend/core/shared.py`.
+*   **[start.bat](../start.bat)** : lance le backend dans une console. **[install.bat](../install.bat)** : crée le venv, installe les dépendances Python et Node, génère `.env`, installe le hook git. L'installateur Windows lance JARVIS par `venv\Scripts\pythonw.exe main.py` (sans console).
+*   **[requirements.txt](../requirements.txt)** (UTF-16), **[pyproject.toml](../pyproject.toml)** (ruff, pytest), **[skills-lock.json](../skills-lock.json)** : dépendances et réglages d'outils.
+*   **[README.md](../README.md)**, **[CHANGELOG.md](../CHANGELOG.md)**, **[LICENSE](../LICENSE)** (GPL-3.0 ou ultérieure), **[PRIVACY.md](../PRIVACY.md)** : présentation, historique, licence, vie privée.
+*   **CLAUDE.md** : guide d'architecture et conventions pour l'IA (local, non suivi par git).
+*   **`.env`** : clés API (`GEMINI_API_KEY`, `GROQ_API_KEY`…), modifiables depuis le HUD (clés jamais renvoyées en clair sur le WebSocket).
+*   **`jarvis_config.json`** : préférences de l'utilisateur (micro, prénom, voix, **langue** `fr` / `en`, applications personnalisées, options de la console…). Exclu de git.
+*   **`jarvis_audit.log`** : journal JSONL des actions sensibles (confirmations, redémarrages…), écrit par `core/audit_log.py`.
 
-### Modules issus du découpage de main.py
-*   **[shared.py](file:///n:/JARVIS/backend/core/shared.py)** : État partagé (historique, session vocale, clients IA, clients WebSocket...). Toujours y accéder via `shared.NOM`.
-*   **[console_ui.py](file:///n:/JARVIS/backend/core/console_ui.py)** : Bannière de démarrage, `print()` stylé (rich) et `TeeLogger` (copie de la console dans `data/jarvis_run.log`).
-*   **[voice_init.py](file:///n:/JARVIS/backend/core/voice_init.py)** : Initialisation de Silero VAD, de la biométrie vocale.
-*   **[etat_parole.py](file:///n:/JARVIS/backend/core/etat_parole.py)** : Accès synchronisés à l'état du moteur de parole (parle / stop / dernier temps de parole).
-*   **[chargement_plugins.py](file:///n:/JARVIS/backend/core/chargement_plugins.py)** : Import des plugins de résolution en arrière-plan au démarrage.
-*   **[web_bridge.py](file:///n:/JARVIS/backend/core/web_bridge.py)** : Envoi de messages au HUD depuis n'importe quel thread (`envoyer_etat_hud`, `send_web_action`, cartes contextuelles...).
-*   **[ai_clients.py](file:///n:/JARVIS/backend/core/ai_clients.py)** : Clés API (`.env`), création et rechargement à chaud des clients Gemini / Grok / Groq / Claude / Mistral.
-*   **[llm_chat.py](file:///n:/JARVIS/backend/core/llm_chat.py)** : `interroger_ia` (routage local/cloud, failover, streaming Gemini) et vision.
-*   **[llm_providers.py](file:///n:/JARVIS/backend/core/llm_providers.py)** : Appels Grok, Ollama, Groq, Claude, Mistral et leur enregistrement dans `llm_registry`.
-*   **[traitement.py](file:///n:/JARVIS/backend/core/traitement.py)** : `gerer_reponse_ia` : resolvers locaux, intention LLM, réponse IA, parole puis exécution des actions.
-*   **[actions_ia.py](file:///n:/JARVIS/backend/core/actions_ia.py)** / **[actions_ia_services.py](file:///n:/JARVIS/backend/core/actions_ia_services.py)** : Exécution des actions JSON produites par le LLM (échecs, mémoire, fichiers, domotique... / Google, météo, web, sport, vision, alarmes, Deezer).
-*   **[ws_handler.py](file:///n:/JARVIS/backend/core/ws_handler.py)** : Serveur WebSocket : contrôle d'origine et aiguillage des messages du frontend, délégués à **[ws_reglages.py](file:///n:/JARVIS/backend/core/ws_reglages.py)** (paramètres), **[ws_systeme.py](file:///n:/JARVIS/backend/core/ws_systeme.py)** (coffre-fort, courses, désinstallation, fichiers, Winget) et **[ws_securite.py](file:///n:/JARVIS/backend/core/ws_securite.py)** (pare-feu, cache, actions antivirus).
-*   **[ecoute.py](file:///n:/JARVIS/backend/core/ecoute.py)** / **[ecoute_outils.py](file:///n:/JARVIS/backend/core/ecoute_outils.py)** : Boucle d'écoute vocale continue (VAD, wake word, biométrie) ; transcription Groq Whisper / Google et protocole d'enrôlement vocal.
-*   **[micro.py](file:///n:/JARVIS/backend/core/micro.py)** : Lecture/écriture de `jarvis_config.json`, détection du microphone et des applaudissements.
-*   **[lancement.py](file:///n:/JARVIS/backend/core/lancement.py)** : Statut des services, libération des ports, frontend (Vite ou `dist/`), fenêtre pywebview ou navigateur.
+### `config/` et `data/`
+*   **`config/`** : `credentials.json` (API Google), `token.pickle` (jeton Google, créé à la première autorisation), `adb_key` / `adb_key.pub` (contrôle de la TV).
+*   **`data/`** : état local de JARVIS : `jarvis_memoire.json` (faits clé-valeur), `chroma_db/` (mémoire vectorielle), `jarvis_conversations.json`, `jarvis_listes.json` (courses, notes, tâches), `alarmes.json`, `routines.json`, `jarvis_synapses.json` (cortex 3D), `usage_llm.json` et `usage_stt.json` (consommation Gemini et reconnaissance vocale), `traductions_en.json` (cache des traductions en mode anglais), `skills/` (skills à script), `gods_eye_view/` (appli de la Vue de Dieu installée à la demande), `jarvis_run.log` (journal horodaté de la console, en français quelle que soit la langue).
+
+### `docs/`
+*   **[JARVIS_Commandes.txt](JARVIS_Commandes.txt)** : commandes vocales par catégorie. **[jarvis_fonctionnalites.txt](jarvis_fonctionnalites.txt)** : inventaire concis des fonctionnalités. **[VUE_DE_DIEU.md](VUE_DE_DIEU.md)** : la Vue de Dieu (installation, couches France, commandes). `AUDIT_BUGS.md` : audit complet (local, exclu de git).
+
+### `tools/` (outils de développement et d'installation)
+*   **[git-hooks/pre-commit](../tools/git-hooks/pre-commit)** : vérifie la syntaxe Python et `tsc` avant chaque commit (copié dans `.git/hooks/` par `install.bat`).
+*   **[installateur/](../tools/installateur)** : `JARVIS.iss` (Inno Setup), `construire.bat`, `preparer.py` : fabrication de l'installateur Windows.
+*   **[_setup/](../tools/_setup)** : `dependances.bat` (installation appelée par l'installateur), `rename_user.py`.
+*   **Traduction (anglais)** : [i18n_extraire.py](../tools/i18n_extraire.py) (extrait les textes français du HUD), [i18n_traduire.py](../tools/i18n_traduire.py) (les traduit en `en.json`), [i18n_exemples.py](../tools/i18n_exemples.py) (commandes d'exemple FR/EN pour la traduction des commandes), [i18n_console.py](../tools/i18n_console.py) (messages de la console).
+*   `antivirus_scanner.py`, `consulter_memoire.py` / `memoire.bat`, `vider_cache.bat`, `tests/`, `sandbox/` : utilitaires divers.
+
+### `tests/`
+Suite pytest (`venv\Scripts\python.exe -m pytest tests`, jamais `pytest` seul) : voir [tests/](../tests). `conftest.py` force la langue française et une config temporaire pour chaque test (la vraie `jarvis_config.json` n'est jamais lue ni écrite). Bancs et captures d'essai (non versionnés) : `scratch/outils_test/`.
 
 ---
 
-## 🛠️ DOSSIER `module/` (Modules Métier & Intégrations)
-Fichiers implémentant les fonctionnalités métier autonomes de JARVIS.
+## `backend/core/` : cœur du système
 
-*   **[memory_manager.py](file:///n:/JARVIS/backend/module/memory_manager.py)** : Gère le dictionnaire de faits locaux clé-valeur (`jarvis_memoire.json` dans `data/`), sa sérialisation et sa mise à jour à chaud.
-*   **[vector_memory.py](file:///n:/JARVIS/backend/module/vector_memory.py)** : Implémente la mémoire épisodique vectorielle avec ChromaDB et des embeddings locaux (`all-MiniLM-L6-v2`) pour stocker et rechercher les conversations passées.
-*   **[alarm_manager.py](file:///n:/JARVIS/backend/module/alarm_manager.py)** : Gestionnaire d'alarmes, réveils et minuteurs persistants (`alarmes.json` dans `data/`) avec alertes vocales actives.
-*   **[alarmes_local.py](file:///n:/JARVIS/backend/module/alarmes_local.py)** : Commandes vocales d'alarmes, de minuteurs (compte à rebours sur le HUD) et de rappels, traitées sans IA.
-*   **[file_manager.py](file:///n:/JARVIS/backend/module/file_manager.py)** : Opérations locales sur le système de fichiers (lister, créer des répertoires, renommer, trier intelligemment le dossier Downloads, etc.).
-*   **[browser_service.py](file:///n:/JARVIS/backend/module/browser_service.py)** : Agent de navigation autonome sous Selenium/Playwright permettant de naviguer et d'extraire des informations.
-*   **[visual_web_agent.py](file:///n:/JARVIS/backend/module/visual_web_agent.py)** : Version avancée d'autopilote de navigation. Utilise Gemini Vision pour analyser des captures d'écran du navigateur Opera GX et cliquer de manière ciblée (coordonnées x, y).
-*   **[os_autopilot_agent.py](file:///n:/JARVIS/backend/module/os_autopilot_agent.py)** : Autopilote global du système Windows. Utilise PyAutoGUI pour simuler des entrées clavier complexes, des clics de souris et piloter des fenêtres système.
-*   **[google_services.py](file:///n:/JARVIS/backend/module/google_services.py)** : Intégration officielle avec les APIs Google Workspace (Gmail, Calendar, Google Drive, Google Sheets, Google Tasks).
-*   **[meteo_domotique.py](file:///n:/JARVIS/backend/module/meteo_domotique.py)** : Météo (Open-Meteo) et API REST Home Assistant pour le tableau de bord HUD. Le pilotage vocal de la domotique passe désormais par le client MCP (`core/ha_mcp_client.py`).
-*   **[homepod_audio.py](file:///n:/JARVIS/backend/module/homepod_audio.py)** : Module de routage de la sortie vocale ou musicale de JARVIS vers un HomePod ou une enceinte AirPlay distante.
-*   **[image_generator.py](file:///n:/JARVIS/backend/module/image_generator.py)** : Générateur d'illustrations IA s'appuyant sur l'API gratuite Pollinations.
-*   **[image_search.py](file:///n:/JARVIS/backend/module/image_search.py)** : Service de recherche et d'affichage d'images issues du Web.
-*   **[uninstaller_helper.py](file:///n:/JARVIS/backend/module/uninstaller_helper.py)** : Scanne la base de registre Windows (32/64 bits) pour lister les logiciels installés et déclencher des désinstallations propres.
-*   **[winget_manager.py](file:///n:/JARVIS/backend/module/winget_manager.py)** : Interagit avec l'outil de gestion de paquets Windows (Winget) pour vérifier les mises à jour logicielles disponibles sur la machine.
-*   **[vision_module.py](file:///n:/JARVIS/backend/module/vision_module.py)** : Capture et analyse le flux de la webcam ou de l'écran principal pour décrire ce qui s'y passe via Gemini Vision.
-*   **[weather_music_service.py](file:///n:/JARVIS/backend/module/weather_music_service.py)** : Service d'agrégation météo (wttr.in/Open-Meteo) et d'infos musicales.
-*   **[chess_manager.py](file:///n:/JARVIS/backend/module/chess_manager.py)** : Gère la logique de jeu d'échecs (validation des coups de l'utilisateur, moteur de jeu local Python-Chess).
-*   **[network_radar.py](file:///n:/JARVIS/backend/module/network_radar.py)** : Scanne le réseau local pour découvrir les adresses IP et appareils connectés.
-*   **[commandes_locales.py](file:///n:/JARVIS/backend/module/commandes_locales.py)** / **[commandes_locales_sections.py](file:///n:/JARVIS/backend/module/commandes_locales_sections.py)** : Commandes locales sans IA (compétences, Winget, antivirus, images, voix, identité, HUD 3D, apps, musique, coffre-fort).
-*   **[echecs_local.py](file:///n:/JARVIS/backend/module/echecs_local.py)** : Commandes vocales d'échecs (coups, parties) sans IA.
-*   **[globe_local.py](file:///n:/JARVIS/backend/module/globe_local.py)** : Navigation vocale sur le globe 3D (survol, itinéraire, position).
-*   **[cortex_service.py](file:///n:/JARVIS/backend/module/cortex_service.py)** : Messages WebSocket du cortex neuronal 3D et diffusion des nouveaux souvenirs.
-*   **[domotique_sim.py](file:///n:/JARVIS/backend/module/domotique_sim.py)** : Carte domotique 3D (simulation des états), métadonnées HomePod, routage audio.
-*   **[antivirus_live.py](file:///n:/JARVIS/backend/module/antivirus_live.py)** : Protection antivirus en temps réel.
-*   **[system_stats.py](file:///n:/JARVIS/backend/module/system_stats.py)** : Diffusion des statistiques CPU/RAM au HUD.
+### Démarrage, état, réseau
+*   **[shared.py](../backend/core/shared.py)** : état partagé (historique, session vocale, clients IA, clients WebSocket…). Toujours `shared.NOM`.
+*   **[config.py](../backend/core/config.py)** : clés API, modèles, voix (`VOIX_ACTUELLE`), mot d'éveil. **[ai_clients.py](../backend/core/ai_clients.py)** : lecture des clés, clients Gemini / Grok / Groq / Claude / Mistral, rechargement à chaud, `client_gemini` différé.
+*   **[prechargement.py](../backend/core/prechargement.py)**, **[chargement_plugins.py](../backend/core/chargement_plugins.py)**, **[voice_init.py](../backend/core/voice_init.py)** : préchargement des grosses bibliothèques, import des plugins en arrière-plan, initialisation de Silero VAD et de la biométrie.
+*   **[lancement.py](../backend/core/lancement.py)** : statut des services, libération des ports, frontend (Vite ou `dist/`), fenêtre pywebview ou navigateur, et **`redemarrer()`** (relance de JARVIS depuis le HUD : relanceur dans une nouvelle console, fermeture de la console `start.bat`).
+*   **[web_bridge.py](../backend/core/web_bridge.py)** : envoi de messages au HUD depuis n'importe quel thread (états, cartes contextuelles avec bouton optionnel, actions DOM). **[webview_cache.py](../backend/core/webview_cache.py)** : cache WebView2.
+*   **[ws_handler.py](../backend/core/ws_handler.py)** : serveur WebSocket (contrôle d'origine, aiguillage). Branches lourdes : [ws_reglages.py](../backend/core/ws_reglages.py) (paramètres, **langue**, `traduire`), [ws_systeme.py](../backend/core/ws_systeme.py) (coffre-fort, courses, désinstallation, fichiers, Winget), [ws_securite.py](../backend/core/ws_securite.py) (pare-feu, cache, antivirus), [ws_etat_systeme.py](../backend/core/ws_etat_systeme.py) (état et tests à la demande), [ws_assistant.py](../backend/core/ws_assistant.py) (assistant de premier lancement).
+*   **[extension_bridge.py](../backend/core/extension_bridge.py)** : pont authentifié avec l'extension de navigateur. **[api_locale.py](../backend/core/api_locale.py)** : API locale compatible OpenAI (d'autres outils du PC parlent à JARVIS comme à un modèle). **[mises_a_jour.py](../backend/core/mises_a_jour.py)** : compare la version installée à la dernière release GitHub. **[alertes_service.py](../backend/core/alertes_service.py)** : cartes d'erreur du HUD quand un service tombe.
+
+### Voix : écoute, parole, langue
+*   **[audio_stream.py](../backend/core/audio_stream.py)** : flux micro (PyAudio, 48 kHz filtré puis ramené à 16 kHz). **[vad.py](../backend/core/vad.py)** : Silero VAD (ONNX) et biométrie vocale CAM++ (`SpeakerBiometrics`). **[locuteur.py](../backend/core/locuteur.py)** : qui parle pour une commande. **[interlocuteur.py](../backend/core/interlocuteur.py)** : prénom de la personne qui parle et identité du créateur. **[nommer.py](../backend/core/nommer.py)** : prénom dit dans la réponse quand la personne change.
+*   **[ecoute.py](../backend/core/ecoute.py)** / **[ecoute_outils.py](../backend/core/ecoute_outils.py)** : boucle d'écoute (VAD, mot d'éveil, biométrie, ordres d'arrêt) ; transcription et enrôlement vocal. **[stt_local.py](../backend/core/stt_local.py)** : Whisper local (faster-whisper, GPU), premier palier avant Groq puis Google. **[hallucinations.py](../backend/core/hallucinations.py)** : phrases que Whisper invente sur du bruit (français et anglais). **[usage_stt.py](../backend/core/usage_stt.py)** : quota de la reconnaissance vocale. **[voix_extraits.py](../backend/core/voix_extraits.py)** : extraits courts d'enrôlement. **[micro.py](../backend/core/micro.py)** : configuration `jarvis_config.json`, détection du micro et des claps.
+*   **[speech.py](../backend/core/speech.py)** : file de parole (`parler()`), génération TTS en avance, lecture pygame, interruptions ; en mode anglais, traduit la phrase avant de la dire. **[voix_registre.py](../backend/core/voix_registre.py)** : moteurs de voix essayés dans l'ordre (edge-tts, ElevenLabs optionnel, SAPI en secours) ; **[voix_elevenlabs.py](../backend/core/voix_elevenlabs.py)**. **[etat_parole.py](../backend/core/etat_parole.py)**, **[repeter.py](../backend/core/repeter.py)** (« répète »), **[secrets_voix.py](../backend/core/secrets_voix.py)** (jamais de clé dite à voix haute).
+*   **[i18n.py](../backend/core/i18n.py)** : **langue de JARVIS** (`fr` / `en`, clé `langue` de `jarvis_config.json`, changement à chaud) : codes de reconnaissance, voix edge-tts anglaise, consigne du prompt, traduction des phrases dites (Gemini rapide, cache sur disque), traduction des commandes anglaises vers le français que comprennent les resolvers, messages et libellés de la console, avis de redémarrage. Données : **`commandes_fr_en.json`** (commandes d'exemple de l'aide, fabriqué par `tools/i18n_exemples.py`) et **`console_fr_en.json`** (messages de la console, fabriqué par `tools/i18n_console.py`).
+
+### Cerveau : traitement et IA
+*   **[traitement.py](../backend/core/traitement.py)** : `gerer_reponse_ia` : resolvers locaux (`_ORDRE_RESOLVEURS`), traduction de la commande en mode anglais, routeur d'intentions, réponse IA, parole puis actions. **[intent_dispatcher.py](../backend/core/intent_dispatcher.py)** : routeur d'intentions par function calling Gemini (phrase canonique rejouée dans les resolvers).
+*   **[prompt_builder.py](../backend/core/prompt_builder.py)** : system prompt par domaines (noyau + catalogue d'actions JSON selon la phrase) ; consigne de langue au début et à la fin en anglais. **[llm_chat.py](../backend/core/llm_chat.py)** : `interroger_ia` (Gemini en flux, failover, vision). **[llm_providers.py](../backend/core/llm_providers.py)** et **[llm_registry.py](../backend/core/llm_registry.py)** : Grok, Ollama, Groq, Claude, Mistral. **[api_quota.py](../backend/core/api_quota.py)** : pauses par moteur. **[compression.py](../backend/core/compression.py)** : résumé des anciens échanges. **[citations.py](../backend/core/citations.py)** : sources numérotées. **[injection.py](../backend/core/injection.py)** : détection d'injection d'invite, contrôle des URL.
+*   **[usage_llm.py](../backend/core/usage_llm.py)** et **[mesure_gemini.py](../backend/core/mesure_gemini.py)** : dépenses Gemini (euros, plafond, alertes) ; tous les appels du SDK sont mesurés.
+*   **[actions_ia.py](../backend/core/actions_ia.py)** / **[actions_ia_services.py](../backend/core/actions_ia_services.py)** : exécution des actions JSON du LLM. **[ha_mcp_client.py](../backend/core/ha_mcp_client.py)** (Home Assistant) et **[mcp_client.py](../backend/core/mcp_client.py)** (GitHub et autres serveurs MCP).
+*   **[confirmation.py](../backend/core/confirmation.py)** : confirmation voix + HUD avant action destructrice. **[audit_log.py](../backend/core/audit_log.py)** : journal d'audit. **[dossiers.py](../backend/core/dossiers.py)** : vrais emplacements Bureau / Documents / Téléchargements (OneDrive compris). **[musique_id.py](../backend/core/musique_id.py)** : « c'est quoi cette musique » (Shazam, puis AudD en secours).
+*   **[module_catalogue.py](../backend/core/module_catalogue.py)** et **[module_ecrans.py](../backend/core/module_ecrans.py)** : annoncent au HUD la catégorie du cylindre réellement exécutée et le contenu des écrans de catégories.
+*   **[console_ui.py](../backend/core/console_ui.py)** : console (tableau de bord en direct, fil des échanges, rich), traduite en anglais à l'affichage ; tout est journalisé en français dans `data/jarvis_run.log`. **[defilement.py](../backend/core/defilement.py)** : défilement du fil.
 
 ---
 
-## 🎛️ DOSSIER `controller/` (Pilotes Système Windows)
-Pilotes légers pour manipuler les applications installées sur le PC de l'utilisateur.
+## `backend/module/` : modules métier
 
-*   **[app_launcher.py](file:///n:/JARVIS/backend/controller/app_launcher.py)** : Catalogue et lance les applications locales (jeux, IDEs, outils) et gère leur fermeture sécurisée.
-*   **[spotify_controller.py](file:///n:/JARVIS/backend/controller/spotify_controller.py)** : Contrôle de l'application Spotify Windows (Play, Pause, Suivant, Précédent, récupération du titre courant).
-*   **[deezer_controller.py](file:///n:/JARVIS/backend/controller/deezer_controller.py)** : Contrôleur complexe de Deezer Windows par automatisation d'API ou de fenêtres locales.
-*   **[homepod_controller.py](file:///n:/JARVIS/backend/controller/homepod_controller.py)** : Contrôle des commandes multimédias des enceintes HomePod.
-*   **[actions_pc.py](file:///n:/JARVIS/backend/controller/actions_pc.py)** : Détection des applications installées et appel WhatsApp.
-
----
-
-## 🔌 DOSSIER `plugins/` (Résolveurs d'Intention Directe)
-Ces fichiers interceptent la commande vocale de l'utilisateur *avant* qu'elle ne soit envoyée au LLM. Si une expression régulière correspond, le plugin s'exécute immédiatement (temps de réponse < 50ms).
-
-*   **[time_resolver.py](file:///n:/JARVIS/backend/plugins/time_resolver.py)** : Résout instantanément l'heure et la date.
-*   **[system_resolver.py](file:///n:/JARVIS/backend/plugins/system_resolver.py)** : Récupère les statistiques système (CPU, RAM, GPU) de la machine hôte.
-*   **[memory_resolver.py](file:///n:/JARVIS/backend/plugins/memory_resolver.py)** : Gère les demandes manuelles d'apprentissage ("se souvenir de X" ou "oublier Y").
-*   **[app_launcher_resolver.py](file:///n:/JARVIS/backend/plugins/app_launcher_resolver.py)** : Intercepte les lancements et fermetures d'applications locales.
-*   **[dom_controller_resolver.py](file:///n:/JARVIS/backend/plugins/dom_controller_resolver.py)** : Résout les requêtes de contrôle de l'interface (ex : "ferme le menu", "affiche le calendrier").
-*   **[globe_resolver.py](file:///n:/JARVIS/backend/plugins/globe_resolver.py)** : Résout les commandes destinées au globe 3D (ex : "zoome", "va à Paris").
-*   **[tv_resolver.py](file:///n:/JARVIS/backend/plugins/tv_resolver.py)** : Contrôle la télévision (allumer, changer d'application).
-*   **[recipe_resolver.py](file:///n:/JARVIS/backend/plugins/recipe_resolver.py)** : Gère les recettes de cuisine dynamiques.
-*   **[local_resolver.py](file:///n:/JARVIS/backend/plugins/local_resolver.py)** : Exécute des actions sur les fichiers locaux (ex : ouvrir le dossier Downloads).
-*   **[local_mode_resolver.py](file:///n:/JARVIS/backend/plugins/local_mode_resolver.py)** : Force le passage en mode local (LLM Ollama hors-ligne).
-*   **[network_resolver.py](file:///n:/JARVIS/backend/plugins/network_resolver.py)** : Déclenche l'analyse réseau (Network Radar).
-*   **[uninstaller_resolver.py](file:///n:/JARVIS/backend/plugins/uninstaller_resolver.py)** : Lance l'interface de désinstallation d'applications.
-*   **[image_search_resolver.py](file:///n:/JARVIS/backend/plugins/image_search_resolver.py)** : Déclenche la recherche d'images en ligne.
-*   **[list_manager.py](file:///n:/JARVIS/backend/plugins/list_manager.py)** : Ajoute, supprime ou liste les éléments des todos et listes de courses (ciblant `data/jarvis_listes.json`).
-*   **[os_autopilot_resolver.py](file:///n:/JARVIS/backend/plugins/os_autopilot_resolver.py)** : Route vers l'autopilote du système d'exploitation.
-*   **[spatial_explorer.py](file:///n:/JARVIS/backend/plugins/spatial_explorer.py)** : Gère l'affichage de l'explorateur de fichiers 3D.
-*   **[dev_swarm_resolver.py](file:///n:/JARVIS/backend/plugins/dev_swarm_resolver.py)** : Orchestrateur de l'essaim d'élite à 6 agents autonomes (PM, UI, DEV, SEC, QA, OPS). Conçoit et crée des projets web complets, effectue l'audit visuel multi-scroll par captures d'écran et valide 100% des fonctionnalités en sandbox.
-*   **[developer_resolver.py](file:///n:/JARVIS/backend/plugins/developer_resolver.py)** : Permet à JARVIS de modifier son propre code source et de lancer des diagnostics système.
-*   **[website_resolver.py](file:///n:/JARVIS/backend/plugins/website_resolver.py)** : Résout la génération de sites web à la volée et le protocole d'énigme secret d'anniversaire ("lance l'énigme") avec ouverture plein écran automatique dans Opera GX.
-*   **[document_generator_resolver.py](file:///n:/JARVIS/backend/plugins/document_generator_resolver.py)** : Génère des documents Word/PowerPoint/Excel/PDF à la demande vocale (contenu produit par Gemini en JSON structuré, mis en forme par python-docx/python-pptx/openpyxl/reportlab) et fusionne des PDF existants.
-*   **[competence_check_connexion.py](file:///n:/JARVIS/backend/plugins/competence_check_connexion.py)** : Effectue des vérifications rapides d'état de connexion.
+*   **Mémoire** : [memory_manager.py](../backend/module/memory_manager.py) (faits clé-valeur), [vector_memory.py](../backend/module/vector_memory.py) (ChromaDB, conversations passées).
+*   **Temps** : [alarm_manager.py](../backend/module/alarm_manager.py) (alarmes et minuteurs persistants, durées et heures comprises aussi en anglais), [alarmes_local.py](../backend/module/alarmes_local.py) (resolver), [routines.py](../backend/module/routines.py) (« tous les jours à 8 h, donne-moi la météo »), **[briefing.py](../backend/module/briefing.py)** (briefing du matin : date, météo, agenda, tâches, alarmes, mails ; sources Google seulement avec un jeton utilisable sans interaction).
+*   **Google et web** : [google_services.py](../backend/module/google_services.py) (Gmail, Agenda, Drive, Sheets, Docs, Tasks), [recherche_web.py](../backend/module/recherche_web.py) (SerpAPI), [browser_service.py](../backend/module/browser_service.py) (agent navigateur Playwright), [visual_web_agent.py](../backend/module/visual_web_agent.py) et [os_autopilot_agent.py](../backend/module/os_autopilot_agent.py) (autopilotes guidés par la vision), [vision_module.py](../backend/module/vision_module.py), [discord_service.py](../backend/module/discord_service.py) (message dans un salon par webhook ou bot).
+*   **Maison et météo** : [meteo_domotique.py](../backend/module/meteo_domotique.py) (météo Open-Meteo, API Home Assistant), [weather_music_service.py](../backend/module/weather_music_service.py), [domotique_sim.py](../backend/module/domotique_sim.py), [homepod_audio.py](../backend/module/homepod_audio.py).
+*   **Fichiers et système** : [file_manager.py](../backend/module/file_manager.py), [voice_vault.py](../backend/module/voice_vault.py) (coffre-fort AES), [uninstaller_helper.py](../backend/module/uninstaller_helper.py), [winget_manager.py](../backend/module/winget_manager.py), [antivirus_live.py](../backend/module/antivirus_live.py), [network_radar.py](../backend/module/network_radar.py), [system_stats.py](../backend/module/system_stats.py), [sandbox_executor.py](../backend/module/sandbox_executor.py).
+*   **Création** : [image_generator.py](../backend/module/image_generator.py) (FLUX sur Cloudflare via [image_cloudflare.py](../backend/module/image_cloudflare.py), Pollinations en secours), [image_search.py](../backend/module/image_search.py), [competences.py](../backend/module/competences.py) (compétences générées par l'IA, validées par analyse AST), [skills.py](../backend/module/skills.py) et [skills_import.py](../backend/module/skills_import.py) (skills à script approuvés par empreinte SHA-256).
+*   **Jeux et vues** : [chess_manager.py](../backend/module/chess_manager.py), [echecs_local.py](../backend/module/echecs_local.py), [globe_local.py](../backend/module/globe_local.py), [cortex_service.py](../backend/module/cortex_service.py).
+*   **Commandes locales sans IA** : [commandes_locales.py](../backend/module/commandes_locales.py) et [commandes_locales_sections.py](../backend/module/commandes_locales_sections.py).
+*   **God's Eye View (Vue de Dieu)** : [vue_de_dieu.py](../backend/module/vue_de_dieu.py) (installe, met à jour, lance et arrête l'appli dans `data/gods_eye_view/`, traduction française, placement des couches) ; couches et données **France** : [gev_couches.js](../backend/module/gev_couches.js) (couches ajoutées à chaud), [gev_donnees_fr.py](../backend/module/gev_donnees_fr.py) (bornes de recharge, parkings, crues, séismes, qualité de l'air, en tâche de fond), [gev_parkings.py](../backend/module/gev_parkings.py) (recherche vocale de parkings), [gev_carburants_fr.py](../backend/module/gev_carburants_fr.py), [gev_radars_fr.py](../backend/module/gev_radars_fr.py), [gev_radar_fr.py](../backend/module/gev_radar_fr.py) (radar de pluie Météo-France), [gev_cameras_fr.py](../backend/module/gev_cameras_fr.py), [windy_relais.py](../backend/module/windy_relais.py), [gev_cles.py](../backend/module/gev_cles.py) ; traduction : `gev_fr.json`. Détails : [VUE_DE_DIEU.md](VUE_DE_DIEU.md).
 
 ---
 
-## 🎨 DOSSIER `frontend/src/` (HUD Web Three.js)
-Interface utilisateur principale, de style "Iron Man HUD".
+## `backend/controller/` : pilotes des applications
 
-### 🔗 Fichiers de structure & Initialisation
-*   **[main.ts](file:///n:/JARVIS/interfaces/frontend/src/main.ts)** : Point d'entrée de l'application. Gère la connexion WebSocket permanente avec le backend, distribue les actions reçues au HUD, et gère les widgets.
-*   **[ws_link.ts](file:///n:/JARVIS/interfaces/frontend/src/ws_link.ts)** : Couche réseau gérant l'état de la connexion WebSocket.
-
-### 🔮 Modélisations et Composants 3D (Three.js)
-*   **[orb_cylindre.ts](file:///n:/JARVIS/interfaces/frontend/src/orb_cylindre.ts)** : Le cylindre holographique central (canvas 2D). Il suit les états (veille, écoute, réflexion, parole), joue la roue de recherche de catégorie (catalogue dans **orb_themes.ts**), s'ouvre en écran pour les widgets et les panneaux, et affiche la fiche du module trouvé ; les panneaux latéraux sortent du sol.
-*   **[globe.ts](file:///n:/JARVIS/interfaces/frontend/src/globe.ts)** : Globe 3D réaliste (texture jour/nuit, nuages) lié à Leaflet 2D pour les navigations cartographiques vocales.
-*   **[chess_map.ts](file:///n:/JARVIS/interfaces/frontend/src/chess_map.ts)** : Implémentation du plateau d'échecs 3D holographique interactif et jouable en tactile ou par commande vocale.
-*   **[domotic_map.ts](file:///n:/JARVIS/interfaces/frontend/src/domotic_map.ts)** : Représentation 3D extrudée des pièces de l'habitat pour visualiser et commuter l'état des appareils Home Assistant connectés.
-*   **[cortex_map.ts](file:///n:/JARVIS/interfaces/frontend/src/cortex_map.ts)** : Graphe 3D représentant la constellation des souvenirs neuronaux de ChromaDB et de la mémoire locale. Permet de modifier ou supprimer un souvenir en cliquant sur un nœud.
-*   **[spatial_explorer.ts](file:///n:/JARVIS/interfaces/frontend/src/spatial_explorer.ts)** : Explorateur de fichiers 3D interactif représentant les dossiers sous forme de tores et les fichiers sous forme d'octaèdres 3D avec volet de prévisualisation.
-*   **[swarm_lounge.ts](file:///n:/JARVIS/interfaces/frontend/src/swarm_lounge.ts)** : Salon de discussion en 3D isométrique pour l'essaim d'agents de développement. Les agents PM, DEV et QA y déambulent sous forme de sphères physiques et échangent des bulles de dialogue de télémétrie en temps réel pendant qu'ils codent.
-
-### 🖼️ Composants d'Interface HUD & Widgets
-*   **[widgets.ts](file:///n:/JARVIS/interfaces/frontend/src/widgets.ts)** : Gère le cycle de vie et l'affichage des widgets d'information (Météo locale, Calendrier Google, Deezer).
-*   **[ha_dashboard.ts](file:///n:/JARVIS/interfaces/frontend/src/ha_dashboard.ts)** : Tableau de bord de raccourcis rapides pour le contrôle domotique de Home Assistant.
-*   **[hand_tracking.ts](file:///n:/JARVIS/interfaces/frontend/src/hand_tracking.ts)** : Mode réalité augmentée (AR) s'appuyant sur la webcam et MediaPipe pour piloter l'interface HUD, glisser et redimensionner les widgets par simples pincements de doigts.
-*   **[cards.ts](file:///n:/JARVIS/interfaces/frontend/src/cards.ts)** : Notifications système fluorescentes flottantes s'affichant en haut à droite avec minuterie de fermeture automatique.
-*   **[holo_clock.ts](file:///n:/JARVIS/interfaces/frontend/src/holo_clock.ts)** : Horloge HUD holographique.
-*   **[screen_capture.ts](file:///n:/JARVIS/interfaces/frontend/src/screen_capture.ts)** : Module frontend facilitant la capture d'écran pour l'envoyer au backend.
-
-### 📂 Sous-dossiers UI & Panneaux
-*   **[ui/](file:///n:/JARVIS/interfaces/frontend/src/ui)** :
-    *   `draggable.ts` : Ajoute le support du glisser-déposer sur les éléments DOM.
-    *   `carousel.ts` : Carrousel de médias et d'images.
-    *   `effects.ts` : Effets sonores d'interface et animations lumineuses néon.
-    *   `tips.ts` : Système d'affichage de conseils et raccourcis d'utilisation.
-*   **[panels/](file:///n:/JARVIS/interfaces/frontend/src/panels)** :
-    *   `antivirus_panel.ts` : Interface utilisateur pour lancer des analyses antivirus et voir les menaces détectées.
-    *   `winget_panel.ts` : Terminal graphique affichant la progression des mises à jour Windows Winget en cours.
-    *   `uninstaller_panel.ts` : Panneau de recherche et de déclenchement rapide de la désinstallation de programmes Windows.
-    *   `shopping_panel.ts` : Visualisation graphique des todos et listes de courses.
-    *   `image_panels.ts` : Galerie d'images affichant les images générées par IA ou trouvées sur le web.
+[app_launcher.py](../backend/controller/app_launcher.py) (catalogue, lancement, fermeture), [deezer_controller.py](../backend/controller/deezer_controller.py) et [deezer_cdp.py](../backend/controller/deezer_cdp.py) (Deezer piloté en arrière-plan par son port de débogage, sans voler le focus), [spotify_controller.py](../backend/controller/spotify_controller.py), [steam_controller.py](../backend/controller/steam_controller.py) (jeux installés, lancement), [homepod_controller.py](../backend/controller/homepod_controller.py), [actions_pc.py](../backend/controller/actions_pc.py).
 
 ---
 
-## 🔌 MODULE EXTENSION CHROME
+## `backend/plugins/` : resolvers de commandes vocales
 
-### 🌐 Extension Google Chrome (`chrome_extension/`)
-Permet à JARVIS de contrôler le navigateur de l'utilisateur par l'intermédiaire d'un WebSocket local.
-*   **[manifest.json](file:///n:/JARVIS/interfaces/chrome_extension/manifest.json)** : Fichier d'enregistrement de l'extension Chrome.
-*   **[background.js](file:///n:/JARVIS/interfaces/chrome_extension/background.js)** : Script de fond qui ouvre la connexion avec le serveur local de JARVIS.
-*   **[content.js](file:///n:/JARVIS/interfaces/chrome_extension/content.js)** : Script injecté dans les pages web. Dessine le curseur néon virtuel et exécute les clics et saisies demandés par JARVIS.
+Interceptent la phrase avant le LLM : une expression régulière sur des mots entiers reconnaît la commande, le plugin répond tout de suite. Chaque plugin est déclaré dans `chargement_plugins._PLUGINS` et placé dans `traitement._ORDRE_RESOLVEURS` (du plus précis au plus général) ; ceux qui agissent sur le PC sont refusés à l'invité (`_INTERDITS_INVITE`).
+
+*   **Voix et JARVIS lui-même** : [langue_resolver.py](../backend/plugins/langue_resolver.py) (« passe en anglais », « parle en français » : change la langue, affiche l'avis de redémarrage), [briefing_resolver.py](../backend/plugins/briefing_resolver.py) (« ma journée »), [repetition_resolver.py](../backend/plugins/repetition_resolver.py), [quota_stt_resolver.py](../backend/plugins/quota_stt_resolver.py), [cout_llm_resolver.py](../backend/plugins/cout_llm_resolver.py), [musique_resolver.py](../backend/plugins/musique_resolver.py), [local_mode_resolver.py](../backend/plugins/local_mode_resolver.py) (mode local Ollama hors ligne), [memory_resolver.py](../backend/plugins/memory_resolver.py), [skills_resolver.py](../backend/plugins/skills_resolver.py).
+*   **Interface** (le globe a son resolver dans `module/globe_local.py`) : [dom_controller_resolver.py](../backend/plugins/dom_controller_resolver.py) (widgets, réglages, sous-titres), [vue_de_dieu_resolver.py](../backend/plugins/vue_de_dieu_resolver.py) (« active la vue de Dieu », « trouve-moi un parking ouvert à X »), [spatial_explorer.py](../backend/plugins/spatial_explorer.py), [recipe_resolver.py](../backend/plugins/recipe_resolver.py), [list_manager.py](../backend/plugins/list_manager.py).
+*   **PC et applications** : [app_launcher_resolver.py](../backend/plugins/app_launcher_resolver.py), [system_resolver.py](../backend/plugins/system_resolver.py), [time_resolver.py](../backend/plugins/time_resolver.py), [local_resolver.py](../backend/plugins/local_resolver.py), [uninstaller_resolver.py](../backend/plugins/uninstaller_resolver.py), [network_resolver.py](../backend/plugins/network_resolver.py), [navigateur_resolver.py](../backend/plugins/navigateur_resolver.py), [steam_resolver.py](../backend/plugins/steam_resolver.py), [tv_resolver.py](../backend/plugins/tv_resolver.py), [discord_resolver.py](../backend/plugins/discord_resolver.py), [os_autopilot_resolver.py](../backend/plugins/os_autopilot_resolver.py).
+*   **Création** : [dev_swarm_resolver.py](../backend/plugins/dev_swarm_resolver.py) (essaim de 6 agents qui fabrique des sites web), [website_resolver.py](../backend/plugins/website_resolver.py), [document_generator_resolver.py](../backend/plugins/document_generator_resolver.py) (Word, PowerPoint, Excel, PDF), [image_search_resolver.py](../backend/plugins/image_search_resolver.py), [image_edit_resolver.py](../backend/plugins/image_edit_resolver.py), [developer_resolver.py](../backend/plugins/developer_resolver.py), [plugin_creator_resolver.py](../backend/plugins/plugin_creator_resolver.py), [extras.py](../backend/plugins/extras.py) (monnaies, capitales, petites questions), [competence_check_connexion.py](../backend/plugins/competence_check_connexion.py) (exemple de compétence).
 
 ---
 
-## 🧪 ENTRAÎNEMENT & INITIALISATION
+## `interfaces/frontend/src/` : HUD web (TypeScript, Three.js, Vite)
 
-### 🎙️ Entraînement Wake Word (`training/`)
+*   **[main.ts](../interfaces/frontend/src/main.ts)** : point d'entrée (imports et `init*()` dans un ordre volontaire : ne pas le réordonner). **[ws_link.ts](../interfaces/frontend/src/ws_link.ts)** : socket partagée.
+*   **[i18n/i18n.ts](../interfaces/frontend/src/i18n/i18n.ts)** et **`i18n/en.json`** : **langue du HUD**. Traducteur de DOM (texte, `title`, `placeholder`, `aria-label`) et de canvas, dictionnaire français → anglais (~1 800 textes, fabriqué par les outils `tools/i18n_*.py`), modèles pour les textes à variable, demande au serveur de traduire les textes dynamiques (cartes, confirmations, écrans de module), dates et nombres selon la langue (`t()`, `locale()`, `nomJour()`, `nomMois()`).
+*   **Orbe et cylindre** : [orb_cylindre.ts](../interfaces/frontend/src/orb_cylindre.ts) (cylindre holographique canvas 2D, états, roue de catégories, textures de cartes en cache par langue), [orb_themes.ts](../interfaces/frontend/src/orb_themes.ts) (21 catégories et sous-catégories), [holo_clock.ts](../interfaces/frontend/src/holo_clock.ts), [cards.ts](../interfaces/frontend/src/cards.ts) (notifications en pièces éclatées, avec bouton optionnel).
+*   **Vues 3D** : [vues_3d.js](../interfaces/frontend/src/vues_3d.js) (hôte commun, contrôle par les mains), [globe.ts](../interfaces/frontend/src/globe.ts), [chess_map.ts](../interfaces/frontend/src/chess_map.ts), [domotic_map.ts](../interfaces/frontend/src/domotic_map.ts), [cortex_map.ts](../interfaces/frontend/src/cortex_map.ts), [spatial_explorer.ts](../interfaces/frontend/src/spatial_explorer.ts), [network_radar.ts](../interfaces/frontend/src/network_radar.ts), [swarm_lounge.ts](../interfaces/frontend/src/swarm_lounge.ts), [hand_tracking.ts](../interfaces/frontend/src/hand_tracking.ts) (mode AR, MediaPipe), [screen_capture.ts](../interfaces/frontend/src/screen_capture.ts).
+*   **Widgets** : [widgets.ts](../interfaces/frontend/src/widgets.ts), [weather_vues.ts](../interfaces/frontend/src/weather_vues.ts), [ha_dashboard.ts](../interfaces/frontend/src/ha_dashboard.ts).
+*   **`hud/`** : état partagé (`state.ts`, `dom_refs.ts`), orbe (`orb_state.ts`), menu en roue (`menu_roue.ts`), **panneaux éclatés** (`eclate.ts`, `pieces_widgets.ts`, `pieces_outils.ts` : aide, minuteurs, maison, réglages dont le choix de la langue, `pieces_tableaux.ts`, `pieces_alertes.ts` : notifications), aide et palette de commandes (`aide_commandes.ts`, `help_hud.ts`), réglages (`settings.ts`), clavier, sous-titres, minuteur, démarrage (`boot.ts`, `boot_anim.ts`), Vue de Dieu (`vue_de_dieu.ts`), vues 3D (`vues_3d.ts`), actions DOM envoyées par les plugins (`dom_automation.ts`).
+*   **`panels/`** : antivirus, désinstallateur, winget, courses, recette, coffre-fort, images, météo / température, état du système, **assistant de premier lancement** (`setup_wizard.ts` : choix de la langue, prénom, voix, clé d'IA, micro, empreinte), mises à jour, jeton d'extension, réglages Discord, atelier de code, confirmation, écrans de catégories.
+*   **`ws/`** : `connection.ts` (connexion, reconnexion, traduction des messages du serveur en anglais), `messages_*.ts` (branches du gestionnaire de messages, `handle*()` renvoie `true` si traité), `message_types.ts`.
+*   **`ui/`** : carrousel de boutons, glisser-déposer, effets, astuces. **`css/`** : `01` à `20` numérotées, **cascade critique : ne pas réordonner** (`13_panneaux_modules.css` : style commun des panneaux, `15_eclate.css` : pièces éclatées, `19_vue_de_dieu.css`).
+*   Hors `src/` : `index.html` (structure du HUD), `public/assets/` (favicon et textures), `vite.config.ts`, `tsconfig.json`, `eslint.config.js`.
 
-### 🏁 Configuration Initiale (`_setup/`)
-*   **[dependances.bat](file:///n:/JARVIS/tools/_setup/dependances.bat)** : Installation des dépendances avancées.
-*   **[rename_user.py](file:///n:/JARVIS/tools/_setup/rename_user.py)** : Script utilitaire pour renommer les références utilisateur dans les fichiers d'empreintes biométriques vocales.
+---
+
+## `interfaces/chrome_extension/`
+
+Permet à JARVIS de piloter le navigateur de l'utilisateur par un WebSocket local authentifié par jeton : `manifest.json`, `background.js` (connexion au serveur local), `content.js` (curseur néon virtuel, clics et saisies demandés par JARVIS).
+
+---
+
+## Vérifications standard
+
+`venv\Scripts\python.exe -m compileall -q backend main.py` · `venv\Scripts\python.exe -m pytest tests` · `venv\Scripts\ruff.exe check .` · dans `interfaces/frontend` : `npx tsc --noEmit -p .` et `npx eslint src`.
