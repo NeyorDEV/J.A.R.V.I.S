@@ -13,6 +13,12 @@
   [![GitHub](https://img.shields.io/badge/github-NeyorDEV%2FJ.A.R.V.I.S-181717?logo=github&logoColor=white)](https://github.com/NeyorDEV/J.A.R.V.I.S)
 </div>
 
+<p align="center">
+  <img src="docs/images/apercu.webp" alt="J.A.R.V.I.S HUD at rest: the holographic cylinder, the clock and the command bar" width="900" />
+  <br />
+  <sub><i>The HUD at rest: the holographic cylinder, the clock and the command bar. Menus, widgets and panels come out of the cylinder on voice command.</i></sub>
+</p>
+
 ---
 
 Voice assistant: always-on speech recognition, voice biometrics, 3D HUD interface (Three.js), home automation, PC control, content generation (images, documents) and much more — all driven by voice, **in French or in English** (switchable on the fly).
