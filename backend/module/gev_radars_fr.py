@@ -7,7 +7,7 @@ l'ancien est gardé. Il est servi à la page par le plugin `jarvisRadarsFrance` 
 
 Format : liste de [identifiant (texte), latitude, longitude, limite km/h (absente de la liste officielle : ajoutée depuis OpenStreetMap quand un radar OSM est à moins de 50 m, sinon null), sens en degrés (idem), type, référence (null)] ; type parmi « fixe », « discriminant »,
 « feu rouge », « passage à niveau », « vitesse moyenne », « urbain ».
-Voir docs/VUE_DE_DIEU.md. Test : scratch/outils_test/test_gev_radars_fr_reel.py.
+Voir docs/fr/VUE_DE_DIEU.md. Test : scratch/outils_test/test_gev_radars_fr_reel.py.
 """
 
 import json

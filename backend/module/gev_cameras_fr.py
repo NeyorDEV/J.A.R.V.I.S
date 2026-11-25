@@ -11,7 +11,7 @@ God's Eye View charge, en plus de ses caméras intégrées, un fichier JSON de c
 Le fichier est refait au plus une fois par jour (en tâche de fond) ; sans réseau, l'ancien fichier est gardé. Les images ne sont jamais copiées :
 God's Eye View les télécharge lui-même, une à une, depuis les adresses officielles.
 Ajouter une source = une fonction `_source_xxx()` qui renvoie une liste de dictionnaires, ajoutée à SOURCES.
-Voir docs/VUE_DE_DIEU.md. Test sans réseau : scratch/outils_test/test_gev_cameras_fr.py.
+Voir docs/fr/VUE_DE_DIEU.md. Test sans réseau : scratch/outils_test/test_gev_cameras_fr.py.
 """
 
 import json

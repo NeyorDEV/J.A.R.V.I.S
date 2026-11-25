@@ -386,7 +386,7 @@ Les commandes ci-dessous sont écrites en français. JARVIS comprend aussi l'ang
 
 [ Parler à JARVIS en anglais ]
   - En mode anglais, dites vos commandes en anglais : « play some music », « set a timer for five minutes », « what time is it », « open Spotify », « show my agenda », « my day »
-  - JARVIS les ramène à la commande française correspondante (avec les commandes de ce document comme référence) puis les exécute : une commande anglaise coûte donc un appel Gemini de plus (~0,7 s) avant de s'exécuter ; une commande déjà comprise telle quelle (« pause the music », « take a screenshot ») n'en a pas besoin
+  - JARVIS les ramène à la commande française correspondante (avec les commandes de l'aide de JARVIS comme référence) puis les exécute : une commande anglaise coûte donc un appel Gemini de plus (~0,7 s) avant de s'exécuter ; une commande déjà comprise telle quelle (« pause the music », « take a screenshot ») n'en a pas besoin
   - Minuteurs et alarmes comprennent l'anglais : « five minutes », « in 10 minutes », « half an hour », « 7 pm », « 6:30 am », « tomorrow at 6 »
   - Les noms propres (artiste, titre, ville, nom d'une pièce) sont repris tels que vous les dites
   - Ordres d'arrêt en anglais : « stop », « shut up », « be quiet »

@@ -147,7 +147,7 @@ programmée dans le système J.A.R.V.I.S.
 * Installation à la demande : JARVIS télécharge la dernière release de God's Eye View (globe 3D en direct : avions, bateaux, satellites, séismes, caméras) dans data/gods_eye_view/, la met à jour, la lance et l'arrête (Node portable si besoin). Rien n'est installé sans votre accord (question oui / non).
 * Traduite en français et réglée pour la France : couches ajoutées par JARVIS (gev_couches.js) : carburants, bornes de recharge, radars automatiques, crues, séismes, qualité de l'air, sécheresse, sites Seveso, baignades, radar de pluie Météo-France, caméras, et **parkings** (environ 1 460, places libres en direct à Nantes, Aix-Marseille, Tours et Clermont-Ferrand). Données ouvertes téléchargées en tâche de fond, sans clé.
 * Recherche vocale de parkings : « trouve-moi un parking ouvert à Saint-Étienne » : les 3 plus proches, distance, places libres ; JARVIS dit quand il n'a pas de comptage en direct.
-* Détails et limites : docs/VUE_DE_DIEU.md.
+* Détails et limites : docs/fr/VUE_DE_DIEU.md.
 
 ================================================================================
 21. BRIEFING DU MATIN ET OUTILS DU QUOTIDIEN (module/briefing.py, module/routines.py, plugins/)
