@@ -2,6 +2,9 @@
           J.A.R.V.I.S - Guide Complet des Commandes
 +----------------------------------------------------------+
 
+Les commandes ci-dessous sont écrites en français. JARVIS comprend aussi l'anglais : voir la section « LANGUE » en fin de document
+(« passe en anglais » / « switch to English »). Les crochets [ ] désignent une partie variable de la phrase.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   COMMANDES LOCALES & SYSTÈME (Instantané)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -128,6 +131,9 @@
   - Mets à jour la vue de Dieu -> Installe la dernière release si elle est plus récente que la version installée
   - Va à Tokyo / Montre-moi Paris / Survole le Mont Blanc (vue de Dieu ouverte) -> Déplace la caméra sur ce lieu
   - Ferme la vue de Dieu (ou la croix, ou Échap) -> Referme la vue et arrête son serveur local
+  - Active / Désactive les parkings (ou « la couche parkings en direct ») -> Allume la couche « Parkings · France » : environ 1 460 parkings, places libres en direct à Nantes, Aix-Marseille, Tours et Clermont-Ferrand (boutons Tous / En direct / Places libres / Gratuit / Payants)
+  - Trouve-moi un parking ouvert à Saint-Étienne / Où me garer près de la gare de Nantes / Cherche un parking gratuit à [Ville] -> Donne les 3 parkings les plus proches avec leur distance et leurs places libres (jamais plus que les données : sans comptage en direct, JARVIS le dit), et allume la couche sur la zone si la Vue de Dieu est ouverte ou demandée dans la phrase (« ouvre la vue de Dieu et trouve-moi… »)
+  - Active / Désactive [une autre couche : carburants, bornes de recharge, radars, crues, séismes, qualité de l'air, radar de pluie…] -> Allume ou éteint la couche France correspondante
 
 [ Télévision (Philips / Android TV) ]
   - Allume la télé / Éteins la télé -> Contrôle électrique de votre téléviseur par Wake-on-LAN et ADB
@@ -364,7 +370,68 @@
   - Lance la partie avec les [blancs / noirs] [avec / sans] chrono -> Initialise la partie d'échecs 3D avec couleur et minuteur (10 minutes de temps de jeu)
 
 [ Configuration & Flux Vocaux ]
-  - Prends la voix d'homme -> Bascule sur la voix premium masculine (Habituelle / Onyx / Henri)
-  - Prends la voix de femme -> Bascule sur la voix premium féminine (Fréquence alternative / Nova / Denise)
+  - Prends la voix d'homme -> Bascule sur la voix masculine (Henri en français, Ryan en anglais)
+  - Prends la voix de femme -> Bascule sur la voix féminine (Denise en français, Sonia en anglais)
   - Active / Désactive le mode Iron Man -> Active ou désactive la détection continue par applaudissements pour piloter les lampes et YouTube
   - Tais-toi ! / Silence ! / Arrête ! -> Interruption immédiate du flux de parole, nettoyage de la mémoire vive et suppression instantanée des fichiers audios temporaires.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  LANGUE : FRANÇAIS & ANGLAIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Changer de langue ]
+  - Passe en anglais / Parle en anglais / Switch to English / Speak English -> JARVIS passe en anglais : reconnaissance vocale, voix, réponses, interface (réglage aussi dans Paramètres, panneau Apparence, ou à la première étape de l'assistant de premier lancement)
+  - Passe en français / Parle en français / Switch to French / Speak French -> Retour au français
+  - Chaque changement affiche un avis (carte du HUD avec un bouton « Redémarrer maintenant ») et JARVIS le dit : la reconnaissance, la voix, les réponses et le HUD suivent tout de suite, la console et les journaux ne suivent qu'au redémarrage de JARVIS
+
+[ Parler à JARVIS en anglais ]
+  - En mode anglais, dites vos commandes en anglais : « play some music », « set a timer for five minutes », « what time is it », « open Spotify », « show my agenda », « my day »
+  - JARVIS les ramène à la commande française correspondante (avec les commandes de ce document comme référence) puis les exécute : une commande anglaise coûte donc un appel Gemini de plus (~0,7 s) avant de s'exécuter ; une commande déjà comprise telle quelle (« pause the music », « take a screenshot ») n'en a pas besoin
+  - Minuteurs et alarmes comprennent l'anglais : « five minutes », « in 10 minutes », « half an hour », « 7 pm », « 6:30 am », « tomorrow at 6 »
+  - Les noms propres (artiste, titre, ville, nom d'une pièce) sont repris tels que vous les dites
+  - Ordres d'arrêt en anglais : « stop », « shut up », « be quiet »
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  BRIEFING & OUTILS DE JARVIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ Briefing du matin ]
+  - Ma journée / Mon briefing du matin / Mon programme du jour / Qu'est-ce que j'ai aujourd'hui ? -> Une seule phrase : la date, la météo, l'agenda Google du reste de la journée (5 événements au plus), les tâches Google, les alarmes du jour et le nombre de mails non lus. Une source en panne ou non autorisée est passée sous silence. Les sources Google demandent une première autorisation (dites par exemple « Lis mes nouveaux emails » : la fenêtre de connexion Google s'ouvre une fois). Refusé à un invité (agenda et mails privés)
+  - (en anglais) My day / Give me my morning briefing / What do I have today ? -> Même briefing, salutation selon l'heure (Good morning / afternoon / evening)
+
+[ Répétition ]
+  - Répète / Redis / Redis-le / J'ai pas compris -> JARVIS redit mot pour mot sa dernière réponse
+
+[ Consommation & quotas ]
+  - Combien de requêtes Groq / Donne-moi le quota de Groq / Quota de la reconnaissance vocale -> Où en est la reconnaissance vocale par rapport aux limites de Groq (requêtes, secondes d'audio, refus récents)
+  - Combien coûte Gemini aujourd'hui ? / Mes dépenses d'IA / Budget IA -> Dépenses Gemini du jour et du mois, plafond journalier (alerte à 80 % puis à 100 %)
+
+[ Reconnaissance musicale ]
+  - C'est quoi cette musique ? / Qui chante ça ? / Reconnais cette chanson -> Si Deezer joue sur ce PC, donne directement son titre ; sinon JARVIS écoute 10 secondes au micro et interroge Shazam (puis AudD en secours). Précisez « avec le micro » ou « dans la pièce » pour forcer l'écoute. Rien n'est envoyé sans cette demande
+
+[ Routines (commandes qui se rejouent toutes seules) ]
+  - Tous les jours à 8 heures, donne-moi la météo / Chaque matin à 7 h 30, [commande] / Tous les lundis à 9 h, [commande] / Toutes les 2 heures, [commande] -> Enregistre une routine ; un démon la rejoue à l'heure dite, comme si vous l'aviez dite
+  - Surveille [sujet] [toutes les X heures] -> Une recherche sur le sujet à chaque échéance
+  - Les commandes à effet sur le PC (arrêt, veille, suppression, envoi de mail…) sont refusées dans une routine : personne ne pourrait les confirmer. Refusé à un invité
+
+[ Skills à script ]
+  - Mes skills -> Liste les skills installés (dossier data/skills/<nom>/ avec un SKILL.md et un script)
+  - Autorise le skill [nom] -> Approuve le skill (empreinte SHA-256 de son script : toute modification demande une nouvelle approbation)
+  - Lance le skill [nom] / dites directement sa phrase déclencheur (« combien d'espace libre ») -> Exécute le skill approuvé, dans un environnement nettoyé
+
+[ Discord ]
+  - Envoie [message] dans le salon [nom] (ex. « Envoie salut à tous dans le salon annonces ») -> Message dans un salon déclaré (webhook ou bot, Paramètres > Discord), après confirmation à la voix et sur le HUD ; inscrit au journal d'audit
+  - Écris à [Nom] sur Discord que [message] -> Écrit par la fenêtre Discord, en votre nom (option à activer, désactivée par défaut : Discord interdit d'automatiser un compte utilisateur)
+
+[ Steam ]
+  - Lance [Jeu] sur Steam / Joue à [Jeu] -> Lance le jeu (retrouvé parmi les jeux réellement installés)
+  - Mes jeux Steam / Ouvre ma bibliothèque Steam -> Liste ou ouvre la bibliothèque
+
+[ Navigateur (extension Chrome branchée) ]
+  - Mets la vidéo en pause / Reprends la vidéo / Coupe le son de la vidéo -> Pilote la vidéo de l'onglet actif
+  - Quels sont mes onglets ? / Va sur l'onglet [YouTube] / Ferme cet onglet -> Gère les onglets
+  - Résume cette page -> Résumé de la page affichée. Sans extension connectée, JARVIS explique comment la brancher
+
+[ Mode local (hors ligne) ]
+  - Active / Passe en mode local (ou « mode hors ligne ») -> Bascule sur le modèle Ollama local (qwen3:4b-instruct, ~4 Go de VRAM) : JARVIS répond sans internet
+  - Désactive le mode local -> Retour à Gemini
