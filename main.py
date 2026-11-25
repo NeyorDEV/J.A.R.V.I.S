@@ -378,6 +378,16 @@ def main():
     from module.routines import demarrer_daemon_routines
     demarrer_daemon_routines()
     try:
+        from plugins.suivi_resolver import demarrer_veille
+        demarrer_veille()   # ne fait rien tant que « suivi_mails » n'est pas activé dans jarvis_config.json
+    except Exception as e:
+        print(f"[SUIVI] Non démarré : {e}")
+    try:
+        from core.sauvegarde import sauvegarder
+        sauvegarder()   # une copie par jour : mémoire, alarmes, routines, macros
+    except Exception as e:
+        print(f"[SAUVEGARDE] Non faite : {e}")
+    try:
         from core.api_locale import demarrer as demarrer_api_locale
         demarrer_api_locale()   # désactivée sans réglage + jeton (core/api_locale.py)
     except Exception as e:

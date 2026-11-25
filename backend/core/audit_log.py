@@ -61,3 +61,29 @@ def resume_confirmations(jours: int = 7) -> dict:
     except Exception:
         pass
     return {"jours": par_jour, "derniere": derniere}
+
+
+def journal_existe() -> bool:
+    return os.path.isfile(_LOG_PATH)
+
+
+def evenements_entre(debut, fin, taille_max: int = 5_000_000) -> list:
+    """Événements du journal dont l'horodatage est dans [debut, fin[ (objets datetime), dans l'ordre. Lecture seule ; liste vide si le journal est absent ou illisible.
+    Seuls les derniers `taille_max` octets sont lus : un journal énorme ne bloque pas la réponse."""
+    import datetime
+    sortie = []
+    try:
+        with open(_LOG_PATH, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(0, f.tell() - taille_max))
+            lignes = f.read().decode("utf-8", errors="ignore").splitlines()
+        for ligne in lignes:
+            try:
+                e = json.loads(ligne)
+                if debut <= datetime.datetime.strptime(e["ts"], "%Y-%m-%d %H:%M:%S") < fin:
+                    sortie.append(e)
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return sortie

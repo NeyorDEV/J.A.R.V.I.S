@@ -3,7 +3,8 @@
 import asyncio
 import builtins
 import io
-from core import i18n
+from core import conversation, i18n
+from module import reunion
 import json
 import os
 import threading
@@ -155,8 +156,8 @@ def boucle_ecoute():
             # en plein traitement, et il fallait redire « Jarvis » juste après la réponse.
             inactif_depuis = time.time() - max(shared.dernier_message, get_dernier_parle_time())
             if (shared.jarvis_actif and not shared.is_thinking and not get_is_speaking()
-                    and inactif_depuis > shared.SESSION_TIMEOUT):
-                print(f"[JARVIS] Timeout session ({shared.SESSION_TIMEOUT}s). Retour en veille.")
+                    and inactif_depuis > conversation.delai_courant(shared.SESSION_TIMEOUT)):   # prolongé après une question de JARVIS, 5 min en conversation continue (core/conversation.py)
+                print(f"[JARVIS] Timeout session ({conversation.delai_courant(shared.SESSION_TIMEOUT):.0f}s). Retour en veille.")
                 shared.jarvis_actif = False
                 _safe_ws_send(json.dumps({"action": "jarvis_text", "text": ""}))
                 try:
@@ -306,6 +307,9 @@ def boucle_ecoute():
                         if time.time() - get_dernier_parle_time() < 0.8:
                             audio_buffer = []
                             continue
+
+                        if texte and reunion.en_cours():   # prise de notes de réunion : chaque phrase entendue, avec qui parle (module/reunion.py)
+                            reunion.noter(texte, reunion.qui_parle(raw_audio, RATE))
 
                         if texte:
                             is_relevant = (shared.WAKE_WORD in texte.lower()) or shared.jarvis_actif

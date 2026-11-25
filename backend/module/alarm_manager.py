@@ -402,7 +402,10 @@ def _surveiller_alarmes():
                             set_stop_parler(False)
                         except Exception:
                             pass
-                        resultat = _parler_callback(_message_sonnerie(label_alarme))
+                        try:   # voix des alertes (core/voix_roles.py) ; un rappel sans ce paramètre parle quand même
+                            resultat = _parler_callback(_message_sonnerie(label_alarme), role="alerte")
+                        except TypeError:
+                            resultat = _parler_callback(_message_sonnerie(label_alarme))
                         if asyncio.iscoroutine(resultat):
                             _boucle = asyncio.new_event_loop()
                             try:

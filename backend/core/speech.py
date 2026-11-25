@@ -8,7 +8,7 @@ import math
 import random
 import re
 import edge_tts
-from core import voix_registre
+from core import voix_registre, voix_roles
 import builtins
 
 try:
@@ -57,6 +57,8 @@ def preparer_mixer():
         pygame.mixer.init()
 
 lecture_queue = queue.Queue()
+_ROLES = {}          # phrase -> rôle de voix demandé par l'appelant (alerte, quotidien, lecture)
+_role_tts = "quotidien"   # rôle de la phrase en cours de génération (un seul thread génère)
 
 async def _generer_tts_fichier(texte) -> str | None:
     """Génère le fichier TTS en arrière-plan et renvoie le chemin temporaire."""
@@ -82,8 +84,9 @@ async def _generer_tts_fichier(texte) -> str | None:
 async def _moteur_edge_tts(texte_tts, base):
     from core.config import VOIX_ACTUELLE
     chemin = base + ".mp3"
-    voix = i18n.voix_edge(VOIX_ACTUELLE)
-    await asyncio.wait_for(edge_tts.Communicate(texte_tts, voice=voix, rate="+20%").save(chemin), 12)   # réseau qui stagne : moteur suivant au bout de 12 s
+    r = voix_roles.reglage(_role_tts, VOIX_ACTUELLE)   # alerte / quotidien / lecture : genre, vitesse et hauteur (core/voix_roles.py)
+    voix = i18n.voix_edge(r["genre"])
+    await asyncio.wait_for(edge_tts.Communicate(texte_tts, voice=voix, rate=r["rate"], pitch=r["pitch"]).save(chemin), 12)   # réseau qui stagne : moteur suivant au bout de 12 s
     return chemin
 
 
@@ -196,6 +199,8 @@ def gestionnaire_generateur_worker():
                 continue
                 
             original = phrase
+            global _role_tts
+            _role_tts = voix_roles.role_de(phrase, _ROLES.pop(phrase, None))
             phrase = i18n.traduire_sync(phrase)   # mode anglais : phrase écrite en français dite en anglais (core/i18n.py)
             if original in _DIT_APRES_TRADUCTION:
                 _DIT_APRES_TRADUCTION.discard(original)
@@ -275,7 +280,7 @@ def vider_files():
         except:
             break
 
-def parler(texte, print_console=True, orbe=True):
+def parler(texte, print_console=True, orbe=True, role=None):
     global STOP_PARLER
     if STOP_PARLER:
         # « Stop » coupe la réponse en cours ; mais le drapeau restait levé jusqu'à la
@@ -316,6 +321,8 @@ def parler(texte, print_console=True, orbe=True):
         pass
     if not orbe:
         _SANS_ORBE.add(texte)
+    if role:
+        _ROLES[texte] = role
     parole_queue.put(texte)
 
 builtins.parler = parler

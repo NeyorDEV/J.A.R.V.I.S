@@ -76,3 +76,7 @@ data/gods_eye_view/
 data/usage_stt.json
 data/usage_llm.json
 data/routines.json
+data/macros.json
+data/suivi.json
+data/reunions/
+data/sauvegardes/

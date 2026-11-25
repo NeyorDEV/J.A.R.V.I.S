@@ -118,7 +118,7 @@ _INTERJECTIONS = {
 # répond à toute phrase ressemblant à un ancien échange) reste en tout dernier.
 _ORDRE_RESOLVEURS = [
     # Commandes précises (phrases ou mots-clés explicites)
-    "resoudre_repetition", "resoudre_quota_stt", "resoudre_cout_llm", "resoudre_briefing", "resoudre_langue", "resoudre_musique", "resoudre_dom_hud", "resoudre_developpement", "resoudre_uninstaller_localement", "resoudre_local_mode",
+    "resoudre_repetition", "resoudre_quota_stt", "resoudre_cout_llm", "resoudre_briefing", "resoudre_journal", "resoudre_sauvegarde", "resoudre_macros", "resoudre_presse_papiers", "resoudre_dictee", "resoudre_conversation", "resoudre_habitudes", "resoudre_ecran", "resoudre_voix_roles", "resoudre_reunion", "resoudre_suivi", "resoudre_langue", "resoudre_musique", "resoudre_dom_hud", "resoudre_developpement", "resoudre_uninstaller_localement", "resoudre_local_mode",
     "resoudre_lancer_enigme", "resoudre_os_autopilot", "resoudre_creation_plugin",
     "resoudre_generation_document", "resoudre_images_locales", "resoudre_modifier_image",
     "resoudre_recipe", "resoudre_connexions_reseau", "resoudre_vue_de_dieu",
@@ -144,6 +144,9 @@ _INTERDITS_INVITE = {
     "resoudre_local_mode", "resoudre_generation_document", "resoudre_modifier_image",
     "resoudre_memoire_locale", "resoudre_developpement", "resoudre_steam_jeux",
     "resoudre_navigateur", "resoudre_discord", "resoudre_skills", "resoudre_vue_de_dieu", "resoudre_briefing", "resoudre_langue", "resoudre_repetition", "resoudre_musique",
+    "resoudre_journal", "resoudre_sauvegarde", "resoudre_macros", "resoudre_presse_papiers", "resoudre_dictee",
+    "resoudre_conversation", "resoudre_habitudes", "resoudre_ecran", "resoudre_voix_roles",
+    "resoudre_reunion", "resoudre_suivi",
     "resoudre_apps_localement", "resoudre_ouvrir_site_web", "resoudre_lancer_enigme",   # lancer des applications du PC, ouvrir un site de la sandbox : réservés aux voix reconnues
 }
 # Fonctions builtins.resoudre_* qui ne sont pas des resolvers de commande
@@ -190,6 +193,15 @@ async def _essayer_resolvers_statiques(texte):
 dernier_resolveur = None   # nom du resolver qui a répondu à la dernière commande (journal, tests)
 
 
+def _consigner_commande(texte, resolveur):
+    """Une ligne « commande » dans jarvis_audit.log : alimente « qu'est-ce que tu as fait hier ? » (plugins/journal_resolver.py). Jamais d'exception."""
+    try:
+        from core import audit_log
+        audit_log.consigner("commande", texte=str(texte).strip()[:80], resolveur=resolveur)
+    except Exception:
+        pass
+
+
 async def _resoudre_localement(texte_utilisateur):
     """Résolution sans IA : échecs, alarmes, contextes en attente, puis les resolvers."""
     global dernier_resolveur
@@ -227,6 +239,7 @@ async def _resoudre_localement(texte_utilisateur):
     if not reponse:
         reponse = await _essayer_resolvers_statiques(texte_utilisateur)
     if reponse:
+        _consigner_commande(texte_utilisateur, dernier_resolveur)
         module_catalogue.annoncer_pour_resolveur(dernier_resolveur)   # la roue du cylindre s'arrête sur le vrai module
     return reponse
 
