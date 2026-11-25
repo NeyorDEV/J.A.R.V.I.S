@@ -15,7 +15,7 @@
 
 ---
 
-Voice assistant: always-on speech recognition, voice biometrics, 3D HUD interface (Three.js), home automation, PC control, content generation (images, documents) and much more — all driven by voice, in French.
+Voice assistant: always-on speech recognition, voice biometrics, 3D HUD interface (Three.js), home automation, PC control, content generation (images, documents) and much more — all driven by voice, **in French or in English** (switchable on the fly).
 
 Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 
@@ -23,18 +23,20 @@ Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 
 **Voice & AI**
 - Always-on listening with wake word detection ("Jarvis") — transcription-based
-- Speech-to-text via Groq Whisper (Google STT fallback)
+- Speech-to-text in three tiers: local Whisper on the GPU (faster-whisper), then Groq Whisper, then Google STT; filter for the phrases Whisper invents on silence
 - Streaming generative answers (Gemini as the main model, automatic failover to Groq / Claude / Mistral / Grok / local Ollama depending on availability)
-- Text-to-speech (edge-tts) with a speech queue and interruption ("stop", "silence")
+- Text-to-speech (edge-tts, French and British English voices; ElevenLabs optional) with a speech queue and interruption ("stop", "silence", "shut up")
+- **French and English**: say "passe en anglais" / "switch to English" (or use Settings, or the first-launch assistant). Recognition, voice, answers, HUD and console follow; English commands are understood by mapping them to the French command engine. A notice offers a **Restart now** button because the console and logs only follow after a restart. See [docs](docs/JARVIS_Commandes.txt) for the commands
 - Iron Man-style JARVIS personality: composed, loyal, dry humour — answers are generated on the fly, never canned phrases
 - **Speaker biometrics**: identifies who is speaking from their voiceprint (CAM++ / sherpa-onnx) and adapts permissions (guest vs authenticated user)
 - Two-level memory: persistent key-value facts + vector memory (ChromaDB) of past conversations
 
 **Interface (HUD)**
 - Animated 3D orb (idle / listening / thinking / speaking)
-- Calendar, weather and music widgets, shown on voice command
+- Calendar, weather and music widgets, shown on voice command; exploded panels around a holographic cylinder, with a command palette (Ctrl+K) of 272 example phrases
 - Augmented reality mode (MediaPipe) with gesture drag-and-drop
 - 3D globe + map for geographic navigation
+- **God's Eye View** (optional, installed on demand): live 3D globe with flights, ships, satellites, earthquakes, public cameras and French open-data layers (fuel prices, charging stations, speed cameras, floods, rain radar, **car parks with live free spaces**), including voice search ("find me an open car park in Saint-Étienne"). See [docs/VUE_DE_DIEU.md](docs/VUE_DE_DIEU.md)
 
 **Control & home automation**
 - Home Assistant (lights, plugs, temperature, humidity, alarms, batteries...)
@@ -44,13 +46,16 @@ Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 - Mandatory confirmation (voice or HUD) before any destructive action (uninstalling, deleting a file, emptying the vault)
 
 **Content generation**
-- Image generation (Pollinations)
+- Image generation (FLUX.1 on Cloudflare Workers AI, Pollinations as a fallback)
 - On-demand Word / PowerPoint / Excel / PDF documents, PDF merging
 - Autonomous web browsing agent
 - Swarm of AI agents that builds complete websites
 
 **Other**
-- Alarms and timers
+- **Morning briefing**: "my day" / "ma journée" gives the date, weather, agenda, tasks, alarms and unread mail count in one sentence
+- Alarms and timers (English durations too: "five minutes", "7 pm"); routines that replay a command every day or every few hours
+- Voice commands for Discord messages (confirmed each time), Steam games, browser tabs (Chrome extension), music recognition ("what song is this")
+- Usage meters: speech-recognition quota and Gemini spending with a daily cap
 - Shopping / to-do lists
 - Cooking recipes scaled to the number of guests
 - "Skills" system: JARVIS can learn new abilities on demand (validated, sandboxed Python code)
@@ -61,8 +66,8 @@ Python backend (WebSocket) + TypeScript/Three.js frontend (Vite).
 |---|---|
 | Backend | Python 3, WebSocket (`websockets`), asyncio |
 | LLM | Gemini (main), Groq, Claude (Anthropic), Mistral, Grok (xAI), Ollama (local, 100% offline) |
-| Voice | Silero VAD, Groq Whisper, edge-tts, sherpa-onnx (biometrics) |
-| Frontend | TypeScript, Three.js, Vite |
+| Voice | Silero VAD, faster-whisper (local), Groq Whisper, edge-tts, sherpa-onnx (biometrics) |
+| Frontend | TypeScript, Three.js, Vite (HUD with a built-in French/English translator) |
 | Home automation | Home Assistant (REST API / MCP) |
 | Storage | ChromaDB (vector memory), JSON files (config/memory/alarms) |
 
@@ -106,7 +111,7 @@ HOMEPOD_IP=
 
 ## Running the project
 
-Double-click `start.bat` (at the project root): it starts the backend and the frontend.
+Double-click `start.bat` (at the project root): it starts the backend and the frontend. With the installer, use the shortcut instead (no console window). Language changes and "Restart now" relaunch JARVIS from the HUD in both cases.
 
 The backend listens on `ws://localhost:8765`. Just say **"Jarvis"** followed by your command to activate it.
 
@@ -121,12 +126,18 @@ backend/
   module/            — Memory, files, home automation, browser, images, vault...
   controller/        — Application control (Spotify, Deezer, TV, app launcher)
   plugins/           — Voice command resolvers (one file per domain)
+                       (language switch, morning briefing, God's Eye View, Discord, Steam...)
   sandbox/           — Generated output (websites built by the dev swarm)
 interfaces/
   frontend/          — Web HUD (Three.js, TypeScript, Vite)
   chrome_extension/  — Browser extension
+tools/               — Installer (Inno Setup), git hook, translation tools (tools/i18n_*.py)
+tests/               — pytest suite (`venv\Scripts\python.exe -m pytest tests`)
+docs/                — Guides (French): files guide, voice commands, features, God's Eye View
 scratch/             — Debug/exploration scripts (not versioned)
 ```
+
+Developer checks: `venv\Scripts\python.exe -m pytest tests`, `venv\Scripts\ruff.exe check .`, and in `interfaces/frontend`: `npx tsc --noEmit -p .` and `npx eslint src`. English UI texts live in `interfaces/frontend/src/i18n/en.json`, generated by `tools/i18n_extraire.py` then `tools/i18n_traduire.py` (only new texts are translated).
 
 ## Security & privacy
 
