@@ -1,7 +1,10 @@
 """Mémoire sémantique (module/vector_memory.py) : un simple accusé de réception (« Très bien... ») n'est jamais rejoué à la place d'une vraie réponse ou d'une action."""
 import pytest
 
-from module import vector_memory as VM
+try:
+    from module import vector_memory as VM
+except ImportError as e:   # CI minimale : pytest seulement
+    pytest.skip(f"dépendance absente : {e.name}", allow_module_level=True)
 
 
 class _Coll:

@@ -1,6 +1,5 @@
 import asyncio
 import os
-import re
 import time
 import chromadb
 from module.memory_manager import est_accuse_reception as _est_accuse_reception

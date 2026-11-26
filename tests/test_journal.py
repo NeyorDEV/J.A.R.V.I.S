@@ -55,6 +55,7 @@ def test_resume_vide_et_phrase_etrangere(tmp_path, monkeypatch):
 
 def test_consigner_commande_ecrit_une_ligne(tmp_path, monkeypatch):
     monkeypatch.setattr(audit_log, "_LOG_PATH", str(tmp_path / "audit.log"))
+    pytest.importorskip("chess")   # core.traitement charge toute l'appli : absent de l'environnement minimal de la CI
     from core import traitement
     traitement._consigner_commande("mets de la musique " + "x" * 200, "resoudre_musique")
     e = json.loads((tmp_path / "audit.log").read_text(encoding="utf-8"))

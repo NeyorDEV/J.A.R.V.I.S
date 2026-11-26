@@ -64,6 +64,7 @@ def test_analyse_commandes_voix(phrase, attendu):
 
 
 def test_resolver_regle_et_teste(monkeypatch):
+    pytest.importorskip("edge_tts")   # core.speech : absent de l'environnement minimal de la CI
     from core import speech
     from plugins import voix_roles_resolver as R
     dit = []
